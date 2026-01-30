@@ -1,0 +1,3911 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+  <title>IDE card version 2</title>
+  <meta name="Author" content="">
+  <meta name="GENERATOR"
+ content="Mozilla/3.04Gold (Win95; U) [Netscape]">
+</head>
+<body>
+<h1 align="center"><a
+ href="http://www.nouspikel.com/ti99/titechpages.htm"><img
+ src="logo.jpg" style="border: 0px solid ; height: 33px; width: 95px;"
+ title="" alt=""></a></h1>
+<h1>IDE interface card</h1>
+<p>Building a hard drive controller card for my TI-99/4A has long been
+a dream of mine. Unfortunately, it was far beyond my abilities. And
+yet,
+here it is: I finally made it! Not that I suddenly became more
+knowledgeable
+in electronics, but because the IDE standard made things so much
+easier.
+You see, with IDE (Integrated Drive Electronics, or is it Intelligent
+Drive
+Electronics?) the controller is part of the hard disk. All I had to do
+was to design an adapter to make the PE-box bus look like a PC bus. And
+that's fairly easy. It would even be trivial if Texas Instruments had
+not
+crippled the PE-box by multiplexing the TMS9900 16-bit bus to 2 times 8
+bits. As it is, we'll need a <b>demultiplexer</b>, but that's not too
+complicated:
+just a few TTL chips.</p>
+<p>The nice thing with IDE is that these days everybody swears by
+gigabytes-wide
+SCSI drives, so it is really easy to find very cheap "small"
+IDE drives. Three years ago I bought a 540 Megs drive for $18, to give
+you an idea. And 540 Megs is equivalent to about 6000 floppies! This
+interface
+card supports <b>two IDE drives</b>. It may also work with CD-ROMs but
+you'll have to write your own control program.</p>
+<p>While I was at it, I also included a 32K to 512K <b>SRAM memory </b>chip
+on the card. It serves to hold the DSRs and the buffers for opened
+files.
+The memory is also available to the user in the area &gt;6000-7FFF,
+according
+to the RAMBO protocol introduced with the Horizon Ramdisk.</p>
+<p>Last but not least, the card comprises a <b>real-time clock</b>.
+This
+allows the software to time-stamp the files, which is something I
+always
+missed with the TI-99/4A. The clock chip I originally selected also
+contains
+4K of battery-backed memory, so we can stuff the DSRs in there, to be
+transfered
+in the SRAM at power-up time. This was meant to save me the trouble of
+having a battery-backed SRAM. Unfortunately, this chip is now very hard
+to find. Thus, the new version of the card accepts four different clock
+chips, hopefully you can find one of them.</p>
+<p>Oh yes, this is the second version of this board. The first one was
+a point-to-point soldered prototype, which worked well except that the
+wires had a tendency to break every now and then. I got fed up fixing
+it
+and decided to lay out a PCB, based on the one I did for the USB-SM
+card.
+Apart for supporting 4 different clock chips, the new version features
+the 74F543-based demultiplexer, which should make it compatible with
+Myarc's
+Geneve. It also has DMA capability, in case I come up with a DMA
+controller
+board. If you would like to know about the previous version, look in <a
+ href="ide.htm">here</a>.</p>
+<p>I have no intention to market that card, but if you want to build
+your
+own you'll find all the necessary instructions in this page. You can
+order
+the PCB from any commercial venture, by sending them this file, which
+contains
+the PCB design, in Gerber format. You can also download the operating
+system
+(and its instruction manual), tentatively named <a href="ideal.htm">IDEAL</a>
+for "IDE Access Layer". </p>
+<p>Please, let me know if you built such a card and if you're happy
+with
+it. Suggestions for improvements, and software bug reports are always
+appreciated.</p>
+<p><img src="award2.gif" alt="2001 Mauk Award" hspace="10" height="112"
+ width="88" align="middle">I'm
+proud to announce that the first version of this card was granted the
+2001
+Edgar Mauk award, in the category "hardware".</p>
+<h4><font color="#ff0000">Legal disclaimer. Read this first.</font></h4>
+<p><font size="-2">The contents of this webpage are for educative
+purposes
+only. I'm not an electrical engineer, I have little knowledge of
+electronics
+and therefore cannot guaranty that the device described in this
+document
+as an IDE interface card will function properly. In fact, it probably
+won't.
+It may even cause damage to your computer. And quite possibly catch on
+fire and burn your house to ashes, sending toxic fumes in the whole
+neighbourhood.
+Actually, it may even kill you. So if you know where your interest it,
+don't build it! Don't even think of it. Furthermore, building the
+aforementionned
+device may constitute a copyright violation, an infringement on FCC
+regulations,
+a federal crime or whatever it is called in the country you live in.
+You
+have been warned! By reading this page further and/or building the
+electronic
+device described herein, you agree on taking whole legal and moral
+responsability
+for any disapointment, loss of data, damage, accident, catastrophe, or
+apocalypse that this device may directly or indirectly cause or favor.
+And if you were thinking of suing me, forget it. I may have an MD but
+I'm
+only a scientist: I don't have any money.</font></p>
+<p><font size="-2">The design detailed below is copyrighted by me,
+Thierry&nbsp;Nouspikel,
+till the end of time or 50 years after my death, whichever occurs
+first.
+I grant you the right (but not the exclusive rights) to produce and
+even
+market as many of these as you want, as long as you understand that I
+take
+no responsability for it. If you market them, be sure to include my
+copyright
+and a link to the present webpage. Thanks.</font></p>
+<p><br>
+<br>
+<b><font size="+1">Hardware<br>
+<br>
+</font></b><a href="#Components">Building the card<br>
+</a><b>Circuitery description<br>
+</b><a href="#Power">Power supply<br>
+</a><a href="#Bus%20buffers">Bus buffering<br>
+</a><a href="#CRU%20logic">CRU logic<br>
+</a><a href="#Addressing">Address decoding<br>
+</a><a href="#DMA">DMA support<br>
+</a><a href="#SRAM%20logic">SRAM access<br>
+</a><a href="#Clock%20logic">RTC-65271 clock<br>
+</a><a href="#bq4847%20wiring">bq4847 clock<br>
+</a><a href="#bq48x2%20wiring">bq4842 / 4852 clock<br>
+</a><a href="#IDE%20logic">IDE port access<br>
+</a><b>Specifications<br>
+</b><a href="#RTC%2065271">RTC-65271 clock<br>
+</a><a href="#bq4847">bq4847 clock<br>
+</a><a href="#bq4842/4852">bq4842 &amp; bq4852 chips<br>
+</a><a href="#IDE%20pinouts">IDE interface<br>
+<br>
+</a><b><font size="+1">Software</font></b></p>
+<p><a href="#CRU%20map">CRU map<br>
+</a><a href="#Memory%20map">Memory map<br>
+</a><a href="#Low-level">Low-level access<br>
+</a><a href="#High%20level">High-level access</a><br>
+</p>
+<h2>
+<hr width="100%">Hardware</h2>
+<h3>Building the card</h3>
+<p><a href="#Components">Components required<br>
+</a><a href="#PCB">Printed circuit board<br>
+</a><a href="#Soldering">Soldering components<br>
+</a><a href="#Installing">Installing the card</a></p>
+<h4><a name="Components"></a>Components required</h4>
+<p>I ordered all components from two suppliers: Arrow (<a
+ href="http://www.arrow.com">www.arrow.com</a>)
+or Digikey (<a href="http://www.digikey.com">www.digikey.com</a>).
+Prices
+are of spring 2004. Arrow is cheaper than Digikey, but their search
+engine
+is a nightmare unless you know exactly what you want. The 74LS are a
+bit
+cheaper than their advanced 74ALS counterpart but not by much, so I
+generally
+went for the ALS series (except for the 74LS125, because I wasn't 100%
+sure an ALS was ok). Make sure you check the descriptions when you
+place
+your order, as I do not guarantee that all catalog numbers are
+correct...</p>
+<p>Most chips are SOIC surface-mount packages, but there are a few
+exceptions
+(e.g.the SRAM is a TSOP, the clock modules are DIPs). The individual
+resistors
+and capacitors are all 0805 packages, except for the big 47 uF cap.</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>#</th>
+      <th>Component</th>
+      <th>Arrow</th>
+      <th>Digikey</th>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>74(A)LS02</td>
+      <td>SN74ALS02AD $0.19</td>
+      <td>296-14705-1-ND $0.48</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>74(A)LS04</td>
+      <td>SN74ALS04BD $0.10</td>
+      <td>296-1122-1-ND $0.49</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>74(A)LS08</td>
+      <td>SN74ALS08D $0.16</td>
+      <td>296-1123-1-ND $0.49</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>74(A)LS32</td>
+      <td>SN74ALS32D $0.17</td>
+      <td>296-1127-1-ND $0.49</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>74(A)LS74</td>
+      <td>SN74ALS74AD $0.11</td>
+      <td>296-1130-5-ND $0.49</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>74LS125</td>
+      <td>SN74LS125AD $0.23</td>
+      <td>296-14715-1-ND $0.48</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>74(A)LS138</td>
+      <td>SN74ALS138AD $0.28</td>
+      <td>296-14714-1-ND $0.56</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>74(A)LS139</td>
+      <td>SN74ALS139D $0.19</td>
+      <td>296-14715-1-ND $0.72</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>74(A)LS245</td>
+      <td>SN74ALS245ADW $0.19</td>
+      <td>296-1125-1-ND $0.48</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>74(A)LS251</td>
+      <td>SN74ALS251D $0.16</td>
+      <td>Not available</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>74(A)LS259</td>
+      <td>SN74ALS259D $1.57</td>
+      <td>296-14729-1-ND $1.93</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>74(A)LS373</td>
+      <td>SN74ALS373ADW</td>
+      <td>296-14765-ND $0.64</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>74F543</td>
+      <td>74F543SC $0.61</td>
+      <td>296-14821-1-ND $1.05</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>74(A)LS688</td>
+      <td>SN74ALS688DW $2.52</td>
+      <td>Non-stock item</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>+5V regulator 1.5A</td>
+      <td>?</td>
+      <td>296-12396-1-ND $0.72</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>electolytic cap 47 uF </td>
+      <td>?</td>
+      <td>4070PHCT-ND $0.49</td>
+    </tr>
+    <tr>
+      <td>30</td>
+      <td>ceramic cap100 nF</td>
+      <td>?</td>
+      <td>311-1141-1-ND $0.84 (for 10)</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>7x 22 Ohms resistors network </td>
+      <td>?</td>
+      <td>767-143-R22-ND $0.66</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>7x 4.7K resistors network </td>
+      <td>?</td>
+      <td>767-143-R4.7K-ND $0.66</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>7x 10K resistors network </td>
+      <td>?</td>
+      <td>767-143-R10K-ND $0.66</td>
+    </tr>
+    <tr>
+      <td>10</td>
+      <td>Resistor 220 Ohm</td>
+      <td>?</td>
+      <td>311-220ACT-ND $0.76 (for 10)</td>
+    </tr>
+    <tr>
+      <td>10</td>
+      <td>Resistor 4.7 kOhm</td>
+      <td>?</td>
+      <td>311-4.7KACT-ND $0.76 (for 10)</td>
+    </tr>
+    <tr>
+      <td>10</td>
+      <td>Resistor 10 kOhm</td>
+      <td>?</td>
+      <td>311-10KACT-ND $0.76 (for 10)</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>LEDs</td>
+      <td>?</td>
+      <td>MV63539MP7-ND $0.49</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>SP3T switch</td>
+      <td>?</td>
+      <td>EG2485-ND $0.82</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>DPDT switch</td>
+      <td>?</td>
+      <td>EG1940-ND $0.82</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>DIP-switch 4x</td>
+      <td>?</td>
+      <td>CT2194MST-ND $0.59</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>Rotary encoder hex</td>
+      <td>?</td>
+      <td>GH1319-ND $3.02</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>40-pin breakaway header</td>
+      <td>?</td>
+      <td>A26512-ND $1.27</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>Heat sink </td>
+      <td>?</td>
+      <td>294-1035-ND $1.50</td>
+    </tr>
+  </tbody>
+</table>
+<p>You will also need an IDE connection cable, and at least one IDE
+drive,
+two at most. The drive(s) must support LBA (logical block addressing)
+to
+work with my IDEAL DSRs, but most drives do nowadays.</p>
+<p>Note: rather than an expensive plastic-molded IDE connector, I
+picked
+a cheap 40-pin breakaway header. Break it in half and install it as two
+rows of 20 pins. A good thing to do is to pull out pin #20 (the middle
+pin in the back row, corresponding to a square pad in the PCB) as some
+IDE cables have no hole in this position. This serves as a failsafe to
+prevent you from connecting the cable the wrong way. Actually, if your
+cable plug does have a hole in position #20, it may be a good idea to
+plug
+it with a little piece of wire...</p>
+<p>As I mentionned, you have the choice between four different clock
+chips.
+According to what you prefer, or can find, select ONE of the following
+options:</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Option </th>
+      <th># </th>
+      <th>Component </th>
+      <th>Arrow</th>
+      <th>Digikey</th>
+    </tr>
+    <tr>
+      <td rowspan="3">A</td>
+      <td>1</td>
+      <td>RTC-65271</td>
+      <td>Not available</td>
+      <td>Not available</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>SRAM 512K </td>
+      <td>M68Z512W-70NC1 $5.61</td>
+      <td>TC554001AFT-70-ND $4.43</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>BR1225 lithium batteries +3V</td>
+      <td>Not available. Try any electronics store.</td>
+      <td>P183-ND $1.18</td>
+    </tr>
+    <tr>
+      <td rowspan="2">B</td>
+      <td>1</td>
+      <td>bq4847</td>
+      <td>BQ4847YMT $7.70 (no stock)</td>
+      <td>296-9542-5-ND $8.32</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>SRAM 512K</td>
+      <td>M68Z512W-70NC1 $5.61</td>
+      <td>TC554001AFT-70-ND $4.43</td>
+    </tr>
+    <tr>
+      <td>C</td>
+      <td>1</td>
+      <td>bq4852 (512K)</td>
+      <td>BQ4842YMC-85 $45.11 (no stock)</td>
+      <td>296-9544-5-ND $36.54</td>
+    </tr>
+    <tr>
+      <td>D</td>
+      <td>1</td>
+      <td>bq4842 (128K)</td>
+      <td>BQ4842YMA-85 $22.55 (no stock)</td>
+      <td>296-6535-5-ND $18.27</td>
+    </tr>
+  </tbody>
+</table>
+<p>Option A</p>
+<p>This it the original design I used for my prototype, it is the
+cheapest
+solution, but the clock chip is becoming hard to find. The RTC-65271
+clock
+chip has a built-in crystal, and a battery holder for two BR1225
+batteries.
+It contains 4K of battery-backed SRAM, arranged as 128 pages of 32
+bytes.
+This is not enough to load the whole DSRs, so an external SRAM is
+required.
+I recommend 512K, although 128K would do. The SRAM in the side the
+clock
+holds a bootstrap programs that loads the DSRs from disk into the
+external
+SRAM upon power-up. Note that you will need to solder in two jumpers to
+power the SRAM and to select it, since you are not using the bq4847 for
+this purpose.</p>
+<p><br>
+Option B</p>
+<p>The bq4847 has an built-in crystal and battery. You cannot change
+the
+battery, but it's supposed to last for 10 years. The chip contains no
+SRAM,
+so an external SRAM is required. I recommend 512K, although 128K would
+do. The clock chip has the ability to battery-back the SRAM, so the
+DSRs
+can remain permanently loaded into the SRAM.</p>
+<p><br>
+Option C and D</p>
+<p>Both these clock chips contain a built-in crystal and battery. You
+cannot
+change the battery, but it's supposed to last 10 years. These chips
+also
+comprise SRAM: 128K for the bq4842, 512K for the bq4852, so there is no
+need for an external SRAM. The clock registers map into the last
+addresses
+of the SRAM. This is probably the most elegant solution, unfortunately
+it's also quite expensive: these chips are grossly overpriced! Be aware
+that I didn't buy them, so I cannot guarantee that they will work...</p>
+<h4><br>
+<a name="PCB"></a>Printed circuit board</h4>
+<p>Here you have the choice between etching the board yourself, or
+ordering
+one. If you want to etch the board yourself, contact me and I'll send
+you
+a postscript file containing the PCB layout for you to print on
+overhead
+transparencies. Otherwise, there are many outfits that will make a
+professional
+quality PCB for you. You will need to send them the files included
+within
+<a href="ide7.zip">this zip file</a> (about 50 kB). Make sure you read
+the 'readme.txt' file that identifies the individual files. I ordered
+my
+second prototype board from Advanced Circuits at <a
+ href="http://www.4pcb.com">www.4pcb.com</a>
+They charged me $33 for one board (plus $15 S&amp;H), which is
+reasonnable
+given the great job they did.</p>
+<h4><br>
+<a name="Soldering"></a>Soldering components</h4>
+<p>Components can be soldered by hand, or with a toaster oven. Refer to
+my "<a href="usbhowto.htm">USB howto</a>" page for detail, including
+a pictorial guide on how to solder those tiny surface-mount chips.</p>
+<p>Components are numbered as follows on the PCB:</p>
+<p>IC1: 74ALS245<br>
+IC2: 74ALS245<br>
+IC3: 74ALS245<br>
+IC4: 74ALS245<br>
+IC5: 74LS125<br>
+IC6: 74F543<br>
+IC7: 74F543<br>
+IC8: 74ALS138<br>
+IC9: 74ALS139<br>
+IC10: 74ALS688<br>
+IC11: 74ALS32<br>
+IC12: 74ALS32<br>
+IC13: 74ALS32<br>
+IC14: 74ALS02<br>
+IC15: 74ALS688<br>
+IC16: 74ALS259<br>
+IC17: 74ALS251<br>
+IC18: 74ALS373<br>
+IC19: 74ALS08<br>
+IC20: 74ALS04<br>
+IC21: 74ALS74<br>
+IC22: 74ALS138 (Geneve)<br>
+IC23: SRAM 512K (if needed)<br>
+IC24: RTC65271 clock}<br>
+IC25: bq4847 clock }<br>
+IC26: bq4842 clock } Pick one clock<br>
+IC27: bq4852 clock }<br>
+Q1: 5V voltage regulator TL780-05CKTER</p>
+<p>C1-C27: 100 nF ceramic capacitors<br>
+C28: 47 uF electrolytic capacitor (watch polarity!)</p>
+<p>R1: 7 x 22 Ohms resistor network<br>
+R2: 7 x 4.7 kOhms resistor network<br>
+R3: 7 x 10 kOhms resistor network<br>
+R4-R5: 220 Ohms resistors<br>
+R6-R8: 10 kOhms resistors<br>
+R9: 4.7 kOhms resistor <br>
+R10-R11: 4.7 kOhms resistor (for Geneve with no GenMod)</p>
+<p>LED1: Yellow light-emiting diode<br>
+LED2: Red (optional)</p>
+<p>SW1: SP3T switch<br>
+SW2: DPST switch<br>
+SW3: 4 x DIP switch<br>
+SW4: Hex rotary selector</p>
+<p>CN1: PE-box slot<br>
+CN2: 2 x 20-pin header</p>
+<p><br>
+<a name="Installing"></a><b>Installing the card</b></p>
+<p>The PCB I designed will fit in any slot in the PEB, except for #5
+which
+has a bolt protruding at the back. I suggest you use slot #8 and place
+your hard drive in the bay meant for the floppy drive. This way, you
+can
+fit the IDE cable though the opening on the left side of the drive bay
+and power your drive with the leads meant for the floppy (the power
+connector
+is identical).</p>
+<p>If you want to retain a floppy drive, you will likely need an
+external
+power supply for either the floppy or the hard drive, as the one in the
+PE-box cannot power both (unless you modify it, but this is another
+kettel
+of fish). At least, this was the case with my Caviar-2540 hard drive
+and
+the original TI disk drive.</p>
+<p>Before installing the card, pick a CRU address for it and select it
+on the rotary selector, using a small screwdriver to turn the knob.
+Make
+sure the address is unique, i.e. does not conflict with any other card.
+If you don't know what CRU addresses are in use in your system,
+download
+my <a href="download.htm#modexp">Module Explorer package</a>, start
+the
+program and press Ctrl-7 then Fctn-3 to review existing CRU addresses.
+Then pick one that is free.</p>
+<p>Place the other switches in the required position for the system you
+are using, TI-99/4A or Geneve. The switch at the back has 3 positions:
+off (all the way to the front) - Geneve (middle) - TI-99/4A (all the
+way
+back). The switch in the center of the board has only two positions:
+TI-99/4A
+to the front, Geneve to the back. The tiny DIP switches at the bottom
+front
+of the card are only used with the RTC-65271 clock chip. They should be
+left open with the other clocks. </p>
+<p>The very first time you install your new board, do a smoke test:
+remove
+all other cards from the PE-box, including the connection card. Turn
+power
+on for a few seconds, then turn it off. No chip should be hot on the
+IDE
+board. Then leave power on for a minute or two. The voltage regulator
+will
+get hot but there should not be any "burnt" smell... </p>
+<h3><br>
+<a name="Power"></a>IDE card circuitery</h3>
+<h4>Power supply</h4>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>&nbsp;<br>              &nbsp;&nbsp;&nbsp;&nbsp; TL780-05&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; All chips<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +----------+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +5V&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-----+<br>+8V-----+-------|Vin&nbsp;&nbsp; Vout|---+-----... ---+------|Vcc&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; Ref&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; = 47 uF +----------+&nbsp;&nbsp; = 0.1 uF&nbsp;&nbsp;&nbsp;  =0.1uF |&nbsp;&nbsp;&nbsp;&nbsp; |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Gnd&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Gnd&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Gnd&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Gnd--+------|Vss&nbsp; |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; +-----+</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>Nothing special here: the TL780-05 voltage regulator can supply 1.5
+Amp at +5 volts. Make sure you use a large heat sink: it's gonna heat a
+lot. To filter transients, each chip has a 100 nF cap connected accross
+its supply pins.</p>
+<h4><br>
+<a name="Bus buffers"></a>Bus buffering</h4>
+<p>As recommended by Texas Instruments, all lines to/from the
+peripheral
+bus are buffered on-card. This is done with three 74ALS245 for the
+address
+bus (16 bits) and some of the control lines: MEMEN*, CRUCLK, RESET*,
+DBIN,
+and WE*. I could have used '244s, but the pinout of the '245 is more
+convenient.</p>
+<p>The data bus, of course requires a bidirectional 74ALS245 buffer.
+The
+DIRection is controlled by the DBIN signal from the peripheral bus, the
+ENable pin by a signal generated by the card (see <a href="#DMA">below</a>).
+</p>
+<p>The selection signal is also connected via a 74LS125 to the RDBENA*
+line of the peripheral bus to enable the drivers in the connection card
+and the console-end of the cable. A 74LS125 is necessary, so as not to
+hold the line high when we are not using it, as another card may need
+it.
+The CardSel* signal enables the '125 which input is connected to the
+ground,
+the rest of the time, the 74LS125 is in high-impedance (i.e. isolated)
+state. </p>
+<p>The only line that is not buffered in the CRUIN line that comes
+directly
+from the 74ALS251 (this chip has a 3-state output anyhow).</p>
+<p>The following schematic combines the above buffering circuits and
+the
+CRU logic described in the next chapter.</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;74LS244&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-----+&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp; A0&gt;---|&nbsp;&nbsp; &nbsp; |---&gt;A0&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; &nbsp; |    .&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; &nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;.<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; &nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;.&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; &nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;.<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; &nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;.<br>&nbsp;&nbsp;&nbsp;&nbsp; A7&gt;---|&nbsp;&nbsp;&nbsp;  |---&gt;A7&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Gnd--|EN*  |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;                      <b>CRU logic<br></b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-----+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; '244&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;                             <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-----+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;                 220 Ohm<br>&nbsp;&nbsp;&nbsp;&nbsp; A8&gt;---|&nbsp;&nbsp; &nbsp; |---&gt;A8&nbsp;&nbsp;&nbsp;&nbsp;          Gnd---WWW---,    <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; &nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;.&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;                    <u>|</u>&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; &nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;  LED &nbsp;<u>^</u>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; &nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;        '259    |           '251<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; &nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;.&nbsp;&nbsp;&nbsp;&nbsp;   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-------+&nbsp;&nbsp;+-Bit0&nbsp; &nbsp; +-------+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; &nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;.&nbsp;&nbsp;  ,-----------|RST* &nbsp; |&nbsp; |&nbsp;&nbsp;&nbsp;    &nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;   |<br>&nbsp;&nbsp;&nbsp;&nbsp; A15&gt;--|&nbsp;&nbsp;&nbsp;  |---&gt;A15&nbsp; |  &nbsp; A12----|S2   Q0|--'      ---|A0&nbsp;  S2|---A12&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Gnd--|EN*  |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | &nbsp;  A13----|S1   Q1|--Bit1   ---|A1&nbsp; &nbsp;S1|---A13&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-----+ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |    A14----|S0   Q2|--Bit2   ---|A2&nbsp;&nbsp; S0|---A14<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; '244&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;|   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;   Q3|--Bit3   ---|A3&nbsp;&nbsp;   | &nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-----+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |    A15----|D&nbsp;   Q4|--Bit4------|A4&nbsp; &nbsp; Q|---CRUIN <br> RESET*&gt;---|&nbsp; &nbsp;&nbsp; |---------'&nbsp;&nbsp;&nbsp;'32     |&nbsp;&nbsp;   Q5|--Bit5------|A5&nbsp;&nbsp;   |&nbsp;<br>CRUCLK*&gt;---|&nbsp; &nbsp;&nbsp; |--------------=)&gt;----|G*   Q6|--Bit6      |A6&nbsp;&nbsp;   |&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp; WE*&gt;---|&nbsp; &nbsp;&nbsp; |---&gt;WE*&nbsp;&nbsp;   &nbsp;| &nbsp;&nbsp;  &nbsp; |&nbsp;&nbsp;   Q7|--Bit7      |A7   G*|---,&nbsp;&nbsp;&nbsp;<br>  MEMEN&gt;---|&nbsp; &nbsp;&nbsp; |---&gt;MEMEN*&nbsp;&nbsp;&nbsp;| &nbsp;&nbsp;&nbsp;&nbsp;  +-------+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-------+&nbsp;  |&nbsp;&nbsp;&nbsp;<br>CLKOUT*&gt;---|&nbsp; &nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; '------------------------------,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  |&nbsp;<br>&nbsp;          |&nbsp; &nbsp;&nbsp; |         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;     &nbsp;    &nbsp; +-------+&nbsp;    &nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; |&nbsp;<br>&nbsp;&nbsp; DBIN&gt;---|&nbsp; &nbsp;&nbsp; |---,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;            A0---|G*&nbsp;A=B*|--------+---------'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Gnd--|EN*  |&nbsp;&nbsp; |&nbsp;                 A4---|A3  &nbsp;B3|-----------+---WWW---,&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-----+&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;             A5---|A0   B0|----------+|---WWW---+-Gnd <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; '245&nbsp;&nbsp;&nbsp;  |&nbsp;&nbsp;&nbsp;            &nbsp;&nbsp; A6---|A2   B2|---------+||---WWW---+&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-----+&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;         &nbsp;   A7---|A1   B1|--------+|||---WWW---'&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |  DIR|&lt;--'&nbsp;&nbsp;&nbsp;        &nbsp;&nbsp;&nbsp;   Gnd---|A4   B4|--Gnd&nbsp;  ||||   4k7<br>&nbsp;&nbsp;&nbsp; D0&lt;---&gt;|&nbsp;&nbsp; &nbsp; |&lt;--&gt; D0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;        Gnd---|A5  &nbsp;B5|---A1&nbsp;&nbsp;+----+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;  |&nbsp;&nbsp;&nbsp;   .              Gnd---|A6  &nbsp;B6|---A2&nbsp;&nbsp;|1248|  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;  |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.&nbsp;&nbsp;&nbsp;           +5V---|A7   B7|---A3&nbsp;&nbsp;|++++|---+5V&nbsp;  <br>&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp;&nbsp; | &nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;   .                &nbsp;&nbsp;&nbsp;&nbsp;+-------+&nbsp;      +----+       <br>&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp; &nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;74LAS688&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; &nbsp;Rotary             <br>&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; &nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; encoder&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;  |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp; D7&lt;---&gt;|&nbsp;&nbsp;&nbsp;  |&lt;--&gt; D7&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |  OE*|&lt;------,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-----+&nbsp;&nbsp;  &nbsp;&nbsp; +----------&lt; CardSel*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;  <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>RDBENA*&lt;-----------------&lt;|--Gnd<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; '125&nbsp;&nbsp;</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h4><br>
+<a name="CRU logic"></a>CRU logic</h4>
+<p>The CRU logic is pretty standard. A 74ALS688 comparator is used to
+compare
+the CRU address to a value set with a rotary encoder. The comparator
+also
+considers address lines A0 to A3 and make sure they code for
+&gt;1000-1FFF.
+The encoder sets the second digit in the CRU address: &gt;1x00. </p>
+<p>The A=B* output of the 74ALS688 is used to enable the 74ALS251 that
+performs CRU input. The same signal is further combined with CRUCLK*
+via
+an OR gate to enable the 74ALS259 that accepts CRU output from the
+peripheral
+bus. The OR gate is necessary so that CRU input operations don't alter
+the contents of the '259 (the opposite circuit is not needed on the
+'251
+because the TMS9900 CPU just ignores the CRUIN line during CRU output
+operations).</p>
+<p>Most CRU bits have different meanings in input vs output. However,
+bits
+4 and 5 are reflected on themselves by connecting each output of the
+'259
+to the corresponding input of the '251.</p>
+<h4><br>
+<a name="Addressing"></a>Address decoding</h4>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74ALS688&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;            74ALS138   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;74ALS139&nbsp; <br>  &nbsp;&nbsp;&nbsp;&nbsp; +-------+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;            +-------+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;           +-------+<br> Gnd---|G* A=B*|--------------------------|S0  Y0*|--+--------------|G*  Y0*|-----------XRAMsel*<br>&nbsp; A7---|A0&nbsp;  B0|--,&nbsp;       Bit0---,    &nbsp;  |    Y1*|--|-+--&gt;SRAMsel* |    Y1*|-----------RTCsel*<br>&nbsp; A6---|A1&nbsp;  B1|--+&nbsp;&nbsp;A2--+--------==)&gt;o---|S1&nbsp;    |  | |            |       |   <br>&nbsp; A5---|A2&nbsp;  B2|--+&nbsp;&nbsp;    '---|&gt;o--, '02&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;   &nbsp;|  | |     A10&gt;---|S0     |&nbsp;     22 Ohms<br>&nbsp; A4---|A3&nbsp; &nbsp;B3|--+&nbsp;&nbsp;&nbsp;       '04  |       |  &nbsp;&nbsp; &nbsp;&nbsp;|&nbsp; | |      A9&gt;---|S1  Y2*|--+-----WWW---CS1Fx*&nbsp;<br>  A3---|B7&nbsp;  A7|--+-Gnd&nbsp;&nbsp;&nbsp; Bit4---==)&gt;o---|S2&nbsp;&nbsp;&nbsp;  |&nbsp; '-==|)--,      |&nbsp;&nbsp;  Y3*|--|-+---WWW---CS3Fx*<br>  A2---|B6   A6|--+             Memen*----|G2A*   |     '08  |      |       |  | |<br>&nbsp;Gnd---|B5&nbsp; &nbsp;A5|--'&nbsp;&nbsp;&nbsp;               A1---|G1  &nbsp; &nbsp;|          |      |       |  '-==|)-+-IDEsel* <br>Bit1---|B4&nbsp; &nbsp;A4|----+---o o---Gnd&nbsp;     ,--|G2B*   |      CardSel*   |    &nbsp;  |     '08 <u>|<br></u>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-------+&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp; 4k7&nbsp;           |  +-------+&nbsp;&nbsp;&nbsp;              +-------+         <u>V</u> LED <br>         Bit1in-----+---WWW--- +5V     |                                  +5V---WWW---'<br>                                       /           Key:                         220<br>                               +5V---o o o---A0    Off  Geneve  TI<br>                         +-------+     |<br>                    A0---|G2A*   |     |<br>             AMA---------|S0  Y7*|-----'<br>             AMB---------|S1     |<br>      4k7    AMC---------|S2     |<br>Gnd---WWW----AMD---------|G2B*   |<br>+5V---WWW----AME---------|G1     |<br>   Optional              +-------+<br>                         74ALS138</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>The heart of the address decoding logic is the 74ALS138 3-to-8
+decoder,
+which I am using as a 1-to-2 decoder with multiple enabling lines. It
+is
+enabled by MEMEN*, A1 and A0 (indirectly), i.e. for memory operations
+in
+the range &gt;4000-7FFF. Line A2 is combined with CRU bits 0 and 4, so
+as to select outputs Y0* and Y1* in two cases:</p>
+<li>When CRU bit 0 is high and A2 is low (address range &gt;4000-5FFF,
+i.e. card ROM space)</li>
+<li>When CRU bit 4 is high and A2 is high (address range &gt;6000-7FFF,
+for RAMBO banks)</li>
+<p>The 74ALS688 is an 8-bit comparator whose A=B* output is active low
+when the address is in the range &gt;4000-40FF and CRU bit 1 matches
+the
+DIP-switch. Line A2 is included in the comparison, so that the '688
+never
+gets active in the RAMBO space. The DIP-switch allows you to decide
+whether
+the SRAM or the clock XRAM (for RTC-65271 only) should be present at
+power-up
+time. As CRU bits are reset to 0 upon power-up, the clock XRAM is
+selected
+when the switch is closed, the SRAM when the switch is open. The status
+of this switch can be read with CRU bit 1, so the software always know
+how to switch the SRAM on (when output does not match input) or off
+(when
+bit 1 output mirrors its input). If you are using any other clock chip,
+make sure the switch is always open.</p>
+<p>The A=B* output of the '688 selects either Y0* or Y1* of the '138.
+Both
+are combined with an AND gate to produce the CardSel* signal that is
+used
+to enable the data bus. Y1* activates the SRAM, Y0* activates a
+74ALS139
+decoder that decides which of the 4 extra devices is accessed. Lines A9
+and A10 are used for this selection:</p>
+<li>Addresses &gt;4000-401F correspond to the RTC-65271's extended RAM
+(128 pages of 32 bytes)</li>
+<li>Addresses &gt;4020-403F access the real-time-clock registers (see <a
+ href="#Clock%20logic">below</a>)</li>
+<li>Addresses &gt;4040-405F access the first set of registers in the
+IDE
+controller</li>
+<li>Addresses &gt;4060-407F access the second set.</li>
+<li>Addresses &gt;4080-40FF just repeat the above pattern (only the
+RTC-65271
+uses them differently).</li>
+<p>Note that the two IDE access lines are combined through an AND gate,
+to provide an IDEsel* signal for the bus demultiplexer. Just for the
+fun
+of it, this signals also shines a second LED, that lets you know when a
+drive is accessed. This otional LED can be any color, and is mounted at
+the rear of the card. By contrast the yellow LED triggered by CRU bit 0
+should be mounted so as to shine through the tiny window, in front of
+the
+PE-Box.</p>
+<p>You may wonder why I have a SP3T switch on the G2B* input of the
+'138.
+It was done so you can disable the card by connecting this input to +5
+volts. This may come handy when the DSRs get messed up and prevent the
+TI-99/4A from booting. In addition, the middle position of the switch
+connects
+it to yet another 74ALS138 which decodes Geneve-specific addresses. For
+the card to work properly with the Myarc "Geneve", it is necessary
+to further decode five extra address lines: AMA (pin #46 of the PE-box
+bus), AMB (pin #45), AMC (pin #48), AMD (pin #8, for use with Genmod)
+and
+AME (pin #9, Genmod). </p>
+<p>Note that , if you have a Geneve but did not perform the "Genmod"
+modification, you will need to pull line AMD low and line AME high.
+This
+can be done easily by installing two extra 4.7 Kohms resistors. These
+resistors
+will make your PE-box GenMod-like, so if you have other cards with
+similar
+decoding logic (e.g. my USB-SM card), you will not need to pull AMD nor
+AME on these cards: one card is enough. If you do have GenMod, you do
+not
+need to install
+these two resistors.</p>
+<h4><br>
+<a name="DMA"></a>DMA support</h4>
+<p>This is intended to work with a yet-to-be-designed DMA controller
+card,
+which will double as a memory expansion card and replace the PE-box
+connection
+card.</p>
+<p>Since there aren't enough spare lines in the PE-box to implement
+DREQ
+and DACK lines for the 4 devices typically handled by a DMA controller
+(let alone for 7, handled by two controllers), these lines are
+multiplexed
+with the data bus and the address bus, respectively. The only
+DMA-dedicated
+lines are DmaEn* and EOP*, which correspond to the unused SenilB* and
+SenilA*
+lines in the PE-box. EOP* is not used here, because the IDE port does
+not
+support it.</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>&nbsp;              74LS125         22 Ohms           <br>D1----------------&lt;|------+-----WWW---------&lt;IDE/DMAQ<br>         74LS04   |       '-----WWW---Gnd                <br>RdbEna*-+---|&gt;o---'             10K<br>        |         ,-------------------,<br>        '---------+--&lt;|---Gnd         |<br>                     |                |<br>                 ,---+---CardSel*     |<br>     245/G*---(|=---,           ,-----'          <br>             '08    +--------&lt;(=---,<br>                 ,--'        '32   |<br>     139/G*---(|=-----IDEsel*      |<br>                                   |<br>            74ALS74                |<br>           +-------+               |  22 Ohms <br>A8---------|D1   Q1|---------------+--WWW---&gt;IDE/DMACK <br>           |       |     <br>DmaEn*---+-|Ck1    |    <br>         '-|Ck2    | <br>         ,-|Pr1*   | <br>Reset*---+-|Pr2*   |    <br>         ,-|Clr1*  |    <br>    +5V--+-|Clr2*  |   <br>           +-------+          </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>When the data bus is not in use, the IDE controller uses it to
+output
+its DMA request signal DMAQ on one of the data lines (on the PE-box
+side
+of the 74ALS245 buffers), via a spare 3-state gate in the 72LS125. The
+RdbEna* signal enables this gate when it's high, i.e. when the data bus
+is inactive. The data line used here, D1, selects DMA channel 1. </p>
+<p>The DMA acknowledgment signal from the DMA controller is to be found
+on the address bus, lines A8 through A14, when the dedicated line
+DmaEn*
+changes from low to high. A 74ALS74 is used to latch address line A8
+(channel
+1) and thereby issue an active low DMACK signals to the IDEcontroller.
+The latched bit is reset to "high" upon power-up by applying
+the Reset* signal to the Pr* pins of the 74ALS74. The Clr* lines are
+disabled
+by connecting them to +5 volts.</p>
+<p>The DACK signal is also masked with the PE-box RdbEna* signal via an
+OR gate and combined with either the CardSel* signal to enable the
+74ALS245
+bus buffers, or the IDEsel* signal to enable the demultiplexer. During
+regular memory access, CardSel* brings RdbEna* low via a 74LS125 gate,
+and enables the data bus via one of the AND gates. If the memory
+address
+is that of an IDE port, the IDEsel* signal will enable the
+demultiplexer
+via the decond AND gate, connected to the 74ALS139.</p>
+<p>During DMA operations, both CardSel* and IDEsel* will remain
+inactive.
+However, the DMACK signal from the 74ALS74 has the ability to enable
+both
+the 74ALS245 data bus buffer and the 74ALS139 controlling the
+demultiplexer.
+But this only happens when RdbEna* is low, a condition controlled by
+the
+DMA controller.</p>
+<h4><br>
+<a name="SRAM logic"></a>SRAM access</h4>
+<p>An external SRAM is not necessary if you are using the pb4842 or the
+bq4852, since these so-called "time keeping SRAM" contain both
+SRAM and a real-time clock. However, you will need an external SRAM if
+you are using the RTC-65271 or the bq4847 as your clock chip.</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>                                     Gnd---++++++    SRAM 512K        J1<br>                                           ||||||   +----------+   ,-- ---+5V <br>                                74ALS373    10 K    |       Vcc|---+----bq4847/Vout<br>                                +-------+  ||||||   |          |      <br>                           A9---|D2   Q2|--++++++---|A18     D7|---D0<br>                            .   | .   . |           | .      . |    .<br>                            .   | .   . |           | .      . |    .<br>                            .   | .   . |           | .      . |    .<br>                         A14----|D7   Q7|-----------|A13     D0|---D7<br>                                |       |     A3----|A12       |     '04<br>SRAMsel*----, '32        '02    |       |      .    | .     RD*|-----o&lt;|---DBIN<br>WE*---------==)&gt;-------==)&gt;o----|LE     |      .    | .        |       ,----Bit5 <br>CRU bit 2---|&gt;o--------'        |       |      .    | .     WE*|---&lt;(==----&lt;WE*<br>           '04  '32     '02     |       |     A15---|A0        |   '32       <br>         A3---==)&gt;----==)&gt;o-----|OE*    |           |       CS*|---+----bq4847/CEout* <br>         A2---'       |         +-------+           +----------+   '- --SRAMsel*  <br>  CRU bit 3-----------'                                              J2</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>The SRAM data lines are connected to the data bus. Note that Texas
+Instruments
+numbers the bits the opposite way to everyone else: D0 (or A0) is the
+most
+significant bit. That's why I connected D0 to D7, D1 to D6, etc. This
+is
+not critical for the SRAM, but it is for all other devices!</p>
+<p>The SRAM address lines are driven (in part) by the address bus,
+lines
+A3 through A15. This provides us with a &gt;2000-byte access window. As
+the SRAM is much larger than 8K, it has extra address lines. These
+serve
+as "page selection" lines and are set by a 74ALS373 latch. </p>
+<p>The 74ALS373 latches the address bus, lines A9 through A14,
+according
+to a convention set by the cartridges ROMs. The latching occurs when
+one
+writes to the SRAM while CRU bit 2 is set to one (which it isn't at
+power-up
+time). To this end, a selection circuit combines SRAMsel* and WE* via
+an
+OR gate and combines the resulting signal with the inverse of CRU bit
+2,
+via a NOR gate.</p>
+<p>An additional and critical feature is the little circuit that
+controls
+the OE* (output enable) pin of the '373. When this pin is high, the
+outputs
+of the '373 are in high impedance state, so the corresponding address
+lines
+will reflect a default state. The six 4.7K resistors grounding these
+pins
+ensure that page 0 will be selected in this situation.</p>
+<p>An OR and a NOR gate ensure that these outputs are only disabled
+when
+an access occurs in the range &gt;4000-4FFF (i.e. A2 and A3 are low),
+and
+CRU bit 3 is 0. This is critical so that a default DSR page is always
+selected
+upon power-up and won't be paged off when the user switches RAMBO
+pages.
+Also, it allows routines in the &gt;4000-4FFF memory space to switch
+pages
+in the &gt;5000-5FFF and &gt;6000-7FFF area without kicking themselves
+out of memory. The cartridge ROMs do this by having a copy of the
+&gt;6000-6FFF
+area at the bottom of each page, but wasting all this memory is kind of
+a shame! The above hardware trick allow us to freeze the bottom half of
+page 0, while still paging the top part.</p>
+<p>Finally, the WE* input pin is controlled by the WE* line, after due
+masking by CRU bit 5. When this bit is set to '1', it prevents any
+writing
+to the SRAM. This "ROM emulation" feature is usefull to switch
+banks without altering the content of the SRAM.</p>
+<p>When used with the bq4847, the SRAM&nbsp;receives both its CS* input
+and its power supply from dedicated pins of the clock chip, which
+provides
+battery backup when power is off. This way, the DSRs remain permanently
+in memory. This possibility does not exist with the RTC-65271, which
+loads
+the DSRs from disk upon power-up. In the latter case, jumpers J1 and J2
+should be closed with a piece of wire, so as to bypass the absent
+bp4847.</p>
+<h4><br>
+<a name="Clock logic"></a>The RTC-65271 clock</h4>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>                         RTC-65271<br>                       +----------+<br>                  A8---|A5      D7|-----D0<br>                 A15---|A4        |      .<br>                 A14---|A3        |      .<br>                 A13---|A2        |      .<br>                 A12---|A1        |      .<br>                 A11---|A0        |      .<br>         '125          |        D0|-----D7<br>IntA*&lt;----&lt;|---Gnd     |          | <br>          +------------|INTRQ*    |   '04<br> 251/A2---'            |       RD*|---o&lt;|---DBIN      <br>                       |       WR*|---------WE*<br>         RTCsel*------&gt;|RTC*      |<br>        XRAMsel*------&gt;|XRAM*     |<br>Reset*---o o------+---&gt;|Reset*    |<br>            4k7   |    +----------+<br>       +5V--WWW---' </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>The RTC-65271 chip serves two functions: it contains a real-time
+clock
+(RTC) similar to the standard MC146818 clock found on the PC computers,
+and it contains 4 Kbytes of battery-backed RAM, accessible as 128 pages
+of 32 bytes. This is a nice feature because it allows us to store the
+DSRs
+in the clock RAM, without the need for a battery-backed SRAM. At
+power-up
+time, the DSRs will be copied into the SRAM, since it is not very
+convenient
+to switch pages every 32 bytes!</p>
+<p>The clock data lines must be connected to the data bus in reverse
+order,
+i.e. D7 to D0, D6 to D1, etc. The address lines must be connected as
+shown
+above. Under these conditions, the extended RAM maps at &gt;4000-401F,
+and the page selection register (controlled by pin A5, address line A8)
+at &gt;4080. </p>
+<p>The RTC contains 64 registers that are accessible via two ports.
+First
+you write the number of the desired register at &gt;4030, then you can
+read or write to this register at &gt;4020. (NB: Only one address line,
+A11, is considered during RTC access, so the remaining addresses map to
+the same ports).</p>
+<p>The WR* pin is connected to WE*, the RD* pin to the inverse of DBIN.
+The two chip select lines, RTC* and XRAM*, are connected to the outputs
+of the 74ALS139 in the address selection logic. They select the
+Real-Time-Clock
+or the eXtended-RAM respectively.</p>
+<p>Finally, the RTC chip can generate interrupts. These will pull down
+the IntA* line of the peripheral bus, via a 74LS125 buffer whose input
+is grounded. When the INTRQ* pin is high, the '125 is in high impedance
+and won't affect the IntA* line. The clock interrupt line is also
+connected
+to an input of the 74ALS251, so you can read the CRU to check whether
+an
+interrupt came from the clock.</p>
+<p>Because interrupts can occur at any time, even when the computer is
+off, there is a risk that the system becomes unbootable: as soon as you
+turn the console on it sees the interrupt and tries to answer it. But
+if
+IDEAL is not loaded yet, it won't clear the interrupt condition and the
+system will keep scanning cards, in between each GPL instruction. To
+prevent
+this from happening, the Reset* line is connected to the Reset* pin of
+the clock chip. This will disable all interrupts when the console is
+powered
+on. This feature can be disabled by opening the DIP switch in the
+Reset*
+line. For instance, if you have a battery-backed SRAM, you may be
+reasonnably
+sure that IDEAL will always be loaded and ready to handle interrupts.</p>
+<h4><br>
+<a name="bq4847 wiring"></a>The bq4847 clock</h4>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>                          bq4847            |<br>                       +----------+         |<br>                       |      Vout|---------|Vcc<br>           SRAMsel*----|CEin CEout|---------|CS* <br>                       |          |         +-------<br>                 A15---|A0      D7|-----D0    SRAM<br>                 A14---|A1        |      .<br>                 A13---|A2        |      .<br>                 A12---|A3        |      .<br>         '125          |        D0|-----D7<br>IntA*&lt;----&lt;|---Gnd     |          | <br>          +------------|INTRQ*    |    '04<br> 251/A2---'            |       RD*|---o&lt;|-----DBIN <br>                       |WDI    WR*|-----------WE*<br>                       |WDO    CS*|---RTCsel*<br>                       |          |<br>                       |RESET*    |<br>                       +----------+</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>The bq4847 has an 8-bit data bus, and only 4 address lines (i.e. 16
+clock registers). Again, data and address pins must be connected to the
+TI-99/4A lines in reverse order, because of TI's numbering convention.
+The WR* pin is connected to WE*, the RD* pin to the inverse of DBIN.
+The
+chip select line CS* comes from the 74ALS39.</p>
+<p>In addition, the clock chip provides baterry-backed power to the
+SRAM
+and intercepts its selection signal. This ensures that the SRAM will
+never
+be selected when power is off (CS* is active low !), which would
+quickly
+drain the battery. </p>
+<p>This clock chip can generate interrupts. These will pull down the
+IntA*
+line of the peripheral bus, via a 74LS125 buffer whose input is
+grounded.
+When the INTRQ* pin is high, the '125 is in high impedance and won't
+affect
+the IntA* line. The clock interrupt line is also connected to an input
+of the 74ALS251, so you can read the CRU to check whether an interrupt
+came from the clock. The chip can also issue a reset signal during
+power-up,
+or use an external "watchdog" timer, two features that are not
+used with this board.</p>
+<h4><br>
+<a name="bq48x2 wiring"></a>The bq4842 and bq4852 chips</h4>
+<p>These two chips are very similar: both contain a real-time clock and
+some SRAM. The difference is in the size of the SRAM: the bq4842 offers
+only 128 Kbytes, whereas the bq4852 has 512 Kbytes. This requires
+additional
+pins, so the bq4852 has 36 pins, versus 32 for the bq4842.</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>                                     Gnd---++++++   bq4842/bq4852      <br>                                           ||||||   +----------+   <br>                                74ALS373    10 K    |          |<br>                                +-------+  ||||||   |          |      <br>                           A9---|D2   Q2|--++++++---|A18     D7|---D0<br>                            .   | .   . |           | .      . |    .<br>                            .   | .   . |           | .      . |    .<br>                            .   | .   . |           | .      . |    .<br>                         A14----|D7   Q7|-----------|A13     D0|---D7<br>                                |       |     A3----|A12       |     '04<br>SRAMsel*----, '32        '02    |       |      .    | .     RD*|-----o&lt;|---DBIN<br>WE*---------==)&gt;-------==)&gt;o----|LE     |      .    | .        |       ,----Bit5 <br>CRU bit 2---|&gt;o--------'        |       |      .    | .     WE*|---&lt;(==----&lt;WE*<br>           '04  '32     '02     |       |     A15---|A0        |   '32       <br>         A3---==)&gt;----==)&gt;o-----|OE*    |           |       CS*|--------SRAMsel*<br>         A2---'       |         +-------+           |          |     <br>  CRU bit 3-----------'     IntA*&lt;---------&lt;|---Gnd |      Rst*|-<br>                                           +--------|Int*      |<br>                                  251/A2---'        +----------+                           </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>The address bus is 8-bit wide, D7 being the most significant bit.
+Therefore,
+it is connected to D0 of the TI-99/4A, and conversely. Similarly, the
+address
+pins A0 through A12 are connected to the TI-99/4A address lines A15
+through
+A3, respectively. The extra address lines, four with the bq4842, six
+with
+the bq4852, are controlled by the 74ALS373 which latches the SRAM page
+(see description of this feature in the SRAM section <a
+ href="#SRAM%20logic">above</a>).
+Note that, because A15 is required by the SRAM part of the chip, the
+clock
+registers will always be accessed two at a time. This is because the
+TI-99/4A
+always performs word-wide access, even when you use a MOVB instruction.</p>
+<p>The OE* pin is controlled by the inverse of DBIN, and the WE* by the
+WE* signal masked with CRU bit 5. This is needed to write-protect the
+SRAM.,
+but note that the clock portion of these chips will also be
+write-protected,
+contrarily to what happens with the other clock chips, RTC-65271 and
+bq4847.</p>
+<p>The CS* pin is controlled by the SRAMsel* line from the 74ALS138, so
+the whole chip, including the RTC portion, will be accessed as SRAM.</p>
+<p>The RTC part of the chip can generate interrupts. These will pull
+down
+the IntA* line of the peripheral bus, via a 74LS125 buffer whose input
+is grounded. When the Int* pin is high, the '125 is in high impedance
+and
+won't affect the IntA* line. The clock interrupt line is also connected
+to an input of the 74ALS251, so you can read the CRU to check whether
+an
+interrupt came from the clock. The chip can also issue a reset signal
+upon
+power-up, and has an internal watchdog timer, but these features is not
+used with this board.</p>
+<h4><br>
+<a name="IDE logic"></a>IDE port access</h4>
+<p>The IDE port consists in 10 registers, that map as two separate
+blocks.
+The two blocks are enabled by CS1Fx and CS3Fx, controlled by two
+outputs
+of the 74ALS139 in the address selection logic (see <a
+ href="#Addressing">above</a>).
+CS1Fx maps at &gt;4040-405F and CS3Fx maps at &gt;4060-407F. The
+register
+number is passed to the IDE controller on its A0-A2 lines, from the
+address
+lines A14-A13 (in reverse order because A2 is the msb for the IDE
+controller).
+</p>
+<p>All registers are 8 bits wide, except the data register that is
+16-bit.
+For this reason, we must demultiplex the peripheral data bus, and bring
+it back to what it was in the console. As you know, the TI-99/4A
+console
+also has a 16-bit data bus, but the bus is multiplexed as 2 x 8 bits on
+the side port (talk about a short-sighted design decision...). To
+demultiplex
+the data bus, we'll make use of two 74F543. These nifty chips
+incorporate
+a bidirectional bus transceiver with two latches, one on each input.
+Both
+chips have their 'A' pins connected to the 8-bit data bus, and their
+'B'
+pins together form the 16-bit bus. The OExx* pins enable output in the
+indicated direction (e.g. OEAB* in the A-&gt;B direction), whereas the
+LExx* pins latch data when low and retain it when high. Both chips are
+permanently enabled by tying their CEAB* and CEBA* pins to the ground.
+</p>
+<p>If you compare these schematics with those of my first IDE
+prototype,
+you will notice that I swaped the bytes in the 16-bit data bus. I did
+this
+so that it will be easier to read PC-formated drives, i.e. without
+having
+to SWPB bytes upon each rear/write operation.</p>
+<p>Note that there is an optional 10K pull-down resistor on D7: this
+serves
+to detect whether a drive is connected to the card or not. Currently,
+the
+DSRs do not use this feature, though.</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;                              &nbsp;&nbsp;&nbsp; &nbsp;&nbsp; &nbsp;&nbsp;   74F543&nbsp;(even)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;                                 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-------+&nbsp;&nbsp;&nbsp;     10K  <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;                                   D0&gt;---|A0&nbsp; &nbsp;B0|---D7---WWW---Gnd&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;                                     .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;   &nbsp; |    .&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;                                     .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;   &nbsp; |    .&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   &nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;                                    .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;   &nbsp; |    .&nbsp;16-bit bus&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;                                    .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;   &nbsp; |    .&nbsp;&nbsp;&nbsp;&nbsp;(LSB)<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;                                   .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;   &nbsp; |    .&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;                                    .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;   &nbsp; |    .&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;                                    D7&gt;---|A7&nbsp;&nbsp; B7|---D0&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;                    T     WE*---,    Gnd--|CEAB*  | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;           <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;               ,----o-----------=)&gt;-------|LEAB*  | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;           <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;    74ALS139   |    o----+----------------|OEAB*  | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;           <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;      +-------+&nbsp;&nbsp;|  G o    |           Gnd--|CEBA*  | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;           <br>&nbsp;&nbsp; &nbsp;Dbin---|S0  Y0*|--'    |    |  ,-------------|OEBA*  | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;           <br>&nbsp;&nbsp; &nbsp; A15---|S1&nbsp;&nbsp;Y2*|--+----' G  |  |  ,----------|LEBA*  | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;           <br>&nbsp;&nbsp; &nbsp;&nbsp;      |&nbsp;&nbsp;&nbsp; Y1*|--|------o--|--'  |          +-------+  A11---,    22 Ohms<br>CardSD*----|G*  Y3*|--|--,   o--|-----+---------------------------=)&gt;---WWW---&gt;IDE/RD* <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;    +-------+  |  +---o  |     |             74F543&nbsp;(odd)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;              |  |   T  |     |     &nbsp;&nbsp;&nbsp;&nbsp; +-------+&nbsp;&nbsp;&nbsp;               <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;              |  |      |     |    D0&gt;---|A0&nbsp; &nbsp;B0|---D15&nbsp;&nbsp;&nbsp;           <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;               |  |      |     |     .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;   &nbsp; |    .&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;      <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;               |  |      |     |     .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;   &nbsp; |    .&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   &nbsp;&nbsp;&nbsp;  <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;              |  |      |     |     .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;   &nbsp; |    .&nbsp; 16-bit bus&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;              |  |      |     |     .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;   &nbsp; |    .&nbsp;&nbsp;&nbsp;&nbsp;(MSB)    <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;             |  |      |     |     .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;   &nbsp; |    .&nbsp;&nbsp;&nbsp;&nbsp;          <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;              |  |      |     |     .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;   &nbsp; |    .&nbsp;&nbsp;&nbsp;&nbsp;          <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;               |  |      |     |    D7&gt;---|A7&nbsp;&nbsp; B7|---D8&nbsp;&nbsp;&nbsp;&nbsp;          <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;               |  |      |     |     Gnd--|CEAB*  | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;           <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;               |  |      |     '----------|LEBA*  | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;           <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;               |  '------|----------------|OEBA*  | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;           <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;               |         |  WE*---,  Gnd--|CEBA*  | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;           <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;               '---------|--------=)&gt;-----|LEAB*  | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;           <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;                         +----------------|OEAB*  |                    <br>                                |                +-------+&nbsp;&nbsp;&nbsp;22 Ohms&nbsp;&nbsp;&nbsp;           <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;                  WE*---=)&gt;---------------------------WWW------&gt;IDE&gt;WR*  <br><br>                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;                                A12------------&gt;IDE/A2<br>                     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;                           A13------------&gt;IDE/A1<br>                   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;                             A14------------&gt;IDE/A0<br><br>                            &nbsp;&nbsp;&nbsp;&nbsp; '04            Bit7------,&nbsp;&nbsp;'32&nbsp;                <br>                '125      Bit6---|&gt;o--+------------------=)&gt;----------&gt;IDE/RESET* <br> IntA*&lt;---------&lt;|---Gnd       ,------'                      22 Ohms        <br>                '-----------&lt;(=-------o&lt;|--+-------------------WWW---&lt;IDE/IRQ<br>                           '32             |<br>                                 251/A0----+---WWW---Gnd    4.7K <br>                   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;                     10K      ,---WWW---+5V<br>                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;      251/A3-----------------+------------&lt;IDE/IORDY</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>The second half of the 74LS139 that was used for address decoding
+serves
+to distinguish four possible situations, thanks to the wiring of its
+selection
+inputs to A15 (S1) and DBIN (S0).</p>
+<p>Y0*: write even byte (MSB, 2nd on TI-99/4A, 1rst on Geneve)<br>
+Y1*: read even byte <br>
+Y2*: write odd byte (LSB, 1rst on TI-99/4A, 2nd on Geneve)<br>
+Y3* read odd byte</p>
+<p>The TI-99/4A console always deals with the odd, least significant
+byte
+first; then with the even, most significant byte. However, when dealing
+with 16-bit devices we want only one such operation to occur. When
+reading,
+we must read both bytes, latch the even byte for further use, and pass
+the odd byte directly to the 8-bit bus. When writing, we must latch the
+odd byte first, then pass both bytes to the 16-bit bus, together with
+the
+WR* signal.</p>
+<p>By contrast, the microprocessor inside the Myarc Geneve, the
+TMS9995,
+always deals with the even byte first, then the odd byte. So that the
+card
+can be used with both a TI-99/4A and a Geneve, a DPDT switch was
+included.
+In the "T" position, the switches set the demultiplexer for use
+with a TI-99/4A, and the "G" position with a Geneve. I'm indebted
+to Jeff White for coming up with this nifty modification of my original
+design.</p>
+<p>For write operations, the even byte is latched in the A-&gt;B
+direction
+by the Y0* signal, combined with the WE* write pulse via an OR gate.
+This
+is necessary to ensure that the data bus will still be valid when
+latching
+occurs (as it's not guaranteed to be when A15 toggles). Similarly, the
+odd byte is latched by a combination of WE* and Y2*.</p>
+<p>The first half of the DPDT switch serves to determine which byte is
+written last: the even one with the TI-99/4A (Y0* signal) or the odd
+one
+with the Geneve (Y2* signal). The selected signal enables both 74F543
+for
+output in the A-&gt;B direction, thereby presenting a 16-bit word on
+the
+16-bit databus. The same signal is combined with WE* via an OR gate to
+provide the WR* write pulse to the IDE port.</p>
+<p>For read operations, the second half of the DPDT switch determines
+which
+byte is read first: the odd byte with the TI-99/4A (Y3* signal), the
+even
+byte with the Geneve (Y1* signal). The selected signal causes both
+74F543
+to latch their respective half of the 16-bit data bus in the B-&gt;A
+direction.
+It also makes up the RD* signal sent to the IDE controller.
+Technically,
+it's a bit dangerous to control the latches with the RD* signal, as
+they
+will latch data when RD* goes inactive, at which time the data may not
+be available any more! But it turned out that most IDE controllers hold
+the data long enough after RD* goes high for the 74F543 to latch it
+properly.
+Besides, the extra OR gate on RD* introduces a slight delay that gives
+us a safety margin.</p>
+<p>The RD* input is combined with A11 via an OR gate, so as to restrict
+read operations to the range &gt;4040-404F and &gt;4060-406F. This is
+required
+because the TMS9900 CPU performs a read before each write. The IDE
+controller
+does not expect this and may not answer properly to write operations if
+they were intermingled with reads (although I did not try this).
+Masking
+RD* with A11 ensures that no read operation will occur in the range
+&gt;4050-405F
+nor in &gt;4070-407F, which is where we'll perform the write
+operations.
+The true reads will be done at &gt;4040-404F and &gt;4060-406F.</p>
+<p>The latched odd byte is made available for reading by the Y1*
+signal,
+which enables the "odd" 74F543 for output in the B-&gt;A direction.
+Similarly, the even byte is made avilable by the Y3* signal.</p>
+<p>Finally, the active high IRQ pin is pulled down with a 10K resistor
+and connected to input A0 of the 74ALS251 chip, so that it can be read
+with CRU bit 0. The signal can also generate an interrupt by pulling
+down
+the IntA* line through a 74LS125, but it is masked by CRU bit 6
+(inverted).
+This way, IDE interrupts are disabled by default, and can be enabled by
+setting CRU bit 6 to '1'.</p>
+<p>The IORDY pin is connnected to input A3 of the 74ALS251, so CRU bit
+3 can be read to determine when the controller is ready. It is pulled
+up
+to +5 volts with a 4.7K resistor.</p>
+<p>The Reset* pin is controled by CRU bit 7, masked by the inverse of
+CRU
+bit 6, and is used to perform a hardware reset. A reset condition
+exists
+when bit 6 is '1' and bit 7 is '0'.</p>
+<p>The 22 ohms resistors on lines CS1Fx, CS3Fx, RD*, WR*, DMACK*, DMAQ
+and IRQ are here to try and decrease noise on these lines, as per ATA-3
+specifications (although, strictly speaking, the last two should be 82
+ohms).</p>
+<p>
+</p>
+<hr width="100%">
+<p></p>
+<h3><a name="RTC 65271"></a>The RTC-65271 clock</h3>
+<p><a href="#Pinout%20RTC">Pinout<br>
+</a><a href="#Batteries">Batteries<br>
+</a><a href="#RTC%20registers">Registers<br>
+</a><a href="#XRAM">XRAM<br>
+</a><a href="#Time%20and%20date">Time &amp; date<br>
+</a><a href="#alarms">Alarms<br>
+</a><a href="#square%20wave">Periodic interrupts<br>
+</a><a href="#Timing%20diagrams">Timing diagrams<br>
+</a><a href="#Electrical">Electrical characteristics</a></p>
+<p>The RTC-65271 is a real cool chip. Basically, it is a real-time
+clock,
+compatible with the MC146818A that you'll find in a PC. The nice thing
+is that the chips has its own crystal, and a battery holder: no extra
+components
+needed! In addition, it contains 4 Kbytes of battery-backed SRAM. This
+will come handy to store a "boot sequence" that will load the
+DSRs from disk at power-up time.</p>
+<h4><a name="Pinout RTC"></a>Pinout</h4>
+<pre>       +----+--+----+ <br>    A0 |1 o       28| A2<br>    A1 |2    R    27| A3<br> TMODE |3    T    26| Vcc<br>TCLOCK |4    C    25| SQW<br> STBY* |5         24| A4 <br>    D0 |6    6    23| A5 <br>    D1 |7    5    22| n.c.<br>    D2 |8    2    21| IRQ*<br>    D3 |9    7    20| RESET*<br>    D4 |10   1    19| RD* <br>    D5 |11        18| n.c. <br>    D6 |12        17| WR*<br>    D7 |13        16| XRAM* <br>   GND |14        15| RTC*<br>       +------------+</pre>
+<p><u>Power supply<br>
+</u><b>Vcc</b>: +5V <br>
+<b>GND</b>: ground</p>
+<p><u>Control signals<br>
+</u><b>RTC*</b>: Accessed the real-time clock registers when low
+(unless
+XRAM* is also low).<br>
+<b>XRAM*</b>: Acceses the extended RAM when low (has precedence on
+RTC*).<br>
+<b>RD*</b>: Read data from a register or the XRAM when low.<br>
+<b>WR*</b>: Latch data into a register/XRAM when low. RD* and WR*
+should
+never be low together.<br>
+<b>RESET*</b>: Resets the clock. When low, clears register C and bits
+SQW,
+PIE, AIE, and UIE in register B. Pin IRQ* is high impedance and the
+data
+bus is disabled. Caution: should not be used within 300 ms of power-up.
+If not used, connect to Vcc.<br>
+<b>STDBY*</b>:&nbsp;Stand-by.All inputs are inhibited, all outputs are
+in high-impedance. If batteries are installed, the clock still operates
+normally and the XRAM is maintained intact. The pin has an internal
+pull-up
+resistor, but should still be connected to Vcc if not used.</p>
+<p><u>Address bus<br>
+</u>When RTC* is low: <b>A0</b> selects the address register when low,
+the data/clock registers when high. <b>A1-A5</b> are ignored.<br>
+When XRAM* is low: <b>A5</b> selects the page register when high
+(A0-A4
+are ignored), or the XRAM when low. In the latter case, <b>A0-A4</b>
+are
+the address of a byte in the selected page.</p>
+<p><u>Data bus<br>
+</u><b>D0-D7</b>: Bidirectional data bus. D0 is the least significant
+bit,
+D7 the most significant one (opposite of the TI-99/4A).</p>
+<p><u>Extra pins<br>
+</u><b>IRQ*</b>: the clock bring this open-collector output low when
+issuing
+an interrupt (unless it is in stand-by or in battery-backed mode). The
+load voltage should not excess Vcc. Leave n.c. when not in use.<br>
+<b>SQW</b>: the clock can output a square wave signal on this pin if
+the
+proper bit is set in register B. Otherwise, or when the clock is in
+stand-by
+or power-off mode, the pin remains in high impedance.<br>
+<b>TMODE</b>: Test mode. Do not use. Leave open (has an internal
+pull-down
+resistor) or connect to ground.<br>
+<b>TCLOCK</b>: Test clock Always keep low. The clock may not work
+properly
+if either TMODE or TCLOCK is high.</p>
+<h4><br>
+<a name="Batteries"></a>Batteries</h4>
+<p>Use two BR-1225 batteries (12.5 mm diameter, 2.5 mm thick, 3.0
+volts).
+Do not mix old and new batteries, remove exhausted batteries in case
+they
+would leak. Insert the batteries from right to left (pin 28 towards pin
+1) with flat side up, do not apply force on the pin1-side of the
+holder.
+To remove a battery, insert a pointed object on the pin28-side of it
+and
+lift it up gently.</p>
+<h4><br>
+<a name="RTC registers"></a>Registers</h4>
+<p>The RTC contains 64 registers. To access a register, you must first
+pass its address to the chip: just write a number from 0 to 63 while A0
+is low. Then pull A0 high and you can read or write the selected
+register.
+Pulse RD* low for a read, pulse WR* low for a write. In all cases RTC*
+should be low to select the RTC. Registers 0 to 13 access clock
+functions,
+the remaining ones are SRAM registers free for you to use. IDEAL 1.0
+uses
+register 14 to store the first two digits of the year (20), but this
+won't
+be updated by the RTC don't forget that on December 31 2999.</p>
+<p>Most values in the clock registers can be expressed as hexadecimal
+(&gt;00
+to &gt;FF) or binary coded decimal (&gt;00 to &gt;99). With the latter,
+a hex digit codes for the equivalent decimal digit. For instance 32
+would
+be coded &gt;32 (as opposed to &gt;20 in hexadecimal) and 99 would be
+&gt;99
+(instead of &gt;63). IDEAL 1.0 expects the RTC to operate in
+hexadecimal
+mode, so from now on I will put the emphasis on this one.</p>
+<p><b>Register 0</b>: Seconds. Valid values: 0 to 59 (Hex &gt;00-3B,
+BCD
+&gt;59)</p>
+<p><b>Register 1</b>: Alarm seconds. As above. Add &gt;C0 to disregard
+seconds in the alarm settings.</p>
+<p><b>Register 2</b>: Minutes. Valid values: 0 to 59.</p>
+<p><b>Register 3</b>: Alarm minutes. As above. Add &gt;C0 to disregard
+minutes in alarm settings.</p>
+<p><b>Register 4</b>: Hours. Valid values : 0 to 23 in 24h mode. 1 to
+12
+and &gt;81 to &gt;8C in am/pm mode (add &gt;80 for pm).</p>
+<p><b>Register 5</b>: Alarm hours. As above. Add &gt;C0 to disregard
+hours
+in alarm settings.</p>
+<p><b>Register 6</b>: Day of the week. Valid values 1 (Sunday) through
+7 (Saturday).</p>
+<p><b>Register 7</b>: Day of the month. Valid values 1 to 31 (the RTC
+knows
+how many days there are in each month. Leap years are taken into
+account,
+including year 2000).</p>
+<p><b>Register 8</b>: Month. Valid values 1 to 12.</p>
+<p><b>Register 9</b>: Year. Valid values 0 to 99.</p>
+<p><b>Register 10</b>: Control register A.</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <td>&gt;80</td>
+      <td>&gt;40</td>
+      <td>&gt;20</td>
+      <td>&gt;10</td>
+      <td>&gt;08</td>
+      <td>&gt;04</td>
+      <td>&gt;02</td>
+      <td>&gt;01</td>
+    </tr>
+    <tr>
+      <td>UIP </td>
+      <td colspan="3">DV</td>
+      <td colspan="4">RS</td>
+    </tr>
+  </tbody>
+</table>
+<p><b>UIP</b>: Read-only bit. 1=Register update in progress. 0=no
+update
+for the next 244 usec.<br>
+<b>DV</b>: Oscillator + frequency divider control 0=both stopped.
+2=both
+on. 6=oscillator on, reset all dividers below 8192 Hz.<br>
+<b>RS</b>: Frequency of the square wave signal on pin SQW.</p>
+<p><b>Register 11</b>: Control register B</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <td>&gt;80</td>
+      <td>&gt;40</td>
+      <td>&gt;20</td>
+      <td>&gt;10</td>
+      <td>&gt;08</td>
+      <td>&gt;04</td>
+      <td>&gt;02</td>
+      <td>&gt;01</td>
+    </tr>
+    <tr>
+      <td>SET </td>
+      <td>PIE </td>
+      <td>AIE </td>
+      <td>UIE </td>
+      <td>SQW</td>
+      <td>DM </td>
+      <td>24h </td>
+      <td>DSE</td>
+    </tr>
+  </tbody>
+</table>
+<p><b>SET</b>: 1=stop register update, clears UIE and UIP. 0=registers
+are updated every second.<br>
+<b>PIE</b>: 1=enabls periodic interrupts at a frequency determined by
+RS
+in register A.<br>
+<b>AIE</b>: 1=enable alarm interrupts.<br>
+<b>UIE</b>: 1=enable update interrupts: once per second, after
+registers
+are updated.<br>
+<b>SQW</b>: 1=issue a square wave signal on pin SQW, at a frequency
+determined
+by RS.<br>
+<b>DM</b>: Data mode. 1=hexadecimal. 0=binary-coded decimal.<br>
+<b>24h</b>: 1=24h mode 0=am/pm mode. Caution: hour + alarm hour must be
+modified when changing this bit.<br>
+<b>DSE</b>: 1=Enable daylight savings. </p>
+<p><b>Register 12</b>: Status register</p>
+<p>This is a read-only register. Reading it automatically clears all
+interrupt
+bits, so does bringing the RESET* pin low.</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <td>&gt;80</td>
+      <td>&gt;40</td>
+      <td>&gt;20</td>
+      <td>&gt;10</td>
+      <td>&gt;08</td>
+      <td>&gt;04</td>
+      <td>&gt;02</td>
+      <td>&gt;01</td>
+    </tr>
+    <tr>
+      <td>IRQF</td>
+      <td>PF </td>
+      <td>AF </td>
+      <td>UF </td>
+      <td colspan="4">not used</td>
+    </tr>
+  </tbody>
+</table>
+<p><b>IRQF</b>: 1=an interrupt occured, the IRQ* pin is low. Cleared
+when
+reading the status register.<br>
+<b>PF</b>: 1=a periodic interrupt occured since last time the status
+was
+read. Set even if PIE is 0 (but IRQ* stays high).<br>
+<b>AF</b>: 1=an alarm occured since the status was last read. Set
+whether
+or not the interrupt is enabled by AIE.<br>
+<b>UF</b>: 1=an update was completed since status was last read. Set
+whether
+or not UIE is enabled.</p>
+<p><b>Register 13</b>: Power-status register</p>
+<p>This read-only register should be read twice as it provides a
+different
+information each time.</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <td>&gt;80</td>
+      <td>&gt;40</td>
+      <td>&gt;20</td>
+      <td>&gt;10</td>
+      <td>&gt;08</td>
+      <td>&gt;04</td>
+      <td>&gt;02</td>
+      <td>&gt;01</td>
+    </tr>
+    <tr>
+      <td>VLT</td>
+      <td colspan="7">not used</td>
+    </tr>
+  </tbody>
+</table>
+<p>VLT: 1=voltage normal. The first time it is read VLT indicate what
+happened
+while Vcc was off and the clock operated on its batteries. The second
+(and
+subsequent) reading indicate what the power-status while Vcc is powered.</p>
+<p><b>Registers 14 to 63</b>: User defined values, ignored by the RTC.</p>
+<h4><br>
+<a name="XRAM"></a>Extended RAM</h4>
+<p>The RTC-65271 contains an extra 4 Kbytes of static RAM. The clock
+battery
+maintains the integrity of the data in the SRAM even when power is off.
+To access the SRAM, pull down the XRAM* pin (instead of the RTC* pin
+for
+clock access). The SRAM is arranged as 128 pages of 32 bytes. The
+address
+of the byte in a page must be places on A0-A5 with A6 low, then the
+byte
+can be accessed via D0-D7 (pulse RD* down for a read, pulse WR* down
+for
+a write).</p>
+<p>To select a page, pull A6 high: this accesses the page register
+(A0-A5
+are ignored). Write the number of the desired page, 0 to 127 (higher
+values
+loop back to 0-127). Then bring A6 back low to access data on this page.</p>
+<p>The IDE card maps the XRAM at &gt;4000-401F, which allows to store
+an
+embyonnic DSR in it. All it does is to fetch IDEAL 1.0 from disk and
+load
+it into the SRAM chip on the card. And yes, that's quite tricky to do:
+imagine switching pages every 32 bytes! If you are curious to know how
+this is done, here is the source.</p>
+<h4><br>
+<a name="Time and date"></a>Setting/reading the time and date</h4>
+<p>To read time and date, just read the relevant registers. The only
+problem
+is that time may change as you are reading it (e.g. if its 2:59:59), so
+you may end up reading 2:00:00 if you read the hour before the minutes.
+A simple solution is to always check the seconds last. If it is 0, read
+the other registers once more (no need to check the seconds this time).</p>
+<p>Alternatively, you can set bit &gt;80 in register B, so as to freeze
+the registers while you are reading them. This won't stop the clock
+that's
+still ticking internally, it only prevents register update. This is
+mandatory
+when you want to set the clock. Freeze it first, then set the proper
+time
+and date, then restart it. In fact, if you really want split second
+accuracy,
+you should first set the RV bits in register A as 6 and restart the
+clock.
+This resets all stages of the frequency divider, below 8192 Hz, and
+ensures
+that the first second will begin exactly 0.5 seconds later. Then freeze
+the clock again, set the RV bits as 2 and restart the clock for normal
+operation.</p>
+<p>You can enable summer-time (aka daylight saving time) by setting bit
+&gt;01 in register B. When in this mode, the clock automatically jumps
+from 1:59:59 am to 3:00:00 am on the first Sunday in April. It jumps
+back
+from 1:59:59 to 1:00:00 am on the last Sunday in October.</p>
+<p><br>
+<a name="alarms"></a><b>Alarms</b></p>
+<p>You can set an alarm for a given time in the day, by writing a value
+into the three alarm registers: hour, minutes and seconds. If a
+register
+is not used, set the two leftmost bits as 1 (i.e. values in the range
+&gt;C0-FF).
+This way you can set repetitive alarms, e.g. every hour on the hour
+(hours
+= &gt;C0, minutes=0, seconds=0). To disable alarms altogether, enter an
+impossible value in one of the registers: e.g. minutes=64.</p>
+<p>By setting bit &gt;20 in register B, you can cause the alarm to
+trigger
+an external interrupt when it goes off. The IRQ will be brought low
+until
+the alarm is acknowledged by reading register C. The IDE card sends
+this
+signal to the IntA* line, which causes an external interrupt. The card
+SRAM should contain an interrupt service routine that clears the alarms
+and takes the appropriate (user selectable) action.</p>
+<h4><br>
+<a name="square wave"></a>Periodic interrupts</h4>
+<p>The clock can generate a square-wave signal on its SQW pin. To do
+this,
+set bit &gt;80 in register B. The signal frequency is determined by
+register
+A, bits &gt;08 to &gt;01. The IDE card does not use this signal. The
+signal
+period is also the interval between two periodic interrupts sent on pin
+IRQ* if the PIE bit is enabled in register B.</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>RS </th>
+      <th>SQW frequency</th>
+      <th>Interrupt period </th>
+    </tr>
+    <tr>
+      <td>0</td>
+      <td align="center">-</td>
+      <td align="center">-</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td align="right">256 Hz</td>
+      <td align="right">3.90625 ms</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td align="right">128 Hz</td>
+      <td align="right">7.8125 ms</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td align="right">8192 Hz</td>
+      <td align="right">122.07 us</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td align="right">4096 Hz</td>
+      <td align="right">244.141 us</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td align="right">2048 Hz</td>
+      <td align="right">488.281 us</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td align="right">1024 Hz</td>
+      <td align="right">976.5625 us</td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td align="right">512 Hz</td>
+      <td align="right">1.953125 ms</td>
+    </tr>
+    <tr>
+      <td>8</td>
+      <td align="right">256 Hz</td>
+      <td align="right">3.90625 ms</td>
+    </tr>
+    <tr>
+      <td>9</td>
+      <td align="right">128 Hz</td>
+      <td align="right">7.8125 ms</td>
+    </tr>
+    <tr>
+      <td>10</td>
+      <td align="right">64 Hz</td>
+      <td align="right">15.625 ms</td>
+    </tr>
+    <tr>
+      <td>11</td>
+      <td align="right">32 Hz</td>
+      <td align="right">31.25 ms</td>
+    </tr>
+    <tr>
+      <td>12</td>
+      <td align="right">16 Hz</td>
+      <td align="right">62.5 ms</td>
+    </tr>
+    <tr>
+      <td>13</td>
+      <td align="right">8 Hz</td>
+      <td align="right">125 ms</td>
+    </tr>
+    <tr>
+      <td>14</td>
+      <td align="right">4 Hz</td>
+      <td align="right">250 ms</td>
+    </tr>
+    <tr>
+      <td>15</td>
+      <td align="right">2 Hz</td>
+      <td align="right">500 ms</td>
+    </tr>
+  </tbody>
+</table>
+<h3><br>
+<a name="Timing diagrams"></a>Timing diagrams</h3>
+<h4>Read cycle</h4>
+<pre>  |<u>            &gt;395  ns               </u>| <br>XXX<u>              valid                </u>XXXX A0-A5<br>__<u>|</u>__<u>|</u>a|                       |a<u>|    |   </u>   <br>  |   \<u>___                      </u>/     |    RTC*/XRAM*<br><u>  |   |&gt;50 |</u>a|            |a<u>|&gt;20|     |   </u> <br>  |   &gt;50   \___<u>&gt;325 ns</u>____/|   &gt;20   |    RD*     <br>            |25-240|<u>        |10-100</u>|   <br>-------------------X<u>     valid     </u>X------ D0-D7 </pre>
+<pre>a)&lt; 30 ns       </pre>
+<h4><br>
+Write cycle</h4>
+<pre>  |<u>          &gt;395  ns                 </u>| <br>XXX<u>              valid                </u>XXXX A0-A5<br>__<u>|</u>__<u>|</u>a|                       |a<u>|    |   </u>   <br>  |   \<u>___                      </u>/     |    RTC*/XRAM*<br><u>  |   |  0 </u>|               <u>|&gt;20|      |   </u> <br>  |   0    \___<u>&gt;325 ns</u>____/|   &gt;20    |    WR*     <br>        |<u>    &gt;200 ns       |0</u>|   <br>--------X<u>     valid          </u>X------------ D0-D7 </pre>
+<pre>a)&lt; 30 ns </pre>
+<h4><br>
+Interrupts </h4>
+<pre>___     ___________________________<br>   \___/|                           RD*<br>________|_____________         ____<br>        |             \<u> &gt;5 us </u>/     RESET*     <br>        |     _ _ _   |&lt;2us<u>|</u>_______<br><u>        |&lt;2us</u>/     \<u>      </u>/         IRQ*</pre>
+<h4><br>
+Square wave</h4>
+<pre>                       __    __    __<br>______________________|  |__|  |__|  |__ SQW<br><u>      </u>       <u>| &lt; 1 sec|                 <br></u>      \<u>     </u>/|                           WR*<br><u>             </u>|<u>                         </u>    <br><u>             </u>X<u>                         </u>  DV: 0 to 2</pre>
+<h3><br>
+<br>
+<a name="Electrical"></a>Electrical characteristics</h3>
+<h4>Absolute maximum ratings</h4>
+<pre>Supply voltage Vcc:               -0.3V to 7V<br>Input voltage:           Vss-0.3V to Vcc+0.3V<br>Storage temperature:             -40 to 85 `C<br>Soldering temperature: max 260 `C for 10 secs</pre>
+<h4><br>
+<br>
+Recommended operating conditions</h4>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Parameter</th>
+      <th>Min</th>
+      <th>Nom</th>
+      <th>Max</th>
+      <th>Unit</th>
+    </tr>
+    <tr>
+      <td>Supply voltage, Vcc</td>
+      <td>4.5</td>
+      <td>5</td>
+      <td>5.5</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>Free-air temperature</td>
+      <td>-10</td>
+      <td>.</td>
+      <td>70</td>
+      <td>`C</td>
+    </tr>
+  </tbody>
+</table>
+<h4><br>
+Electrical characteristics under recommended conditions</h4>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Parameter</th>
+      <th>Test conditions</th>
+      <th>Min</th>
+      <th>Typ</th>
+      <th>Max</th>
+      <th>Unit</th>
+    </tr>
+    <tr>
+      <td>High-level input voltage</td>
+      <td>.</td>
+      <td>2.2</td>
+      <td>.</td>
+      <td>Vcc+0.3</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>Low-level input voltage</td>
+      <td>.</td>
+      <td>-0.3</td>
+      <td>.</td>
+      <td>0.8</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>Input leakage current </td>
+      <td>RESET*, RD*, WR*,&nbsp;RTC*,<br>
+XRAM*, D0-D7, A0-A5</td>
+      <td>-1</td>
+      <td>.</td>
+      <td>+1</td>
+      <td>uA</td>
+    </tr>
+    <tr>
+      <td>High-level output voltage </td>
+      <td>Vcc = 5 V, I = 4.0 mA</td>
+      <td>2.4</td>
+      <td>.</td>
+      <td>.</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>Low-level output voltage </td>
+      <td>Vcc = 5 V, I = 4.0 mA</td>
+      <td>.</td>
+      <td>.</td>
+      <td>0.4</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>Power supply current consumption</td>
+      <td>No load, SQW=8192Hz</td>
+      <td>.</td>
+      <td>.</td>
+      <td>15</td>
+      <td>mA</td>
+    </tr>
+    <tr>
+      <td>Current in standby mode</td>
+      <td>STDBY*=GND</td>
+      <td>.</td>
+      <td>.</td>
+      <td>2</td>
+      <td>uA</td>
+    </tr>
+    <tr>
+      <td>Current in battery-backup state</td>
+      <td>Ta = 25 `C</td>
+      <td>.</td>
+      <td>0.5</td>
+      <td>1</td>
+      <td>uA</td>
+    </tr>
+  </tbody>
+</table>
+<h4><br>
+Frequency characteristics</h4>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Parameter</th>
+      <th>Test conditions</th>
+      <th>Max</th>
+      <th>Unit</th>
+    </tr>
+    <tr>
+      <td>Frequency accuracy</td>
+      <td>T=25 `C, Vcc=5V</td>
+      <td>5 +/- 20</td>
+      <td>ppm </td>
+    </tr>
+    <tr>
+      <td>Temperature characteristics </td>
+      <td>T= -10 to 70 `C, Vcc=5V <br>
+25 `C reference</td>
+      <td>+10<br>
+-120</td>
+      <td>ppm</td>
+    </tr>
+    <tr>
+      <td>Voltage characteristics</td>
+      <td>T fixed, +5V reference</td>
+      <td>+/- 5</td>
+      <td>ppm/V</td>
+    </tr>
+    <tr>
+      <td>Aging</td>
+      <td>T=25 `C, Vcc=5V</td>
+      <td>+/- 5</td>
+      <td>ppm/Year </td>
+    </tr>
+  </tbody>
+</table>
+<h3>
+<hr width="100%"></h3>
+<h3><a name="bq4847"></a>The bq4847 clock</h3>
+<p><a href="#pinout%20bq4847">Pinout<br>
+</a><a href="#RTC%20registers%204847">Registers<br>
+</a><a href="#Time%20and%20date%204847">Time &amp; date<br>
+</a><a href="#alarms%204847">Alarms<br>
+</a><a href="#Periodic%20int%204847">Periodic interrupts<br>
+</a><a href="#power-fail%20int%204847">Power-fail interrupts<br>
+</a><a href="#watchdog%204847">Watchdog timer<br>
+</a><a href="#Timing%20diagrams%204847">Timing diagrams<br>
+</a><a href="#Electrical%204847">Electrical characteristics</a></p>
+<p>The bq4847 is a fairly standard clock chip, with a built in crystal
+and battery. The latter means that you cannot change the battery, but
+the
+datasheet specifies that it should last about 10 years (130 mAh). In
+addition,
+the chip has the necessary pins to battery-back an external SRAM. This
+implies: 1) A power supply pin that sends +5 volts to the SRAM when
+power
+is on, and switches to + 3 volts battery power when power is off (i.e.
+lower than battery power, which is about +3 volts). 2) A "chip enable"
+signal buffer that remains high when power is off, thereby desabling
+the
+SRAM.</p>
+<h4><a name="pinout bq4847"></a>Pinout</h4>
+<pre>       +----+--+----+ <br>  Vout |1 o       28| Vcc<br>  n.c. |2    R    27| WE*<br>  n.c. |3    T    26| CEin<br>  WDO* |4    C    25| CEout<br>  Int* |5         24| n.c.<br>  Rst* |6    6    23| WDI <br>    A3 |7    5    22| OE*<br>    A2 |8    2    21| CS*<br>    A1 |9    7    20| n.c.<br>    A0 |10   1    19| D7 <br>    D0 |11        18| D6<br>    D1 |12        17| D5<br>    D2 |13        16| D4 <br>   GND |14        15| D3<br>       +------------+</pre>
+<p><u>Power supply<br>
+</u><b>Vcc</b>: +5V <br>
+<b>GND</b>: ground</p>
+<p><u>Control signals<br>
+</u><b>CS*</b>: Accessed the real-time clock registers when low.<br>
+<b>RD*</b>: Read data from a register when low.<br>
+<b>WE*</b>: Latch data into a register when low. RD* and WE* should
+never
+be low together.</p>
+<p><u>Busses<br>
+</u><b>A0-A3</b>: register address. A0 is the least significant bit.<br>
+<b>D0-D7</b>: Bidirectional data bus. D0 is the least significant bit,
+D7 the most significant one (opposite of the TI-99/4A).</p>
+<p><u>Extra pins<br>
+</u><b>IRQ*</b>: the clock bring this open-collector output low when
+issuing
+an interrupt (unless it is in stand-by or in battery-backed mode). The
+load voltage should not excess Vcc. Leave n.c. when not in use.<br>
+<b>RST*</b>: open-collector output. Remains low for 200 msec after
+power
+goes on. Goes low if watchdog times out.<br>
+<b>WDI</b>: watchdog timer input. Internally connected to a voltage
+divider
+by 100K resistors, about 1.6 volts.<br>
+<b>WDO*</b>: watchdog timer output.</p>
+<p><u>SRAM control pins<br>
+</u><b>Vout</b>: Provides battery backed power for an external SRAM.<br>
+<b>CEin</b>: Input for the SRAM selection signal.<br>
+<b>CEout</b>: Output of the SRAM selection signal, will remain high
+when
+power is off. Stays inactive for 100 ns after power goes on, then
+reflects
+CEin.</p>
+<h4><a name="RTC registers 4847"></a>Registers</h4>
+<p>The RTC contains 16 registers, each mapping at its own address. In
+most
+cases, the internal data representation is in binary-coded decimal,
+i.e.
+&gt;59 means 59, not 89 as it would in true hexadecimal.</p>
+<p><b>Register 0</b>: Seconds. Valid values: &gt;00 to &gt;59.</p>
+<p><b>Register 1</b>: Alarm seconds. As above. Add &gt;C0 to disregard
+seconds in the alarm settings.</p>
+<p><b>Register 2</b>: Minutes. Valid values: &gt;00 to &gt;59.</p>
+<p><b>Register 3</b>: Alarm minutes. As above. Add &gt;C0 to disregard
+minutes in alarm settings.</p>
+<p><b>Register 4</b>: Hours. Valid values: &gt;00 to &gt;23, and &gt;81
+to &gt;92 (add &gt;80 for pm).</p>
+<p><b>Register 5</b>: Alarm hours. As above. Add &gt;C0 to disregard
+hours
+in alarm settings.</p>
+<p><b>Register 6</b>: Day of the month. Valid values: &gt;01 through
+&gt;31.</p>
+<p><b>Register 7</b>: Alarm day of the month. As above. Add &gt;C0 to
+disregard
+day in alarm settings.</p>
+<p><b>Register 8</b>: Day-of-week. Valid values: &gt;01 (Sunday) to
+&gt;07.</p>
+<p><b>Register 9</b>: Month. Valid values &gt;01 to &gt;12.</p>
+<p><b>Register 10</b>: Year. Valid values &gt;00 to &gt;99.</p>
+<p><b>Register 11</b>: Programmable rates register</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <td>&gt;80</td>
+      <td>&gt;40</td>
+      <td>&gt;20</td>
+      <td>&gt;10</td>
+      <td>&gt;08</td>
+      <td>&gt;04</td>
+      <td>&gt;02</td>
+      <td>&gt;01</td>
+    </tr>
+    <tr>
+      <td>0</td>
+      <td colspan="3">WD</td>
+      <td colspan="4">RS</td>
+    </tr>
+  </tbody>
+</table>
+<p><b>WD</b>: Watchdog timeout rate (bit &gt;80 not used)<br>
+<b>RS</b>: Frequency of the periodic interrupt.</p>
+<p><b>Register 12</b>: Interrupt enable register</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <td>&gt;80</td>
+      <td>&gt;40</td>
+      <td>&gt;20</td>
+      <td>&gt;10</td>
+      <td>&gt;08</td>
+      <td>&gt;04</td>
+      <td>&gt;02</td>
+      <td>&gt;01</td>
+    </tr>
+    <tr>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>AIE</td>
+      <td>PIE</td>
+      <td>PWRIE</td>
+      <td>ABE</td>
+    </tr>
+  </tbody>
+</table>
+<p><b>AIE</b>: 1=Enable alarm interrupts.<br>
+<b>PIE</b>: 1=Enable periodic interrupts at a frequency determined by
+RS
+in register 11.<br>
+<b>PWRE</b>: 1=Enable interrupts to signal power failure.<br>
+<b>ABE</b>: 1=Enable alarm interrupts even while on battery power. <br>
+The first 4 bits are not used.</p>
+<p><b>Register 13</b>: Flags register</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <td>&gt;80</td>
+      <td>&gt;40</td>
+      <td>&gt;20</td>
+      <td>&gt;10</td>
+      <td>&gt;08</td>
+      <td>&gt;04</td>
+      <td>&gt;02</td>
+      <td>&gt;01</td>
+    </tr>
+    <tr>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>AF</td>
+      <td>PIF</td>
+      <td>PWRF</td>
+      <td>BVF</td>
+    </tr>
+  </tbody>
+</table>
+<p><b>AF</b>: 1=An alarm occured since the status was last read. Set
+whether
+or not the interrupt is enabled by AIE.<br>
+<b>PF</b>: 1=A periodic interrupt occured since last time the status
+was
+read. Set even if PIE is '0'.<br>
+<b>PWRF</b>: 1=A power failure interrupt occured. Set even if PWRIE is
+'0'.<br>
+<b>BVF</b>: 1=Battery valid. 0=Battery voltage lower than 2.1 volts:
+time
+&amp; date (and external SRAM contents) may be incorrect.<br>
+The first 4 bits are not used.</p>
+<p><b>Register 14</b>: Control register</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <td>&gt;80</td>
+      <td>&gt;40</td>
+      <td>&gt;20</td>
+      <td>&gt;10</td>
+      <td>&gt;08</td>
+      <td>&gt;04</td>
+      <td>&gt;02</td>
+      <td>&gt;01</td>
+    </tr>
+    <tr>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>UTI</td>
+      <td>STOP*</td>
+      <td>24/12</td>
+      <td>DSE</td>
+    </tr>
+  </tbody>
+</table>
+<p><b>UTI</b>: 1=Update Transfer Inhibit. The registers can be safely
+read/written
+to. 0=Keep up with current values.<br>
+<b>STOP*</b>: 0=Stops RTC when power is off (e.g for storage, since
+battery
+cannot be taken out). 1=Oscillator always on.<br>
+<b>24/12</b>: 0=24 hours representation. 1=12 hours (am / pm)
+representation.<br>
+<b>DSE</b>: 1=Daylight savings time enable.<br>
+The first 4 bits are not used.</p>
+<p><b>Register 15:</b> not used. Reads as &gt;00.</p>
+<h4><br>
+<a name="Time and date 4847"></a>Setting/reading the time and date</h4>
+<p>To read time and date, just read the relevant registers. The only
+problem
+is that time may change as you are reading it (e.g. if its 2:59:59), so
+you may end up reading 2:00:00 if you read the hour before the minutes.
+Thus, you should always set bit &gt;08 in register 14 before reading,
+which
+will prevent register update. The clock still keeps the correct time,
+but
+the "display" is frozen, so you can access it safely. Once done,
+reset byte &gt;08 and the registers will catch up with the current time
+and date.</p>
+<p>You can enable summer-time (aka daylight saving time) by setting bit
+&gt;01 in register 14. When in this mode, the clock automatically jumps
+from 1:59:59 am to 3:00:00 am on the first Sunday in April. It jumps
+back
+from 1:59:59 to 1:00:00 am on the last Sunday in October.</p>
+<p><br>
+<a name="alarms 4847"></a><b>Alarms</b></p>
+<p>You can set an alarm for a given time and date (whithin a month), by
+writing a value into the four alarm registers: day, hour, minutes and
+seconds.
+If a register is not used, set the two leftmost bits as 1 (i.e. values
+in the range &gt;C0-FF). This way you can set repetitive alarms, e.g.
+every
+hour on the hour (day = &gt;C0, hours = &gt;C0, minutes=0, seconds=0).
+To disable alarms altogether, enter an impossible value in one of the
+registers:
+e.g. minutes=64.</p>
+<p>By setting bit &gt;08 in register 12, you can cause the alarm to
+trigger
+an external interrupt when it goes off. The IRQ* will be brought low
+until
+the alarm is acknowledged by reading register 13. The IDE card sends
+this
+signal to the IntA* line, which causes an external interrupt. The DSRs
+in the SRAM shoudl contain an interrupt service routine that clears the
+alarms and takes the appropriate (user selectable) action.</p>
+<p>Setting bit &gt;01 in register 12 would allow an alarm to trigger an
+interrupt even when power is off. Obviously, we have no need for this
+feature,
+so leave this bit as '0'. You can find out whether an alarm occured
+during
+power-off time by reading the flag register 13 at power-up time. Note
+that
+the interrupt enable register is automatically reset upon power-up,
+thus
+alarms interrupts need to be re-enabled after each power-up.</p>
+<h4><br>
+<a name="Periodic int 4847"></a>Periodic interrupts</h4>
+<p>Optionally, the clock can generate constants interrupts at a preset
+frequency. This interrupt can be detected by checking bit &gt;04 in the
+flags register, or it can be used to trigger an external interrupt, if
+bit &gt;04 is set in register 12. The interruption period is set with
+register
+11, according to the following table:</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>RS </th>
+      <th>Frequency </th>
+      <th>Interrupt period </th>
+    </tr>
+    <tr>
+      <td>0</td>
+      <td align="center">-</td>
+      <td align="center">-</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td align="right">32768 Hz</td>
+      <td align="right">30.5175 us</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td align="right">16384 Hz</td>
+      <td align="right">61.035 us</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td align="right">8192 Hz</td>
+      <td align="right">122.07 us</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td align="right">4096 Hz</td>
+      <td align="right">244.141 us</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td align="right">2048 Hz</td>
+      <td align="right">488.281 us</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td align="right">1024 Hz</td>
+      <td align="right">976.5625 us</td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td align="right">512 Hz</td>
+      <td align="right">1.953125 ms</td>
+    </tr>
+    <tr>
+      <td>8</td>
+      <td align="right">256 Hz</td>
+      <td align="right">3.90625 ms</td>
+    </tr>
+    <tr>
+      <td>9</td>
+      <td align="right">128 Hz</td>
+      <td align="right">7.8125 ms</td>
+    </tr>
+    <tr>
+      <td>10</td>
+      <td align="right">64 Hz</td>
+      <td align="right">15.625 ms</td>
+    </tr>
+    <tr>
+      <td>11</td>
+      <td align="right">32 Hz</td>
+      <td align="right">31.25 ms</td>
+    </tr>
+    <tr>
+      <td>12</td>
+      <td align="right">16 Hz</td>
+      <td align="right">62.5 ms</td>
+    </tr>
+    <tr>
+      <td>13</td>
+      <td align="right">8 Hz</td>
+      <td align="right">125 ms</td>
+    </tr>
+    <tr>
+      <td>14</td>
+      <td align="right">4 Hz</td>
+      <td align="right">250 ms</td>
+    </tr>
+    <tr>
+      <td>15</td>
+      <td align="right">2 Hz</td>
+      <td align="right">500 ms</td>
+    </tr>
+  </tbody>
+</table>
+<p>Note that only conditions 1 and 2 differ from those of the RTC-65271
+and those of the bq4842 and bq4852.</p>
+<h4><br>
+<a name="power-fail int 4847"></a>Power-fail interrupts</h4>
+<p>When Vcc falls below the battery power (about +3 volts), the clock
+switches
+into backup mode: it disables the SRAM, etc. It also sets bit &gt;02 in
+register 13, and may generate an interrupt if bit &gt;02 is set in
+register
+12.</p>
+<h4><br>
+<a name="watchdog 4847"></a>Watchdog timer function</h4>
+<p>This function could be used to monitor a microprocessor and make
+sure
+it's not frozen or traped inside a program loop. When the WRI pin is
+connected,
+it must toggle low/high within a defined interval. If it doesn't, WDO*
+and Rst* go low. Rst* comes back high after one sixth of the time-out
+period,
+then low again after one time-our period, etc. By contrast, WDO* stays
+low until WDI toggles. None of this happens if WDI is left unconnected,
+which the chip detects thanks to the internal voltage divider. The
+watchdog
+function is not used in the IDE board.</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>WD</th>
+      <th>Timeout period </th>
+      <th>Rst*=low time</th>
+    </tr>
+    <tr>
+      <td>0</td>
+      <td>1.5 s (default)</td>
+      <td>250 ms</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>23.4375 ms</td>
+      <td>3.90625 ms</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>46.875 ms</td>
+      <td>7.8125 ms</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>93.75 ms</td>
+      <td>15.625 ms</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>187.5 ms</td>
+      <td>31.25 ms</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>375 ms</td>
+      <td>62.5 ms</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td>750 ms</td>
+      <td>125 ms</td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td>3 s</td>
+      <td>500 ms</td>
+    </tr>
+  </tbody>
+</table>
+<h3><br>
+<a name="Timing diagrams 4847"></a>Timing diagrams</h3>
+<h4>Read cycle</h4>
+<pre><u>     </u>|         &gt;70 ns          |<u>      </u>   <br>     \<u>___                      </u>/        CS*<br><u>     |    _</u>&lt;70 ns |         <u>   |   </u> <br>     |     \______<u>|</u>________/   |&lt;25|    OE*     <br>     |     |  &lt;35 |<u>        |  &lt;25  </u>|   <br>ZZZZZZZZZZZZZ-XXXXX<u>    valid       </u>ZZZZ D0-D7<br>     | &lt; 5 ns |</pre>
+<h4><br>
+Write cycle</h4>
+<pre>   <u>|           &gt;70  ns                 </u>| <br>XXX<u>              valid                 </u>XXXX A0-A5<br>___<u>|&gt;0 </u>|                          <u>     |   </u>   <br>   |   \<u>___      &gt;65 ns          </u>/  &gt;5 |    CS*<br><u>   |  &gt;0    </u>|               _____<u>      |   </u> <br>            \____<u>&gt;55 ns</u>____/|    &gt;15   |    WE*     <br>         |<u>       &gt;30 ns     |&gt;10</u>|   <br>ZXZZZZZZZZ<u>     valid            </u>ZZZZZZZZZZZ D0-D7 </pre>
+<h4><br>
+SRAM cycle</h4>
+<pre><u>    </u>                   <u>                 <br></u>    \_________________/|                   CEin<br>____<u>|9-12 ns</u>|          |9-12 ns|<u>        <br></u>            \<u>___               </u>/           CEout</pre>
+<h4><br>
+Power down/up</h4>
+<pre>_____                                  <u>                <br></u>     \                                /___Vpfd(max)   <br>Vpfd__\                              /____Vpfd           Vcc<br>      |\                            /| <br>      | \<u>___                   _   </u>/-|----Vso      <br>      |                              |<br><u>      |  </u>                            |100-300 ms <u>|      <br>valid |  </u>XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX<u> valid </u> CS*<br>      |                              |100-300 ms | <br><u>      |                   </u>/XXXXXXXXXXXXXXXXXXXXXX\______ CEin<br>      |       |90-125 us  |<u>   </u> Vohb <u> |             </u>  <br><u>______|___    |           </u>/   '----' |             \____ CEout<br><u>      |</u>____<u>   |           </u>           |            <u>      <br></u>      |       |           \<u>          |100-300 ms </u>/       Rst* (+ pull-up)   <br><u>      |6-24 us</u>|           |               _____<u>         </u> <br>              \<u> 90-125 us </u>/ZZZZZZZZZZZZZZ/               Int* (+ pull up)</pre>
+<p><u>Voltage slews</u>:<br>
+4.75 volts down to 4.25 volts: &gt;300 us<br>
+4.25 volts down to Vso: &gt;10 us<br>
+Vso up to Vpfd(max): &gt;100 us</p>
+<h3><br>
+<a name="Electrical 4847"></a>Electrical characteristics</h3>
+<h4>Absolute maximum ratings</h4>
+<pre>Supply voltage Vcc:               -0.3V to 7V<br>Input voltage:                    -0.3V to 7V<br>Operating temperature:             0 to 70 `C<br>Storage temperature:             -55 to 125 `C<br>Soldering temperature: max 260 `C for 10 secs</pre>
+<h4><br>
+<br>
+Recommended operating conditions</h4>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Parameter</th>
+      <th>Min</th>
+      <th>Nom</th>
+      <th>Max</th>
+      <th>Unit</th>
+    </tr>
+    <tr>
+      <td>Supply voltage, Vcc</td>
+      <td>4.5</td>
+      <td>5</td>
+      <td>5.5</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>Input low voltage Vil </td>
+      <td>-0.3</td>
+      <td>.</td>
+      <td>0.8</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>Input high voltage Vih</td>
+      <td>2.3</td>
+      <td><br>
+      </td>
+      <td>Vcc+0.3</td>
+      <td>V</td>
+    </tr>
+  </tbody>
+</table>
+<h4><br>
+Electrical characteristics under recommended conditions</h4>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Parameter</th>
+      <th>Test conditions</th>
+      <th>Min</th>
+      <th>Typ</th>
+      <th>Max</th>
+      <th>Unit</th>
+    </tr>
+    <tr>
+      <td>Supply switchover voltage (Vso)</td>
+      <td>.</td>
+      <td>.</td>
+      <td>Vbc</td>
+      <td>.</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>Output leakage current</td>
+      <td>CS* or OE* =H or WE*=L </td>
+      <td>-1</td>
+      <td>.</td>
+      <td>+1</td>
+      <td>uA</td>
+    </tr>
+    <tr>
+      <td>Input leakage current </td>
+      <td>Vin = Vss to Vcc</td>
+      <td>-1</td>
+      <td>.</td>
+      <td>+1</td>
+      <td>uA</td>
+    </tr>
+    <tr>
+      <td>High-level output voltage (Voh)<br>
+Ditto on battery (Vohb)</td>
+      <td>Vcc &gt; Vbc I = -2.0 mA<br>
+Vcc &lt; Vbc I= -10 uA</td>
+      <td>2.4<br>
+Vbc-0.3</td>
+      <td>.</td>
+      <td>.</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>Low-level output voltage </td>
+      <td>I = 4 mA</td>
+      <td>.</td>
+      <td>.</td>
+      <td>0.4</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>Operating supply current</td>
+      <td>CS* = L I = 0 min cycle, 100% </td>
+      <td>.</td>
+      <td>12</td>
+      <td>25</td>
+      <td>mA</td>
+    </tr>
+    <tr>
+      <td>Current in standby mode</td>
+      <td>CS* &gt; Vcc-0.2V</td>
+      <td>.</td>
+      <td>1.5</td>
+      <td>.</td>
+      <td>mA</td>
+    </tr>
+    <tr>
+      <td>Battery operation current</td>
+      <td>Vbc=3V, T=25`C no load</td>
+      <td>.</td>
+      <td>0.3</td>
+      <td>0.5</td>
+      <td>uA</td>
+    </tr>
+    <tr>
+      <td>Power-fail detect voltage (Vpfd)</td>
+      <td>bq4847Y<br>
+bq4847</td>
+      <td>4.3<br>
+4.55</td>
+      <td>4.37<br>
+4.62</td>
+      <td>4.5<br>
+4.75</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>Vout voltage</td>
+      <td>Vcc &gt; Vbc I = 100 mA<br>
+Vcc &lt; Vbc I = 100 uA</td>
+      <td>Vcc-0.3V<br>
+Vbc-0.3</td>
+      <td>.</td>
+      <td>.</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>Output voltage on RST*, INT*, WDO* </td>
+      <td>Isink = 4 mA<br>
+WDO* I source = 2mA </td>
+      <td>.<br>
+2.4</td>
+      <td>.<br>
+      </td>
+      <td>0.4<br>
+      </td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>Watchdog input low current</td>
+      <td>V = 0 to 0.8V</td>
+      <td>-50</td>
+      <td>-10</td>
+      <td>.</td>
+      <td>uA</td>
+    </tr>
+    <tr>
+      <td>Watchdog input high current</td>
+      <td>V = 2.2V to Vcc</td>
+      <td>.</td>
+      <td>20</td>
+      <td>50</td>
+      <td>uA</td>
+    </tr>
+    <tr>
+      <td>I/O capacitance</td>
+      <td>V = 0V</td>
+      <td>.</td>
+      <td>.</td>
+      <td>7</td>
+      <td>pF</td>
+    </tr>
+    <tr>
+      <td>Input capacitance</td>
+      <td>V = 0V</td>
+      <td>.</td>
+      <td>.</td>
+      <td>5</td>
+      <td>pF</td>
+    </tr>
+  </tbody>
+</table>
+<h3><br>
+<hr width="100%"></h3>
+<h3><a name="bq4842/4852"></a>The bq4842 and bq4852 chips</h3>
+<p><a href="#pinout%204842%20+%204852">Pinouts<br>
+</a><a href="#RTC%20registers%204842">Registers<br>
+</a><a href="#Time%20and%20date%204842">Time &amp; date<br>
+</a><a href="#alarms%204842">Alarms<br>
+</a><a href="#Periodic%20int%204842">Periodic interrupts<br>
+</a><a href="#Power%20fail%20int%204842">Power-fail interrupts<br>
+</a><a href="#watchdog%204842">Watchdog timer<br>
+</a><a href="#calibration%204842">Clock calibration<br>
+</a><a href="#Timing%20diagrams%204842">Timing diagrams<br>
+</a><a href="#Electrical%204842">Electrical characteristics</a></p>
+<p>Both these chips combine a fairly standard real-time clock with
+built-in
+battery and crystal, and a battery-backed SRAM. The clock registers map
+at the end of the SRAM space. The only difference between the two is
+the
+size of the SRAM: 128K for the bq4842, versus 512K for the bq4852.
+Thus,
+with these chips, you don't need to install an external SRAM chip.</p>
+<h4><a name="pinout 4842 + 4852"></a>Pinouts</h4>
+<pre>       +----+--+----+  <br>  Rst* |1 o       36| Vcc   <br>  n.c. |2         35| n.c.            +----+--+----+ <br>   A18 |3 o       34| Int*       Rst* |1 o       32| Vcc<br>   A16 |4         33| A15         A16 |2         31| A15<br>   A14 |5         32| A17         A14 |3         30| Int*<br>   A12 |6    b    31| WE*         A12 |4    b    29| WE*<br>    A7 |7    q    30| A13          A7 |5    q    28| A13<br>    A6 |8         29| A8           A6 |6         27| A8<br>    A5 |9    4    28| A9           A5 |7    4    26| A9<br>    A4 |10   8    27| A11          A4 |8    8    25| A11<br>    A3 |11   5    26| OE*          A3 |9    4    24| OE*<br>    A2 |12   2    25| A10          A2 |10   2    23| A10<br>    A1 |13        24| CE*          A1 |11        22| CE*<br>    A0 |14        23| D7           A0 |12        21| D7 <br>    D0 |15        22| D6           D0 |13        20| D6<br>    D1 |16        21| D5           D1 |14        19| D5<br>    D2 |17        20| D4           D2 |15        18| D4 <br>   GND |18        19| D3          GND |16        17| D3<br>       +------------+                 +------------+</pre>
+<p><u>Power supply<br>
+</u><b>Vcc</b>: +5V <br>
+<b>GND</b>: ground</p>
+<p><u>Control signals<br>
+</u><b>CE*</b>: Access the SRAM and the real-time clock registers when
+low.<br>
+<b>OE*</b>: Read data while low. OE* and WE* should never be low
+together/<br>
+<b>WE*</b>: Latch data when low (on the falling edge of WE* or CE*
+whichever
+comes last)</p>
+<p><u>Busses<br>
+</u><b>A0-A18</b>: register address. A0 is the least significant bit.<br>
+<b>D0-D7</b>: Bidirectional data bus. D0 is the least significant bit,
+D7 the most significant one (opposite of the TI-99/4A).</p>
+<p><u>Extra pins<br>
+</u><b>Int*</b>: the clock bring this open-collector output low when
+issuing
+an interrupt (unless it is in stand-by or in battery-backed mode). The
+load voltage should not excess Vcc. Leave n.c. when not in use.<br>
+<b>Rst*</b>: open-collector output. Remains low for 200 msec after
+power
+goes on. Goes low if watchdog times out.<br>
+</p>
+<h4><a name="RTC registers 4842"></a>Registers</h4>
+<p>The RTC interface consists in 16 registers, each mapping to a
+dedicated
+address at the end of the SRAM. With the bq4852, this will be addresses
+&gt;7FFF0-7FFFF, which on the IDE card translates as &gt;5FF0-5FFF at
+page
+&gt;3F. With the bq4842, the addresses are &gt;1FF0-1FFF, which
+translates
+as &gt;5FF0-5FFF at page &gt;0F, &gt;1F, &gt;2F or &gt;3F (since pages
+&gt;00-0F also map at &gt;10-1F, etc).</p>
+<p>In most cases, the internal data representation is in binary-coded
+decimal,
+i.e. &gt;59 means 59, not 89 as it would in true hexadecimal.</p>
+<p><b>&gt;7FFF0</b>: Interrupt flags. These flags are set whether or
+not
+a given interrupt is enabled in register &gt;7FFF6. Reading register
+&gt;7FFF0
+will clear the interrupt condition and reset all flags.</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <td>&gt;80</td>
+      <td>&gt;40</td>
+      <td>&gt;20</td>
+      <td>&gt;10</td>
+      <td>&gt;08</td>
+      <td>&gt;04</td>
+      <td>&gt;02</td>
+      <td>&gt;01</td>
+    </tr>
+    <tr>
+      <td>WDF</td>
+      <td>AF</td>
+      <td>PRWF</td>
+      <td>BLF</td>
+      <td>PF</td>
+      <td>x</td>
+      <td>x</td>
+      <td>x</td>
+    </tr>
+  </tbody>
+</table>
+<p><b>WDF</b>: 1=Watchdog timed out.<br>
+<b>AF</b>: 1=An alarm occured.<br>
+<b>PWRF</b>: 1=Main power went down.<br>
+<b>BLF</b>: 1=Battery is low.<br>
+<b>PF</b>: 1=A periodic interrupt occured.<br>
+The last 3 bits are not used, and can be written/read at will.</p>
+<p><b>&gt;7FFF1</b>: 100th of second. Valid values: &gt;00 to &gt;99.</p>
+<p><b>&gt;7FFF2</b>: Alarm seconds. Valid values: &gt;00 to &gt;59. Add
+&gt;80 to disregard seconds in the alarm settings.</p>
+<p><b>&gt;7FFF3</b>: Alarm minutes. Valid values: &gt;00 to &gt;59. Add
+&gt;80 to disregard minutes in the alarm settings.</p>
+<p><b>&gt;7FFF4</b>: Alarm hours. Valid values: &gt;00 to &gt;23. Add
+&gt;80
+to disregard hours in the alarm settings.</p>
+<p><b>&gt;7FFF5</b>: Alarm day of the month. Valid values: &gt;01 to
+&gt;31.
+Add &gt;80 to disregard day in alarm settings.</p>
+<p><b>&gt;7FFF6</b>: Interrupts enable.</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <td>&gt;80</td>
+      <td>&gt;40</td>
+      <td>&gt;20</td>
+      <td>&gt;10</td>
+      <td>&gt;08</td>
+      <td>&gt;04</td>
+      <td>&gt;02</td>
+      <td>&gt;01</td>
+    </tr>
+    <tr>
+      <td>AIE</td>
+      <td>PWRIE</td>
+      <td>ABE</td>
+      <td>PIE</td>
+      <td colspan="4">RS</td>
+    </tr>
+  </tbody>
+</table>
+<p><b>AIE</b>: 1=Enable alarm interrupts.<br>
+<b>PWRIE</b>: 1=Enable interrupts to signal power failure.<br>
+<b>ABE</b>: 1=Enable alarm interrupts even while on battery power. <br>
+<b>PIE</b>: 1=Enable periodic interrupts at a frequency determined by
+RS.<br>
+<b>RS</b>: Frequency of the periodic interrupt.</p>
+<p><b>&gt;7FFF7</b>: Watchdog register. To prevent watchdog from
+firing,
+write to this register before the timeout period is over.</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <td>&gt;80</td>
+      <td>&gt;40</td>
+      <td>&gt;20</td>
+      <td>&gt;10</td>
+      <td>&gt;08</td>
+      <td>&gt;04</td>
+      <td>&gt;02</td>
+      <td>&gt;01</td>
+    </tr>
+    <tr>
+      <td>WDS</td>
+      <td colspan="5">BM</td>
+      <td colspan="2">WD</td>
+    </tr>
+  </tbody>
+</table>
+<p><b>WDS:</b> Watchdog steering upon timeout: 1=Pulse Reset* low, then
+disable whatchdog. <br>
+0=keep INT* low till watchdog is reset (by writing to this register).<br>
+<b>BM</b>: Watchdog multiplier: timeout period, in units. 0=disable.<br>
+<b>WD</b>: Watchdog units: 00=1/16 sec, 01=1/4 sec, 10=1 sec, 11=4 sec</p>
+<p><b>&gt;7FFF8</b>: Control</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <td>&gt;80</td>
+      <td>&gt;40</td>
+      <td>&gt;20</td>
+      <td>&gt;10</td>
+      <td>&gt;08</td>
+      <td>&gt;04</td>
+      <td>&gt;02</td>
+      <td>&gt;01</td>
+    </tr>
+    <tr>
+      <td>W</td>
+      <td>R</td>
+      <td>S</td>
+      <td colspan="5">Calibration</td>
+    </tr>
+  </tbody>
+</table>
+<p><b>W</b>: 1=Enable writing to clock registers &gt;7FFF9-7FFFF.
+0=Accept
+new values.<br>
+<b>R</b>: 1=Enable reading clock registers, i.e. freezes the register
+contents.
+0=Catch up with actual values.<br>
+<b>S</b>: Calibration sign: 0=negative, 1=positive.<br>
+<b>Calibration</b>: +1= + 10.7 sec/month. -1 = -5.35 sec/month.
+Compensates
+for temperature effects on crystal accuracy.</p>
+<p><b>&gt;7FFF9</b>: Seconds. Valid values: &gt;00 to &gt;59. Add
+&gt;80
+to stop the oscillator (e.g. for storage, since battery cannot be
+removed).</p>
+<p><b>&gt;7FFFA</b>: Minutes. Valid values: &gt;00 to &gt;59.</p>
+<p><b>&gt;7FFFB</b>: Hours. Valid values: &gt;00 to &gt;23.</p>
+<p><b>&gt;7FFFC</b>: Day-of-week. Valid values: &gt;01 (Sunday) to
+&gt;07.
+Add &gt;40 to enable frequency test mode: bit &gt;01 in register
+&gt;7FFF9
+will toggle at exactly 512K (do not set the R bit). Usefull to adjust
+calibration
+without timing the clock for a month.</p>
+<p><b>&gt;7FFFD</b>: Day of the month. Valid values: &gt;01 through
+&gt;31.</p>
+<p><b>&gt;7FFFE</b>: Month. Valid values &gt;01 to &gt;12.</p>
+<p><b>&gt;7FFFF</b>: Year. Valid values &gt;00 to &gt;99.</p>
+<h4><br>
+<a name="Time and date 4842"></a>Setting/reading the time and date</h4>
+<p>To read time and date, just read the relevant registers. The only
+problem
+is that time may change as you are reading it (e.g. if its 2:59:59), so
+you may end up reading 2:00:00 if you read the hour before the minutes.
+Thus, you should always set bit &gt;40 in register &gt;7FFF8 before
+reading,
+which will prevent register update. The clock still keeps the correct
+time,
+but the "display" is frozen, so you can access it safely. Once
+done, reset byte &gt;40 and the registers will catch up with the
+current
+time and date within the next second.</p>
+<p>Similarly, to set the clock you should first set bit &gt;80 in
+register
+&gt;7FFF8. Then write the desired values to the proper registers.
+Finally,
+reset bit &gt;80 to '0', which will transfer the new values to the
+internal
+clock registers. This is only necessary when writing to the time
+registers,
+&gt;7FFF9 through &gt;7FFFF.</p>
+<p>There is no automatic daylight savings time with this clock, so you
+will need to adjust it yourself: one hour forward on the first Sunday
+in
+April, one hour back on the last Sunday in October.</p>
+<p><br>
+<a name="alarms 4842"></a><b>Alarms</b></p>
+<p>You can set an alarm for a given time and date (whithin a month), by
+writing a value into the four alarm registers: day, hour, minutes and
+seconds.
+If a register is not used, set the two leftmost bits as 1 (i.e. values
+in the range &gt;C0-FF). This way you can set repetitive alarms, e.g.
+every
+hour on the hour (day = &gt;C0, hours = &gt;C0, minutes=0, seconds=0).
+To disable alarms altogether, enter an impossible value in one of the
+registers:
+e.g. minutes=64.</p>
+<p>By setting bit &gt;80 in register &gt;7FFF6, you can cause the alarm
+to trigger an external interrupt when it goes off. The Iint* pin will
+be
+brought low until the alarm is acknowledged by reading register
+&gt;7FFF0.
+The IDE card sends this signal to the IntA* line, which causes an
+external
+interrupt. The DSRs in the SRAM should contain an interrupt service
+routine
+that clears the alarms and takes the appropriate (user selectable)
+action.</p>
+<p>Setting bit &gt;20 in register &gt;7FFF6 would allow an alarm to
+trigger
+an interrupt even when power is off. Obviously, we have no need for
+this
+feature, so leave this bit as '0'. You can find out whether an alarm
+occured
+during power-off time by reading the flag register &gt;7FFF0 at
+power-up
+time. Note that the interrupt enable register is automatically reset
+upon
+power-up, thus alarms interrupts need to be re-enabled after each
+power-up.</p>
+<h4><br>
+<a name="Periodic int 4842"></a>Periodic interrupts</h4>
+<p>Optionally, the clock can generate constants interrupts at a preset
+frequency. This interrupt can be detected by checking bit &gt;08 in the
+flags register at &gt;7FFF0, or it can be used to trigger an external
+interrupt,
+if bit &gt;01 is set in the interrupt enable register at &gt;7FFF6. The
+interruption period is set in the same register, according to the
+following
+table:</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>RS </th>
+      <th>Frequency </th>
+      <th>Interrupt period </th>
+    </tr>
+    <tr>
+      <td>0</td>
+      <td align="center">-</td>
+      <td align="center">-</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td align="right">32768 Hz</td>
+      <td align="right">10 msec</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td align="right">16384 Hz</td>
+      <td align="right">100 msec</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td align="right">8192 Hz</td>
+      <td align="right">122.07 us</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td align="right">4096 Hz</td>
+      <td align="right">244.141 us</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td align="right">2048 Hz</td>
+      <td align="right">488.281 us</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td align="right">1024 Hz</td>
+      <td align="right">976.5625 us</td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td align="right">512 Hz</td>
+      <td align="right">1.953125 ms</td>
+    </tr>
+    <tr>
+      <td>8</td>
+      <td align="right">256 Hz</td>
+      <td align="right">3.90625 ms</td>
+    </tr>
+    <tr>
+      <td>9</td>
+      <td align="right">128 Hz</td>
+      <td align="right">7.8125 ms</td>
+    </tr>
+    <tr>
+      <td>10</td>
+      <td align="right">64 Hz</td>
+      <td align="right">15.625 ms</td>
+    </tr>
+    <tr>
+      <td>11</td>
+      <td align="right">32 Hz</td>
+      <td align="right">31.25 ms</td>
+    </tr>
+    <tr>
+      <td>12</td>
+      <td align="right">16 Hz</td>
+      <td align="right">62.5 ms</td>
+    </tr>
+    <tr>
+      <td>13</td>
+      <td align="right">8 Hz</td>
+      <td align="right">125 ms</td>
+    </tr>
+    <tr>
+      <td>14</td>
+      <td align="right">4 Hz</td>
+      <td align="right">250 ms</td>
+    </tr>
+    <tr>
+      <td>15</td>
+      <td align="right">2 Hz</td>
+      <td align="right">500 ms</td>
+    </tr>
+  </tbody>
+</table>
+<p>Note that only conditions 1 and 2 differ from those of the RTC-65271
+and those of the bq4847.</p>
+<h4><br>
+<a name="Power fail int 4842"></a>Power-fail interrupts</h4>
+<p>When Vcc falls below a certain point (typically, +4.37 volts), it
+sets
+bit &gt;20 in register &gt;7FFF0, and may trigger an external interrupt
+if bit &gt;40 is set in register &gt;7FFF6. After about 100
+microseconds,
+it sends a reset signal on the Rst* pin and disables access to the
+SRAM.
+However, it will only switch to battery power when the main power falls
+under 3 volts. This allows to finish any pending write operation that
+may
+have been interrupted by a power-down. </p>
+<p>When the main power reaches +3.0 volts, the chip switches off its
+battery.
+However, it remains write-protected for 100 milliseconds after the main
+power passes +4.37 volts. During that time, it also brings the Rst* pin
+low. Not that it will also reset then interrupt enable register, which
+will need to be re-enabled upon power-up.</p>
+<p>A battery low warning flag is also provided: bit &gt;10 in register
+&gt;7FFF0 will be set to '1' if the battery voltage falls under +2.2
+volts.
+Under these conditions, the validity of the clock registers and the
+integrity
+of the SRAM are not guaranteed when the main power is off. Since the
+battery
+cannot be changed, you must buy a new clock chip...</p>
+<p>To spare the battery, you should set bit &gt;80 to the seconds
+register
+at &gt;7FFF9 before taking the card out of the PE-box. This will stop
+the
+clock while the card is in storage, which saves a lot of power.
+Obviously,
+you will need to set the clock again when re-installing the card. This
+bit is set to '1' upon shipping from the factory, so you must reset it
+to '0' (i.e. while setting the clock for the first time) to start the
+clock.
+The contents of the SRAM are not affected by this bit.</p>
+<h4><br>
+<a name="watchdog 4842"></a>Watchdog timer function</h4>
+<p>This function could be used to monitor a microprocessor and make
+sure
+it's not frozen or traped inside a program loop. To enable the
+watchdog,
+write a non-zero value in the watchdog register at &gt;7FFF7. The two
+rightmost
+bits define the unit of measurement: 1/16th of a second, 1/4 of a
+second,
+1 second, or 4 second. The next 5 bits encode the desired timeout
+value.
+For instance, writing binary 0 00011 10, (i.e. &gt;E0 hexadecimal)
+encodes
+a timeout period of 3 seconds.</p>
+<p>Bit &gt;80 in the same register serves to determine the action to be
+taken when the watchdog times out. When this bit is '1', a timeout
+condition
+causese a low pulse on the Rst* pin (this also occurs at power up, by
+the
+way). Since the Rst* pin is not used on the IDE card, this option is
+not
+very useful. Leaving bit &gt;80 as '0' in register &gt;7FFF7 causes a
+timeout
+condition to bring the Int* pin low, thereby generating an interrupt
+that
+cannot be masked in register &gt;7FFF6. Int* will stay low until
+register
+&gt;7FFF7 is written to again (or register &gt;7FFF6 since the TI-99/4A
+always accesses two at a time).</p>
+<p>To prevent the watchdog timer from firing, the microprocessor should
+write to register &gt;7FFF7 before the timeout period is over. This
+will
+restart the watchdog timer with the value just written. Note the the
+watchdog
+timer is disabled automatically when the main power goes down.</p>
+<h4><br>
+<a name="calibration 4842"></a>Clock calibration</h4>
+<p>Because the oscillation rate of the built-in crystal changes with
+temperature,
+the accuracy of the clock is only guaranteed within 1 minute per month.
+You may improve on this by changing the calibration value in register
+&gt;7FFF8.
+Positive values are entered in increments of 10.7 seconds per month
+(when
+the sign bit &gt;20 is set), negative values in increments of 5.35
+seconds
+per month (sign bit &gt;20 is '0').</p>
+<p>The best way to do so is to let the clock run for a month and check
+it versus a reliable source, e.g. the Greenwich clock. Then enter the
+proper
+correction. An alternative way is provided, by putting the clock in
+"frequency
+test mode" and checking the seconds register: but &gt;01 should toggle
+at 512 Hz. Unfortunately, this method requires a very reliable
+frequency
+meter, and continuous access to the clock chip, which the IDE card is
+not
+really designed for...</p>
+<h3><br>
+<a name="Timing diagrams 4842"></a>Timing diagrams</h3>
+<h4>Read cycle</h4>
+<pre><u>     </u>|         &gt;85 ns          |<u>      </u>   <br>     \<u>___                      </u>/        CS*<br><u>     |    _</u>&lt;85 ns |         <u>   |&lt;35| </u> <br>     |     \______<u>|</u>________/  &lt;25  |    OE*<br>   <u>  |      | &lt;45 |                | </u>       <br>XXX<u>        valid  |                | </u>XXXX  Address    <br>  |  |  &gt;5    |   |<u>                </u>|   <br>ZZZZZZZZZZZZZ-XXXXX<u>    valid       </u>ZZZZ D0-D7<br>  |    &lt; 85 ns    |</pre>
+<h4><br>
+Write cycle</h4>
+<pre>   <u>|           &gt;85  ns                 </u>| <br>XXX<u>              valid                 </u>XXXX Address<br>___<u>|&gt;0 </u>|                          <u>     |   </u>   <br>   |   \<u>___      &gt;75 ns          </u>/  &gt;5 |    CS*<br><u>   |  &gt;0    </u>|               _____<u>      |   </u> <br>            \____<u>&gt;65 ns</u>____/|    &gt;15   |    WE*     <br>         |<u>       &gt;35 ns     |&gt;10  </u>|   <br>ZXZZZZZZZZ<u>     valid              </u>ZZZZZZZZZ D0-D7 </pre>
+<h4><br>
+Power down/up</h4>
+<pre>_____                                  <u>                <br></u>     \                                /    <br>Vpfd__\                              /____Vpfd           Vcc<br>      |\                            /| <br>      | \<u>___                   _   </u>/-|----Vso      <br>      |                              |<br><u>      |40-160 us|</u>                    |40-200 ms <u>|      <br>valid |          </u>XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX<u> valid </u> CS*<br><u>      |40-160 us|</u>                    |40-200 ms <u>|      <br>valid |          </u>ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ<u> valid </u> All outputs<br>      |                                         |         <br><u>      |</u>____<u>                 </u>                    |<u>      <br></u>      |                     \<u>                   </u>/       Rst* (+ pull-up)   <br><u>      |40-160 us</u>|           |              _____<u>       </u> <br>                \<u>           </u>/ZZZZZZZZZZZZZ/             Int* (+ pull up)</pre>
+<p><u>Voltage slews</u>:<br>
+4.50 volts down to 4.20 volts: &gt;300 us<br>
+4.20 volts down to Vso: &gt;10 us<br>
+Vso up to Vpfd: &gt;0</p>
+<h3><br>
+<a name="Electrical 4842"></a>Electrical characteristics</h3>
+<h4>Absolute maximum ratings</h4>
+<pre>Supply voltage Vcc:               -0.3V to 7V<br>Input voltage:                    -0.3V to 7V<br>Operating temperature:             0 to 70 `C<br>Storage temperature:             -40 to 70 `C<br>Soldering temperature: max 260 `C for 10 secs</pre>
+<h4><br>
+<br>
+Recommended operating conditions</h4>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Parameter</th>
+      <th>Min</th>
+      <th>Nom</th>
+      <th>Max</th>
+      <th>Unit</th>
+    </tr>
+    <tr>
+      <td>Supply voltage, Vcc</td>
+      <td>4.5</td>
+      <td>5</td>
+      <td>5.5</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>Input low voltage Vil </td>
+      <td>-0.3</td>
+      <td>.</td>
+      <td>0.8</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>Input high voltage Vih</td>
+      <td>2.2</td>
+      <td>.</td>
+      <td>Vcc+0.3</td>
+      <td>V</td>
+    </tr>
+  </tbody>
+</table>
+<h4><br>
+Electrical characteristics under recommended conditions</h4>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Parameter</th>
+      <th>Test conditions</th>
+      <th>Min</th>
+      <th>Typ</th>
+      <th>Max</th>
+      <th>Unit</th>
+    </tr>
+    <tr>
+      <td>Supply switchover voltage (Vso)</td>
+      <td>.</td>
+      <td>.</td>
+      <td>3</td>
+      <td>.</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>Output leakage current</td>
+      <td>CS* or OE* =H or WE*=L </td>
+      <td>-1</td>
+      <td>.</td>
+      <td>+1</td>
+      <td>uA</td>
+    </tr>
+    <tr>
+      <td>Input leakage current </td>
+      <td>Vin = Vss to Vcc</td>
+      <td>-1</td>
+      <td>.</td>
+      <td>+1</td>
+      <td>uA</td>
+    </tr>
+    <tr>
+      <td>High-level output voltage (Voh)</td>
+      <td>I = -1.0 mA</td>
+      <td>2.4</td>
+      <td>.</td>
+      <td>.</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>Low-level output voltage </td>
+      <td>I = 2.1 mA</td>
+      <td>.</td>
+      <td>.</td>
+      <td>0.4</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>Operating supply current</td>
+      <td>CS* = L I = 0 min cycle, 100% </td>
+      <td>.</td>
+      <td>75</td>
+      <td>105</td>
+      <td>mA</td>
+    </tr>
+    <tr>
+      <td>Current in standby mode</td>
+      <td>CS* = H<br>
+CS*&gt;Vcc-0.2V Vin&lt;0.2V or &gt;Vcc-0.2V</td>
+      <td>.</td>
+      <td>3<br>
+2</td>
+      <td>6<br>
+4</td>
+      <td>mA</td>
+    </tr>
+    <tr>
+      <td>Power-fail detect voltage (Vpfd)</td>
+      <td>.</td>
+      <td>4.30</td>
+      <td>4.37</td>
+      <td>4.50</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>RST*, INT* sink current</td>
+      <td>Vol = 0.4V</td>
+      <td>10</td>
+      <td>.</td>
+      <td>.</td>
+      <td>mA</td>
+    </tr>
+    <tr>
+      <td>I/O capacitance</td>
+      <td>V = 0V</td>
+      <td>.</td>
+      <td>.</td>
+      <td>10</td>
+      <td>pF</td>
+    </tr>
+    <tr>
+      <td>Input capacitance</td>
+      <td>V = 0V</td>
+      <td>.</td>
+      <td>.</td>
+      <td>10</td>
+      <td>pF</td>
+    </tr>
+  </tbody>
+</table>
+<p>
+</p>
+<hr width="100%">
+<p></p>
+<h3><a name="IDE pinouts"></a>IDE controller</h3>
+<p><a href="#IDE%20pinouts">Cable pinout<br>
+</a><a href="#IDE%20registers">Registers<br>
+</a><a href="#IDE%20commands">Commands<br>
+</a><a href="#Operating%20the%20IDE%20controller">Operating the IDE
+controller<br>
+</a><a href="#LBA%20vs%20CSH">LBA vs CSH<br>
+</a><a href="#DMA">DMA<br>
+</a><a href="#Drive%20considerations">Drives</a></p>
+<h4>Cable pinout</h4>
+<p>40-pins two-row connector:</p>
+<pre>RESET*   1 2   GND<br>    D7   3 4   D8<br>    D6   5 6   D9<br>    D5   7 8   D10<br>    D4   9 10  D11<br>    D3  11 12  D12<br>    D2  13 14  D13<br>    D1  15 16  D14<br>    D0  17 18  D15<br>   GND  19     (Missing)<br>  DMAQ  21 22  GND<br> DIOW*  23 24  GND<br> DIOR*  25 26  GND<br> IORDY  27 28  SPSYNC<br> DMACK  29 30  GND<br>   IRQ  31 32  IO16*<br>   DA1  33 34  PDIAG*<br>   DA0  35 36  DA2<br>CS1Fx*  37 38  CS3Fx*<br>  DASP  39 40  GND</pre>
+<p>The connections have the following functions:</p>
+<pre> #  Name   I/O  Use<br>--  -----  ---  --------------------------------------- <br> 1  RESET*  &gt;   Resets all connected devices when low<br> 2  GND     -   Ground<br> 3  D7      &lt;&gt;  Data bus (D8-D15 only used with data register)<br> 4  D8      &lt;&gt;    " <br> 5  D6      &lt;&gt;    "<br> 6  D9      &lt;&gt;    "<br> 7  D5      &lt;&gt;    "<br> 8  D10     &lt;&gt;    "<br> 9  D4      &lt;&gt;    "<br>10  D11     &lt;&gt;    "<br>11  D3      &lt;&gt;    "<br>12  D12     &lt;&gt;    "<br>13  D2      &lt;&gt;    "<br>14  D13     &lt;&gt;    "<br>15  D1      &lt;&gt;    "<br>16  D14     &lt;&gt;    "<br>17  D0      &lt;&gt;  Least significany bit<br>18  D15     &lt;&gt;  Most significant bit<br>19  GND     -   Ground<br>20   -      -   Missing pin used to prevent missconnecting the cable<br>21  DMAQ    &lt;   DMA request (optional)<br>22  GND     -   Ground<br>23  DIOW*   &gt;   Pulse low to write to the IDE controller<br>24  GND     &lt;   Ground<br>25  DIORD*  &gt;   Pulse low to read from the IDE controller<br>26  GND     -   Ground<br>27  IORDY   &lt;   Access completed, drive ready (optional)<br>28  SPSYNC  &gt;&lt;  Spindle synchronisation between drives (leave open)<br>29  DMACK   &gt;   DMA acknowledge (optional)<br>30  GND     -   Ground<br>31  IRQ     &lt;   Interrupt request from the IDE devices (active high)<br>32  IO16*   &lt;   Used by the controller to signal 16-bit operations (optional)<br>33  DA1     &gt;   Address bus, selects a register among 8<br>34  PDIAG*  &gt;&lt;  Communication between master and slave drive (leave open)<br>35  DA0     &gt;   Address bus, least significant bit<br>36  DA2     &gt;   Address bus, most significant bit<br>37  CS1Fx*  &gt;   Selects the first group of registers <br>38  CS3Fx*  &gt;   Selects the second group of registers <br>39  DASP    &lt;   Drive active/slave present signal<br>40  GND     -   Ground </pre>
+<h4><br>
+<a name="IDE registers"></a>Registers</h4>
+<p>The IDE controller interface consists in 13 registers, all 8-bit
+wide
+except the data register which is 16-bit. Most are bidirectional, but
+there
+also are 3 read-only and 3 write-only registers. Generally, a read-only
+register shares its address with a write-only register. Registers are
+organized
+as two blocks of 8 addresses. To access a register, place its address
+on
+pins A0-A2, and select the proper block by bringing CS1Fx or CS3Fx low.
+To read from a register, pulse RD* low. To write to it, pulse WR* low.
+All registers are 8-bit wide and communicate via D0-D7, except for the
+data register that is 16-bit wide and uses D0-D15. With the IDE card,
+all
+register map into the least significant byte of a word, the data
+register
+maps into the whole word.</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th align="right">CS</th>
+      <th>A0-A2</th>
+      <th>Read</th>
+      <th>Write</th>
+    </tr>
+    <tr>
+      <td rowspan="8">CS1Fx</td>
+      <td>0</td>
+      <td>Data (16-bit)</td>
+      <td>Data (16-bit)</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>Error register </td>
+      <td>Precomp register </td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>Sector count</td>
+      <td>Sector count</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>Sector number </td>
+      <td>Sector number</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>Cylinder lsb</td>
+      <td>Cylinder lsb</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>Cylinder msb</td>
+      <td>Cylinder msb</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td>Drive/head</td>
+      <td>Drive/head</td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td>Status register</td>
+      <td>Command register</td>
+    </tr>
+    <tr>
+      <td rowspan="2">CS3Fx</td>
+      <td>6</td>
+      <td>Alternate status </td>
+      <td>Digital output</td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td>Drive address</td>
+      <td>-</td>
+    </tr>
+  </tbody>
+</table>
+<p><u>Data register<br>
+</u>This is the only 16-bit register. It is used to pass data to/from
+the
+IDE contoller.</p>
+<p><u>Sector count register<br>
+</u>Used to indicate to the controller how many sectors are to be
+transfered
+(0 means 256).</p>
+<p><u>Sector number register<br>
+</u>Originally used to pass the sector number to/from the controller.
+With
+modern controller, this is just the 4th (least significant) byte of the
+LBA (logical block address).</p>
+<p><u>Cylinder number lsb register<br>
+</u>Originally used to pass the least significant byte of the track
+number
+(called cylinder with hard drives) to/from the controller. Nowadays its
+the 3rd byte of the LBA.</p>
+<p><u>Cylinder number msb register<br>
+</u>Originally used to pass the most significant byte of the cylinder
+number
+(and was limited to 6 bits). Now, its the second byte of the LBA.</p>
+<p><u>Drive/head register<br>
+</u>Originally used to pass the drive number (0 or 1) and the head
+number
+(0 to 15). If the proper bit is set, it causes the controller to use
+logical
+block addressing, and the content of the register will be the first
+(most
+significant) byte of the LBA.</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <td>&gt;80</td>
+      <td>&gt;40</td>
+      <td>&gt;20</td>
+      <td>&gt;10</td>
+      <td>&gt;08</td>
+      <td>&gt;04</td>
+      <td>&gt;02</td>
+      <td>&gt;01</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>LBA</td>
+      <td>1</td>
+      <td>DRV</td>
+      <td colspan="4">Head number</td>
+    </tr>
+  </tbody>
+</table>
+<p><b>LBA</b>: a 1 means LBA addressing mode, a 0 means CSH addressing.<br>
+<b>DRV</b>: a 0 means master drive, a 1 means slave drive.</p>
+<p><u>Write pre-compensation register<br>
+</u>Not used. It only exits for backward compatibility, but all IDE
+controllers
+ignore it.</p>
+<p><u>Status register<br>
+</u>This is a read only register. It is used by the IDE controller to
+return
+some information that depends on the command being executed. Common
+bits
+are:</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <td>&gt;80</td>
+      <td>&gt;40</td>
+      <td>&gt;20</td>
+      <td>&gt;10</td>
+      <td>&gt;08</td>
+      <td>&gt;04</td>
+      <td>&gt;02</td>
+      <td>&gt;01</td>
+    </tr>
+    <tr>
+      <td>BSY</td>
+      <td>RDY</td>
+      <td>WFT</td>
+      <td>SKC</td>
+      <td>DRQ</td>
+      <td>COR</td>
+      <td>IDX</td>
+      <td>ERR</td>
+    </tr>
+  </tbody>
+</table>
+<p><b>BSY</b>: a 1 means that the controller is busy executing a
+command.
+No register should be accessed (except the digital output register)
+while
+this bit is set.<br>
+<b>RDY</b>: a 1 means that the controller is ready to accept a command,
+and the drive is spinning at correct speed..<br>
+<b>WFT</b>: a 1 means that the controller detected a write fault.<br>
+<b>SKC</b>: a 1 means that the read/write head is in position (seek
+completed).<br>
+<b>DRQ</b>: a 1 means that the controller is expecting data (for a
+write)
+or is sending data (for a read). Don't access the data register while
+this
+bit is 0.<br>
+<b>COR</b>: a 1 indicates that the controller had to correct data, by
+using
+the ECC bytes (error correction code: extra bytes at the end of the
+sector
+that allows to verify its integrity and, sometimes, to correct errors).<br>
+<b>IDX</b>: a 1 indicates the the controller retected the index mark
+(which
+is not a hole on hard-drives).<br>
+<b>ERR</b>: a 1 indicates that an error occured. An error code has been
+placed in the error register.</p>
+<p><a name="error codes"></a><u>Error register<br>
+</u>This is a read only register. Its content is only meaningfull when
+the ERR bit is set in the status register. </p>
+<table border="1">
+  <tbody>
+    <tr>
+      <td>&gt;80</td>
+      <td>&gt;40</td>
+      <td>&gt;20</td>
+      <td>&gt;10</td>
+      <td>&gt;08</td>
+      <td>&gt;04</td>
+      <td>&gt;02</td>
+      <td>&gt;01</td>
+    </tr>
+    <tr>
+      <td>BBK</td>
+      <td>UNC</td>
+      <td>MC </td>
+      <td>NID </td>
+      <td>MCR</td>
+      <td>ABT</td>
+      <td>NT0</td>
+      <td>NDM</td>
+    </tr>
+  </tbody>
+</table>
+<p><b>BBK</b>: 1 = bad block. Sector marked as bad by host.<br>
+<b>UNC</b>: 1= uncorrectable data error.<br>
+<b>MC</b>: 1 = medium changed (e.g. CD-ROM. Enhanced IDE only).<br>
+<b>NID</b>: 1 = No ID mark found.<br>
+<b>MCR</b>: 1 = medium change required (Enhanced IDE only).<br>
+<b>ABT</b>: 1 = command aborted.<br>
+<b>NT0</b>: 1 = No track 0 found.<br>
+<b>NDM</b>: 1 = No data mark found.</p>
+<p><u>Command register<br>
+</u>This is a write-only register. It accepts commands to the IDE
+controller.
+Note that most commands imply some values to have been placed in the
+sector,
+cylinder, etc registers. Always sends the command last. Here is a non
+exhaustive
+list of IDE commands:</p>
+<p><u>Digital output register<br>
+</u>This is a write-only register. It is used to send advanced
+intructions
+to the controller. Only two bits are active:</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <td>&gt;80</td>
+      <td>&gt;40</td>
+      <td>&gt;20</td>
+      <td>&gt;10</td>
+      <td>&gt;08</td>
+      <td>&gt;04</td>
+      <td>&gt;02</td>
+      <td>&gt;01</td>
+    </tr>
+    <tr>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>RST</td>
+      <td>IEN</td>
+    </tr>
+  </tbody>
+</table>
+<p><b>RST</b>: when set to 1 issues a reset signal to all connected
+drives.
+Must be reset to 0 for proper operation.<br>
+<b>IEN</b>: when set to 1, the controller won't issue interrupts. When
+0, an interrupt is issued after each sector or in advance of the result
+phase (command completion).</p>
+<p><u>Drive address register<br>
+</u>This is a read-only register that provides info on the current
+drive
+status.</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <td>&gt;80</td>
+      <td>&gt;40</td>
+      <td>&gt;20</td>
+      <td>&gt;10</td>
+      <td>&gt;08</td>
+      <td>&gt;04</td>
+      <td>&gt;02</td>
+      <td>&gt;01</td>
+    </tr>
+    <tr>
+      <td>-</td>
+      <td>WGT</td>
+      <td colspan="4">Head*</td>
+      <td colspan="2">DS*</td>
+    </tr>
+  </tbody>
+</table>
+<p><b>WGT</b>: Status of the write gate. A 0 means the gate is open and
+the read/write head is currently wrinting on the disk.<br>
+<b>Head*</b>: Currently active head. Caution: the bits are inverted!<br>
+<b>DS*</b>: Currently active drive.</p>
+<h4><br>
+<a name="IDE commands"></a>IDE commands</h4>
+<p>To be passed to the command register, after having placed the
+required
+parameters (if any) in the other registers.</p>
+<p><b>&gt;1X</b> Recalibrate the disk. All commands &gt;10 to &gt;1F
+will
+result in a recalibrate disk command being executed. This command has
+no
+parameters. You simply write the command code to the command register
+and
+wait for ready status to become active again.</p>
+<p><b>&gt;20</b> Read sector, with retry. (<b>&gt;21</b> = read sector
+without retry, <b>&gt;22</b> = also pass ECC bytes, <b>&gt;23</b>:
+both).
+For this command you have to load LBA first. When the command completes
+(DRQ goes active) you can read 256 words (16-bits) from the data
+register.
+Commands &gt;22 and &gt;23 will pass the four error correction code
+bytes
+after the data bytes.</p>
+<p><b>&gt;30</b> Write sector, with retry. (<b>&gt;31</b> = without
+retry,
+<b>&gt;32</b> = ECC bytes will be passed by host, <b>&gt;33</b>:
+both).
+Here too you have to load cylinder/head/sector. Then wait for DRQ to
+become
+active. Feed the disk 256 words of data in the data register. Next the
+disk starts writing. When BSY goes not active you can read the status
+from
+the status register. With commands &gt;30 and &gt;31, the controller
+calculates
+the four ECC bytes (error correction codes), with commands &gt;32 and
+&gt;33
+you should provides these four bytes after the data bytes.</p>
+<p><b>&gt;40</b> Verify sector, with retry (<b>&gt;41</b> = without
+retry).
+Reads sector(s) and checks if the ECC matches, but doesn't transfer
+data.</p>
+<p><b>&gt;50</b> Format track. Extremely dangerous command: if the
+controller
+performs address translation it may hopelessly mess-up the disk. Don't
+use: IDE drives should be formatted in factory.</p>
+<p><b>&gt;70</b> Seek. This normally does nothing on modern IDE drives.
+Modern drives do not position the head if you do not command a read or
+write.</p>
+<p><b>&gt;90</b> Diagnostic. Tells the controller to perform a self
+test
+and to test the drives. Results are passed in the error register:
+1=master
+ok, 2=format circuit error in master, 3=buffer error in master, 4=ECC
+logic
+error in master, 5=microprocesssor error in master, 6=interface error
+in
+master. &gt;80=at least one error in slave.</p>
+<p><b>&gt;91</b> Set drive parameters. Lets you specify the logical
+geometry
+used for address translation. Pass the number of heads (and the drive
+of
+interest) in the drive/head register, and the number of sectors per
+track
+in the sector count register.</p>
+<p><u>Optional command</u> (enhanced IDE)</p>
+<p><b>&gt;3C</b> Write verification.</p>
+<p><b>&gt;C4</b> Read multiple sectors.</p>
+<p><b>&gt;C5</b> Write multiple sectors.</p>
+<p><b>&gt;C6</b> Set multiple mode.</p>
+<p><b>&gt;C8</b> DMA read, with retry (<b>&gt;C9</b> without retry).
+Reads
+sector in direct memory access mode.</p>
+<p><b>&gt;CA</b> DMA&nbsp;write, with retry (<b>&gt;CB</b> without
+retry).</p>
+<p><b>&gt;DB</b> Acknowledge medium change.</p>
+<p><b>&gt;DE</b> Lock drive door.</p>
+<p><b>&gt;DF</b> Unlock drive door.</p>
+<p><b>&gt;E0</b> or <b>&gt;94</b> Standby immediate. Spins down the
+drive
+at once. No parameters. </p>
+<p><b>&gt;E1/&gt;95</b> Idle immediate.</p>
+<p><b>&gt;E2/&gt;96</b> and <b>&gt;E3/&gt;97</b> Set standby mode.
+Write
+in the sector count register the time (5 seconds units) of non-activity
+after which the disk will spin-down. Write the command to the command
+register
+and the disk is set in an auto-power-save modus. The disk will
+automatically
+spin-up again when you issue read/write commands. &gt;E2 (or &gt;96)
+will
+spin-down, &gt;E3 (or &gt;97) will keep the disk spinning after the
+command
+has been given. Example: write &gt;10 in the sector count register,
+give
+command &gt;E2 and the disk will spin-down after 16*5=80 seconds of
+non-activity.</p>
+<p><b>&gt;E4</b> Read buffer. Reads the content of the controller
+buffer
+(usefull for tests).</p>
+<p><b>&gt;E5/&gt;98</b> Checks for active, idle, standby, sleep.</p>
+<p><b>&gt;E6/&gt;99</b> Set sleep mode.</p>
+<p><b>&gt;E8</b> Write buffer. Loads data into the buffer but does not
+write anything on disk.</p>
+<p><b>&gt;E9</b> Write same sector.</p>
+<p><b>&gt;EC</b> Identify drive. This command prepares a buffer (256
+16-bit
+words) with information about the drive. To use it: simply give the
+command,
+wait for DRQ and read the 256 words from the drive. </p>
+<p><b>&gt;EF</b> Set features.</p>
+<p><b>&gt;F2</b> and <b>&gt;F3</b> The same as&gt; E2 and &gt;E3, only
+the unit in the sector count register is interpreted as 0.1 sec units.</p>
+<p>Codes &gt;80-8F, &gt;9A, &gt;C0-C3, and &gt;F5-FF are manufacturer
+dependent
+commands. All other codes are reserved for future extension.</p>
+<h4><br>
+<a name="Operating the IDE controller"></a>Operating the IDE controller</h4>
+<p>Lets take the read command as an example. First we should set the
+address
+of the desired sectors in the sector, cylinder, etc registers. Let's
+say
+we are using logical block addressing and want to access logical block
+&gt;123456.</p>
+<p>Sector register &lt;--- 56<br>
+Cylinder LSB register &lt;---34<br>
+Cyinder MSB register &lt;---12<br>
+Head/drive register &gt;E0 (bit &gt;40 indicates LBA)<br>
+Sector size register &lt;--256 (hard drive sectors are 512-byte in
+length,
+i.e 256 words).</p>
+<p>Then we can send the read command to the command register</p>
+<p>Status register --&gt; wait till ready and not busy<br>
+Command register &lt;--xx<br>
+Status register --&gt; wait till ready and not busy (while the
+controller
+seeks and read data into its buffer).</p>
+<p>Now we can read the data</p>
+<p>Status register --&gt; wait for DRQ<br>
+Data register --&gt; read 256 16-bit words.<br>
+Status register--&gt; check ERR: if set check the error register.</p>
+<p>The controller triggers its interrupt line each time a sector is
+ready
+to be read. For write operations, the IRQ line is activated each time a
+sector has been written and the controller is waiting for another one
+(including
+after the last sector: when the user can read the registers again). For
+all other commands, an interrupt is issued at the result phase, i.e.
+when
+the user can access the registers again after command completion.</p>
+<p>The IDE card lets you check the state of the IRQ pin by reading CRU
+bit 0, and can optionally trigger an interrupt, if the corresponding
+DIP
+switch is closed.</p>
+<p>Note that the controller contains a 512-byte buffer, so when writing
+data to the disk, you don't have to wait until each byte is physically
+written: just place the data into the buffer and leave the rest to the
+controller. You will have to wait between sectors though. Remember that
+hard-drive sectors are 512 bytes in length.</p>
+<h4><br>
+<a name="LBA vs CSH"></a>LBA versus CSH</h4>
+<p>Hard drives consists in several disks, each accessed via a reading
+head.
+Each disk contains a number of concentric tracks and a set of tracks
+with
+the same number on each disk is called a cylinder. Tracks are
+subdivided
+in sectors. The number of sector per track may vary from drive to drive
+or even from track to track on the same drive (tracks at the inside of
+the disk are shorter and can accomodate less data).</p>
+<p>Originally, to access a sector you had to know its number on the
+track,
+the track (or cylinder) number and which head should be used. This was
+called CHS (cylinder-head-sector) adressing. It was quite incovenient
+because
+it requires you to know the physical geometry of the drive (number of
+heads,
+etc). In addition, the PC BIOS and DOS placed limitations on the
+maximum
+values that could be sent (e.g. the cylinder number could be 1023 at
+max),
+whereas other values were limited by the hardware (no track can
+accomodate
+256 sectors).</p>
+<p>The second generation of IDE controllers started to perform "address
+translation", i.e. they take the CSH address passed by the user and
+adapt it to their internal geometry. For instance, a drive with more
+than
+16 heads could decide the the most-significant bit of the sector number
+should be used to select heads 16-31. This also allowed smart
+controllers
+to remap deffective tracks: they always are a few extra tracks at the
+end
+of a disk. When the controller determines that a track is deffective,
+it
+replaces it with one of the extra track, in a completely
+user-transparent
+manner (except that it may be a tad longer to move the to extra track
+than
+to the original one).</p>
+<p>The next step was to get rid of CSH altogether and to let the
+controller
+decide how to arrange data on its disks. This is the concept behind
+logical
+block addressing (LBA). With LBA you consider your drive as a
+collection
+of blocks, numbered from 0 to &gt;0FFF FFFF for the master drive, and
+from
+&gt;1000 0000 to &gt;1FFF FFFF for the slave drive. To access a sector,
+just pass its number to the controller and let it determine where the
+sector
+is physically located. LBA is far easier to handle than CSH as it
+places
+the burden on the controller, not on the programmer. On top of that, it
+is portable from drive to drive, which is a big plus. Finally, it lets
+you use the whole address space (no hardware or software limitations),
+upto a maximum of 128 gigabytes per drive.</p>
+<p>The IDE card can perform both CSH and LBA addressing, but the DSRs I
+wrote demand LBA.</p>
+<h4><br>
+<a name="DMA"></a>Direct memory access</h4>
+<p>The LBA controller is able to transfer data directly into the
+computer
+memory, bypassing the CPU. Unfortunately, this cannot be done with the
+TI-99/4A, at the moment. But I'm planning on building a DMA controller
+card that should make it possible. The IDE card already comprises the
+necessary
+circuitery.</p>
+<h4><br>
+<a name="Drive considerations"></a>Drives considerations</h4>
+<p>The IDE bus is intended for two devices: a master and a slave. These
+could be hard-drives, CD-ROM drives, or even a ZIP-drive. I only have
+tested
+the card with a single hard-drive, but it should also work with two.
+Just
+make sure you place the jumpers properly on each drive. If you want to
+access a CD drive, you'll have to write your own routines to translate
+the PC format, as IDEAL uses its own format.</p>
+<p>Your drive must be recent enough to support LBA (logical block
+addressing).
+This is purely a software requirement: that's what the DSRs are
+expecting.
+Of course, if you are willing to write CSH addressing routines
+yourself,
+feel free to do so. The maximum supported size is 128 Gigabytes per
+drive.
+</p>
+<p>Most drives have three jumpers. CS (cable select) is almost never
+used,
+so your choice is between master and slave. If you have a single drive
+leave all jumpers open (some drives allow a "storage" position
+for the unused jumper: accross MA and SL). If you want two drives,
+install
+one as the master, the other as the slave (duh!).</p>
+<pre>MA o o            MA o-o         MA o o <br>SL o o            SL o o         SL o-o<br>CS o o            CS o o         CS o o<br>One drive         Master         Slave</pre>
+<p>NB: Both devices get their registers written, but only the selected
+device will execute commands. Any data or register read will come from
+the selected device only.</p>
+<h1>
+<hr width="100%"><a name="CRU map"></a>Software</h1>
+<p><a href="#CRU%20map">CRU map<br>
+</a><a href="#Memory%20map">Memory map<br>
+</a><a href="#Low-level">Low-level access<br>
+</a><a href="#High%20level">High-level access</a></p>
+<h3>CRU map</h3>
+<table border="2" cellspacing="2" cellpadding="2">
+  <tbody>
+    <tr>
+      <th>Bit</th>
+      <th>Write</th>
+      <th>Read</th>
+    </tr>
+    <tr>
+      <td>0</td>
+      <td>0: Turn card off<br>
+1: turn card on </td>
+      <td>1 = IDE interrupt requested (maybe masked) </td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>= DIP-switch: registers map at &gt;4000-40FF <br>
+&lt;&gt; switch: SRAM maps at &gt;4000-40FF</td>
+      <td>Reads the position of the DIP-switch </td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>0: Fixed SRAM page<br>
+1: Enable SRAM page switching upon write</td>
+      <td>0 = Clock interrupt pending</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>0: Fixes page #0 at &gt;4000-4FFF<br>
+1: Same page throughout &gt;4000-5FFF</td>
+      <td>IORDY pin of the IDE interface (1 = ready)</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>0: No mapping at &gt;6000-7FFF<br>
+1: Enables RAMBO banks in &gt;6000-7FFF</td>
+      <td>Reads itself</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>0: SRAM can be written to<br>
+1: Write-protects the SRAM</td>
+      <td>Reads itself</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td>0: Masks IDE interrupt and reset<br>
+1: Enables IDE interrupt and reset by bit 7</td>
+      <td>not used</td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td>0: Resets the drives (if bit 6 = 1) <br>
+1: Normal operations</td>
+      <td>not used</td>
+    </tr>
+  </tbody>
+</table>
+<h3><br>
+<a name="Memory map"></a>Memory map</h3>
+<p>When CRU bit 1 matches the position of the DIP-switch (i.e. when you
+write back what you read), the address space &gt;4000-40FF is used to
+map
+the clock and IDE registers. Otherwise, the SRAM maps here, just as in
+the rest of the address space (&gt;4100-5FFF). .</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>*---------------------------------------------------------------------<br>*  Check DIP-switch for register mapping, select proper instructions<br>*---------------------------------------------------------------------<br>DIPREG LI   R1,&gt;1D01          This is SBO 1<br>       LI   R2,&gt;1E01          This is SBZ 1<br>       TB   1                 Test DIP-switch<br>       JNE  SK3               <br>       MOV  R1,@REGON         DIP is on<br>       MOV  R2,@REGOFF        Select registers with SBO<br>       B    *R11<br><br>SK3    MOV  R1,@REGOFF        DIP is off<br>       MOV  R2,@REGON         Select registers with SBZ<br>       B    *R11</pre>
+      <pre>REGON  NOP                    Register selection instruction <br>REGOFF NOP                    SRAM selection instruction<br>*</pre>
+      <pre>       X    @REGON            Maps registers at &gt;4000-40FF</pre>
+      <pre>       X    @REGOFF           Maps SRAM at &gt;4000-40FF</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h4>Register mapping</h4>
+<pre>&gt;4000-401F: clock XRAM (RTC-65217)<br>&gt;4020: RTC address register (RTC-65271)<br>&gt;4030: RTC data register (RTC-65217)</pre>
+<pre>&gt;4020-403E: RTC registers (bq4847, even bytes)<br><br>&gt;4040: IDE&nbsp;data register (read)<br>&gt;4042: IDE error register (read)<br>&gt;4044: IDE&nbsp;count register (read)<br>&gt;4046: IDE sector register (read)<br>&gt;4048: IDE cylinder lsb register (read)<br>&gt;404A: IDE cylinder msb register (read)<br>&gt;404C: IDE drive+head register (read)<br>&gt;404E: IDE status register (read)<br>&gt;4050: IDE data register (write)<br>&gt;4052: IDE pre-comp register, not used (write)<br>&gt;4054: IDE&nbsp;count register (write) <br>&gt;4056: IDE sector register (write)<br>&gt;4058: IDE cylinder lsb register (write)<br>&gt;405A: IDE cylinder msb register (write)<br>&gt;405C: IDE drive+head register (write)<br>&gt;405E: IDE command register (write)<br>&gt;406C: IDE alternate status register(read)<br>&gt;406E: IDE drive address register (read)<br>&gt;407C: IDE digital output register (write)<br>&gt;407E: IDE drive address register (write)<br><br>&gt;4080: XRAM page register (RTC-65271)</pre>
+<p>N.B. The clock registers for bq4842 or bq4852 map in the SRAM
+domain,
+&gt;5FF0-5FFF, at page &gt;7F.</p>
+<h3><br>
+<a name="Low-level"></a>Low-level access</h3>
+<h4>SRAM paging</h4>
+<p>To switch pages, all we have to do it to enable switching with CRU
+bit
+2 and then write to an address in the SRAM. Address lines A9-A14 will
+be
+used as a page number. Just to make sure we don't mess up any data, it
+may be a good idea to write-protect the SRAM beforehand.</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>*---------------------------------------------------------------------<br>* SRAM page selection routine. Page # in  R1<br>*---------------------------------------------------------------------<br>SELPG  SLA  R1,8             Max 256 pages<br>       SRL  R1,7             A15 is not latched: shift to the left<br>       SBO  5                Write protect SRAM<br>       SBO  2                Enable latching<br>       MOV  R1,@&gt;5F00(1)     Latch page #, from address lines A9-A14<br>       SBZ  2                Disable latching<br>       SBZ  5                Enable writing<br>       SRL  R1,1             Restore page # for caller (optional)<br>       B    *R11</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h4><br>
+RTC-65271 clock access</h4>
+<p>To access a register in the RTC-65271 real-time clock, first write
+the
+register number (&gt;0000 to &gt;3F00) at address &gt;4020. For some
+reason,
+this number cannot be read back, I'm not sure if it's a characteristic
+of the chip, or a timing problem with my design. The specified register
+can then be accessed byte-wise at address &gt;4030, if you access it
+wordwise,
+its contents probably be repeated in each byte. Remember to stop clock
+updates by setting bit &gt;80 in register B, before you attempt to
+modify
+registers 0 to 9. </p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>*---------------------------------------------------------------------<br>* Write to a register in the RTC. Register # in R3, data in R1<br>*---------------------------------------------------------------------<br>RTCWR  SLA  R3,8              Put register # in msb<br>       MOVB R3,@&gt;4020         Pass register #<br>       SWPB R3                Restore R3<br>       SLA  R1,8              Put value in msb<br>       MOVB R1,@&gt;4030         Set clock data<br>       SWPB R1                Restore R1<br>       B    *R11</pre>
+      <pre>*---------------------------------------------------------------------<br>Read a register from the RTC. Register # in R3, result in R1<br>*---------------------------------------------------------------------<br>RTCRD  SLA  R3,8              Put register # in msb<br>       MOVB R3,@&gt;4020         Pass it<br>       SWPB R3                Restore R3<br>       MOVB @&gt;4030,R1         Get clock data<br>       SRL  R1,8              Make it a word<br>       B    *R11</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h4>RTC-65271 XRAM access</h4>
+<p>The SRAM onboard the RTC-65271 can be accessed at addresses
+&gt;4000-401F.
+This won't work with any other clock chip, though. To change page,
+write
+the new page number at address &gt;4080. Valid page numbers are
+&gt;0000
+to &gt;7F00, although other values won't cause any problem (all extra
+bits
+are ignored). The value can be read back to know what the current page
+is. </p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>*---------------------------------------------------------------------<br>* Set XRAM page. Page # in R0<br>*---------------------------------------------------------------------<br>SELXPG SLA  R0,8            Put it in MSB<br>       MOVB R0,@&gt;4080       Set page<br>       MOVB @&gt;4080,R0       Read it back (optional)<br>       SRL  R0,8            Make it a word for caller<br>       B    *R11            </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h4>bq4847 clock access</h4>
+<p>Simply access the required register in the area &gt;4020-403E.
+Registers
+map at even address and should thus be accessed byte-wise. If you
+access
+them word-wise, their contents will likely be repeated in both bytes.
+The
+memory address for a given register is &gt;4020 + twice the register
+number.
+Remember to freeze register update before you attempt to access the
+clock.</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>*---------------------------------------------------------------------<br>* Reading the bq4847 clock<br>*---------------------------------------------------------------------<br>GETIME SOCB @H08,@&gt;403C     Set UTI bit in reg 14 to freeze updates<br>       MOVB @&gt;4020,@SECS    Get seconds from reg 0<br>       MOVB @&gt;4024,@MINS    Get minutes from reg 2<br>       MOVB @&gt;4028,@HRS     Get hours from reg 4<br>       SZCB @H08,@&gt;403C     Reset UTI bit to enable updates<br>       B    *R11            </pre>
+      <pre>H08    BYTE &gt;08</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>Remember that most registers encode numbers in BCD format, i.e.
+twelve
+is coded as &gt;12, not as &gt;0C as it would be in hexadecimal. The
+procedure
+to write to the clock is very similar:</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>*---------------------------------------------------------------------<br>* Writing to the bq4847 clock<br>*---------------------------------------------------------------------<br>SETIME SOCB @H08,@&gt;403C     Set UTI bit in reg 14 to freeze updates<br>       MOVB @SECS,@&gt;4020    Write seconds to reg 0<br>       MOVB @MINS,@&gt;4024    Write minutes to reg 2<br>       MOVB HRS,@&gt;4028      Write hours to reg 4<br>       SZCB @H08,@&gt;403C     Reset UTI bit to enable updates<br>       B    *R11            </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h4>IDE access</h4>
+<p>You can read IDE registers at addresses &gt;4040-404E and
+&gt;406C-406E.
+You can write to them at &gt;4050-405E and &gt;407C-407E. Make sure you
+check the status bits before sending a command, otherwise you will read
+meaningless data and the controller will ignore your writes. Apart from
+the 16-bit data register, all registers are 1 byte long and are
+accessed
+at even addressed (i.e. in the most significant byte of a word).</p>
+<p>Remember that sectors are 512 bytes in length on a hard disk. This
+will
+require some manipulation if you want to emulate the 256-byte sectors
+of
+floppy disks...</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>*---------------------------------------------------------------------<br>* Send a command to the IDE controller. Command in R0<br>*---------------------------------------------------------------------<br>SENDCM MOV  @&gt;404E,R1         Get status<br>       COC  @STRDY,R1         Check "ready" bit     <br>       JNE  SENDCM            Not set yet: wait<br>       COC  @STBSY,R1         Check "busy" bit<br>       JEQ  SENDCM            Set: wait</pre>
+      <pre>       MOV  R0,@&gt;405E         Send command to command register<br>LP2    MOV  @&gt;404E,R1         Read status<br>       COC  @STBSY,R1         Check "busy" bit<br>       JEQ  LP2               Wait till not busy<br>       COC  @STERR,R1         Now check "error" bit<br>       JNE  SK1               Not set<br>       MOV  @&gt;4042,R1         Get error code from error register<br>       B    *R11<br><br>SK1    INCT R11               Skip jump if ok<br>       B    *R11</pre>
+      <pre>STBSY  DATA &gt;8000             "Busy" status bit <br>STRDY  DATA &gt;4000             "Ready" status bit<br>STDRQ  DATA&nbsp;&gt;0800             "Data requested" bit<br>STERR  DATA &gt;0100             "Error" status bit</pre>
+      <pre>*---------------------------------------------------------------------<br>* Set logical block address. Block # in R0. Base LBA in data (optional)<br>*---------------------------------------------------------------------<br>SETLBA MOV  @&gt;404E,R1          Get status<br>       COC  @STRDY,1R          Check "ready" bit<br>       JNE  SETLBA             Not set yet: wait<br>       COC  @STBSY,R1          Check "busy" bit<br>       JEQ  SETLBA             Set: wait<br><br>*      SRL  R0,1               Optional: if using 256-byte sectors #<br>       A    @LBA3,R0           Add R0 to base LBA<br>       SWPB R0<br>       MOVB R0,@&gt;4056          Set LBA address<br>       SB   R0,R0              Keep only next byte<br>       A    @LBA2,R0           Repeat for all 4 bytes<br>       SWPB R0<br>       MOVB R0,@&gt;4058<br>       SRL  R0,8<br>       A    @LBA1,R0<br>       SWPB R0<br>       MOVB R0,@&gt;405A<br>       SRL  R0,8<br>       A    @LBA0,R0<br>       SWPB R0<br>       MOVB R0,@&gt;405C<br>       LI   R0,&gt;0100<br>       MOV  R0,@&gt;4054           Transfer 1 sector<br>       B    *R11</pre>
+      <pre>LBA0   DATA &gt;E000               LBA buffer (only MSB&nbsp;are used)<br>LBA1   DATA &gt;0000<br>LBA2   DATA &gt;0000<br>LBA3   DATA &gt;0000</pre>
+      <pre>*---------------------------------------------------------------------<br>Set drive parameters. Must be sent before any other command<br>*---------------------------------------------------------------------<br>SETPAR MOV  R11,R10<br>       LI   R0,&gt;2000           (Arbitrary value)<br>       MOV  R0,@&gt;4054          Number of logical sectors/track<br>       LI   R0,&gt;E800           (Arbitrary value)<br>       MOV  R0,@&gt;405C          Number of logical heads<br>       LI   R0,&gt;9100           "Set drive parameters"<br>       BL   @SENDCM            Send command<br>       B    *R10               Skipped if ok<br>       INCT R10                Skip JMP if ok<br>       B    *R10</pre>
+      <pre>*---------------------------------------------------------------------<br>* Read a 512-byte sector into buffer in R2, sector # in R0<br>*---------------------------------------------------------------------<br>SECRD2 MOV  R11,R10<br>       BL   @SETLBA           Set LBA for sector # in R0<br>       LI   R0,&gt;2000          "Read sector"<br>       BL   @SENDCM           Send command<br>       B    *R10              Skipped if no error<br><br>LP3    MOV  @&gt;404E,R1         Wait for data to be ready<br>       COC  @STERR,R1         Test error bit<br>       JEQ  UHO               Error<br>       COC  @STDRQ,R1         Test data request bit<br>       JNE  LP3               Not ready yet<br><br>       LI   R0,512<br>LP4    MOV  @DATAR,*R2+       Read 512 bytes<br>       DECT R0<br>       JNE  LP4 <br>       AI   R2,-512           Restore R2<br>       INCT R10               Skip JMP if ok<br>       B    *R10</pre>
+      <pre>*---------------------------------------------------------------------<br>*  Write a 512-byte sector from buffer in R2, sector # in R0<br>*---------------------------------------------------------------------<br>SECWR2 MOV  R11,R10<br>       BL   @SETLBA           Set LBA for sector # in R0<br>       LI   R0,&gt;3000          "Write sector"<br>       BL   @SENDCM           Send command<br>       B    *R10              Skipped if no error<br><br>LP5    MOV  @&gt;404E,R1         Wait for data to be ready<br>       COC  @STERR,R1         Test error bit<br>       JEQ  UHO               Error<br>       COC  @STDRQ,R1         Test "data request" bit<br>       JNE  LP5               Not yet<br><br>       LI   R0,512<br>LP6    MOV  *R2+,@&gt;4050       Write 512 bytes<br>       DECT R0<br><br>       JNE  LP6<br>       AI   R2,-512           Restore buffer ptr<br>       INCT R10               Skip JMP if ok<br>       B    *R10</pre>
+      <pre>UHO    MOV  @&gt;4002,R0         Error detected: get error code<br>       B    *R10              And abort</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h3><br>
+<a name="High level"></a>High-level access</h3>
+<p>The card DSR, or disk operating system is known as IDEAL, for "IDE
+Acess Layer". A dedicated loader, called IDELOAD, serves to load it
+into the card SRAM. You also have the option to install a boot routine
+in the RTC-65271 clock XRAM that will automatically load IDEAL from the
+hard disk upon power-up. IDEAL is described in details on <a
+ href="ideal.htm">another
+page</a>.</p>
+<address><br>
+Revision 1. 3/29/04. Version 2. Preliminary, not for release.<br>
+Revision 2. 7/12/04. Ok to release.<br>
+Revision 3. 7/15/04. Corrected some resistor values.<br>
+Revision 4. 2/7/06. Corrected "Geneve" circuitery.<br>
+<br>
+</address>
+<center>
+<p><br>
+<a href="titechpages.htm">Back to the TI-99/4A Tech Pages</a></p>
+</center>
+</body>
+</html>

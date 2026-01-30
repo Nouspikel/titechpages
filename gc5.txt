@@ -1,0 +1,606 @@
+DCRU   MOV  11,14        display cru-a:....
+       LI   1,A2CE4      ------------------
+       BL   @PROMPT
+       LI   0,>026B
+       MOV  @A27F0,12    get cru
+       ANDI 12,>1F00
+       MOV  12,6
+       BL   @HEXNUM      display cru
+       B    *14
+*
+INBASE MOV  11,14        input gram base
+       LI   1,A2CEE      ---------------
+       BL   @PROMPT      "gram-b:"
+       LI   3,>0278
+A2D2C  BL   @INHEX       input address
+       CB   15,@H0D
+       JLE  A2D3C
+       B    @RESTRT      f9
+INBAS1 MOV  11,14
+A2D3C  MOV  3,0
+       MOV  7,7
+       JNE  A2D46
+       MOV  @A27F2,7     default base
+A2D46  CI   7,>9800
+       JHE  A2D52        check if in >9800-983E
+A2D4C  BL   @CLRFLD      no: clear
+       JMP  A2D2C        BUG: should be A2D4C
+A2D52  CI   7,>983E
+       JH   A2D4C
+       ANDI 7,>983E      multiple of 4
+       MOV  7,6
+       BL   @HEXNUM      display it
+       MOV  7,@A27F2     save new base
+       B    *14
+*
+CLRFLD LI   1,>2000      clear field
+       LI   2,>0004      -----------
+       BLWP @VRBW
+       B    *11
+*-----------------------------------------------------------
+*                        load ram with asm-file
+SUB3   BL   @DCRU        ----------------------
+       CB   @A27F2+1,@GRAM+1
+       JNE  A2D98
+A2D82  LI   1,A2CF8      base =9800
+       BL   @PROMPT      "bank:"
+       LI   3,>0278
+       BL   @INHEX       input bank value
+       CB   15,@H0D
+       JLE  A2D9C
+A2D98  B    @RESTRT      f9
+A2D9C  MOV  3,0
+       MOV  7,7
+       JNE  A2DA6
+       LI   7,>6000      default
+A2DA6  CI   7,>6000      check if in >6000-601E
+       JHE  A2DB2
+A2DAC  BL   @CLRFLD      clear field
+       JMP  A2D82        retry
+A2DB2  CI   7,>601E
+       JH   A2D4C
+       ANDI 7,>FFFE      even
+       MOV  7,6
+       BL   @HEXNUM      redisplay even value
+       SBZ  1            bank enable
+       SBZ  4            bank read only
+       SBZ  7            bank switching
+       MOV  *7,*7        switch
+       SBO  7            no more switching
+       SBO  4            bank write
+       BL   @PABDF       program file pab
+       BLWP @LD9900      call 9900 loader
+       JEQ  ERRMSG       error
+       CI   7,>6000
+       JEQ  A2DE2        bank 0
+       SBZ  4            bank read only
+       SBZ  7            bank switching
+A2DE2  B    @DONE
+*-----------------------------------------------------------
+*                        load gram with asm-file
+SUB2   BL   @DCRU        -----------------------
+       BL   @INBASE      disp cru. input new base
+       SBZ  3            gram enable
+       BL   @PABDF       df80 pab
+       BLWP @LDGPL       call gpl loader
+       JEQ  ERRMSG       error
+       B    @DONE        end
+*
+PABPRG LI   15,A29E8     program file pab
+       JMP  A2E08        ----------------
+PABDF  LI   15,A29F2     df80 file pab
+A2E08  MOV  11,9         -------------
+       LI   1,A298A      "file name:"
+       BL   @PROMPT
+       LI   3,>02AD      input name
+       LI   5,>000F      15 chars
+       BL   @INPUT
+       CB   1,@H0D
+       JLE  A2E28
+       B    @RESTRT      f9
+A2E28  LI   1,A2720      buffer
+       MOV  0,5          line end
+       MOV  3,0          line beg
+       S    3,5          size
+       MOV  5,2
+       MOV  5,*1+        copy size
+       JEQ  A2E3C
+       BLWP @VMBR        copy name
+A2E3C  LI   0,>0480      copy pab to vdp mem
+       MOV  15,1
+       LI   2,>0009
+       BLWP @VMBW
+       A    2,0          name ptr
+       MOV  0,@>8356
+       LI   1,A2720+1    copy of name
+       MOV  @A2720,2     length
+       INC  2            +1 byte for length
+       BLWP @VMBW        copy to vdp mem
+       B    *9
+*
+ERRMSG MOV  0,4          error messages
+       CI   4,>0800      --------------
+       JL   A2E92
+       LI   1,A29B6      8-...
+       BL   @PROMPT      "loader error"
+A2E70  MOV  4,1
+       SLA  1,4
+       SRL  1,4
+       AI   1,>3000
+       CI   1,>3900
+       JLE  A2E84
+       AI   1,>0700      A-F
+A2E84  LI   0,>02B0
+       BLWP @VSBW        disp error number
+       B    @DONE        end
+*
+A2E90  MOV  0,4          err 0-7
+A2E92  LI   1,A2998
+       BL   @PROMPT      "i/o error"
+       JMP  A2E70        disp error number
+*
+A2E9C  DATA >02A3
+       BYTE >14
+       TEXT 'MODUL COPY PROTECTED'
+       BYTE 0
+*-----------------------------------------------------------
+SUB4   LI   1,A2F26      load grom 0-2
+       BL   @PROMPT      -------------
+       LI   3,>0276      "are you sure? y/n"
+       LI   5,>0001
+       BL   @INPUT       input answer
+       CB   1,@H0D
+       JLE  A2ED2
+       B    @RESTRT      f9
+A2ED2  MOV  3,0
+       CLR  1
+       BLWP @VSBR        read char
+       CI   1,>5900
+       JNE  A2F22        not "Y": end
+       MOV  @A27F2,7
+       ANDI 7,>FFDF      base = >980x
+       LI   4,>0002
+A2EEC  CLR  1            copy groms to gram
+A2EEE  BL   @GWA         read 2 bytes from grom
+       MOVB *7,2         gram can't be read (cru bit 3)
+       SWPB 2
+       MOVB *7,2
+       SWPB 2
+       BL   @GWA         copy them to gram
+       MOVB 2,@>0400(7)  grom can't be written to
+       SWPB 2
+       MOVB 2,@>0400(7)
+       INCT 1
+       CI   1,>6000
+       JNE  A2EEE        up to end of grom 2
+       DEC  4
+       JEQ  A2F1A
+       AI   7,>0020      base = >982x
+       JMP  A2EEC        same for 2nd half-card
+A2F1A  MOV  @A27F0,12    get cru
+       SBZ  3            gram read enable
+       SBO  5            gram 0-2 enable
+A2F22  B    @DONE        end
+*
+A2F26  DATA >0263
+       BYTE >11
+       TEXT 'ARE YOU SURE? Y/N'
+A2F3A  DATA >0263
+       BYTE >0C
+       TEXT 'BANK:       '
+       BYTE 0
+A2F4A  DATA >0283
+       BYTE >09
+       TEXT 'GROM-ADR:'
+*-----------------------------------------------------------
+SUB6   LI   1,A2F3A      save rom
+       BL   @PROMPT      --------
+       LI   3,>026A      "bank:"
+       BL   @INHEX       input new bank
+       MOV  7,6
+       JNE  A2F70
+       LI   7,>6000      default
+       MOV  7,6
+A2F70  MOV  3,0
+       BL   @HEXNUM      re-write it
+       LI   0,>0C06
+       LI   1,>6000
+       LI   2,>2000
+       CI   7,>6000
+       JL   SUB6         too low: retry
+       JEQ  A2F9C        bank 1: >6000-7FFF
+       LI   2,>1000
+       LI   1,>7000      others: >7000-7FFF
+       CI   7,>601E
+       JH   SUB6         too high: retry
+       ANDI 7,>FFFE      even
+A2F9C  MOV  *7,*7        switch
+       MOV  2,13
+       BLWP @VMBW        copy bank to vdp
+       LI   0,>0C00
+       LI   1,>5A5A      code for "file is bank"
+       BLWP @VDBW        write code at beg
+       INCT 0
+       MOV  7,1
+       BLWP @VDBW        write bank value
+       MOV  13,1
+       INCT 0
+       BLWP @VDBW        write bank size
+       BL   @PABPRG
+       AI   13,>0006     size of bank + info
+       LI   0,>0486      to be written in pab
+       MOV  13,1
+       BLWP @VDBW
+       LI   0,>0480      write opcode 6 (=save)
+       LI   1,>0600
+       BLWP @VSBW
+       BLWP @DSRLNK      execute
+       DATA >0008
+       JNE  DONE         ok
+       B    @A2E90       i/o error
+*-----------------------------------------------------------
+DONE   LI   1,A29D4      "command completed"
+       BL   @PROMPT      -------------------
+       LI   5,>0000      input 0 char: <enter> f9 or f6
+       LI   3,>02DC
+       BL   @INPUT
+       B    @RESTRT
+*
+FROMTO MOV  11,14        input start + end
+       LI   1,A2978      -----------------
+       BL   @PROMPT      "start:"
+       LI   3,>026B
+       BL   @INHEX       input start address
+       CB   15,@H0D
+       JLE  A301E
+       B    @RESTRT      f9
+A301E  MOV  7,6
+       MOV  7,8          store it in r8
+       MOV  3,0
+       BL   @HEXNUM      re-write it
+       LI   1,A2982
+       BL   @PROMPT      "end: "
+       LI   3,>0278
+       BL   @INHEX       input end address
+       CB   15,@H0D
+       JLE  A3042
+       B    @RESTRT      f9
+A3042  MOV  7,6
+       MOV  3,0
+       BL   @HEXNUM      re-write it
+       MOV  8,6          r6=start r7=end
+       B    *14
+*-----------------------------------------------------------
+SUB5   BL   @FROMTO      save grom
+       MOV  6,13         ---------
+       MOV  7,5
+       S    6,5          size
+       JNE  A306C
+A305A  LI   0,>0263      size=0
+       LI   1,>2000
+       LI   2,>001A
+       BLWP @VRBW        clear field
+       JMP  SUB5         retry
+A306C  CI   5,>2000
+       JH   A305A        size >2000: retry
+       MOV  5,8          save size in r8
+       LI   1,A2F4A
+       BL   @PROMPT      "grom-adr:"
+       LI   3,>028D
+       BL   @INHEX       input address
+       CB   15,@H0D
+       JLE  A308E
+       B    @RESTRT      f9
+A308E  BL   @INBAS1      input new base
+       LI   1,>6020
+       BL   @GWA         read 2 chars at g>6020
+       MOVB *7,2
+       SWPB 2
+       MOVB *7,2
+       MOV  2,@A2792
+       LI   1,>E015
+       BL   @GWA         read 2 chars at g>E015
+       MOVB *7,0
+       SWPB 0
+       MOVB *7,0
+       MOV  0,@A2790
+       MOV  13,1         write start address
+       BL   @GWA
+       CI   2,'MH'
+       JEQ  A311A        protection
+       MOV  0,2
+       LI   0,>0C00      write code for "file is gram"
+       LI   1,>A5A5
+       BLWP @VDBW
+       MOV  13,1         write start address
+       INCT 0
+       BLWP @VDBW
+       MOV  8,1          write size
+       INCT 0
+       BLWP @VDBW
+       CI   2,'PA'
+       JEQ  A311A        protection
+       LI   2,>8C00
+A30EA  MOVB *7,*2        copy grom to vdp
+       DEC  1
+       JNE  A30EA
+       BL   @PABPRG      prepare program file pab
+       AI   8,>0006      size + 6 (infos)
+       LI   0,>0486
+       MOV  8,1
+       BLWP @VDBW        write number of bytes
+       LI   0,>0480
+       LI   1,>0600
+       BLWP @VSBW        write opcode 6 (save)
+       BLWP @DSRLNK      execute
+       DATA >0008
+       JNE  A3122        ok: second protection test
+       B    @A2E90       i/o error
+*
+A311A  LI   1,A2E9C      "module copy protected"
+       BL   @PROMPT
+A3122  MOV  @A2790,1
+       CI   1,'PA'
+       JEQ  A3136        "AP" : apesoft modules
+       MOV  @A2792,1
+       CI   1,'MH'       "HM" : heiner martin
+       JNE  A3150
+A3136  LI   0,>0480      opcode 7 (=delete)
+       LI   1,>0700
+       BLWP @VSBW
+       LI   0,>0489
+       MOV  0,@>8356     name ptr
+       BLWP @DSRLNK      delete file created
+       DATA >0008
+A3150  B    @DONE        end
+*
+GWA    MOVB 1,@>0402(7)  write gram address
+       SWPB 1            ------------------
+       MOVB 1,@>0402(7)
+       SWPB 1
+       B    *11
+*-----------------------------------------------------------
+SUB1   BL   @DCRU        load (g)ram with program
+       BL   @INBASE      ------------------------
+       BL   @PABPRG      disp cru. input base. prepare pab
+       BLWP @DSRLNK      load program file
+       DATA >0008
+       JNE  A317A        ok
+       B    @A2E90       i/o error
+A317A  BL   @PUTMEM
+       JMP  A3188
+       LI   1,A3196      "no (g)ram file"
+       BL   @PROMPT
+A3188  B    @DONE        end
+*
+A318C  DATA >0014        pab dis/var
+       DATA >0600        data buffer
+       DATA >5050        rec size=80
+       DATA >0000
+       DATA >0000
+*
+A3196  DATA >02A3
+       BYTE >14
+       TEXT 'NO (G)RAM - FILE    '
+       BYTE 0
+*-----------------------------------------------------------
+SUB7   BL   @DCRU        load file
+       BL   @INBASE      ---------
+       LI   1,A298A      disp cru. input base
+       BL   @PROMPT      "file name"
+       LI   3,>02AD
+       LI   5,>000F      max 15 chars
+       BL   @INPUT       input name
+       CB   1,@H0D
+       JLE  A31D4
+       B    @RESTRT      f9
+A31D4  LI   1,A2720      name buffer
+       MOV  0,5          line end
+       MOV  3,0          line beg
+       S    3,5          name length
+       MOV  5,2
+       MOV  5,*1+        copy length
+       JEQ  A31E8
+       BLWP @VMBR        copy name
+A31E8  BL   @LDFILE      open load file
+       JNE  A31F2        ok
+       B    @ERRMSG
+A31F2  BL   @FREAD       read one line (file name)
+       JEQ  A320E
+       BL   @FLOAD       load data from file
+       JEQ  A320E
+       BL   @PUTMEM      put data in memory
+       JMP  A31F2        loop
+       LI   1,A3196      wrong file type
+       BL   @PROMPT      "no (g)ram file"
+       CLR  0            no other message
+A320E  MOV  0,4
+       BL   @FCLOSE
+       JNE  A321A        ok
+A3216  B    @ERRMSG
+A321A  MOV  4,0
+       JNE  A3216        error message
+A321E  B    @DONE        end
+*
+PUTMEM LI   14,>0002
+       MOV  @A27F2,7     base
+A322A  LI   1,WREG+6     address of r3
+       LI   0,>0C00
+       LI   2,>0006
+       BLWP @VMBR        read 6 bytes in r3-r5
+       CI   3,>A5A5      file type code
+       JNE  A327C
+       SBZ  3            gram file: gram enable
+       CI   4,>6000      ---------
+       JNE  A324A
+       SETO 10           gram 3 flag
+A324A  MOVB 4,@>0402(7)  write address
+       SWPB 4
+       MOVB 4,@>0402(7)
+       SWPB 4
+       LI   6,>8800
+A325A  MOVB *6,@>0400(7) copy vdp to gram
+       DEC  5
+       JNE  A325A        size in r5
+       MOV  4,4
+       JNE  A32BC        not gram 0: end
+       SBO  5            gram 0-2 enable
+       AI   7,>0020      chage base: 980x->982x
+       CI   7,>983C
+       JLE  A3276
+       AI   7,>FFC0      or 982x->980x
+A3276  DEC  14
+       JEQ  A32BC        load other half-card
+       JMP  A322A
+A327C  CI   3,>5A5A      bank file
+       JNE  A32BA        ---------
+       CB   @A27F2+1,@GRAM+1
+       JNE  A32BA        only in 980x
+       SBZ  1            bank enable
+       SBZ  4            bank read only
+       SBZ  7            bank switching
+       MOV  *4,*4        switch
+       SBO  7            switching off
+       SBO  4            bank write ok
+       LI   0,>0C06
+       LI   1,>7000
+       CI   5,>2000
+       JNE  A32A8
+       LI   1,>6000      bank 1
+A32A8  MOV  5,2
+       BLWP @VMBR        copy vdp to bank
+       CI   5,>2000
+       JEQ  A32BC
+       SBZ  4            bank 2-16: bank read only
+       SBZ  7            bank switching
+       JMP  A32BC        end
+A32BA  INCT 11           wrong file type
+A32BC  B    *11
+*
+FREAD  LI   0,>0500      read 1 record
+       LI   1,>0200      -------------
+       BLWP @VSBW        opcode 2 (=read)
+       AI   0,>0009
+       MOV  0,@>8356     name ptr
+       CLR  0
+       BLWP @DSRLNK      execute
+       DATA >0008
+       JEQ  A3358        i/o error
+       CLR  @A278E
+       LI   0,>0505
+       BLWP @VSBR        read char count
+       CLR  0
+       SRL  1,8
+       JEQ  A3356        none: end
+       LI   0,>0600      data buffer
+       MOV  1,2          count
+       LI   1,A2790      buffer
+       MOV  2,@A278E     save count
+       BLWP @VMBR        copy rec to buffer
+       JEQ  A3354        count=0: end of load file
+       CLR  0
+       CLR  3
+A3306  MOVB *1+,0        find first space
+       INC  3
+       C    3,2
+       JEQ  A334A        e o rec
+       CI   0,>2000
+       JNE  A3306
+       DEC  3
+       MOV  3,@A278E     file name lenght
+       LI   0,>0004
+       CLR  3            new base value
+       CLR  2
+A3322  MOVB *1+,2
+       CI   2,>2900
+       JLE  A3354        <* end
+       CI   2,>3900
+       JLE  A3334        *-9
+       AI   2,>F900      A-F
+A3334  CI   2,>4000
+       JHE  A3354        >F end
+       SLA  2,4
+       SRL  2,12
+       SLA  3,4
+       A    2,3          update number
+       DEC  0
+       JNE  A3322        next digit
+       ANDI 3,>983C      base type
+A334A  CI   3,>9800
+       JL   A3354        illegal base
+       MOV  3,@A27F2     change base
+A3354  CLR  0
+A3356  B    *11
+*
+A3358  CI   11,LOADGR
+       JH   A3356        called from loader: ret
+       CI   0,>0500
+       JNE  A3368
+       B    @A321E       err is eof: to end
+A3368  B    @ERRMSG
+*-----------------------------------------------------------
+LOADGR LWPI WREG         loader called from gpl
+       MOV  @A27F0,12    ------
+       MOV  @A27F2,7
+       CLR  10           reset gram 3 flag
+       BL   @LDFILE      open load file
+       JEQ  A339C        i/o error
+A3380  BL   @FREAD       read record
+       JEQ  A3398        i/o error
+       MOV  0,0
+       JNE  A3398        end
+       BL   @FLOAD       load program file
+       JEQ  A3398        i/o error
+       BL   @PUTMEM      copy it in memory
+       JMP  A3380        ok: loop
+       JMP  A3380        wrong type: ignore, loop
+A3398  BL   @FCLOSE      close file
+A339C  MOV  10,10
+       JEQ  A33A4
+       BLWP @>0000       gram 3 changed: reset
+A33A4  LI   1,>6032      gram card menu
+       BL   @GWA
+       LWPI >83E0
+       B    @>0070       restart gpl program
+*
+LDFILE LI   0,>0500      open load file
+       LI   1,A318C      --------------
+       LI   2,>000A
+       BLWP @VMBW        init pab for dv80 file
+       A    2,0
+       DEC  0
+       MOV  0,@>8356     name ptr
+       LI   1,A2720+1    ptr to length + name
+       MOV  @A2720,2     length
+       INC  2
+       BLWP @VMBW        copy length + name
+       CLR  0
+       BLWP @DSRLNK      open file
+       DATA >0008
+       B    *11
+*
+FLOAD  LI   0,>0480      load program file
+       LI   1,A29E8      -----------------
+       LI   2,>0009
+       BLWP @VMBW        init pab for program  file
+       A    2,0
+       MOV  0,@>8356     name ptr
+       MOV  @A278E,2     length
+       LI   1,A278E+1    ptr to length + name
+       INC  2
+       BLWP @VMBW        copy length + name
+       CLR  0
+       BLWP @DSRLNK      load file
+       DATA >0008
+       B    *11
+*
+FCLOSE LI   0,>0500      close file 2
+       LI   1,>0100      ------------
+       BLWP @VSBW        write opcode 1 (close)
+       LI   0,>0509
+       MOV  0,@>8356     name ptr
+       CLR  0
+       BLWP @DSRLNK      close file
+       DATA >0008
+       B    *11
+*

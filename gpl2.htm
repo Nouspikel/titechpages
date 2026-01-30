@@ -1,0 +1,2296 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+  <title></title>
+  <meta name="Author" content="">
+  <meta name="GENERATOR"
+ content="Mozilla/3.04Gold (Win95; U) [Netscape]">
+</head>
+<body>
+<h1 align="center"><a
+ href="http://www.nouspikel.com/ti99/titechpages.htm"><img
+ src="logo.jpg" style="border: 0px solid ; height: 33px; width: 95px;"
+ title="" alt=""></a></h1>
+<h2><a name="XML"></a>Using the XML instruction</h2>
+<p>The GPL instruction XML is used to eXecute Machine Language
+procedures.
+You can call up to 256 different procedures, divided in 16 tables of
+upto
+16 procedures each. The XML instruction requires a one byte immediate
+operand
+in the form &gt;XY, where &gt;X is the table number, and &gt;Y the
+procedure
+number in that table.</p>
+<p>The address of the procedure itself is fetched from the proper table
+and branched at by the interpreter.</p>
+<p>Example: XML &gt;1B call the 12th procedure in the second table
+(numbers
+start from zero).</p>
+<p>The locations of the 16 tables are pre-defined:</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Table</th>
+      <th>Address</th>
+      <th>Memory</th>
+    </tr>
+    <tr>
+      <td>&gt;0</td>
+      <td>&gt;0D1A</td>
+      <td>Console ROM</td>
+    </tr>
+    <tr>
+      <td>&gt;1</td>
+      <td>&gt;12A0</td>
+      <td>"</td>
+    </tr>
+    <tr>
+      <td>&gt;2</td>
+      <td>&gt;2000</td>
+      <td>Low memory expansion</td>
+    </tr>
+    <tr>
+      <td>&gt;3</td>
+      <td>&gt;3FC0</td>
+      <td>"</td>
+    </tr>
+    <tr>
+      <td>&gt;4</td>
+      <td>&gt;3FE0</td>
+      <td>"</td>
+    </tr>
+    <tr>
+      <td>&gt;5</td>
+      <td>&gt;4010</td>
+      <td>Peripheral card ROM (or RAM)</td>
+    </tr>
+    <tr>
+      <td>&gt;6</td>
+      <td>&gt;4030</td>
+      <td>"</td>
+    </tr>
+    <tr>
+      <td>&gt;7</td>
+      <td>&gt;6010</td>
+      <td>Cartridge ROM/ Rambo bank (RAM) </td>
+    </tr>
+    <tr>
+      <td>&gt;8</td>
+      <td>&gt;6030</td>
+      <td>"</td>
+    </tr>
+    <tr>
+      <td>&gt;9</td>
+      <td>&gt;7000</td>
+      <td>Cartridge bank / Rambo bank</td>
+    </tr>
+    <tr>
+      <td>&gt;A</td>
+      <td>&gt;8000</td>
+      <td>Decoded as &gt;8300 on most machines</td>
+    </tr>
+    <tr>
+      <td>&gt;B</td>
+      <td>&gt;A000</td>
+      <td>High memory expansion</td>
+    </tr>
+    <tr>
+      <td>&gt;C</td>
+      <td>&gt;B000</td>
+      <td>"</td>
+    </tr>
+    <tr>
+      <td>&gt;D</td>
+      <td>&gt;C000</td>
+      <td>"</td>
+    </tr>
+    <tr>
+      <td>&gt;E</td>
+      <td>&gt;D000</td>
+      <td>"</td>
+    </tr>
+    <tr>
+      <td>&gt;F</td>
+      <td>&gt;8300</td>
+      <td>Scratch-pad memory</td>
+    </tr>
+  </tbody>
+</table>
+<p>The first two tables being in ROM memory, their content is
+predefined.
+The others might be filled by the user, allowing for combination of GPL
+and machine language.</p>
+<h4><br>
+Table &gt;0 Floating point calculation routines. </h4>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>XML </th>
+      <th>Address</th>
+      <th>Use</th>
+    </tr>
+    <tr>
+      <td>&gt;00</td>
+      <td>&gt;0000</td>
+      <td>Not used, dummy value </td>
+    </tr>
+    <tr>
+      <td><a href="#xml01">&gt;01</a></td>
+      <td>&gt;0F54</td>
+      <td>Rounds number in &gt;834A-&gt;8351 to 8 bytes.</td>
+    </tr>
+    <tr>
+      <td><a href="#xml02">&gt;02</a></td>
+      <td>&gt;0FB2</td>
+      <td>Rounds this number. Number of decimals in &gt;835C.</td>
+    </tr>
+    <tr>
+      <td><a href="#xml03">&gt;03</a></td>
+      <td>&gt;0FA4</td>
+      <td>Check number in &gt;834A-51 and saves status.</td>
+    </tr>
+    <tr>
+      <td><a href="#xml04">&gt;04</a></td>
+      <td>&gt;0FC2</td>
+      <td>Overflow / underflow.</td>
+    </tr>
+    <tr>
+      <td><a href="#xml05">&gt;05</a></td>
+      <td>&gt;0FCC</td>
+      <td>Overflow (part of the above procedure).</td>
+    </tr>
+    <tr>
+      <td><a href="#xml06">&gt;06</a></td>
+      <td>&gt;0D80</td>
+      <td>Adds floating point numbers (i.e. reals).</td>
+    </tr>
+    <tr>
+      <td><a href="#xml07">&gt;07</a></td>
+      <td>&gt;0D7C</td>
+      <td>Substracts reals.</td>
+    </tr>
+    <tr>
+      <td><a href="#xml08">&gt;08</a></td>
+      <td>&gt;0E88</td>
+      <td>Multiplies reals.</td>
+    </tr>
+    <tr>
+      <td><a href="#xml09">&gt;09</a></td>
+      <td>&gt;0FF4</td>
+      <td>Divides reals.</td>
+    </tr>
+    <tr>
+      <td><a href="#xml0a">&gt;0A</a></td>
+      <td>&gt;0D3A</td>
+      <td>Compares reals.</td>
+    </tr>
+    <tr>
+      <td><a href="#xml0b">&gt;0B</a></td>
+      <td>&gt;0D84</td>
+      <td>Addition with stack.</td>
+    </tr>
+    <tr>
+      <td><a href="#xml0c">&gt;0C</a></td>
+      <td>&gt;0D74</td>
+      <td>Substraction with stack.</td>
+    </tr>
+    <tr>
+      <td><a href="#xml0d">&gt;0D</a></td>
+      <td>&gt;0E8C</td>
+      <td>Multiplication with stack.</td>
+    </tr>
+    <tr>
+      <td><a href="#xml0e">&gt;0E</a></td>
+      <td>&gt;0FF8</td>
+      <td>Division with stack.</td>
+    </tr>
+    <tr>
+      <td><a href="#xml0f">&gt;0F</a></td>
+      <td>&gt;0D46</td>
+      <td>Comparison with stack.</td>
+    </tr>
+  </tbody>
+</table>
+<h4><br>
+Table &gt;1 Various utilities. </h4>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>XML </th>
+      <th>Address </th>
+      <th>Use</th>
+    </tr>
+    <tr>
+      <td><a href="#xml10">&gt;10</a></td>
+      <td>&gt;11AE</td>
+      <td>Converts string to number, from Basic.</td>
+    </tr>
+    <tr>
+      <td><a href="#xml11">&gt;11</a></td>
+      <td>&gt;11A2</td>
+      <td>Same as above, entry point from GPL.</td>
+    </tr>
+    <tr>
+      <td><a href="#xml12">&gt;12</a></td>
+      <td>&gt;12B8</td>
+      <td>Converts real to integer.</td>
+    </tr>
+    <tr>
+      <td><a href="#xml13">&gt;13</a></td>
+      <td>&gt;1648</td>
+      <td>Fetches a Basic symbol address, from statement.</td>
+    </tr>
+    <tr>
+      <td><a href="#xml14">&gt;14</a></td>
+      <td>&gt;164E</td>
+      <td>Fetches the value of a Basic symbol.</td>
+    </tr>
+    <tr>
+      <td><a href="#xml15">&gt;15</a></td>
+      <td>&gt;1642</td>
+      <td>Assigns a value to a Basic variable.</td>
+    </tr>
+    <tr>
+      <td><a href="#xml16">&gt;16</a></td>
+      <td>&gt;15D6</td>
+      <td>Searches the Basic symbol table, for any symbol.</td>
+    </tr>
+    <tr>
+      <td><a href="#xml17">&gt;17</a></td>
+      <td>&gt;163C</td>
+      <td>Pushes a value on the VDP memory value stack.</td>
+    </tr>
+    <tr>
+      <td><a href="#xml18">&gt;18</a></td>
+      <td>&gt;1F2E</td>
+      <td>Fetches the value saved as above.</td>
+    </tr>
+    <tr>
+      <td><a href="#xml19">&gt;19</a></td>
+      <td>&gt;0AC0</td>
+      <td>Branches to a dsr/sbr if it's in ROM.</td>
+    </tr>
+    <tr>
+      <td><a href="#XML%20%3E1A">&gt;1A</a></td>
+      <td>&gt;0B24</td>
+      <td>Branches to a dsr/sbr if it's in GROM.</td>
+    </tr>
+    <tr>
+      <td><a href="#xml1b">&gt;1B</a></td>
+      <td>&gt;1868</td>
+      <td>Fetches next Basic token from current statement.</td>
+    </tr>
+    <tr>
+      <td>&gt;1C</td>
+      <td>&gt;C120</td>
+      <td>Not used, dummy value (but could be usefull...)</td>
+    </tr>
+    <tr>
+      <td>&gt;1D</td>
+      <td>&gt;834A</td>
+      <td>"</td>
+    </tr>
+    <tr>
+      <td>&gt;1E</td>
+      <td>&gt;1342</td>
+      <td>Not used, dummy value </td>
+    </tr>
+    <tr>
+      <td>&gt;1F</td>
+      <td>&gt;04C0</td>
+      <td>"</td>
+    </tr>
+  </tbody>
+</table>
+<h2><br>
+<a name="IO"></a>Using the I/O instructions</h2>
+<p>The GPL opcode I/O n,dest can call 7 procedures:</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Procedure</th>
+      <th>Address</th>
+      <th>Use</th>
+      <th>Dest operand</th>
+    </tr>
+    <tr>
+      <td>&gt;0</td>
+      <td>&gt;05D6</td>
+      <td>Plays a sound list </td>
+      <td>Address in GROM/GRAM</td>
+    </tr>
+    <tr>
+      <td>&gt;1</td>
+      <td>&gt;05D6</td>
+      <td>Plays a sound list</td>
+      <td>Address in VDP memory</td>
+    </tr>
+    <tr>
+      <td>&gt;2</td>
+      <td>&gt;05E8</td>
+      <td>CRU read </td>
+      <td rowspan="2">Bytes 1+2: CRU address/2<br>
+Byte 3: number of bits<br>
+Byte 4: data address (&gt;83xx) </td>
+    </tr>
+    <tr>
+      <td>&gt;3</td>
+      <td>&gt;05EA</td>
+      <td>CRU write</td>
+    </tr>
+    <tr>
+      <td>&gt;4</td>
+      <td>&gt;1346</td>
+      <td>Cassette write. </td>
+      <td rowspan="3">Bytes 1+2: number of bytes<br>
+Bytes 3+4: address in VDP memory </td>
+    </tr>
+    <tr>
+      <td>&gt;5</td>
+      <td>&gt;142E</td>
+      <td>Cassette read. </td>
+    </tr>
+    <tr>
+      <td>&gt;6</td>
+      <td>&gt;1426</td>
+      <td>Cassette verify. </td>
+    </tr>
+  </tbody>
+</table>
+<h3><br>
+<a name="sound"></a>Sound lists</h3>
+<ul>
+  <pre>I/O  0,<i>dest</i>      in GROM/GRAM<br>I/O  1,<i>dest</i>      in VDP memory</pre>
+</ul>
+<p><i>dest </i>contain the address of a sound list in GRAM/GROM or VDP
+memory.</p>
+<p>The <a href="ints.htm">format </a>of this sound list is described
+in
+the page dealing with the interrupts, since the list will be played by
+the interrupt service routine.</p>
+<pre>Examples:</pre>
+<pre>SLIST  BYTE  6         number of sound bytes<br>       BYTE  &gt;AE,&gt;0F   440H Hz on generator 2<br>       BYTE  &gt;B0       full volume on generator 2<br>       BYTE  &gt;D5       minus 10 dB on generator 3<br>       BYTE  &gt;C6,&gt;0D   middle C on generator 3<br>       BYTE  60        for 1 second (USA value. Use 50 in europe)</pre>
+<pre>       BYTE  2         size, next sound<br>       BYTE  &gt;E5       white noise, at 3496 Hz<br>       BYTE  &gt;FE       low volume (-28 dB)<br>       BYTE  120       for 2 seconds</pre>
+<pre>       BYTE  0         size=0 means "branch at"<br>       DATA  SLIST     address in gram (forever loop)</pre>
+<pre>HUSH   BYTE 4          4 bytes in that sound<br>       BYTE &gt;9F,&gt;BF,&gt;DF,&gt;FF    turn all generators off<br>       BYTE 0          duration=0 means "end of list"</pre>
+<p>Notes:</p>
+<li>The address of the table is saved at &gt;83CC with memory type
+indicated
+in &gt;83FD, bit 7: &gt;00 = grom, &gt;01 = vdp.</li>
+<li>The byte &gt;83CE contains 0 when all sounds have been played.
+Testing
+it is a good way to wait for the end of a sound list.</li>
+<h3><br>
+<a name="cru"></a>Dealing with the CRU</h3>
+<ul>
+  <pre>I/O 2,<i>dest           </i>cru in<br>I/O 3,<i>dest           </i>cru out</pre>
+</ul>
+<p><i>dest </i>contain the first of 4 bytes, in cpu memory (! at even
+address
+!)</p>
+<li>2 bytes: CRU address divided by 2 (i.e. absolute bit number)</li>
+<li>1 byte: Number of bits to read/write (0-15)</li>
+<li>1 byte: Source/destination in scratch-pad memory (&gt;83xx). The
+least
+significant (rigthmost) bits are passed first.</li>
+<pre>Example:<br>       DST   &gt;0012,&gt;8300      keyboard column address (&gt;0024)<br>       ST    &gt;03,&gt;8302        pass 3 bits<br>       ST    &gt;4A,&gt;8303        from &gt;834A<br>       ST    &gt;01,&gt;834A        column 1<br>       I/O   3,&gt;8300          write keyboard column</pre>
+<pre>       DST   &gt;0003,&gt;8300      keyboard row address (&gt;0006)<br>       ST    &gt;08,&gt;8302        pass 8 bits<br>       I/O   2,&gt;8300          read row of 8 keys<br>       INV   &gt;83A4            key pressed=1</pre>
+<h3><br>
+<a name="cassette"></a>Cassette operations</h3>
+<p>It's probably easier and safer to access cassettes with a PAB,
+having
+CS1 or CS2 as a filename. However if you insist on doing it yourself,
+here
+are some clues:</p>
+<ul>
+  <pre><font size="+1">I</font>/O 4,<i>dest         </i>read<br>I/O 5,<i>dest         </i>write<br>I/O 6,<i>dest         </i>verify</pre>
+</ul>
+<p>The motor should first be turned on (1), then off (0) with cru bits
+&gt;0016 for CS1 and &gt;0017 for CS2.</p>
+<p><i>dest </i>contains the first of 4 consecutive bytes in cpu memory
+(! even address !)</p>
+<li>1 word number of bytes to read/write/verify</li>
+<li>1 word address of data buffer, in vdp memory</li>
+<p>In case you're curious to know how the data are encoded on the
+magnetic
+tape, look-up my <a href="cassette.htm">page </a>on cassette tape
+operations.</p>
+<h2><br>
+<a name="COIN"></a>Using the COINcidence instruction</h2>
+<p>The COIN instruction checks for coincidence between two objects on
+screen.
+These objects can be anything, including sprites, characters, or even
+exist
+only in the programmer's mind! The instruction returns with cnd bit set
+if coincidence was detected, and reset if it wasn't.</p>
+<p>The source argument must contain the screen coordinates of object 1,
+as 2 bytes (pixel row, pixel column). Similarly, the destination
+argument
+should contain the coordinates of object 2.</p>
+<p>The COIN instruction must be followed by some data:</p>
+<li>1 byte indicating the grain of the checking (mapping value)</li>
+<li>2 bytes that contain the address of a coincidence table.</li>
+<p>The header of this table contains indications on the size of the
+considered
+objects. The interpreter uses them, together with objects coordinates,
+to quickly decide whether objects are in contact. If that's the case,
+the
+remainder of the table is used to determine if there is coincidence or
+not.</p>
+<p>This way, the definition of 'coincidence' is up to the user.</p>
+<p>The draw back is that you must supply coincidence table for each
+pair
+of objects that you intend to check.</p>
+<p>If you find difficult to generate such tables, you may use the small
+extended Basic program included in my GPL package: it's awfully slow,
+and
+limited to 8x8 pixels objects but that's all I could come with in one
+week-end.
+Please feel free to improve it, for instance by writing a GPL or 9900
+version
+of it...</p>
+<h3><br>
+Building a coincidence table</h3>
+<p>In a coincidence table, you consider all possible positions in which
+the two objects could touch or overlap each other, and for each
+position
+you tell the interpreter if you regard it as coincident or not.</p>
+<p>For instance, let's consider the following two objects:</p>
+<pre> <font color="#0080ff">++</font>    is a 2x3 characters object,     <font
+ color="#ff0080">xx</font>    is a 3x3 chars object<br><font
+ color="#0080ff">+++</font>                                    <font
+ color="#ff0080">xxx<br></font>                                       <font
+ color="#ff0080">xxx</font></pre>
+<p>Note: the size to consider is the size of a putative rectangle
+circumscribing
+the object. For instance, this object is 2 by 4:</p>
+<pre><font color="#00ff00"> o<br>oooo </font></pre>
+<p>There are 42 positions in which the 2 objects touch/overlap, let's
+view
+them in order, from top-left touching to bottom-right touching:</p>
+<pre><font color="#0080ff"> ++       ++      ++      ++      ++      ++      ++ <br>+++      +++     +++     +++     +++     +++     +++ <br></font><font
+ color="#ff0080">   xx      xx     xx     xx     xx     xx     xx <br>   xxx     xxx    xxx    xxx    xxx    xxx    xxx <br>   xxx     xxx    xxx    xxx    xxx    xxx    xxx</font></pre>
+<pre><font color="#0080ff"> ++       ++      ++      ++      ++      ++      ++ <br>+++</font><font
+ color="#ff0080">xx</font><font color="#0080ff">    ++</font><font
+ color="#800080">*</font><font color="#ff0080">x</font><font
+ color="#0080ff">    +</font><font color="#800080">**</font><font
+ color="#0080ff">     </font><font color="#800080">**</font><font
+ color="#0080ff">+    </font><font color="#ff0080">x</font><font
+ color="#800080">*</font><font color="#0080ff">++   </font><font
+ color="#ff0080">xx</font><font color="#0080ff">+++  </font><font
+ color="#ff0080">xx</font><font color="#0080ff"> +++ <br></font><font
+ color="#ff0080">   xxx     xxx    xxx    xxx    xxx    xxx    xxx <br>   xxx     xxx    xxx    xxx    xxx    xxx    xxx</font></pre>
+<pre><font color="#ff0080"> </font><font color="#0080ff">++</font><font
+ color="#ff0080">xx     </font><font color="#0080ff">+</font><font
+ color="#800080">*</font><font color="#ff0080">x     </font><font
+ color="#800080">**</font><font color="#ff0080">      x</font><font
+ color="#800080">*</font><font color="#0080ff">+</font><font
+ color="#ff0080">   xx</font><font color="#0080ff">++</font><font
+ color="#ff0080">   xx </font><font color="#0080ff">++</font><font
+ color="#ff0080">  xx  </font><font color="#0080ff">++</font><font
+ color="#ff0080"> <br></font><font color="#0080ff">+++</font><font
+ color="#ff0080">xxx   </font><font color="#0080ff">++</font><font
+ color="#800080">*</font><font color="#ff0080">xx   </font><font
+ color="#0080ff">+</font><font color="#800080">**</font><font
+ color="#ff0080">x    </font><font color="#800080">***</font><font
+ color="#ff0080">    x</font><font color="#800080">**</font><font
+ color="#0080ff">+</font><font color="#ff0080">   xx</font><font
+ color="#800080">*</font><font color="#0080ff">++</font><font
+ color="#ff0080">  xxx</font><font color="#0080ff">+++</font><font
+ color="#ff0080"> <br>   xxx     xxx    xxx    xxx    xxx    xxx    xxx</font></pre>
+<pre><font color="#ff0080">   xx      xx     xx     xx     xx     xx     xx<br> </font><font
+ color="#0080ff">++</font><font color="#ff0080">xxx    </font><font
+ color="#0080ff">+</font><font color="#800080">*</font><font
+ color="#ff0080">xx    </font><font color="#800080">**</font><font
+ color="#ff0080">x    x</font><font color="#800080">**</font><font
+ color="#ff0080">    xx</font><font color="#800080">*</font><font
+ color="#0080ff">+</font><font color="#ff0080">   xxx</font><font
+ color="#0080ff">++</font><font color="#ff0080">  xxx </font><font
+ color="#0080ff">++<br>+++</font><font color="#ff0080">xxx   </font><font
+ color="#0080ff">++</font><font color="#800080">*</font><font
+ color="#ff0080">xx   </font><font color="#0080ff">+</font><font
+ color="#800080">**</font><font color="#ff0080">x    </font><font
+ color="#800080">***</font><font color="#ff0080">    x</font><font
+ color="#800080">**</font><font color="#0080ff">+</font><font
+ color="#ff0080">   xx</font><font color="#800080">*</font><font
+ color="#0080ff">++ </font><font color="#ff0080"> xxx</font><font
+ color="#0080ff">+++</font></pre>
+<pre><font color="#ff0080">   xx      xx     xx     xx     xx     xx     xx <br>   xxx     xxx    xxx    xxx    xxx    xxx    xxx <br> </font><font
+ color="#0080ff">++</font><font color="#ff0080">xxx    </font><font
+ color="#0080ff">+</font><font color="#800080">*</font><font
+ color="#ff0080">xx    </font><font color="#800080">**</font><font
+ color="#ff0080">x    x</font><font color="#800080">**</font><font
+ color="#ff0080">    xx</font><font color="#800080">*</font><font
+ color="#0080ff">+</font><font color="#ff0080">   xxx</font><font
+ color="#0080ff">++</font><font color="#ff0080">  xxx </font><font
+ color="#0080ff">++</font><font color="#ff0080"> <br></font><font
+ color="#0080ff">+++      +++     +++     +++     +++     +++     +++</font></pre>
+<pre><font color="#ff0080">   xx      xx     xx     xx     xx     xx     xx <br>   xxx     xxx    xxx    xxx    xxx    xxx    xxx <br>   xxx     xxx    xxx    xxx    xxx    xxx    xxx<br></font><font
+ color="#0080ff"> ++       ++      ++      ++      ++      ++      ++ <br>+++      +++     +++     +++     +++     +++     +++</font></pre>
+<p>For each of these you should provide the interpreter with one bit
+telling
+if there is coincidence (bit=1) or not (bit=0).</p>
+<p>Let's arbitrarly decide there is coincidence only when 2 characters
+are overlapping (represented by a <font color="#800080">*</font>). We
+get
+the following matrix:</p>
+<pre>0 0 0 0 0 0 0 <br>0 <font color="#800080">1 1 1 1</font> 0 0 <br>0 <font
+ color="#800080">1 1 1 1 1</font> 0<br>0 <font color="#800080">1 1 1 1 1</font> 0<br>0 <font
+ color="#800080">1 1 1 1</font> 0 0<br>0 0 0 0 0 0 0</pre>
+<p>Now lets write all these bits as bytes:</p>
+<pre>00000000 11110001 11110011 11100111 10000000 00xxxxxx (6 padding bits)<br>  &gt;00      &gt;F1      &gt;F3      &gt;E7      &gt;80      &gt;3F    (let's pad with 1s)</pre>
+<p>We've just compressed the above table in 6 bytes!</p>
+<p>To get a complete coincidence table, we need four more bytes, that
+serves
+as a header. These are:</p>
+<li>Height of object 1 plus height of object 2 (here: 3+2 = 5)</li>
+<li>Width of object 2 plus width of object 2 (here: 3+3 = 6)</li>
+<li>Height of object 1 (here 2)</li>
+<li>Width of object 1 (here 3)</li>
+<p>The final table thus looks so:</p>
+<pre>TABLE1 BYTE  5,6,2,3<br>       BYTE  &gt;00,&gt;F1,&gt;F3,&gt;E7,&gt;80,&gt;3F</pre>
+<p>Great, but recall this is only valid for coincidence between object
+1 and object 2, in this very order. Should you decide to check for
+coincidence
+between object 2 and object 1 (although I really don't see why), then
+you
+would need another table.</p>
+<p>If there are several objects of each kind, you also need different
+tables
+to check for coincidence between objects 1 and 1, and ojects 2 and 2.</p>
+<h3><br>
+Changing the mapping value</h3>
+<p>The mapping value selects the "grain" of coincidence checking:
+</p>
+<li>A value of 0 operates at pixel level,</li>
+<li>A value of 1 considers "boxes" of 2 by 2 pixels,</li>
+<li>A value of 2 uses 4x4 pixel boxes</li>
+<li>Etc.</li>
+<p>The advantage of a coarser grain is that it reduces the size of the
+coincidence table, at the expense of a lower resolution.</p>
+<p>To construct a table in mapping value 1, first construct the
+"pixel-wise"
+table with mapping value 0. Then divide it in 2x2 bits boxes, starting
+with the position where the upper left corner of the two objects are
+superimposed.</p>
+<p>Using the above example again, we have:</p>
+<pre>          V <br>0   0 0   0 0   0 0 <br>0   1 1   1 1   0 0<br><br>0   1 1   <b><font
+ color="#00ff00">1</font></b> 1   1 0   &lt;-- upper-left corners superimposed <br>0   1 1   1 1   1 0<br> <br>0   1 1   1 1   0 0 <br>0   0 0   0 0   0 0</pre>
+<p>Now reduce each box to a single bit, by taking the predominant value
+in each box. If there is a tie, one can choose to consider it as 0 or 1
+(for the purpose of this example, let's decide for 1).</p>
+<p>The reduced table looks like this:</p>
+<pre>0    1    1    0 <br>0    1    1    1 <br>0    1    1    0</pre>
+<p>Which gives us &gt;67 &gt;6F, when padding with four 1s.</p>
+<p>For a mapping value of 2, one would proceed similarly, by creating
+4x4
+boxes.</p>
+<p>Now, did you get that? I hope so, given the time it took me to put
+it
+down!</p>
+<h2><br>
+<a name="Dealing with sprites"></a>Using sprites</h2>
+<h3>Sprites size and magnification</h3>
+<p>The size and magnification of sprites are determined by 2 flag bits
+in the VDP register 1:</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <td>Mem</td>
+      <td>Scrn</td>
+      <td>Ints</td>
+      <td>Text</td>
+      <td>Multi</td>
+      <td>n.u.</td>
+      <td>Size</td>
+      <td>Mag.</td>
+    </tr>
+  </tbody>
+</table>
+<p><b>Bit 0 </b>Memory size &gt;00 = 4K, &gt;80 = 16K (default).<br>
+<b>Bit 1</b> Screen &gt;00 = off, &gt;40 = on<br>
+<b>Bit 2</b> Interrupts &gt;00 = disabled, &gt;20 = enabled<br>
+<b>Bit 3</b> Text mode &gt;00 = off, &gt;10 = on<br>
+<b>Bit 4</b> Multicolor &gt;00 = off, &gt;80 = on<br>
+<b>Bit 5</b> not used &gt;00<br>
+<b>Bit 6</b> Sprites size &gt;00 = 1 pixel, &gt;02 = 2x2 pixels<br>
+<b>Bit 7</b> Magnification &gt;00 = 1 char, &gt;01 = 4 characters per
+sprite</p>
+<p>Notes:</p>
+<ul>
+  <li>Sprites are not allowed in text mode (40 columns, 6 pixels-wide
+characters).
+Neither are colors: colors of text and background is stored in VDP
+register
+7.</li>
+  <li>Interrupts should be left on for proper sprite motion and sound
+processing</li>
+  <li>Memory size should be left as 16K (otherwise any address above
+&gt;1000
+will wrap around (i.e. &gt;2345 is understood as &gt;0345)</li>
+  <li>When setting vdp register 1 (with the MOVE instruction) a copy is
+automatically
+made at &gt;83D4 (VDPR1), it's often convenient to recover that byte to
+modify vdp register 1, since all VDP registers are write-only. The
+keyboard
+scanning routine (GPL opcode SCAN) automatically reloads register 1
+from
+that byte when a key is detected.</li>
+</ul>
+<h3><br>
+Sprite attributes</h3>
+<p>For each sprite, in numerical order, a 4 bytes definition is to be
+loaded
+in the sprite attribute table, whose location is defined by VDP
+register
+5 (address = register content * &gt;0080). The usual address is
+&gt;0300,
+it MUST be used if auto-motion is desired.</p>
+<p>Each sprite entry, in numerical order, consists in:</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <td>Pixel row </td>
+      <td>Pixel column</td>
+      <td>Pattern </td>
+      <td>Ck | Color</td>
+    </tr>
+  </tbody>
+</table>
+<p>Pixel row values: top of screen, &gt;FF,&gt;00,&gt;01...&gt;BF,
+bottom
+(after that: invisible. &gt;D0: last sprite).<br>
+Pixel column values left: &gt;00....&gt;FF right<br>
+Pattern values, refer to entry in pattern table: &gt;00 to &gt;FF<br>
+Clock bit. &gt;0: normal, &gt;8: shift by 16 pixels<br>
+Color values: &gt;0 to &gt;F</p>
+<p>Notes:</p>
+<ul>
+  <li>The sprite pattern table doesn't need to be the same as the
+character
+pattern table. By entering a different value in VDP register 6 (addr =
+value * &gt;0800) one can have 256 definitions, located say at
+&gt;1000,
+and that have nothing in common with character pats (located at
+&gt;0800
+if VDP reg 4 contains 1).</li>
+  <li>You probably noted that a sprite can "vanish" at the right
+of the screen, being only partly visible, whereas this is impossible at
+the left: at position &gt;00 all the sprite is onscreen, at &gt;FF it
+jumps
+to the right.<br>
+The way around this is to set the clock bit, i.e. add &gt;80 to sprite
+color: this results in shifting the sprite reference point from the
+top-left
+corner to 16 pixels to the right (i.e. top-right corner of a dobble
+size,
+dobble magnification sprite). Of course sprite position must be
+adjusted
+(by adding 16 to column value), but now the sprite can vanish on the
+left.</li>
+</ul>
+<ul>
+  <li>Sprites can vanish at the top (row values &gt;F0-FF) and at the
+bottom
+(row value &gt;B0-BF) without any problem because there are only 192
+pixel
+rows.</li>
+</ul>
+<h3><br>
+Automatic motion</h3>
+<p>The interrupt routine in charge of moving sprites expects a sprite
+motion
+table located at &gt;0780 in VDP memory, and the sprite attributes at
+&gt;0300
+(VDP reg 5 = &gt;06)</p>
+<p>Srite entries are arranged in numerical order, statting with sprite
+#0. Each entry consists in 4 bytes:</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <td>Vert speed</td>
+      <td>Horiz speed</td>
+      <td>ISR buffer </td>
+      <td>ISR buffer </td>
+    </tr>
+  </tbody>
+</table>
+<p>Vertical motion values: -128 (up) to +127 (down)<br>
+Horizontal motion values: -128 (left) to +127 (right)<br>
+ISR buffer: don't bother. Used by the ISR to store the current counter
+value.</p>
+<p>The speed is defined as pixels per 16/60 seconds (16/50 in Europe),
+positive values move sprites to the right/bottom, negatives to the
+left/top.</p>
+<p>To enable auto-motion, after properly setting the table, you should:</p>
+<li>Store the number of the last sprite to move into byte &gt;837A
+(SPRNO)</li>
+<li>Make sure the "ignore all" and "ignore sprites"
+bits of the flag byte &gt;83C2 (SYSFL) are not set. These are bit 0
+(&gt;80)
+and 1 (&gt;40), they can be cleared with: <tt>AND &gt;3F,@&gt;83C2.</tt>
+(For your information, the next 2 bits (&gt;20 and &gt;10) disable
+auto-sound
+processing and &lt;quit&gt; key detection, respectively).</li>
+<h3><br>
+VDP registers summary</h3>
+<p><b>VDP register 0:</b> Flags for bit mode (&gt;02) and external
+video
+as background (&gt;01).<br>
+<b>VDP register 1:</b> Various flags (see above).<br>
+<b>VDP register 2:</b> Screen image table. Address = value * &gt;0400.
+Size &gt;0300 (&gt;0400 in text mode).<br>
+<b>VDP register 3: </b>Color table. Address = value * &gt;0040. Size
+&gt;0040:
+1 byte per 8 chars.<br>
+<b>VDP register 4: </b>Char patterns table. Address = value *
+&gt;0800.
+Size &gt;0800: 8 bytes per char.<br>
+<b>VDP register 5:</b> Sprite attributes. Address = value * &gt;0080.
+Size
+&gt;0080: 4 bytes per sprite.<br>
+<b>VDP register 6:</b> Sprite patterns. Address = value * &gt;0800.
+Size
+&gt;0800: 8 bytes per sprite.<br>
+<b>VDP register</b> 7: Text color | screen color+ text background (in
+text
+mode).</p>
+<h4><br>
+VDP status register</h4>
+<p>The VDP status read-only register is copied at &gt;837B by the
+interrupt
+routine. This reading operation resets its interrupt flag bit. It
+contains
+the following flag bits:</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <td>Inter </td>
+      <td>5 spr </td>
+      <td>Coin </td>
+      <td>Number of 5th sprite on a row</td>
+    </tr>
+  </tbody>
+</table>
+<p><b>Bit 0 </b>Interrupt: &gt;00 = none, &gt;80 = issued (vertical
+retrace
+ongoing).<br>
+<b>Bit 1</b> 5 sprites: &gt;00 = ok, &gt;40 = more than 4 sprites on a
+pixel row.<br>
+<b>Bit 2</b> Coincidence: &gt;00 = none, &gt;20 = at least two sprites
+have overlapping "on" pixels.<br>
+<b>Bit 3-7</b> 5th sprite: the number of the 5th sprite on the first
+row
+where that problem was encountered..</p>
+<h2><br>
+<a name="usefull addresses"></a>Usefull addresses</h2>
+<p>These addresses belong to 2 categories::</p>
+<li>System constants</li>
+<li>Scratch-pad addresses</li>
+<li>GROM subroutines</li>
+<p>For details on how to use most of the GROM routines, refer to the
+GPL
+manual written by the 9T9 users group of Toronto. Their address is
+(was?):</p>
+<address>109-2356 Gerrard St. East,<br>
+Toronto M4E-2E2,<br>
+Canada.</address>
+<p>I have this manual and could put it online, but I'm not sure they'd
+be happy about it...</p>
+<h4><br>
+<a name="system contants"></a>System constants</h4>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Mnemonic</th>
+      <th>Address</th>
+      <th>Use</th>
+    </tr>
+    <tr>
+      <td>SOUND</td>
+      <td>&gt;8400</td>
+      <td>Sound chip port</td>
+    </tr>
+    <tr>
+      <td>.</td>
+      <td>&gt;8800</td>
+      <td>VDP read data port</td>
+    </tr>
+    <tr>
+      <td>.</td>
+      <td>&gt;8802</td>
+      <td>VDP read status port</td>
+    </tr>
+    <tr>
+      <td>.</td>
+      <td>&gt;8C00</td>
+      <td>VDP write data port</td>
+    </tr>
+    <tr>
+      <td>.</td>
+      <td>&gt;8C02</td>
+      <td>VDP write address port</td>
+    </tr>
+    <tr>
+      <td>SPCHRD</td>
+      <td>&gt;9000</td>
+      <td>Speech synthesizer read port</td>
+    </tr>
+    <tr>
+      <td>SPCHWT</td>
+      <td>&gt;9400</td>
+      <td>Speech synthesizer write port</td>
+    </tr>
+    <tr>
+      <td>.</td>
+      <td>&gt;9800</td>
+      <td>GROM read data port (#1)</td>
+    </tr>
+    <tr>
+      <td>.</td>
+      <td>&gt;9802</td>
+      <td>GROM read address port </td>
+    </tr>
+    <tr>
+      <td>.</td>
+      <td>&gt;9C00</td>
+      <td>GRAM write data port</td>
+    </tr>
+    <tr>
+      <td>.</td>
+      <td>&gt;9C02</td>
+      <td>GROM write address port</td>
+    </tr>
+  </tbody>
+</table>
+<h4><br>
+<a name="PAD basic"></a>Scratch-pad addresses</h4>
+<p>The memory area located at &gt;8300 to &gt;83FF is known as the
+scratch-pad.
+This is the only (16 bits) cpu RAM available when no memory expansion
+is
+connected.</p>
+<p>The first part is used by TI-Basic and (in some cases) by Extended
+Basic.
+If your program does not require any of these languages, these bytes
+are
+free for you to use.</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Address</th>
+      <th>Use</th>
+    </tr>
+    <tr>
+      <td>&gt;8300-8316</td>
+      <td>Temporary variables storage.</td>
+    </tr>
+    <tr>
+      <td>&gt;8318</td>
+      <td>Used by LINK + LOAD. Also: beginning of string space.</td>
+    </tr>
+    <tr>
+      <td>&gt;831A</td>
+      <td>First free address in VDP. Also: end of string space.</td>
+    </tr>
+    <tr>
+      <td>&gt;831C</td>
+      <td>PAB error or temporary string pointer.</td>
+    </tr>
+    <tr>
+      <td>&gt;831E</td>
+      <td>Start of current Basic statement.</td>
+    </tr>
+    <tr>
+      <td>&gt;8320</td>
+      <td>Current screen address.</td>
+    </tr>
+    <tr>
+      <td>&gt;8322</td>
+      <td>Error code returned by assembly language routines.</td>
+    </tr>
+    <tr>
+      <td>&gt;8324</td>
+      <td>VDP value stack base pointer.</td>
+    </tr>
+    <tr>
+      <td>&gt;8326</td>
+      <td>Return address for assembly language routines.</td>
+    </tr>
+    <tr>
+      <td>&gt;8328</td>
+      <td>NUD table for assembly language routines ???</td>
+    </tr>
+    <tr>
+      <td>&gt;832A</td>
+      <td>Ending screen display pointer.</td>
+    </tr>
+    <tr>
+      <td>&gt;832C</td>
+      <td>Program text or token pointer.</td>
+    </tr>
+    <tr>
+      <td>&gt;832E</td>
+      <td>Pointer to current line number, in line number table.</td>
+    </tr>
+    <tr>
+      <td>&gt;8330</td>
+      <td>Start of line number table pointer.</td>
+    </tr>
+    <tr>
+      <td>&gt;8332</td>
+      <td>End of line number table pointer.</td>
+    </tr>
+    <tr>
+      <td>&gt;8334</td>
+      <td>Data pointer for READ.</td>
+    </tr>
+    <tr>
+      <td>&gt;8336</td>
+      <td>Line number table pointer for READ.</td>
+    </tr>
+    <tr>
+      <td>&gt;8338</td>
+      <td>Address of intrinsic Poly constants ???</td>
+    </tr>
+    <tr>
+      <td>&gt;833A</td>
+      <td>Subprogram symbol table pointer.</td>
+    </tr>
+    <tr>
+      <td>&gt;833C</td>
+      <td>PAB address in VDP RAM: first link in PAB list.</td>
+    </tr>
+    <tr>
+      <td>&gt;833E</td>
+      <td>Symbol table pointer.</td>
+    </tr>
+    <tr>
+      <td>&gt;8340</td>
+      <td>VDP RAM free space pointer.</td>
+    </tr>
+    <tr>
+      <td>&gt;8342</td>
+      <td>Current char/token (value).</td>
+    </tr>
+    <tr>
+      <td>&gt;8344</td>
+      <td>Contains &gt;FF if RUN, else &gt;00 ( * READY * ).</td>
+    </tr>
+    <tr>
+      <td>&gt;8345</td>
+      <td>Extended Basic flags:bit 0=1 Auto-num, 1=1 On break next,<br>
+3=1 Trace, 4=1 Edit mode, 5=1 On warning stop, <br>
+6=1 On warning next, 2 + 7 unused.</td>
+    </tr>
+    <tr>
+      <td>&gt;8346</td>
+      <td>Crunch buffer destruction level (the crunch buffer is used<br>
+to convert a line of text into Basic tokens).</td>
+    </tr>
+    <tr>
+      <td>&gt;8348</td>
+      <td>Last subprogram block on stack.</td>
+    </tr>
+    <tr>
+      <td>&gt;836C</td>
+      <td>Floating point error address in GROM ??</td>
+    </tr>
+    <tr>
+      <td>&gt;836D</td>
+      <td>Contains &gt;08 for DSR call.</td>
+    </tr>
+  </tbody>
+</table>
+<p><br>
+<a name="PAD general"></a>The second part of the scratch-pad memory is
+more general and deals with GPL rather than Basic. My GPL assembler
+defines
+mnemonics for almost all bytes but not all of them are generally
+accepted.</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Mnemonic</th>
+      <th>Address</th>
+      <th>Use</th>
+    </tr>
+    <tr>
+      <td>FAC</td>
+      <td>&gt;834A-8352</td>
+      <td>Floating point accumulator (8 bytes)</td>
+    </tr>
+    <tr>
+      <td>PAB</td>
+      <td>&gt;834A-8354</td>
+      <td>PAB copy area</td>
+    </tr>
+    <tr>
+      <td>FLTERR</td>
+      <td>&gt;8354</td>
+      <td>Floating point error code</td>
+    </tr>
+    <tr>
+      <td>DSRSIZ</td>
+      <td>&gt;8354</td>
+      <td>Size of DSR name</td>
+    </tr>
+    <tr>
+      <td>DSRNAM</td>
+      <td>&gt;8356</td>
+      <td>Pointer to DSR name for LINK</td>
+    </tr>
+    <tr>
+      <td>ARG</td>
+      <td>&gt;835C-8364</td>
+      <td>Floating point argument (8 bytes)</td>
+    </tr>
+    <tr>
+      <td>VAL</td>
+      <td>&gt;836E</td>
+      <td>Pointer to real numbers value stack in VDP mem</td>
+    </tr>
+    <tr>
+      <td>FREE</td>
+      <td>&gt;8370</td>
+      <td>Highest free VDP memory address</td>
+    </tr>
+    <tr>
+      <td>VLPTR</td>
+      <td>&gt;8372</td>
+      <td>Pointer to top of value stack (in pad)</td>
+    </tr>
+    <tr>
+      <td>SBPTR</td>
+      <td>&gt;8373</td>
+      <td>Pointer to top of subroutine stack (in pad)</td>
+    </tr>
+    <tr>
+      <td>MODE</td>
+      <td>&gt;8374</td>
+      <td>Keyboard scanning mode</td>
+    </tr>
+    <tr>
+      <td>KEY</td>
+      <td>&gt;8375</td>
+      <td>Code if the key detected (&gt;FF = none)<br>
+Also: sign of a real number</td>
+    </tr>
+    <tr>
+      <td>JOYY</td>
+      <td>&gt;8376</td>
+      <td>Joystick vertical value (4, 0, &gt;FC) <br>
+Also: exponent of a real number</td>
+    </tr>
+    <tr>
+      <td>JOYX</td>
+      <td>&gt;8377</td>
+      <td>Joystick horizontal value (4, 0, &gt;FC)</td>
+    </tr>
+    <tr>
+      <td>RANDOM</td>
+      <td>&gt;8378</td>
+      <td>Random number, found after RND</td>
+    </tr>
+    <tr>
+      <td>TIMER</td>
+      <td>&gt;8379</td>
+      <td>VDP interrupt timer</td>
+    </tr>
+    <tr>
+      <td>AUTO</td>
+      <td>&gt;837A</td>
+      <td>Highest sprite in auto-motion</td>
+    </tr>
+    <tr>
+      <td>VDPSTS</td>
+      <td>&gt;837B</td>
+      <td>Copy of VDP status byte</td>
+    </tr>
+    <tr>
+      <td>GPLSTS</td>
+      <td>&gt;837C</td>
+      <td>GPL status byte</td>
+    </tr>
+    <tr>
+      <td>CCHA</td>
+      <td>&gt;837D</td>
+      <td>Char at current screen position</td>
+    </tr>
+    <tr>
+      <td>CROW</td>
+      <td>&gt;837E</td>
+      <td>Current screen row</td>
+    </tr>
+    <tr>
+      <td>CCOL</td>
+      <td>&gt;837F</td>
+      <td>Current screen column</td>
+    </tr>
+    <tr>
+      <td>SBSTA</td>
+      <td>&gt;8380-839F</td>
+      <td>Area reserved for subroutine stack (32 bytes, first 9 for
+Basic)</td>
+    </tr>
+    <tr>
+      <td>VLSTA</td>
+      <td>&gt;83A0-83BF</td>
+      <td>Area reserved for data stack (32 bytes)</td>
+    </tr>
+    <tr>
+      <td>INTWS</td>
+      <td>&gt;83C0</td>
+      <td>Interrupt routine workspace (32 bytes) Random number seed</td>
+    </tr>
+    <tr>
+      <td>AMSQ</td>
+      <td>&gt;83C2</td>
+      <td>ISR&nbsp;disabling flags: &gt;80 All, &gt;40 Motion, &gt;20
+Sound,
+&gt;10 Quit key </td>
+    </tr>
+    <tr>
+      <td>ISR</td>
+      <td>&gt;83C4</td>
+      <td>Interrupt Service Routine hook: routine to be executed</td>
+    </tr>
+    <tr>
+      <td>SNDTAB</td>
+      <td>&gt;83CC</td>
+      <td>Address of the sound table</td>
+    </tr>
+    <tr>
+      <td>SNDSIZ</td>
+      <td>&gt;83CE</td>
+      <td>Sound bytes to play (&gt;0100)</td>
+    </tr>
+    <tr>
+      <td>VDPR1</td>
+      <td>&gt;83D4</td>
+      <td>Copy of VDP register 1, used by SCAN</td>
+    </tr>
+    <tr>
+      <td>CLRSC</td>
+      <td>&gt;83D6</td>
+      <td>Screen timeout counter: decremented by 2, clears when 0</td>
+    </tr>
+    <tr>
+      <td>.</td>
+      <td>&gt;83D8</td>
+      <td>Return address saved by SCAN.</td>
+    </tr>
+    <tr>
+      <td>.</td>
+      <td>&gt;83DA to &gt;83DF</td>
+      <td>used for RTWP (workspace, pc and status).</td>
+    </tr>
+    <tr>
+      <td>GPLWS</td>
+      <td>&gt;83E0</td>
+      <td>GPL interpreter workspace</td>
+    </tr>
+    <tr>
+      <td>GBASE</td>
+      <td>&gt;83FA</td>
+      <td>GROM port currently used (normally &gt;9800)</td>
+    </tr>
+    <tr>
+      <td>SPEED</td>
+      <td>&gt;83FC</td>
+      <td>Speed value, added to TIMER</td>
+    </tr>
+    <tr>
+      <td>FLAGS</td>
+      <td>&gt;83FD</td>
+      <td>&gt;20 cassette operations, &gt;10 cassette verify, &gt;08
+16K VDP
+mem<br>
+&gt;02 multicolor mode, &gt;01 sound table in VDP mem</td>
+    </tr>
+    <tr>
+      <td>.</td>
+      <td>&gt;83FE</td>
+      <td>VDP write address port (&gt;8C02).</td>
+    </tr>
+  </tbody>
+</table>
+<h4><br>
+<a name="GROM subroutines"></a>GROM subroutines</h4>
+<p>Only GROMs 0 and 1 have a standard header, GROM 2 is the
+continuation
+of GROM 1 and has no header.</p>
+<p>At the beginning of GROM 0 is a table of subprograms, that contains
+only branching instructions (mostly BR, and a few B). The location of
+these
+subprograms may vary among GROM versions, but the table is always the
+same.</p>
+<p>For each of these subroutines, there is a pre-defined symbol in my
+assembler.
+No guaranty that other assemblers will use the same name...</p>
+<p>N.B. FAC (floating point accumulator) corresponds to &gt;834A-8351,
+ARG (argument) to &gt;835C-8363</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Mnemonic</th>
+      <th>Address</th>
+      <th>Use</th>
+    </tr>
+    <tr>
+      <td>LINK</td>
+      <td><a href="#g@0010">&gt;0010</a></td>
+      <td>Subroutine/DSR call: FETCh &gt;0A/&gt;08, name ptr in &gt;8356</td>
+    </tr>
+    <tr>
+      <td>RETURN</td>
+      <td><a href="#g@0012">&gt;0012</a></td>
+      <td>Return from a subroutine/DSR</td>
+    </tr>
+    <tr>
+      <td>CNS</td>
+      <td><a href="#g@0014">&gt;0014</a></td>
+      <td>Convert number to string (from FAC to FAC, infos in
+&gt;8355-57)</td>
+    </tr>
+    <tr>
+      <td>STCASE</td>
+      <td><a href="#g@0016">&gt;0016</a></td>
+      <td>Load title screen character patterns at VDP address in
+&gt;834A</td>
+    </tr>
+    <tr>
+      <td>UPCASE</td>
+      <td><a href="#g@0018">&gt;0018</a></td>
+      <td>Load upper case character patterns at VDP address in &gt;834A</td>
+    </tr>
+    <tr>
+      <td>BWARN</td>
+      <td><a href="#g@001a">&gt;001A</a></td>
+      <td>Issue warning message</td>
+    </tr>
+    <tr>
+      <td>BERR</td>
+      <td><a href="#g@001c">&gt;001C</a></td>
+      <td>Issue error message</td>
+    </tr>
+    <tr>
+      <td>BEXEC</td>
+      <td><a href="#g@001e">&gt;001E</a></td>
+      <td>Begins Basic excution: FETCh 4 bytes: address of first and
+last lines
+      </td>
+    </tr>
+    <tr>
+      <td>PWRUP</td>
+      <td><a href="#g@0020">&gt;0020</a></td>
+      <td>System reset</td>
+    </tr>
+    <tr>
+      <td>INT</td>
+      <td><a href="#g@0022">&gt;0022</a></td>
+      <td>Convert real to integer (from FAC to FAC)</td>
+    </tr>
+    <tr>
+      <td>PWR</td>
+      <td><a href="#g@0024">&gt;0024</a></td>
+      <td>Power-of-ten routine FAC=FAC * 10^ARG</td>
+    </tr>
+    <tr>
+      <td>SQR</td>
+      <td><a href="#g@0026">&gt;0026</a></td>
+      <td>Square root routine FAC=SQR(FAC)</td>
+    </tr>
+    <tr>
+      <td>EXP</td>
+      <td><a href="#g@0028">&gt;0028</a></td>
+      <td>Exponentiation routine FAC=e^FAC</td>
+    </tr>
+    <tr>
+      <td>LOG</td>
+      <td><a href="#g@002a">&gt;002A</a></td>
+      <td>Logarithm calculation FAC=ln(FAC)</td>
+    </tr>
+    <tr>
+      <td>COS</td>
+      <td><a href="#g@002C">&gt;002C</a></td>
+      <td>Cosine calculation FAC=cos(FAC)</td>
+    </tr>
+    <tr>
+      <td>SIN</td>
+      <td><a href="#g@002e">&gt;002E</a></td>
+      <td>Sine calculation FAC=sin(FAC)</td>
+    </tr>
+    <tr>
+      <td>TAN</td>
+      <td><a href="#g@0030">&gt;0030</a></td>
+      <td>Tangent calculation FAC=tgn(FAC)</td>
+    </tr>
+    <tr>
+      <td>ATN</td>
+      <td><a href="#g@0032">&gt;0032</a></td>
+      <td>Arctangent calculation FAC=atn(FAC)</td>
+    </tr>
+    <tr>
+      <td>BEEP</td>
+      <td><a href="#g@0034">&gt;0034</a></td>
+      <td>Issue acceptation sound</td>
+    </tr>
+    <tr>
+      <td>HONK</td>
+      <td><a href="#g@0036">&gt;0036</a></td>
+      <td>Issue error sound</td>
+    </tr>
+    <tr>
+      <td>GETSPA</td>
+      <td><a href="#g@0038">&gt;0038</a></td>
+      <td>Get VDP memory space for a string</td>
+    </tr>
+    <tr>
+      <td>BITREV</td>
+      <td><a href="#g@003b">&gt;003B</a></td>
+      <td>Bit reversal routine &gt;834A: VDP address, &gt;834C: number
+of bytes</td>
+    </tr>
+    <tr>
+      <td>NAMLNK</td>
+      <td><a href="#g@003d">&gt;003D</a></td>
+      <td>Part of LINK: searches in GROM only</td>
+    </tr>
+    <tr>
+      <td>PABSPA</td>
+      <td><a href="#g@003f">&gt;003F</a></td>
+      <td>Check memory space for PAB</td>
+    </tr>
+    <tr>
+      <td>TOKEN</td>
+      <td><a href="#g@0042">&gt;0042</a></td>
+      <td>Get next token, set Basic pointers</td>
+    </tr>
+    <tr>
+      <td>LOCASE</td>
+      <td><a href="#g@004A">&gt;004A</a></td>
+      <td>Load lower case character patterns</td>
+    </tr>
+  </tbody>
+</table>
+<p><br>
+The address of the following routines may vary, since they are not
+included
+in a vector (branch) table. It's therefore risk to call them directly.
+But it's up to you...</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Address</th>
+      <th>Use</th>
+    </tr>
+    <tr>
+      <td>&gt;1387</td>
+      <td>OPEN cassette.</td>
+    </tr>
+    <tr>
+      <td>&gt;13CF</td>
+      <td>READ cassette.</td>
+    </tr>
+    <tr>
+      <td>&gt;13DA</td>
+      <td>WRITE cassette.</td>
+    </tr>
+    <tr>
+      <td>&gt;13F2</td>
+      <td>OLD cassette.</td>
+    </tr>
+    <tr>
+      <td>&gt;140E</td>
+      <td>CLOSE cassette.</td>
+    </tr>
+    <tr>
+      <td>&gt;1444</td>
+      <td>Verify cassette.</td>
+    </tr>
+    <tr>
+      <td>&gt;1489</td>
+      <td>SAVE cassette.</td>
+    </tr>
+    <tr>
+      <td>&gt;216F</td>
+      <td>Start of Basic interpreter (Entry point for NEW).</td>
+    </tr>
+    <tr>
+      <td>&gt;2214</td>
+      <td>Address table for RUN, NEW, CONTINUE, LIST, BYE, <br>
+NUMBER, OLD, RES,SAVE and EXIT.</td>
+    </tr>
+    <tr>
+      <td>&gt;27E3</td>
+      <td>Clears screen, resets cursor and continues as below:</td>
+    </tr>
+    <tr>
+      <td>&gt;27F1</td>
+      <td>Loads char patterns, resets colors and VDP registers 2,3 and
+4. </td>
+    </tr>
+    <tr>
+      <td>&gt;2A42</td>
+      <td>Start line editor with default position and length.</td>
+    </tr>
+    <tr>
+      <td>&gt;2A49</td>
+      <td>Ditto with max length in &gt;835E.</td>
+    </tr>
+    <tr>
+      <td>&gt;2A4F</td>
+      <td>Ditto with starting screen position in &gt;8361.</td>
+    </tr>
+    <tr>
+      <td>&gt;3450</td>
+      <td>Checks if a char is valid for a variable name (A-Z, a-z,
+0-9..).</td>
+    </tr>
+    <tr>
+      <td>&gt;351C</td>
+      <td>CALL CLEAR.</td>
+    </tr>
+    <tr>
+      <td>&gt;3538</td>
+      <td>CALL SOUND.</td>
+    </tr>
+    <tr>
+      <td>&gt;360E</td>
+      <td>CALL HCHAR.</td>
+    </tr>
+    <tr>
+      <td>&gt;362A</td>
+      <td>CALL VCHAR.</td>
+    </tr>
+    <tr>
+      <td>&gt;3643</td>
+      <td>CALL CHAR.</td>
+    </tr>
+    <tr>
+      <td>&gt;3708</td>
+      <td>CALL KEY.</td>
+    </tr>
+    <tr>
+      <td>&gt;3748</td>
+      <td>CALL JOYST.</td>
+    </tr>
+    <tr>
+      <td>&gt;37D6</td>
+      <td>CALL SCREEN.</td>
+    </tr>
+    <tr>
+      <td>&gt;401E</td>
+      <td>OPEN a file.</td>
+    </tr>
+    <tr>
+      <td>&gt;4160</td>
+      <td>DELETE a file.</td>
+    </tr>
+    <tr>
+      <td>&gt;4174</td>
+      <td>CLOSE a file</td>
+    </tr>
+    <tr>
+      <td>&gt;41CF</td>
+      <td>Closes all files.</td>
+    </tr>
+    <tr>
+      <td>&gt;41D7</td>
+      <td>RESTORE a file.</td>
+    </tr>
+    <tr>
+      <td>&gt;4227</td>
+      <td>PRINT in a file or on screen.</td>
+    </tr>
+    <tr>
+      <td>&gt;426C</td>
+      <td>DISPLAY on screen. </td>
+    </tr>
+    <tr>
+      <td>&gt;4344</td>
+      <td>INPUT from files or keyboard.</td>
+    </tr>
+    <tr>
+      <td>&gt;45E3</td>
+      <td>READ the DATA inserted in a program.</td>
+    </tr>
+    <tr>
+      <td>&gt;4641</td>
+      <td>OLD loads a program.</td>
+    </tr>
+    <tr>
+      <td>&gt;46FC</td>
+      <td>SAVE a program.</td>
+    </tr>
+    <tr>
+      <td>&gt;474C</td>
+      <td>LIST a program.</td>
+    </tr>
+    <tr>
+      <td>&gt;482B</td>
+      <td>EOF tests for end of file.</td>
+    </tr>
+    <tr>
+      <td>&gt;4D7C</td>
+      <td>Prints "Bad Value".</td>
+    </tr>
+    <tr>
+      <td>&gt;4D81</td>
+      <td>Prints "String-number mismatch".</td>
+    </tr>
+    <tr>
+      <td>&gt;566C</td>
+      <td>Prints "Can't do that".</td>
+    </tr>
+    <tr>
+      <td>&gt;56CD</td>
+      <td>Scrolls up.</td>
+    </tr>
+    <tr>
+      <td>&gt;56EF</td>
+      <td>CALL GCHAR.</td>
+    </tr>
+    <tr>
+      <td>&gt;5713</td>
+      <td>CALL COLOR.</td>
+    </tr>
+  </tbody>
+</table>
+<p><br>
+<a name="GROM data"></a>Finally, here are some usefull data in GROM.
+The
+exact addresses may also vary according to GROM versions:</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Address</th>
+      <th>Contents</th>
+    </tr>
+    <tr>
+      <td>&gt;0451</td>
+      <td>Default values of the 8 VDP registers.</td>
+    </tr>
+    <tr>
+      <td>&gt;0459</td>
+      <td>Content of the color table, for title screen.</td>
+    </tr>
+    <tr>
+      <td>&gt;04B4</td>
+      <td>Characters 32 to 95 patterns, for title screen.</td>
+    </tr>
+    <tr>
+      <td>&gt;06B4</td>
+      <td>Regular upper case character patterns.</td>
+    </tr>
+    <tr>
+      <td>&gt;0874</td>
+      <td>Lower case character patterns.</td>
+    </tr>
+    <tr>
+      <td>&gt;16E0</td>
+      <td>Joysticks codes returned by SCAN.</td>
+    </tr>
+    <tr>
+      <td>&gt;1700</td>
+      <td>Key codes returned by SCAN.</td>
+    </tr>
+    <tr>
+      <td>&gt;1730</td>
+      <td>Ditto with SHIFT.</td>
+    </tr>
+    <tr>
+      <td>&gt;1760</td>
+      <td>Ditto with FCTN.</td>
+    </tr>
+    <tr>
+      <td>&gt;1790</td>
+      <td>Ditto with CTRL.</td>
+    </tr>
+    <tr>
+      <td>&gt;17C0</td>
+      <td>Key codes in keyboard modes 1 et 2 (half-keyboards).</td>
+    </tr>
+    <tr>
+      <td>&gt;2022</td>
+      <td>Error messages (with Basic bias of &gt;60, and lenght byte).</td>
+    </tr>
+    <tr>
+      <td>&gt;285C</td>
+      <td>Reserved words in Basic, and corresponding tokens.</td>
+    </tr>
+  </tbody>
+</table>
+<h3>Structure of a Header</h3>
+<p>A standard grom header may be found at locations &gt;0000, &gt;2000,
+&gt;4000, &gt;6000, &gt;8000, &gt;A000, &gt;C000 and &gt;E000. Its
+structure
+is the following:</p>
+<table border="2" cellspacing="2" cellpadding="2">
+  <tbody>
+    <tr>
+      <th>Bytes</th>
+      <th width="45%">Content</th>
+      <td width="45%"><br>
+      </td>
+    </tr>
+    <tr>
+      <td>&gt;x000</td>
+      <td width="45%">&gt;AA indicates a standard header</td>
+      <td width="45%"><br>
+      </td>
+    </tr>
+    <tr>
+      <td>&gt;x001</td>
+      <td width="45%">Version number</td>
+      <td width="45%"><br>
+      </td>
+    </tr>
+    <tr>
+      <td>&gt;0xx2</td>
+      <td width="45%">Number of programs (optional)</td>
+      <td width="45%"><br>
+      </td>
+    </tr>
+    <tr>
+      <td>&gt;x003</td>
+      <td width="45%">Not used</td>
+      <td width="45%"><br>
+      </td>
+    </tr>
+    <tr>
+      <td>&gt;x004</td>
+      <td colspan="2" width="90%">Pointer to power-up list (&gt;0000 if
+none)</td>
+    </tr>
+    <tr>
+      <td>&gt;x006</td>
+      <td colspan="2" width="90%">Pointer to program list (&gt;0000 if
+none)</td>
+    </tr>
+    <tr>
+      <td>&gt;x008</td>
+      <td colspan="2" width="90%">Pointer the DSR list (&gt;0000 if
+none)</td>
+    </tr>
+    <tr>
+      <td>&gt;x00A</td>
+      <td colspan="2" width="90%">Pointer to subprogram list (&gt;0000
+if none)</td>
+    </tr>
+  </tbody>
+</table>
+<p><u>Structure of a list:</u></p>
+<pre>Link to next item --+<br>Address             |<br>Name length         |<br>Name                |<br>+-------------------+<br>|<br>V<br>Link to next item: &gt;0000<br>Address<br>Name length<br>Name</pre>
+<pre>N.B. Name lengh and name are not necessary for power-up routines</pre>
+<p>If you would like more details on standard headers and how to write
+subprograms and/or DSRs, I have a whole <a href="headers.htm">page </a>on
+the subject.</p>
+<p>
+</p>
+<hr width="100%">
+<p></p>
+<h2>XML routines in ROM</h2>
+<h4><a name="xml01"></a>XML &gt;01 ROUND1</h4>
+<p>Use : Rounds real number to 14 digits</p>
+<p>Input :<br>
+&gt;834A real number to round (9 bytes!!!)<br>
+&gt;8375 sign<br>
+&gt;8376 exponent</p>
+<p>Output: <br>
+&gt;834A is rounded to 8 bytes</p>
+<p>Status: reflects the value in &gt;834A</p>
+<p>Errors: &gt;8354 &gt;01 if overflow</p>
+<h4><br>
+<a name="xml02"></a>XML&nbsp;&gt;02 ROUND</h4>
+<p>Use : Rounds real number with specified number of bytes.</p>
+<p>Input :<br>
+&gt;834A real number to round<br>
+&gt;8375 sign<br>
+&gt;8376 exponent<br>
+&gt;8354 integer: number of bytes in this real number</p>
+<p>Output: <br>
+&gt;834A rounded to one byte less</p>
+<p>Status: reflects the value in &gt;834A</p>
+<p>Errors: &gt;8354 &gt;01 if overflow</p>
+<h4><br>
+<a name="xml03"></a>XML &gt;03 STST</h4>
+<p>Use : Store status after comparing number to zero.</p>
+<p>Input : &gt;834A real number / interger</p>
+<p>Output: -</p>
+<p>Status: reflects the value in &gt;834A</p>
+<h4><br>
+<a name="xml04"></a>XML &gt;04 OVEXP </h4>
+<p>Use : Reacts to overflow/underflow (according to sign of &gt;8376).</p>
+<p>Input : <br>
+&gt;8376 exponent<br>
+&gt;8375 sign</p>
+<p>Output: &gt;834A 0 if underflow, min/max number (sign in &gt;8375)
+if
+overflow.</p>
+<p>Status: reflects the value in &gt;834A</p>
+<p>Errors: &gt;8354 &gt;01</p>
+<h4><br>
+<a name="xml05"></a>XML &gt;05 OV</h4>
+<p>Use : Reacts to overflow</p>
+<p>Input : &gt;8375 sign</p>
+<p>Output: &gt;834A min number / max number (according to sign in
+&gt;8375).</p>
+<p>Status: reflects the value in &gt;834A</p>
+<p>Errors: &gt;8354 &gt;01.</p>
+<h4><br>
+<a name="xml06"></a>XML &gt;06 FADD</h4>
+<p>Use : Floating point addition</p>
+<p>Input : <br>
+&gt;834A real number <br>
+&gt;835C real number </p>
+<p>Output: <br>
+&gt;834A result of &gt;835C + &gt;834A<br>
+&gt;8376 exponent<br>
+&gt;8375 sign (&gt;00 = positive, &gt;FF = negative)</p>
+<p>Status: reflects the result in &gt;834A</p>
+<p>Errors: &gt;8354 &gt;01 if overflow</p>
+<h4><br>
+<a name="xml07"></a>XML &gt;07 FSUB</h4>
+<p>Use : Floating point substraction</p>
+<p>Input : <br>
+&gt;834A real number to substract<br>
+&gt;835C real number</p>
+<p>Output: <br>
+&gt;834A result of &gt;835C - &gt;834A<br>
+&gt;8376 exponent<br>
+&gt;8375 sign</p>
+<p>Status: reflects the result in &gt;834A</p>
+<p>Errors: &gt;8354 &gt;01 if overflow</p>
+<h4><br>
+<a name="xml08"></a>XML &gt;08 FMUL</h4>
+<p>Use : Floating point multiplication</p>
+<p>Input : <br>
+&gt;834A real number<br>
+&gt;835C real number</p>
+<p>Output:<br>
+&gt;834A result of &gt;835C * &gt;834A<br>
+&gt;8376 exponent<br>
+&gt;8375 sign</p>
+<p>Status: reflects the result in &gt;834A</p>
+<p>Errors: &gt;8354 &gt;01 if overflow</p>
+<h4><br>
+<a name="xml09"></a>XML &gt;09 FDIV</h4>
+<p>Use : Floating point division</p>
+<p>Input : <br>
+&gt;834A real number to divide<br>
+&gt;835C real number divisor</p>
+<p>Output: <br>
+&gt;834A result of &gt;834A / &gt;835C<br>
+&gt;8376 exponent<br>
+&gt;8375 sign</p>
+<p>Status: reflects the result in &gt;834A</p>
+<p>Errors: &gt;8354 &gt;01 if overflow</p>
+<h4><br>
+<a name="xml0a"></a>XML &gt;0A FCOMP</h4>
+<p>Use : Floating point comparison</p>
+<p>Input : <br>
+&gt;834A real number<br>
+&gt;835C real number</p>
+<p>Output: -</p>
+<p>Status: results of the comparison of &gt;835C to &gt;834A</p>
+<h4><br>
+<a name="xml0b"></a>XML &gt;0B SADD</h4>
+<p>Use : Addition in stack</p>
+<p>Input : <br>
+&gt;834A real number<br>
+&gt;836E points at real number on vdp stack</p>
+<p>Output: <br>
+&gt;834A result of &gt;834A + V*&gt;836E<br>
+&gt;836E decremented by 8 (points at previous number)<br>
+&gt;8376 exponent<br>
+&gt;8375 sign</p>
+<p>Status: reflects the result in &gt;834A</p>
+<p>Errors: &gt;8354 &gt;01 if overflow</p>
+<h4><br>
+<a name="xml0c"></a>XML &gt;0C SSUB</h4>
+<p>Use : Substraction in stack</p>
+<p>Input : <br>
+&gt;834A real number to substract<br>
+&gt;836E points at real number on vdp stack</p>
+<p>Output:<br>
+&gt;834A result of V*&gt;836E - &gt;834A<br>
+&gt;836E decremented by 8 (points at previous number)<br>
+&gt;8376 exponent<br>
+&gt;8375 sign</p>
+<p>Status: reflects the result in &gt;834A</p>
+<p>Errors: &gt;8354 &gt;01 if overflow</p>
+<h4><br>
+<a name="xml0d"></a>XML &gt;0D SMUL</h4>
+<p>Use : Multiplication in stack</p>
+<p>Input : <br>
+&gt;834A real number<br>
+&gt;836E points at real number on vdp stack</p>
+<p>Output: <br>
+&gt;834A result of &gt;834A * V*&gt;836E<br>
+&gt;836E decremented by 8 (points at previous number)<br>
+&gt;8376 exponent<br>
+&gt;8375 sign</p>
+<p>Status: reflects the result in &gt;834A</p>
+<p>Errors: &gt;8354 &gt;01 if overflow</p>
+<h4><br>
+<a name="xml0e"></a>XML &gt;0E SDIV</h4>
+<p>Use : Division in stack</p>
+<p>Input : <br>
+&gt;834A real number to divide<br>
+&gt;836E points at real number divisor on vdp stack</p>
+<p>Output: <br>
+&gt;834A result of &gt;834A / V*&gt;836E<br>
+&gt;836E decremented by 8 (points at previous number)<br>
+&gt;8376 exponent<br>
+&gt;8375 sign</p>
+<p>Status: reflects the result in &gt;834A</p>
+<p>Errors: &gt;8354 &gt;01 if overflow</p>
+<h4><br>
+<a name="xml0f"></a>XML &gt;0F SCOMP </h4>
+<p>Use : Comparison in stack</p>
+<p>Input : <br>
+&gt;834A real number<br>
+&gt;836E points at real number on vdp stack</p>
+<p>Output: <br>
+&gt;836E decremented by 8 (points at previous number)</p>
+<p>Status: result of the comparison of V*&gt;836E to &gt;834A</p>
+<h4><br>
+<a name="xml10"></a>XML &gt;10 CSN</h4>
+<p>Use : Converts string to real number (and rounds it if needed)</p>
+<p>Input : <br>
+&gt;8356 points at string in vdp mem</p>
+<p>Output: <br>
+&gt;834A real number<br>
+&gt;8356 points at first illegal character<br>
+&gt;8376 exponent<br>
+&gt;8375 sign (&gt;00 = positive, &gt;FF = negative)</p>
+<p>Status: reflects the result in &gt;834A</p>
+<p>Errors: &gt;8354 &gt;01 if overflow</p>
+<h4><br>
+<a name="xml11"></a>XML &gt;11 CSNGR</h4>
+<p>Use : Converts string to real number (and rounds it if needed)</p>
+<p>Input : <br>
+&gt;8356 points at string in vdp mem or gram/grom<br>
+&gt;8389 memory flag: 0 = vdp, else = g mem</p>
+<p>Output:<br>
+&gt;834A real number<br>
+&gt;8356 points at first illegal character<br>
+&gt;8376 exponent<br>
+&gt;8375 sign (&gt;00 = positive, &gt;FF = negative)</p>
+<p>Status: reflects the result in &gt;834A</p>
+<p>Errors: &gt;8354 &gt;01 if overflow</p>
+<h4><br>
+<a name="xml12"></a>XML &gt;12 CFI </h4>
+<p>Use : Converts floating point number to integer</p>
+<p>Input : <br>
+&gt;834A real number to convert (-32768 to 32767)</p>
+<p>Output: <br>
+&gt;834A integer (2 bytes long)</p>
+<p>Status: not affected</p>
+<p>Errors: &gt;8354 &gt;01 if overflow</p>
+<h4><br>
+<a name="xml13"></a>XML &gt;13 SYM</h4>
+<p>Use : Searches a symbol by name, from a statement (Basic)</p>
+<p>Input : <br>
+&gt;832C points at symbol name in basic statement<br>
+&gt;833E points at basic variables symbol table (in vdp mem)<br>
+&gt;8389 0 = basic statement in vdp mem, else = in grom/gram</p>
+<p>Output: <br>
+&gt;834A points at symbol entry, in the symbol table<br>
+&gt;832C points at next character<br>
+&gt;8342 contains this character</p>
+<p>Errors: &gt;8322 contains &gt;0003 if not found, returns to GPL at
+GROM
+address saved in &gt;8326</p>
+<h4><br>
+<a name="xml14"></a>XML &gt;14 SMB</h4>
+<p>Use : Get symbol value</p>
+<p>Input : <br>
+&gt;834A points at symbol entry, in the symbol table<br>
+&gt;8343 option base (in case symbol is part of an array)</p>
+<p>Output:<br>
+&gt;834A Variable description<br>
+&gt;8350 value / string content pointer</p>
+<p>Errors: &gt;8322 may contain &gt;0003 or &gt;0503.</p>
+<h4><br>
+<a name="xml15"></a>XML &gt;15 ASSIGNV</h4>
+<p>Use : Assigns value to a symbol (Basic)</p>
+<p>Input : <br>
+&gt;836E points at variable description in vdp stack<br>
+&gt;834A new description/value</p>
+<p>Output:<br>
+&gt;836E decremented by 8 (points at previous number)<br>
+The variable is modified, in symbol table</p>
+<p>Errors: &gt;8322 may contain &gt;0603 ($-# mismatch), or &gt;0007</p>
+<h4><br>
+<a name="xml16"></a>XML &gt;16 SCHSYM</h4>
+<p>Use : Search a given symbol by name (Basic)</p>
+<p>Input : <br>
+&gt;834A variable name<br>
+&gt;8359 name length<br>
+&gt;833E points at basic variables symbol table (in vdp mem)<br>
+&gt;8389 0 = basic statement in vdp mem, else = in grom/gram</p>
+<p>Output:<br>
+&gt;834A pointer to variable entry in symbol table</p>
+<p>Status: Cnd reset, if found</p>
+<p>Errors: Cnd set, if not found</p>
+<h4><br>
+<a name="xml17"></a>XML &gt;17 VPUSH </h4>
+<p>Use : Pushes data (symbol description) on vdp stack (Basic)</p>
+<p>Input : <br>
+&gt;834A data to push on stack (8 bytes)<br>
+&gt;836E vdp stack pointer (increment before use)<br>
+&gt;831A first free address (i.e. end of stack)</p>
+<p>Output:<br>
+&gt;836E decremented by 8 (points at previous number)</p>
+<p>Errors: &gt;8322 Contains &gt;0103 if not enough room left</p>
+<h4><br>
+<a name="xml18"></a>XML &gt;18 VPOP </h4>
+<p>Use : Pops data (symbol description) from vdp stack (Basic)</p>
+<p>Input : <br>
+&gt;836E vdp stack pointer (data to pop)<br>
+&gt;8324 points at bottom of stack</p>
+<p>Output: <br>
+&gt;834A contains the data popped<br>
+&gt;836E decremented by 8 (points at previous number)</p>
+<p>Errors: &gt;8322 Contains &gt;0403 if stack is empty</p>
+<h4><br>
+<a name="xml19"></a>XML &gt;19 SROM</h4>
+<p>Use : Calls a ROM subroutine or a dsr by name, then RTN.</p>
+<p>Input : <br>
+&gt;834A subroutine/dsr name<br>
+&gt;8354 name length<br>
+&gt;836D Type: &gt;08 = dsr, &gt;0A = subroutine<br>
+&gt;83D0 Optional: CRU to use. &gt;0000 scans all cards<br>
+&gt;83D2 If CRU was specified: next link address</p>
+<p>Output: <br>
+&gt;83D0 CRU of the card the sub was in<br>
+&gt;83D2 Next link address</p>
+<p>Errors: Does not perform RTN if the name wasn't found.</p>
+<h4><br>
+<a name="XML &gt;1A"></a>XML &gt;1A SGROM </h4>
+<p>Use : Finds a GROM subroutine or dsr by name, puts its address on
+data
+stack.</p>
+<p>Input : <br>
+&gt;834A subroutine/dsr name<br>
+&gt;8354 name length<br>
+&gt;836D Type: &gt;06 = program, &gt;08 = dsr, &gt;0A = subroutine<br>
+&gt;83D0 Grom base (if 0: use &gt;9800, and search Grom 0)<br>
+&gt;83D2 Grom address of header list.</p>
+<p>Output: <br>
+&gt;83D0 Grom base the name was found in<br>
+&gt;83D2 Grom address the name was found at<br>
+&gt;836C Number of occurences the name was found</p>
+<p>&gt;8372 incremented by 2 (for each occurence)</p>
+<p>Errors: &gt;83D0 Contains 0 if name wasn't found</p>
+<h4><br>
+<a name="xml1b"></a>XML &gt;1B PGMCH </h4>
+<p>Use : Gets next character in Basic program.</p>
+<p>Input : <br>
+&gt;832C points at current character, in Basic statement<br>
+&gt;8389 mem flag: 0 = program in vdp, else = in grom</p>
+<p>Output:<br>
+&gt;832C points at next character<br>
+&gt;8342 contains the required character</p>
+<p>
+</p>
+<hr width="100%">
+<p></p>
+<h2>GPL routines in GROMs</h2>
+<h4><br>
+<a name="g@0010"></a>G@&gt;0010 LINK</h4>
+<p>Use : Calls DSR and subroutines in GROMs or cards ROM</p>
+<p>Input :<br>
+1 byteFETCched: &gt;08 = dsr, &gt;0A = subroutine<br>
+&gt;8356 points at name string in VDP ram (i.e. PAB+9 for DSRs)</p>
+<p>Status: Cnd reset</p>
+<p>Errors: Cnd set if not found, returns to caller.</p>
+<p>Used: &gt;8352 to &gt;8358. <br>
+Base + return address saved on subroutines stack.</p>
+<p>Calls XML &gt;19, then XML &gt;1A</p>
+<h4><br>
+<a name="g@0012"></a>G@&gt;0012 RETURN </h4>
+<p>Use : Returns from a G@&gt;0010 call</p>
+<p>Status: Cnd reset</p>
+<p>Used: Base + address recovered from suroutines stack</p>
+<h4><br>
+<a name="g@0014"></a>G@&gt;0014 CNS</h4>
+<p>Use : Converts real number into a string</p>
+<p>Input : <br>
+&gt;834A real number<br>
+&gt;8355 string type: 0 = scientific notation, else: number of digits<br>
+&gt;8356 number of significant digits in case of overflow<br>
+&gt;8357 positive: fixed digits right to the point, negative: float </p>
+<p>Output: <br>
+&gt;8355 scratch-pad address of string (i.e. &gt;83xx)<br>
+&gt;8356 string length</p>
+<p>Status: reflects the value in &gt;834A</p>
+<p>Errors: Cnd set</p>
+<p>Used: &gt;834A is modified<br>
+&gt;8352 <br>
+&gt;8358-9 <br>
+&gt;8376-7</p>
+<h4><br>
+<a name="g@0016"></a>G@&gt;0016 STCASE</h4>
+<p>Use : Loads standard (i.e. title) upper case characters &gt;20 to
+&gt;5F</p>
+<p>Input :<br>
+&gt;834A: vdp address where to load patterns</p>
+<p>Status: Cnd reset</p>
+<h4><br>
+<a name="g@0018"></a>G@&gt;0018 UPCASE</h4>
+<p>Use : Loads upper case characters &gt;20 to &gt;5F</p>
+<p>Input : <br>
+&gt;834A word: vdp address where to load patterns</p>
+<p>Status: Cnd reset</p>
+<p>Used : &gt;83D0 to &gt;83D2</p>
+<h4><br>
+<a name="g@001a"></a>G@&gt;001A BWARN</h4>
+<p>Use : Issues a Basic "Warning" message (Basic)</p>
+<p>Input : <br>
+2 bytes FETChed: message string pointer</p>
+<p>Output: <br>
+&gt;8320 cursor position = end of message</p>
+<p>Used : &gt;835C-F<br>
+&gt;8374<br>
+&gt;8376-7</p>
+<p>By run time: &gt;8363-8367</p>
+<p>Notes : Calls HONK</p>
+<h4><br>
+<a name="g@001c"></a>G@&gt;001C BERR</h4>
+<p>Use : Issues a Basic "Error" message (Basic)</p>
+<p>Input : <br>
+2 bytes FETChed: message string pointer<br>
+&gt;8304 for i/o errors: points 4 byte above opcode, in PAB (in VDP mem)</p>
+<p>Used : &gt;835C-F<br>
+&gt;8374<br>
+&gt;8376-7</p>
+<p>If I/O error: &gt;8361, &gt;8366-7</p>
+<p>By run time: re-loads characters, close files, XML &gt;18, etc.</p>
+<p>Notes : Calls BWARN</p>
+<h4><br>
+<a name="g@001e"></a>G@&gt;001E BEXEC</h4>
+<p>Use : Begin execution of a Basic program in gram/grom (Basic)</p>
+<p>Input : <br>
+4 bytes FETChed: addresses of beginning and end of line # table</p>
+<p>Used : many !</p>
+<h4><br>
+<a name="g@0020"></a>G@&gt;0020 PWRUP</h4>
+<p>Use : Restarts the computer (equivalent to "quit" key)</p>
+<p>Input : - </p>
+<p>Used : everything !</p>
+<h4><br>
+<a name="g@0022"></a>G@&gt;0022 INT</h4>
+<p>Use : Converts a floating point number to the greatest integer</p>
+<p>Input : <br>
+&gt;834A real number</p>
+<p>Output: <br>
+&gt;834A greatest integer contained in the real value</p>
+<p>Status: reflects the result in &gt;834A</p>
+<p>Used :&gt;8352-7<br>
+&gt;8375-7</p>
+<p>Notes : calls XML &gt;02</p>
+<h4><br>
+<a name="g@0024"></a>G@&gt;0024 PWR </h4>
+<p>Use : Raises a number to a power</p>
+<p>Input : <br>
+&gt;834A floating point power<br>
+&gt;835C real number to raise to power &gt;834A</p>
+<p>Output: <br>
+&gt;834A result: &gt;835C ^ &gt;834A</p>
+<p>Status: reflects the value in &gt;834A</p>
+<p>Errors: &gt;8354 floating point error code</p>
+<p>Used : &gt;8354, &gt;8375-7, VDP stack</p>
+<p>Notes : May call XML &gt;02, &gt;04, &gt;06, &gt;08, &gt;09, &gt;0A,
+&gt;0B, &gt;0C, &gt;0D, &gt;0E, &gt;0F, &gt;12 <br>
+May call EXP and INT</p>
+<h4><br>
+<a name="g@0026"></a>G@&gt;0026 SQR</h4>
+<p>Use : Calculates the square root of a number</p>
+<p>Input : <br>
+&gt;834A real number</p>
+<p>Output: <br>
+&gt;834A result: sqr(&gt;834A)</p>
+<p>Status: reflects the value in &gt;834A</p>
+<p>Errors: &gt;8354 &gt;04 if &gt;834A is negative</p>
+<p>Used : &gt;8352, &gt;8375-6</p>
+<p>Notes : May call XML &gt;03, &gt;06, &gt;08, &gt;09, &gt;0B, &gt;0E
+</p>
+<h4><br>
+<a name="g@0028"></a>G@&gt;0028 EXP</h4>
+<p>Use : Calculates "e" at the power of a number (inverse natural
+log)</p>
+<p>Input : <br>
+&gt;834A floating point power</p>
+<p>Output: <br>
+&gt;834A result: e^ &gt;834A</p>
+<p>Status: reflects the result in &gt;834A</p>
+<p>Errors: &gt;8354 &gt;01 if overflow</p>
+<p>Used : &gt;8352-7, &gt;8375-7, VDP stack</p>
+<p>Notes : May call XML &gt;04, &gt;06, &gt;08, &gt;09, &gt;0A, &gt;0C,
+&gt;0D, &gt;12<br>
+May call INT</p>
+<h4><br>
+<a name="g@002a"></a>G@&gt;002A LOG</h4>
+<p>Use : Calculates natural log of a number (i.e base "e")</p>
+<p>Input : <br>
+&gt;834A real number</p>
+<p>Output: <br>
+&gt;834A result: ln(&gt;834A)</p>
+<p>Status: reflects the result in &gt;834A</p>
+<p>Errors: &gt;8354 &gt;06 if &gt;834A = 0, or negative</p>
+<p>Used : &gt;8376-7</p>
+<p>Notes : May call XML &gt;03, &gt;06, &gt;07, &gt;08, &gt;0B, &gt;0D,
+&gt;0E</p>
+<h4><br>
+<a name="g@002C"></a>G@&gt;002C COS </h4>
+<p>Use : Calculates cosine of an angle</p>
+<p>Input : <br>
+&gt;834A real number: angle in radians</p>
+<p>Output:<br>
+&gt;834A result: cos(&gt;834A)</p>
+<p>Status: reflects the result in &gt;834A</p>
+<p>Errors: &gt;8354 &gt;07 if &gt;834A is invalid</p>
+<p>Notes : May call XML &gt;06, &gt;07, &gt;08, &gt;0C, &gt;0D<br>
+Calls SIN, may call INT</p>
+<h4><br>
+<a name="g@002e"></a>G@&gt;002E SIN</h4>
+<p>Use : Calculates the sine of an angle</p>
+<p>Input : <br>
+&gt;834A real number: angle in radians</p>
+<p>Output: <br>
+&gt;834A result: sin(&gt;834A)</p>
+<p>Status: reflects the result in &gt;834A</p>
+<p>Errors: &gt;8354 &gt;07 if &gt;834A is invalid</p>
+<p>Used : &gt;8375-7</p>
+<p>Notes : May call XML &gt;06, &gt;07, &gt;08, &gt;0C, &gt;0D<br>
+May call INT</p>
+<h4><br>
+<a name="g@0030"></a>G@&gt;0030 TAN</h4>
+<p>Use : Calculates the tangent of an angle</p>
+<p>Input : <br>
+&gt;834A real number: angle in radians</p>
+<p>Output:<br>
+&gt;834A result: tan(&gt;834A)</p>
+<p>Status: reflects the result in &gt;834A</p>
+<p>Errors: &gt;8354 &gt;01 if overflow, &gt;07 if &gt;834A is invalid</p>
+<p>Used : &gt;8375-7</p>
+<p>Notes : May call XML &gt;03, &gt;05, &gt;06, &gt;07, &gt;08, &gt;09,
+&gt;0C, &gt;0D<br>
+Calls SIN and COS, may call INT</p>
+<h4><br>
+<a name="g@0032"></a>G@&gt;0032 ATN</h4>
+<p>Use : Calculates the arctangent of a number</p>
+<p>Input : <br>
+&gt;834A real number</p>
+<p>Output: <br>
+&gt;834A result: atn(&gt;834A), angle in radians</p>
+<p>Status: reflects the result in &gt;834A</p>
+<p>Errors: &gt;8354 floating point error code</p>
+<p>Notes : May call XML &gt;06, &gt;09, &gt;0A, &gt;0D, &gt;0E</p>
+<h4><br>
+<a name="g@0034"></a>G@&gt;0034 BEEP</h4>
+<p>Use : Issues accept tone</p>
+<p>Input : - </p>
+<p>Output: - </p>
+<p>Used : &gt;8358</p>
+<h4><br>
+<a name="g@0036"></a>G@&gt;0036 HONK</h4>
+<p>Use : Issues bad response tone</p>
+<p>Input : -</p>
+<p>Output: -</p>
+<p>Used : &gt;8358</p>
+<h4><br>
+<a name="g@0038"></a>G@&gt;0038 GETSPA</h4>
+<p>Use : Get vdp space for string constants (Basic)</p>
+<p>Input : <br>
+&gt;830C number of bytes required</p>
+<p>Output:<br>
+&gt;831C ptr to the space allocated</p>
+<p>Status: Cnd reset</p>
+<p>Errors: may call BERR with "memory full" message</p>
+<p>Used : &gt;8352-B</p>
+<p>Notes : may call XML &gt;17, &gt;1B</p>
+<h4><br>
+<a name="g@003b"></a>G@&gt;003B BITREV </h4>
+<p>Use : Produces a mirror image of 1 or more bytes, in VDP mem</p>
+<p>Input : <br>
+&gt;834A: VDP address of the byte(s) to revert<br>
+&gt;834C-D: number of bytes to process</p>
+<p>Output: <br>
+The bits are reversed in VDP bytes</p>
+<p>Used : &gt;8300-&gt;8340</p>
+<p>Notes : Downloads a small machine language routine to &gt;8300 and
+executes
+it.</p>
+<h4><br>
+<a name="g@003d"></a>G@&gt;003D NAMLNK</h4>
+<p>Use : Calls DSR/ subroutines in GROM/GRAM</p>
+<p>Input : <br>
+&gt;834A device name<br>
+&gt;8354 DSR name size<br>
+&gt;8356 end of DSR name in VDP mem (in PAB)<br>
+&gt;836D &gt;08 (for DSR call)<br>
+&gt;83D0 optional: GROM base to use, 0 = use &gt;9800<br>
+&gt;83D2 if base specified: address of DSR header ("next link"
+word)</p>
+<p>Output: -</p>
+<p>Status: Cnd reset</p>
+<p>Errors: Cnd set if not found</p>
+<p>Notes : Part of G@&gt;0010, but calls XML &gt;1A only (no search in
+rom)</p>
+<h4><br>
+<a name="g@003f"></a>G@&gt;003F PABSPA</h4>
+<p>Use : Gets space for a new pab entry (Basic)</p>
+<p>Input : <br>
+&gt;834A integer: number of bytes to reserve<br>
+&gt;8356 points at name string in VDP RAM (i.e. PAB+9)</p>
+<p>Output: -</p>
+<p>Status: Cnd reset</p>
+<p>Errors: May call BERR with "memory full" message</p>
+<p>Used : &gt;834A, &gt;8352-8</p>
+<p>Notes : May call XML &gt;17, &gt;1B</p>
+<h4><br>
+<a name="g@0042"></a>G@&gt;0042 TOKEN</h4>
+<p>Use : Gets next Basic token/char from current statement (Basic)</p>
+<p>Input :<br>
+&gt;8389 flag: 0 = from VDP mem, else = from GROM/GRAM<br>
+&gt;832C if in GROM/GRAM: pointer to next token<br>
+&gt;8356 if in VDP: pointer to next token/char</p>
+<p>Output:<br>
+&gt;8342 token/char<br>
+&gt;832C updated pointer</p>
+<p>Status: Cnd reset</p>
+<p>Notes : calls XML &gt;1B</p>
+<h4><br>
+<a name="g@004A"></a>G@&gt;004A LOCASE</h4>
+<p>Use : Loads lower case characters &gt;60 to &gt;7F</p>
+<p>Input : <br>
+&gt;834A word: VDP address where to load patterns</p>
+<p>Output: -</p>
+<p>Status: Cnd reset</p>
+<p>Used : &gt;83D0-3</p>
+<h4><br>
+<a name="g@004C"></a>G@&gt;004C PATITL<br>
+G@&gt;004E PATUP<br>
+G@&gt;0050 PATLO</h4>
+<p>Use : Point at the patterns lists for standard chars (8 bytes/char),
+upper or lower case characters (7 bytes/chars, the first being &gt;00).</p>
+<p>Notes : absent in some GROM versions.<br>
+These are pointers to data, not to subroutines. Don't call them with
+CALL
+!</p>
+<p><br>
+<a href="gpl.htm">Previous</a></p>
+<address>Revision 1. 6/1/99 Preliminary<br>
+Revision 2. 6/13/99 OK to release<br>
+Revision 3. 3/5/00 Minor corrections</address>
+<center>
+<p><br>
+<a href="titechpages.htm">Back to the TI-99/4A Tech Pages</a></p>
+</center>
+</body>
+</html>

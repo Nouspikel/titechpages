@@ -1,0 +1,523 @@
+*------page-0--regular-mode--located-in-Ramdisk-memory--page-0--regular--mode--------
+* This page is not visible if CRU bit 15 is set. 
+* This page cannot contain any code that switches pages, so cannot access disk data.
+*
+       AORG >5800
+*
+       JMP  A57F6             return if no rambo board
+*
+A5802  DATA A4228             second power-up address
+*
+A5804  TEXT 'BMS <------> '
+A5811  TEXT 'OPA'
+A5814  BYTE >00
+A5815  TEXT 'ORIGINAL PART OF ROS AND CFG'
+       TEXT '    AND MENU  SOFTWARE '
+       BYTE >0A
+       TEXT '  BY BMS'
+       BYTE >00
+A5852  TEXT 'ENHANCED'
+       BYTE >00
+A585B  TEXT 'RAMBO HARD'
+       BYTE >00
+*                             vdp dest, cpu source
+A5866  DATA >038C,A58E8       colors
+       DATA >0088,A5804       copyright text
+       DATA >00A8,A5C15           "
+       DATA >00C8,A5FC8           "
+       DATA >00E8,A5FD9           "
+       DATA >0108,A5FEA           "
+       DATA >0128,A5C15           "
+       DATA >0142,A5815           "
+       DATA >01A2,A5815           "
+       DATA >01A2,A5852           "
+       DATA >01C6,A585B           "
+       DATA >01DB,A5811           "
+       DATA >02E0,A5C27           "
+       DATA >0000
+*                             charpats >0B to >13
+A589C  DATA >0858,>0048
+       DATA >EEAE,>E800,>0000,>081F
+       DATA >41E0,>A000,>1700,>0000
+       DATA >1182,>3844,>4544,>3882
+       DATA >3F3E,>7F6F,>7ED6,>A2A3
+       DATA >81C2,>E0F0,>D856,>482C
+       DATA >1110,>0000,>0008,>0828
+       DATA >2321,>2121,>0080,>E4FF
+       DATA >2420,>0080,>80C0,>E0FF
+       DATA >2828,>3A0A,>0E08,>08FF
+*                                        colors
+A58E8  BYTE >06,>03,>01,>0B,>0C,>0D,>0F,>07
+*                                        charpats
+A58F0  DATA >0070,>7070,>7070,>7070
+       DATA >FFFF,>FFFF,>FFFF,>FFFF
+       DATA >0000,>0000,>0000,>0000
+       DATA >1010,>1010,>1000,>1000
+       DATA >2828,>2800,>0000,>0000
+       DATA >2828,>7C28,>7C28,>2800
+       DATA >103C,>5038,>1478,>1000
+       DATA >6464,>0810,>204E,>4E00
+       DATA >0020,>5020,>5448,>3400
+       DATA >0004,>0810,>0000,>0000
+       DATA >0810,>2020,>2010,>0800
+       DATA >1008,>0404,>0408,>1000
+       DATA >0010,>5438,>5410,>0000
+       DATA >0010,>107C,>1010,>0000
+       DATA >0000,>0000,>0010,>1020
+       DATA >0000,>007C,>0000,>0000
+       DATA >0000,>0000,>0010,>1000
+       DATA >0404,>0810,>2040,>4000
+       DATA >0038,>4C54,>6444,>3800
+       DATA >0010,>3010,>1010,>3800
+       DATA >0038,>440C,>3040,>7C00
+       DATA >0038,>0418,>0444,>3800
+       DATA >0018,>2848,>7C08,>0800
+       DATA >007C,>4078,>0444,>3800
+       DATA >001C,>2078,>4444,>3800
+       DATA >007C,>4408,>1020,>2000
+       DATA >0038,>4438,>4444,>3800
+       DATA >0038,>4444,>3808,>7000
+       DATA >0000,>1000,>0010,>0000
+       DATA >0000,>1000,>1010,>2000
+       DATA >0810,>2040,>2010,>0800
+       DATA >0000,>7C00,>7C00,>0000
+       DATA >2010,>0804,>0810,>2000
+       DATA >3844,>0408,>1000,>1000
+       DATA >0038,>4454,>5C40,>3C00
+       DATA >0038,>447C,>4444,>4400
+       DATA >0078,>4478,>4444,>7800
+       DATA >0038,>4440,>4044,>3800
+       DATA >0070,>4844,>4448,>7000
+       DATA >007C,>4078,>4040,>7C00
+       DATA >007C,>4078,>4040,>4000
+       DATA >0038,>4440,>4C44,>3C00
+       DATA >0044,>447C,>4444,>4400
+       DATA >0038,>1010,>1010,>3800
+       DATA >001C,>0808,>0848,>3000
+       DATA >0048,>5060,>5048,>4400
+       DATA >0040,>4040,>4040,>7C00
+       DATA >0044,>6C54,>5444,>4400
+       DATA >0044,>6464,>544C,>4400
+       DATA >0038,>4444,>4444,>3800
+       DATA >0078,>4444,>7840,>4000
+       DATA >0038,>4444,>5448,>3400
+       DATA >0078,>4444,>7848,>4400
+       DATA >003C,>4038,>0404,>7800
+       DATA >007C,>1010,>1010,>1000
+       DATA >0044,>4444,>4444,>3800
+       DATA >0044,>4428,>2810,>1000
+       DATA >0044,>4454,>5454,>2800
+       DATA >0044,>2810,>2844,>4400
+       DATA >0044,>2810,>1010,>1000
+       DATA >007C,>0408,>1020,>7C00
+       DATA >3820,>2020,>2020,>3800
+       DATA >4040,>2010,>0804,>0400
+       DATA >3808,>0808,>0808,>3800
+       DATA >1028,>4410,>1010,>1000
+       DATA >0000,>0000,>0000,>7C00
+       DATA >0020,>1008,>0000,>0000
+       DATA >0000,>3008,>3848,>3400
+       DATA >0040,>4078,>4444,>7800
+       DATA >0000,>3844,>4044,>3800
+       DATA >0004,>043C,>4444,>3800
+       DATA >0000,>3844,>7C40,>3C00
+       DATA >0008,>1010,>3810,>1000
+       DATA >0000,>3844,>443C,>0438
+       DATA >0040,>4058,>6444,>4400
+       DATA >0010,>0030,>1010,>3800
+       DATA >0008,>0018,>0808,>4830
+       DATA >0040,>4050,>6050,>4800
+       DATA >0010,>1010,>1010,>1800
+       DATA >0000,>2854,>5454,>4400
+       DATA >0000,>5864,>4444,>4400
+       DATA >0000,>3844,>4444,>3800
+       DATA >0000,>7844,>4478,>4040
+       DATA >0000,>3844,>443C,>0404
+       DATA >0000,>5864,>4040,>4000
+       DATA >0000,>3840,>3804,>7800
+       DATA >0010,>3810,>1010,>0800
+       DATA >0000,>4848,>4848,>3400
+       DATA >0000,>4444,>4428,>1000
+       DATA >0000,>4454,>5454,>2800
+       DATA >0000,>4428,>1028,>4400
+       DATA >0000,>4444,>241C,>0438
+       DATA >0000,>7C08,>1020,>7C00
+       DATA >0810,>1020,>1010,>0800
+       DATA >1010,>1000,>1010,>1000
+       DATA >2010,>1008,>1010,>2000
+       DATA >0000,>2054,>0800,>0000
+       DATA >0000,>0000,>0000,>0000
+*
+A5C00  TEXT 'CONTL FAIL'      sector 0, if drive not found
+       DATA >0168
+       BYTE >09
+       TEXT 'DSK '
+       BYTE >28,>01,>01,>FF
+*
+A5C15  TEXT '                 '
+       BYTE 0
+A5C27  BYTE >0A
+A5C28  TEXT '1990 BY OASIS PENSIVE ABACUTORS'
+       BYTE 0
+*
+*
+A5C48  LI   8,OPENFI          no opened files
+A5C4C  CB   @>0005(8),0       ---------------
+       JEQ  A5CBC             else file error
+       AI   8,>0006           next slot
+       CI   8,PABOPC          last ?
+       JL   A5C4C             no
+       B    *11
+*
+A5C5E  MOV  @PABPTR,8         DN drive #
+       INCT 8                 ==
+       BL   @A4682            vdp read just after dn
+       CLR  2
+       CB   *13,@DOT          is it dn.o. ?
+       JEQ  A5C7E             yes: then o has been read
+       MOV  @PABPTR,8         try 2 bytes before
+       BL   @A4682
+       CB   *13,@DOT          is it dn.o ?
+       JNE  A5CBC             no: error
+ 
+A5C7E  MOVB *13,2             get drive #
+       MOV  2,3               save it
+       AI   2,>D000           make it hex
+       JEQ  A5CBC
+       JLT  A5CBC             below 1: illegal
+       CI   2,>2A00
+       JGT  A5CBC             above Z: illegal
+       CI   2,>1000
+       JGT  A5C9C
+       CI   2,>0900
+       JGT  A5CBC             between 9 and A: illegal
+ 
+A5C9C  MOVB @DRIVNB+1,0       1rst drive #
+       BL   @A5C48            no opened files ?
+       MOV  2,0               2nd drive #
+       BL   @A5C48            no opened files ?
+       SWPB 2
+       MOVB 3,2
+       DEC  1                 point at drive # in dsr link
+       MOV  2,*1              modify it (char + hex)
+A5CB2  CLR  0                 no error
+A5CB4  MOVB 0,@>8342          pass error code (if any)
+A5CB8  B    @A4550            return
+ 
+A5CBC  LI   0,>0700           file error
+       JMP  A5CB4
+*
+A5CC2  NEG  @DRIVES(2)        WO write-protect
+       JMP  A5CB2             ==
+*
+A5CC8  ABS  @DRIVES(2)        WF write-enable
+       JMP  A5CB2             ==
+*
+A5CCE  MOV  @A5802,@A4036     AO auto-start
+       JMP  A5CB2             == put 2nd pwr-up address in link
+*
+A5CD6  CLR  @A4036            AF no start
+       JMP  A5CB2             ==  clear link after 1rst power-up
+*
+*
+A5CDC  LWPI WREGS             LD main routine
+       BL   @A4652            -- copy pab to cpu
+       DATA >0002             starting at +2
+       MOVB @H00,@PABSTA      clear status
+       CB   @DSRNAM+4,@DOT    is it dsk#. ?
+       JNE  A5CB8             no: return
+       MOVB @DSRNAM+3,2       yes: get #
+       AI   2,>D000           make it hex
+       JMP  A5D20
+ 
+A5CFE  LWPI WREGS
+       LI   3,>000A
+       MOV  3,@PABSTA         name size = 10
+       MOV  @>83D2,2          link
+       SRL  3,1
+       A    3,2               point at name
+       LI   1,FILNAM
+A5D16  MOVB *2+,*1+           copy name after .
+       DEC  3
+       JNE  A5D16
+       MOVB @A42F3,2
+ 
+A5D20  BL   @A44AA            prepare sbr call
+       AI   1,-4              point on DSK# in dsr name
+       LI   0,DSRNAM
+       MOVB *1+,*0+           copy drive name
+       MOVB *1+,*0+
+       MOVB *1+,*0+
+       MOVB *1+,*0+
+       MOVB @DOT,*0+          plus .
+       BL   @A4624            write filename in vdp pab
+       SETO @PABDBF           no data buffer
+       CLR  @PABREC           record 0
+       BL   @A50D2            load assembly program
+       JMP  A5D7C             ok: run it
+ 
+       MOVB @>9802,@A5D66+2   savee grom address
+       MOVB @>9802,@A5D66+3
+       DEC  @A5D66+2
+       BL   @A51D2            load x-basic program
+       JMP  A5D72             ok: return
+ 
+       BL   @A52C2            load cartridge copy
+       JMP  A5D72             ok: return
+ 
+A5D66  LI   1,>0000           retrieve grom address
+       BL   @A5FA8            write it
+       B    @A4554            return to gpl
+ 
+A5D72  MOV  @A5D66+2,1        retrieve grom address
+       BL   @A5FA8            write it
+       JMP  A5CB8             return to caller
+ 
+A5D7C  MOV  @PABDBF,@BEGIN    save starting address
+       LI   0,>0310
+       LI   8,>08F0
+       LI   1,A58F0           char pats
+       BL   *15               write to char 30-128
+A5D90  MOVB *1+,*14           copy patterns
+       DEC  0
+       JNE  A5D90
+ 
+       LI   8,>0380
+       BL   *15               write to color table
+       LI   2,>0010
+A5DA0  MOVB @SCRCOL+1,*14     all same color
+       DEC  2
+       JNE  A5DA0
+       B    @A438A            set vdp regs, turn ramdisk off
+*                             and branch to saved address
+*
+A5DAC  DATA >A3A0,>004C       loaded at >A3A0 by 1rst power-up
+ 
+       MOV  12,1              find p-gram card
+       LI   12,>1000          ----------------
+A5DB6  SBO  0                 card on
+       CB   @>4000,@>A3EB     header (>aa) ?
+       JNE  A5DE8             no: next card
+       LI   2,>400A           link to sbr list
+A5DC4  LI   3,>A3E8           name buffer
+       MOV  *2,2
+       JEQ  A5DE8             no more link: next card
+       MOV  2,0
+       C    *0+,*0+           point to name
+       C    *3+,*0+           check name (4 chars)
+       JNE  A5DC4             next sbr
+       CB   *3+,*0+
+       JNE  A5DC4             next sbr
+       SBZ  0                 card off
+       MOV  12,0              save its cru
+A5DDC  MOV  1,12              retrieve ramdisk cru
+       SBO  0                 ramdisk on
+       MOV  0,@PGRCRU         save cru value
+       B    @A4408            return to power-up 1
+ 
+A5DE8  SBZ  0                 card off
+       AI   12,>0100          next card
+       CI   12,>2000          was it the last one ?
+       JNE  A5DB6             no: check it
+       CLR  0                 flag: cru = 0
+       JMP  A5DDC
+ 
+A5DF8  BYTE >02               i.e. >A3E8
+       TEXT 'PG'              sbr to find ('MO' for german Gram-Karte patch)
+A5DFB  BYTE >AA               i.e. >A3EB
+*
+*
+A5DFC  DATA >A340,>005C       loaded at >A340
+*                             ---------------
+       SBZ  0                 is also r0
+       LWPI >83E0             is also r1+r2
+       B    @>006A            is also r3+r4
+       DATA >2908             r5
+       DATA >2048             r6
+       DATA >A35D             r7 point at r14l
+       DATA >6495             r8
+       DATA >83C4             r9
+       DATA >8800             r10
+       DATA >8C00             r11
+       DATA >8C02             r12
+       DATA >9C02             r13
+A5E1C  DATA >0000             r14 will contain filename size
+       DATA >0000             r15 will contain filename
+       DATA 0,0,0,0,0,0,0,0
+*
+       LWPI >A340             x-basic launcher (at >A070)
+       MOVB 5,*12             ----------------
+       SWPB 5
+       MOVB 5,*12             read 1 char in vdp at >0829
+       SWPB 5
+       CB   *10,15            is it D ?
+       JNE  A5E56             no: return to gpl until it is D
+ 
+       MOVB 6,*12             write to vdp at >0820
+       SWPB 6                 (this is crunch buffer)
+       MOVB 6,*12
+       SWPB 6
+A5E48  MOVB *7+,*11           copy filename (+ size)
+       DEC  14
+       JOC  A5E48
+ 
+       MOVB 8,*13             set grom address as >6495
+       SWPB 8                 (when DSK1.LOAD is loaded)
+       MOVB 8,*13
+ 
+       CLR  *9                clear interupt hook
+A5E56  LWPI >83E0             return to gpl (or in X basic)
+       B    *11
+*
+*
+A5E5C  DATA >A050,>019C       loaded at >A050 by 2nd power-up
+ 
+       MOV  12,@>A112         execute power-ups
+       MOV  11,@>A168         -----------------
+       CLR  @>8372            save r12, r11 (A5F22, A5F78)
+       LI   2,>A2EE           ramdisk power-up stack
+       CLR  *2+               eo list
+A5E72  MOV  12,*2+            save cru
+       MOV  2,@>A2EC          top of stack pointer
+A5E78  SBZ  0
+       AI   12,>0100          next card
+       CI   12,>2000          was it last ?
+       JEQ  A5EBC             yes
+       SBO  0                 card on
+       CB   @>4000,@>A1B6     >aa ?
+       JNE  A5E78             no header: next card
+       LI   2,>4004           power-up list
+       JMP  A5E9A
+ 
+A5E94  MOV  @>83D2,2          retrieve link
+       SBO  0                 card on (just in case)
+A5E9A  MOV  *2,2              next link
+       JEQ  A5E78             no more: next card
+       MOV  2,@>83D2          save link
+       INCT 2
+       MOV  *2+,9             get address
+       MOV  @>A2EC,2
+       CI   9,A43B2           is it ramdisk 2nd pwr-up ?
+       JNE  A5EB8             no
+       C    @>4000,@>A1B6     >aa ?
+       JEQ  A5E72             yes: save on stack
+A5EB8  BL   *9                execute power-up routine
+       JMP  A5E94             go to next one
+ 
+A5EBC  BL   @>A1A4            copy (A5FB4)
+       DATA >8300,>A1EC
+ 
+       MOV  @>A1B4,@>8372     reset sub/data stack ptrs
+       MOVB @>9802,@>A102     save grom address (A5F10+2)
+       MOVB @>9802,@>A103
+       DEC  @>A102
+A5EDA  SBZ  0                 card off
+       MOV  @>A2EC,2          stack pointer
+       DECT 2                 previous pwr-up
+       MOV  *2,12             get cru
+       JEQ  A5F7A             last: return
+A5EE6  MOV  2,@>A2EC          update pointer
+       MOVB @>A1B7,*15
+       MOVB @>A1B7,*15        screen off
+       SBO  0                 card on
+       MOV  @>400A,1          sbr list
+       MOV  1,@>83D2          save link
+       INCT 1
+       MOV  *1,1              get address
+       BL   *1                execute first sbr
+       JMP  A5EDA             to next card (may be skipped)
+ 
+       SBZ  0                 card off
+       MOV  @>A2EC,2          stack pointer
+       DECT 2                 previous prw-up
+       MOV  *2,12             get cru
+       JNE  A5EE6             more
+ 
+A5F10  LI   1,>0000           still in control retrieve grom address
+A5F14  BL   @>A198            ---------------- set address (A5FA8)
+       BL   @>A1A4            copy (A5FB4)
+       DATA >A1EC,>8300
+ 
+A5F20  LI   12,>0000          retrieve cru (>A112)
+       SBO  0                 ramdisk on
+       LDCR @PAGE0,0          page 0
+ 
+       LI   3,A5866           display copyrights
+A5F2E  MOV  *3+,8             get address
+       JEQ  A5F42
+       BL   @A467E            write to vdp
+       MOV  *3+,1             buffer address
+A5F38  MOVB *1+,2             end ?
+       JEQ  A5F2E             yes: next string
+       MOVB 2,@>8C00          write byte
+       JMP  A5F38             next byte
+ 
+A5F42  MOV  *3+,8             get address: charpats 11-19
+       BL   @A467E            write to vdp
+       MOV  *3+,2             # of bytes
+A5F4A  MOVB *3+,@>8C00        write 1 byte
+       DEC  2
+       JNE  A5F4A             next byte
+ 
+       LI   8,>0B00           clear charpats 128-255
+       BL   @A467E            write address
+       LI   2,>0400           # of bytes
+A5F5E  MOVB @A5814,@>8C00     clear
+       DEC  2
+       JNE  A5F5E
+ 
+       SBZ  0                 ramdisk off
+       LI   9,>A1EA           (A5FFA = 0)
+       MOV  9,@>83D2          no more link
+       LI   12,>1F00          no more cards
+A5F76  B    @>0000            return to power-up caller
+*
+*
+A5F7A  LI   1,>6000           (>A16A)
+       BL   @>A198            set grom address >6000
+       CB   *13,@>A1B6        >AA
+       JNE  A5F10             no header
+       LI   1,>6006
+       BL   @>A198            set grom address >6006
+       MOVB *13,2             get program link
+       MOVB *13,@>83E5
+       MOV  2,1
+       JEQ  A5F10             none
+       INCT 1                 address location
+       BL   @>A198            set grom address
+       MOVB *13,1             get program address
+       MOVB *13,@>83E3
+       JMP  A5F14             make it return address
+*
+*
+A5FA8  MOVB 1,@>9C02          set grom address
+       SWPB 1                 ----------------
+       MOVB 1,@>9C02
+       B    *11
+*
+A5FB4  MOV  *11+,0            copying routine (>A1A4)
+       MOV  *11+,1            ---------------
+       LI   2,>0070           112 words
+A5FBC  MOV  *0+,*1+           source + dest in data words
+       DEC  2
+       JNE  A5FBC
+       B    *11
+*
+*
+A5FC4  DATA >FF7E             i.e. >A1B4
+A5FC6  BYTE >AA               i.e. >A1B6
+A5FC7  BYTE >81               i.e. >A1B7
+ 
+A5FC8  BYTE >01,>02,>03       copyrights
+       TEXT ' ROS  CFG '
+       BYTE >0B,>0C,>0D,0
+A5FD9  BYTE >04,>05,>06
+       TEXT '   8.14B  '
+       BYTE >0E,>0F,>10,0
+A5FEA  BYTE >07,>08,>09
+       TEXT ' 01/20/92 '
+       BYTE >11,>12,>13
+A5FFA  DATA >0000
+A5FFC  DATA >0000,>0000
+*
+       END

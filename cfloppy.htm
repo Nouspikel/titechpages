@@ -1,0 +1,2858 @@
+<!doctype html public "-//w3c//dtd html 4.0 transitional//en">
+<html>
+<head>
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+   <meta name="Author" content="asdf">
+   <meta name="GENERATOR" content="Mozilla/4.79 [en] (WinNT; U) [Netscape]">
+   <title>CFloppy class</title>
+</head>
+<body>
+
+<center>
+<h1>
+<a href="http://www.nouspikel.com/ti99/titechpages.htm"><img SRC="logo.jpg" style="border: 0px solid ; height: 33px; width: 95px;" title="" height=33 width=95></a></h1></center>
+
+<h1>
+The CFloppy class</h1>
+
+<h2>
+Overview</h2>
+This class is used to implement emulation of TI-99/4A floppy disks, and
+to allow access of real floppies on the TI-99/4A.
+<br>There can be three types of disks/drives:
+<ul>
+<li>
+Real floppies, installed in a drive in a TI-99/4A that is accessed remotely
+via a serial or parallel cable. This will also work for remote "pseudo-floppies",
+such as those simulated by the Horizon ramdisk, or the IDEAL DSRs for the
+IDE card.</li>
+
+<li>
+Floppies and pseudo-floppies emulated in Bug99 (version 2 or higher).</li>
+
+<li>
+Disk-image files on your PC, which can be either in DOAD format (disk-on-a-disk:
+a simple sector dump popularized by the V9T9 emulator), or PC99 format
+(containing track information).</li>
+</ul>
+The class requires MFC 4 and was written to be compiled by Visual Studio
+4.0.
+<p>The class implements a number of commands, which can be divided in <a href="#Drive functions">drive-related</a>,
+<a href="#Disk functions">disk-related</a>,
+<a href="#File functions">file-related</a>,
+<a href="#Sector functions">sector-related,</a><a href="#Conversion functions">PC-conversion</a>
+and <a href="#Helper functions">helper</a> functions. Most function return
+FALSE or a special value to indicate that an error occured. Check m_Error
+for the error code, or use GetLastError() for a text string detailing the
+problem.
+<br>&nbsp;
+<p><b>Drive functions</b>
+<br><a href="#Drive functions">Initializing CFloppy objects</a>
+<br><a href="#CreateDrive_filename">CreateDrive</a> (Filename)&nbsp; <a href="#CreateDrive_CFile">CreateDrive</a>
+(CFile)&nbsp;&nbsp; <a href="#FormatPC99">FormatPC99</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<a href="#OpenDrive">OpenDrive</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <a href="#AssignDrive_CFile">AssignDrive</a>
+(CFile)&nbsp;&nbsp; <a href="#AssignDrive_TI99">AssignDrive</a> (TI-99/4A)
+
+<a href="#AssignDrive_Bug99">AssignDrive</a> (Bug99)
+<br><a href="#CloseDrive">CloseDrive</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<a href="#FindDSKn_TI99">FindDSKn</a> (TI-99/4A)&nbsp;&nbsp;&nbsp; <a href="#FindDSKn_Bug99">FindDSKn</a>
+(Bug99)&nbsp;&nbsp;&nbsp; <a href="#SetDriveInfo">SetDriveInfo</a> <a href="#GetDriveInfo">GetDriveInfo</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+<a href="#FlushBuffers">FlushBuffers</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+<a href="#CheckPcFile">CheckPcFile</a>
+<p><b>Disk functions</b>
+<br><a href="#GetDiskInfo_Structure">GetDiskInfo</a> (structure) <a href="#GetDiskInfo">GetDiskInfo</a>
+(variables)&nbsp;&nbsp;&nbsp; <a href="#GetDiskname">GetDiskname</a>&nbsp;
+
+<a href="#SetDiskInfo">SetDiskInfo</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <a href="#GetNextFile">GetNextFile</a>&nbsp;
+<a href="#CheckDisk">CheckDisk</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <a href="#FormatDisk">FormatDisk</a>
+<br><a href="#WipeDisk">WipeDisk</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+<a href="#CopyAllFiles">CopyAllFiles</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+<a href="#CopyDisk">CopyDisk</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+<a href="#Defragment">Defragment</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<a href="#SortFiles">SortFiles</a>&nbsp;&nbsp;&nbsp;&nbsp; 
+<a href="#TimeStamp">TimeStamp</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<a href="#Protect">Protect</a>
+<p><b>File functions</b>
+<br><a href="#FindFDR">FindFDR</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+<a href="#CreateFile">CreateFile</a>&nbsp;&nbsp;&nbsp; <a href="#WipeFile">WipeFile</a>&nbsp;&nbsp;&nbsp;
+
+<a href="#RenameFile">RenameFile</a>&nbsp;&nbsp;&nbsp; <a href="#GetFileInfo_Structure">GetFileInfo</a>
+(structure)&nbsp;&nbsp;&nbsp; <a href="#GetFileInfo">GetFileInfo</a> (variables)&nbsp;&nbsp;&nbsp;
+<a href="#SetFileInfo">SetFileInfo</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <a href="#GetFilename">GetFilename</a>
+<br><a href="#TimeStamp">TimeStamp</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <a href="#Protect">Protect</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+<a href="#Copy1File">Copy1File</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <a href="#DeleteFile">DeleteFile</a>&nbsp;&nbsp;
+
+<a href="#Undelete">Undelete</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+<a href="#GetFileSector">GetFileSector</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+<a href="#GetFileOffset">GetFileOffset</a>&nbsp;&nbsp;&nbsp;&nbsp; <a href="#GrowFile">GrowFile</a>
+<p><b>Sector functions</b>
+<br><a href="#ReadSector">ReadSector</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<a href="#ReadSec0">ReadSec0</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <a href="#ReadSec1">ReadSec1</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+<a href="#ReadFDR">ReadFDR</a>
+<br><a href="#WriteSector">WriteSector</a>&nbsp;&nbsp;&nbsp;&nbsp; 
+<a href="#WriteSec0">WriteSec0</a>&nbsp;&nbsp;&nbsp;&nbsp;
+<a href="#WriteSec1">WriteSec1</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+<a href="#WriteFDR">WriteFDR</a>
+<br><a href="#IsSectorFree">IsSectorFree</a>&nbsp;&nbsp;&nbsp;&nbsp; <a href="#FreeSector">FreeSector</a>&nbsp;&nbsp;
+
+<a href="#GrabSector">GrabSector</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <a href="#CheckSectorType">CheckSectorType</a>&nbsp;
+
+<a href="#CheckFDR">CheckFDR</a>
+<p><b>PC conversion functions</b>
+<br><a href="#Sector functions">Internal buffering</a>
+<br><a href="#ExtractFile">ExtractFile</a>&nbsp;&nbsp;&nbsp;&nbsp; <a href="#ExtractProg">ExtractProg</a>&nbsp;&nbsp;&nbsp;&nbsp;
+<a href="#ExtractVar">ExtractVar</a>&nbsp;&nbsp;&nbsp; <a href="#ExtractFix">ExtractFix</a>
+<br><a href="#InsertFile">InsertFile</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+<a href="#InsertProg">InsertProg</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <a href="#InsertVar">InsertVar</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+<a href="#InsertFix">InsertFix</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <a href="#InsertRDF80">InsertRDF80</a>
+<br><a href="#ToText">ToText</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+<a href="#TextToVar">TextToVar</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <a href="#TextToFix">TextToFix</a>&nbsp;&nbsp;&nbsp;
+
+<a href="#CheckPcFile">CheckPcFile</a>
+<p><b>Helper functions</b>
+<br><a href="#GetLastError">GetLastError</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+<a href="#GetOptions">GetOptions</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+<a href="#SetOptions">SetOptions</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+<a href="#GetTabs">GetTabs</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+<a href="#SetTabs">SetTabs</a>
+<br><a href="#EncodeTime_Now">EncodeTime</a> (current)&nbsp;&nbsp; <a href="#EncodeTime_Params">EncodeTime</a>
+(variables)&nbsp;&nbsp; <a href="#EncodeTime_String">EncodeTime</a> (string)&nbsp;&nbsp;&nbsp;
+
+<a href="#EncodeDate_Today">EncodeDate</a> (current)&nbsp;&nbsp; <a href="#EncodeDate_Params">EncodeDate</a>
+(variables)&nbsp;&nbsp; <a href="#EncodeDate_String">EncodeDate</a> (string)
+<br><a href="#DeocdeTime_Params">DecodeTime</a> (variables)&nbsp; <a href="#DecodeTime_String">DecodeTime</a>
+(string)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <a href="#DecodeDate_Params">DecodeDate</a>
+(variables)&nbsp;&nbsp;&nbsp; <a href="#DecodeDate_String">DecodeDate</a>
+(string)
+<br><a href="#EncodeFiletype">EncodeFiletype</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+<a href="#DecodeFiletype">DecodeFiletype</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+<a href="#FileCRC">FileCRC</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+<a href="#DiskCRC">DiskCRC</a>
+<p><b>Additional information</b>
+<br><a href="#GetDriveInfo">TI_DRIVEINFO structure</a>&nbsp;&nbsp; <a href="#GetDiskInfo_Structure">TI_DISKINFO
+structure</a>&nbsp;&nbsp;&nbsp; <a href="#GetFileInfo_Structure">TI_FILEINFO
+structure</a>&nbsp;&nbsp;&nbsp; <a href="#GetLastError">Error codes</a>
+<br><a href="#Floppy format">TI floppy disk format</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<a href="#DOAD format">DOAD format</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<a href="#PC99 format">PC99 formats</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<a href="#FIAD format">FIAD format&nbsp;</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<a href="#TIFILES format">TIFILES format</a>
+<br><a href="#CBug99Dlg">The CBug99Dlg class&nbsp;</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+<a href="#CTI99">The CTI99 class</a>
+<br>&nbsp;
+<br>&nbsp;
+<h2>
+<a NAME="Drive functions"></a>Drive-related functions</h2>
+To implement a disk/drive using CFloppy, first create the CFloppy object.
+Then what you do depends on the type of disk/drive you want.
+<h4>
+For PC disk-image files</h4>
+You can either use a CFile object that's a member of the CFloppy object,
+or maintain the CFile object externally and pass a pointer to the CFloppy
+object.
+<p>If you wish the application to maintain the file, call AssignDrive(CFile
+*pDrive) with a pointer to your CFile object, or an object derived from
+it (e.g. CMemFile). The caller is responsible for creating and deleting
+the object, and for opening and closing the file.
+<p>To use the internal CFile object, call OpenDrive(CString FilenamePC)
+with the desired file name and path. The function will call AssignDrive().
+<br>To create a new file using the internal CFile object, call&nbsp; CreateDrive(CString
+FilenamePC). The function calls CreateDrive(CFile *pFile) (which may call&nbsp;
+FormatPC99() if you speficified PC99 format), then calls AssignDrive()
+as above.
+<br>&nbsp;
+<h4>
+For remote TI-99/4A drives</h4>
+You will generally begin by calling FindDSKn(char c, CTI99 *pTI99, CDWordArray
+*pArray) with character 0x01 as c. This causes the function to scan the
+TI-99/4A for DSRs with names matching DSKn (where n is a digit or a letter)
+and return results in the CDWordArray. It is perfectly acceptable to can
+create a temporary CFloppy object just to perform such a scan.
+<p>The function must be passed a pointer to a CTI99 object in the application,
+that will handle all communications with the TI-99/4A. The caller is responsible
+for properly initiating the CTI99 object, i.e. setting communication parameters,
+making sure the user has loaded the hook routine, etc.
+<p>Then you can call AssignDrive(char c, CTI99 *pTI99) to mount the drive
+of your choice, passing the drive letter in c. For instance '1' for DSK1,
+'A' for DSKA, etc. This function calls FindDSKn again, this time looking
+for a particular drive by name.
+<p>By default, remote TI-99/4A floppies are buffered locally, in that any
+sector is only read once, all subsequent read operations use the local
+copy (write operations update both the local copy and the remote floppy).
+This saves time, but can result in problems if the user swaps floppies
+in the TI drive. In this case, you should call FlushBuffers() to mark all
+sectors as "unread". Alternatively, you can disable this function with
+SetOptions().
+<br>&nbsp;
+<h4>
+For Bug99-emulated drives</h4>
+The process is similar to the one used with a remote TI-99/4A. You start
+by
+scanning the system with FindDSKn(char c, CBug99Dlg *pBug99), passing 0x01
+in c and a pointer to a CBug99Dlg object maintained by your application.
+<p>CBug99Dlg is derived from CDialog and implements an modeless dialog
+box with the title "VDM99 listening" (exactly so, since this is how Bug99
+finds it). You can make the dialog invisible, not to confuse the user.
+The class looks for a corresponding dialog called "Bug99 listening" and,
+if it finds one, the two dialogs communicate via Windows WM_COPYDATA messages,
+which are meant for exchanging data between applications.
+<p>Then you call AssignDrive(char c, CBug99Dlg *pBug99) to mount the drive
+of your choice (drive letter in c), again passing a pointer to you CBug99Dlg
+object.
+<br>&nbsp;
+<h4>
+Varia</h4>
+You can get information about the current drive in a CFloppy object with
+GetDriveInfo(TI_DRIVEINFO &amp;Info) and optionally modify the drive characteristics
+with SetDriveInfo(TI_DRIVEINFO &amp;Info) but be careful with that one..
+<br>Both functions use a TI_DRIVEINFO structure, which is defined below.
+<p>You can use CloseDrive() to when done, although this is not necessary,
+as the function does not do much, except closing the internal CFile object
+if one was used (but that's done automatically when deleting the CFloppy
+object). Still, it's probably good programming practice to call CloseDrive()
+before deleting the CFloppy object.
+<p><a href="#CreateDrive_filename">CreateDrive</a> (Filename)
+<br><a href="#CreateDrive_CFile">CreateDrive</a> (CFile)
+<br><a href="#FormatPC99">FormatPC99</a>
+<br><a href="#OpenDrive">OpenDrive</a>
+<br><a href="#AssignDrive_CFile">AssignDrive</a> (CFile)
+<br><a href="#AssignDrive_TI99">AssignDrive</a> (TI-99/4A)
+<br><a href="#AssignDrive_Bug99">AssignDrive</a> (Bug99)
+<br><a href="#CloseDrive">CloseDrive</a>
+<br><a href="#FindDSKn_TI99">FindDSKn</a> (TI-99/4A)
+<br><a href="#FindDSKn_Bug99">FindDSKn</a> (Bug99)
+<br><a href="#SetDriveInfo">SetDriveInfo</a>
+<br><a href="#GetDriveInfo">GetDriveInfo</a>
+<br><a href="#FlushBuffers">FlushBuffers</a>
+<br><a href="#CheckPcFile">CheckPcFile</a>
+<br>&nbsp;
+<h4>
+<a NAME="CreateDrive_filename"></a>BOOL CreateDrive(CString FilenamePC,
+BOOL DS, BOOL DD, BOOL PC99=FALSE)</h4>
+Creates a disk-image drive on your PC, using a CFile object that's a member
+of CFloppy.
+<p><b>FilenamePC</b>: Name and path of the file you wish to create. If
+the file exists, it will be overwritten.
+<br><b>DS</b>: Create a double-sided disk.
+<br><b>DD</b>: Creata a double-density disk.
+<br><b>PC99</b>: Use PC99 format, i.e. include track information.
+<p><b>Return value</b>: TRUE if the function succeeded, FALSE if something
+went wrong.
+<p>This function internally calls <a href="#AssignDrive_CFile">AssignDrive</a>().
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="CreateDrive_CFile"></a>BOOL CreateDrive(CFile *pFile, BOOL DS,
+BOOL DD, BOOL PC99)</h4>
+Creates a disk-image drive on your PC, using a CFile object managed by
+the caller.
+<p><b>pFile</b>: Pointer to a CFile object, or an object derived from CFile
+(e.g. CMemFile), which must be created and deleted by the caller. The file
+must be open at the time of the call.
+<br><b>DS</b>: Create a double-sided disk.
+<br><b>DD</b>: Creata a double-density disk.
+<br><b>PC99</b>: Use PC99 format, i.e. include track information.
+<p><b>Return value</b>: TRUE if the function succeeded, FALSE if something
+went wrong.
+<p>This function internally calls <a href="#AssignDrive_CFile">AssignDrive</a>()
+and calls <a href="#FormatPC99">FormatPC99</a>() if the drive type is PC99.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="FormatPC99"></a>void FormatPC99(BOOL DS, BOOL DD)</h4>
+Formats the PC file according the PC99 specifications. Track information
+differs depending on side and density, so the proper values must be passed
+at creation time and cannot be changed later. All sectors are filled with
+>E5 bytes, including sector 0.
+<p><b>DS</b>: Create a double-sided disk
+<br><b>DD</b>: Creata a double-density disk
+<p>See the appendix for information on PC99 formats.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="OpenDrive"></a>int OpenDrive(CString FilenamePC)</h4>
+Opens an existing PC file, for use by the internal CFile object.
+<p><b>FilenamePC</b>: Name and path of the file to use. The file must exist.
+<p><b>Return value</b>: Type of drive (DOAD, PC99SD, or PC99DD), or NODRIVE
+if an error occured.
+<p>The function internally calls <a href="#AssignDrive_CFile">AssignDrive</a>().
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="AssignDrive_CFile"></a>int AssignDrive(CFile *pDrive, long Start=0,
+int Size=0, int Max=-1)</h4>
+Initializes a disk/drive using a CFile object either internal or provided
+by the caller. The function checks the file to determine its format. Because
+DOAD files can contain anything when the disk is not formatted, a file
+that does not contain a valid disk image will still be identified as DOAD.
+<p><b>pDrive</b>: Pointer to the CFile object (or derived of CFile) use
+to access the file.
+<br><b>Start</b>: This is mostly for use by Bug99. It allows to split a
+file between several drives, e.g. in the case of the ramdisk memory. <i>Start</i>
+indicates at which offset in the file the drive begins.
+<br><b>Size</b>: Desired drive size. If zero, the function uses either
+the current size of the file, or the maximum allowed size, whichever is
+smaller.
+<br><b>Max</b>: Maximum allowable size for the drive. Mostly used by Bug99
+for multi-disk files. A value of 0 means "no limit" (generally the case
+for DOAD files), a value of -1 means "use the default", which is 0 for
+DAOD disks, and an internally assigned value for PC99 files.
+<p><b>Return value</b>: Type of drive (<tt>DOAD</tt>, <tt>PC99SD</tt>,
+or <tt>PC99DD</tt>), or <tt>NODRIVE</tt> if an error occured.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="AssignDrive_TI99"></a>BOOL AssignDrive(char c, CTI99 *pTI99)</h4>
+Initializes a disk as a remotely accessed drive on the TI-99/4A.
+<p><b>c</b>: Drive letter. For instance, to mount DSK1 you would set c
+as '1'. In principle, valid drive letters are '1' through '9' and 'A' through
+'Z' but the function will accept any character (except 0x01).
+<br><b>pTI99</b>: Pointer to a CTI99 object managed by the application.
+The object must be initialized and ready for communication with the remote
+TI-99/4A.
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong.
+<p>The function internally calls <a href="#FindDSKn_TI99">FindDSKn</a>().
+<br>&nbsp;
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="AssignDrive_Bug99"></a>BOOL AssignDrive(char c, CBug99Dlg *pBug99,
+CString Drivename="", int Device=0)</h4>
+Initializes a disk as being emulated within Bug99.
+<p><b>c</b>: Drive letter, as above. Alternatively, use '@' to access the
+IDEAL collection of virtual floppies. In this case, Drivename must contain
+the floppy name.
+<br><b>pBug99</b>: Pointer to a CBug99Dlg object managed by the caller.
+This object must underly a modeless dialog box entitled "VDM99 listening".
+<br><b>Drivename</b>: Used with the IDEAL DSRs for the IDE card. This allows
+accessing a "virtual floppy" by name, directly in the floppy collection,
+even if it is not mounted in a virtual drive. In this case, c must be '@'.
+<br><b>Device</b>: The device index in Bug99's list of devices. You may
+leave this as zero, which means 'current device'.
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong.
+<p>The function internally calls <a href="#FindDSKn_Bug99">FindDSKn</a>().
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="FlushBuffers"></a>void FlushBuffers()</h4>
+This function is used with remote TI-99/4A drives (or Bug99-emulated drives)
+that are buffered internally. In essence, the CFloppy object uses a CMemFile
+to maintains a mirror image of the remote drive: each sector that is read
+from the remote system is copied into the local buffer and a flag is set
+to indicate that this sector has been read. Every subsequent read request
+to this sector will return the buffered data, instead of querying the remote
+system again. Sector writes affect both the remote system and the local
+copy.
+<p>This saves a lot of time, but may cause problems if the user swaps disks
+in the remote system. In such a situation, FlushBuffer() can be used to
+reset all flags and mark all sectors as "unread". Alternatively, buffering
+can be disabled with SetOptions() <u>after</u> AssignDrive() has been called
+(because AssignDrive turns buffering on by default).
+<br>&nbsp;
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="CloseDrive"></a>BOOL CloseDrive()</h4>
+Call this function when you are done with the CFloppy object, prior to
+destroying it. At the moment, all it does is closing internal CFile object,
+if it is in use.
+<p><b>Return value</b>: Always TRUE.
+<br>&nbsp;
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="FindDSKn_TI99"></a>BOOL FindDSKn(char c, CTI99 *pTI99=NULL, CDWordArray
+*pArray=NULL)</h4>
+This function can be used in two ways:
+<br>- If c is 0x01 the function scans the remote TI-99/4A system for DSRs
+with names matching "DSKn", where n is a character between '0' and '9'
+or between 'A' and 'Z'. Information about detected drives is returned in
+the CDWordArray provided by the caller.
+<br>- If c is not 0x01, the function looks for the DSR name "DSKn", where
+n is the character you passed in c. If found, it sets all internal pointers
+for that drive to be used, and may also return info about it in the array
+if a pointer is provided.
+<p><b>c</b>: Last character of the drive name, the first 3 characters being
+"DSK". Alternatively, ASCII character 1 (0x01), to scan the remote system
+for all valid drive names.
+<br><b>pTI99</b>: Pointer to a CTI99 object managed by the application.
+The object must be initialized and ready for communication with the remote
+TI-99/4A. The pointer can be NULL if it was previously set by another call
+to FindDSKn() or to AssignDrive().
+<br><b>pArray</b>: Pointer to a CDWordArray that will receive drive information.
+If NULL, no drive information is sent to the caller. Each drive detected
+adds a DWORD to the array, in the following format: 0x0000RRLL where RR
+is the second nibble of the CRU address for that drive (e.g. 0x01 for >1100,
+0x02 for >1200, etc) and LL is the drive letter (e.g. '1' for DSK1, '2'
+for DSK2, etc).
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong.
+<p>The function looks for the presence of subroutine >10 (sector read/write)
+and >11 (disk format) in the DSRs and internally saves pointers to these
+routines. If it cannot find subroutine >10, it will not look for drives
+on this device, as such drives would not be accessible (all access is performed
+by calling subroutine >10).
+<br>&nbsp;
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="FindDSKn_Bug99"></a>BOOL FindDSKn(char c, CBug99Dlg *pBug99=NULL,
+CDWordArray *pArray=NULL)</h4>
+This function can be used in two ways:
+<br>- If c is 0x01 the function scans the Bug99 emulator for DSRs with
+names matching "DSKn", where n is a character between '0' and '9' or between
+'A' and 'Z'. Information about detected drivs is returned in the CDWordArray
+provided by the caller.
+<br>- If c is not 0x01, the function looks for the DSR name "DSKn", where
+n is the character you passed in c. If found, it sets all internal pointers
+for that drive to be used and may also return info about it in the array,
+if a pointer is provided.
+<p><b>c</b>: Last character of the drive name, the first 3 characters being
+"DSK". Alternatively, ASCII character 1 (0x01), to scan the remote system
+for all valid drive names.
+<br><b>pBug99</b>: Pointer to a CBug99Dlg object managed by the caller.
+This object must implement a modeless dialog box entitled "VDM99 listening".
+Can be NULL if the pointer was previously passed by another call to FindDSKn()
+or to AssignDrive().
+<br><b>pArray</b>: Pointer to a CDWordArray that will receive drive information.
+If NULL, no drive information is passed to the caller. Each drive detected
+adds a DWORD to the array, in the following format: 0x0000NNLL where NN
+is the device index in Bug99's lists of devices, and LL is the drive letter
+(e.g. 'A' for DSKA).
+<p>Bug99's list of devices currently is: <tt>{CurDev,Ramdisk,IDE,USBSM,AMS,RS232,Mem32K,pcode,Console,Cartridge,GramKarte,PGram,HSGPL,NoMore}</tt>.
+So 1 = Ramdisk, 2 = IDE card, and 3 = USB card.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="GetDriveInfo"></a>BOOL GetDriveInfo(TI_DRIVEINFO &amp;Info)</h4>
+This function is used to gather information about the disk/drive currently
+used by the CFloppy object.
+<p><b>Info</b>: A dedicated structure defined in the header file Floppy.h
+Note that only the fields relevant to the current type of drive are guaranteed
+to contain meanigful values.
+<p><tt>enum PcFiles {NODRIVE,DOAD,PC99SD,PC99DD,REMOTE,BUG99,NOHEADER,FIAD,TIFILES};&nbsp;
+// type of PC files. First 6: disk images, last 3: file images</tt>
+<p><tt>typedef struct</tt>
+<br><tt>{</tt>
+<br><tt>&nbsp;int DriveType;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// as in PcFiles enum</tt>
+<p><tt>&nbsp;CFile *pDriveFile;&nbsp;&nbsp;&nbsp;&nbsp; // pointer to file
+object&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+}</tt>
+<br><tt>&nbsp;CString PathName;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; // PC path:
+folder+filename+extension&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+} Used with PC disk-image files</tt>
+<br><tt>&nbsp;long DriveStart;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; // in
+case there are several drives in a single file&nbsp; }</tt>
+<br><tt>&nbsp;long DriveSize;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// current size&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+}</tt>
+<br><tt>&nbsp;long DriveLimit;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; // maximum
+size in the above case. 0 = no limit&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+}</tt>
+<p><tt>&nbsp;BYTE RemoteDrive;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; // drive letter&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+}</tt>
+<br><tt>&nbsp;WORD RemoteCRU;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// card CRU. Also use by Bug99 drives to store device index } Used with
+remote TI-99/4A drives</tt>
+<br><tt>&nbsp;WORD RemoteSub10;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; // address
+of subroutine >10 (sector R/W)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+}</tt>
+<br><tt>&nbsp;WORD RemoteSub11;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; // address
+of subroutine >11 (disk format). 0 if not found. }</tt>
+<br><tt>&nbsp;WORD Remote83D2;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; // contents
+of >83D2 when calling sub >10&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+}</tt>
+<p><tt>&nbsp;BYTE DriveNb;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// drive number or >10 (i.e. '@') if disk is in IDEAL collection&nbsp;
+}</tt>
+<br><tt>&nbsp;BYTE DeviceNb;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// device index in Bug99's list of devices&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+} Used with Bug99-emulated drives</tt>
+<br><tt>&nbsp;CString DriveName;&nbsp;&nbsp;&nbsp;&nbsp; // for disks in
+IDEAL collection&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+}</tt>
+<p><tt>}TI_DRIVEINFO;</tt>
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="SetDriveInfo"></a>BOOL SetDriveInfo(TI_DRIVEINFO &amp;Info)</h4>
+This function can be used to modify drive characteristics, although with
+due caution, as it is easy to mess things up by introducing wrong values
+in here. As a general rule, it is better to let the CFloppy object manage
+drive characteristics internally. The only valid reason to call SetDriveInfo()
+is when implementing a file that contains multiple disk images, to change
+the start point and maximum size of a disk (and then again, be careful
+not to overwrite an existing disk by expanding the previous one).
+<p><b>Info</b>: A TI_DRIVEINFO structure, filled as described <a href="#GetDriveInfo">above</a>.
+Note that only those fields relevant to the type of drive you passed will
+be updated.
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong.
+<br>&nbsp;
+<br>&nbsp;
+<h2>
+
+<hr WIDTH="100%"><a NAME="Disk functions"></a>Disk-related functions</h2>
+<a href="#GetDiskInfo_Structure">GetDiskInfo</a> (structure)
+<br><a href="#GetDiskInfo">GetDiskInfo</a> (variables)
+<br><a href="#GetDiskname">GetDiskname</a>
+<br><a href="#SetDiskInfo">SetDiskInfo</a>
+<br><a href="#GetNextFile">GetNextFile</a>
+<br><a href="#CheckDisk">CheckDisk</a>
+<br><a href="#FormatDisk">FormatDisk</a>
+<br><a href="#WipeDisk">WipeDisk</a>
+<br><a href="#CopyAllFiles">CopyAllFiles</a>
+<br><a href="#CopyDisk">CopyDisk</a>
+<br><a href="#Defragment">Defragment</a>
+<br><a href="#SortFiles">SortFiles</a>
+<br><a href="#TimeStamp">TimeStamp</a>
+<br><a href="#Protect">Protect</a>
+<h4>
+<a NAME="GetDiskInfo_Structure"></a>BOOL GetDiskInfo(TI_DISKINFO &amp;Info)</h4>
+This function returns information about the current disk, mostly taken
+from the disk directory in sector 0 and 1, into a dedicated structure.
+<p><b>Info</b>: A dedicated structure defined in the header file Floppy.h
+<p><tt>typedef struct</tt>
+<br><tt>{</tt>
+<br><tt>&nbsp;char Diskname[10];&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; //
+disk name</tt>
+<br><tt>&nbsp;WORD Size;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// total sectors</tt>
+<br><tt>&nbsp;BYTE SecPerTrack;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// sectors per track</tt>
+<br><tt>&nbsp;char FormatName[3];&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; // format
+name, normally "DSK"</tt>
+<br><tt>&nbsp;char Protected;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// 'P' if protected, space if not</tt>
+<br><tt>&nbsp;BYTE Tracks;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// number of tracks per side</tt>
+<br><tt>&nbsp;BYTE Sides;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// number of sides (1 or 2)</tt>
+<br><tt>&nbsp;BYTE Density;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// density (1 or 2)</tt>
+<br><tt>&nbsp;WORD DateCreated;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// time stamps (0 = not used)</tt>
+<br><tt>&nbsp;WORD TimeCreated;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// not used if date = 0</tt>
+<br><tt>&nbsp;WORD DateModified;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; //
+ditto</tt>
+<br><tt>&nbsp;WORD TimeModified;</tt>
+<br><tt>&nbsp;WORD FreeSectors;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// number of free sectors. Read only.</tt>
+<br><tt>&nbsp;WORD Files;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// number of files listed in sector 1. Read only.</tt>
+<br><tt>&nbsp;int DriveType;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// type of drive, as in PcFiles enum. Read only.</tt>
+<br><tt>&nbsp;DWORD reserved;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// 0x8000000=write this DWORD, 0x00000001 = Plato protection</tt>
+<br><tt>}TI_DISKINFO;</tt>
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong.
+<p>This function takes its information for the disk directory, in sector
+0 and 1. Which means that, if these sector contain wrong value, the information
+will not be accurate. For instance, a single-sided disk may represent itself
+as double-sided in sector 0, but this does not actually make it double-sided.
+So always take this information with a grain of salt...
+<br>&nbsp;
+<h4>
+<a NAME="SetDiskInfo"></a>BOOL SetDiskInfo(TI_DISKINFO &amp;Info)</h4>
+This function can be used to modify some disk characteristics, most of
+them stored in sector 0.
+<p><b>Info</b>: A TI_DISKINFO structure, as described <a href="#GetDiskInfo_Structure">above</a>.
+The fields labelled 'read only' cannot be modified. To modify the 'reserved'
+field, bit 0x80000000 must be set. When not used this field must be zero.
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="GetDiskInfo"></a>BOOL GetDiskInfo(CString &amp;Diskname, BOOL
+&amp;DS, BOOL &amp;DD, BOOL &amp;Protected, int &amp;Size, int &amp;Free,
+int &amp;Files)</h4>
+This function return the most common elements of information about the
+current disk. This is the same info than with a TI_DISKINFO structure,
+but less comprehensive.
+<p><b>Disname</b>: The disk name.
+<br><b>DS</b>: Double-sided.
+<br><b>DD</b>: Double density.
+<br><b>Protected</b>: Protected disk (letter 'P' after "DSK").
+<br><b>Size</b>: Total number of sectors on disk.
+<br><b>Free</b>: Number of free sectors.
+<br><b>Files</b>: Number of files listed in sector 1.
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="GetDiskname"></a>CString GetDiskname()</h4>
+This function returns the disk name, taken from sector 0.
+<p><b>Return value</b>: Disk name, or empty string if something went wrong.
+<br>&nbsp;
+<br>&nbsp;
+<p><a NAME="GetNextFile"></a><b>int GetNextFile(int &amp;Pos)</b>
+<p>This function returns the sector number for the FDR (file descriptor
+record) of a file in the directory. The index of the file is provided in
+Pos, which is also incremented by the function, so you can repeatedly call
+GetNextFile() to enumerate all the files in the directory.
+<p><b>Pos</b>: Zero-based index of the file to look up, taken from the
+file list in sector 1. Pos is incremented during the call, and reset to
+0 when there are no more files.
+<p><b>Return value</b>: Number of the sector containing the file FDR. 0
+if an illegal index was passed (Pos &lt; 0 or >127). -1 if an error occured.
+<p>Example of use:
+<br>&nbsp;<tt> for(Pos=0,CRCF=0;;)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// check each file</tt>
+<br><tt>&nbsp;{</tt>
+<br><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; FDR=pFloppy->GetNextFile(Pos);&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// get next one</tt>
+<br><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; if(FDR==0) break;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// no more</tt>
+<br><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; if(FDR&lt;0) return FALSE;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// an error occured</tt>
+<p><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; if(!pFloppy->GetFileInfo(FDR,FileInfo))&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// get file details into FileInfo structure</tt>
+<br><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {</tt>
+<br><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+AfxMessageBox(pFloppy->GetLastError()); // an error occured: display error
+message</tt>
+<br><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+return FALSE;</tt>
+<br><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; }</tt>
+<br><tt>&nbsp;&nbsp;&nbsp; // use file info</tt>
+<br><tt>}</tt>
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="FormatDisk"></a>BOOL FormatDisk(CString Diskname, BOOL DS, BOOL
+DD, int Size=0, int Tracks=0)</h4>
+For remote TI-99/4A disks, this function begins by calling subroutine >11
+to format the disk from scratch. This step is skipped or Bug99-emulated
+drives and PC-based disk images as "hard formatting" isn't required for
+these.
+<br>Then it installs an empty disk directory in sectors 0 and 1, according
+to the parameters you passed.
+<p><b>Diskname</b>: The name you want to give to the disk. Padded with
+spaces if necessary.
+<br><b>DS</b>: Double-sided.
+<br><b>DD</b>: Double density.
+<br><b>Size</b>: Disk size in sector. If 0, size is calculated from DS
+and DD (possible values: 360, 720, 720, and 1440 sectors).
+<br><b>Tracks</b>: Number of tracks per side. Normally 40.
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="WipeDisk"></a>BOOL WipeDisk()</h4>
+Empties the disk directory, without actually reformatting the disk, nor
+changing its name or characteristics.
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="CopyDisk"></a>BOOL CopyDisk(CFloppy *pDest, BOOL Used=FALSE)</h4>
+
+<p><br>Copies the current disk sector-wise to the disk specified in pDest.
+<p><b>pDest</b>: Pointer to another CFloppy object, to which the current
+disk must be copied. Obviously, the destination disk should be capable
+of fitting the current one.
+<br><b>Used</b>: If TRUE, all sectors will be copied. If FALSE only sectors
+marked as 'used' in the directory (sector bitmap in sector 0) are copied.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="CopyAllFiles"></a>BOOL CopyAllFiles(CFloppy *pDest, BOOL Wipe=FALSE,
+BOOL DiskInfo=FALSE);</h4>
+Copies the current disk file-wise to the disk specified in pDest. This
+will arrange the files alphabetically on the target disk, which each files
+consisting of a single cluster directly following its FDR.
+<p><b>pDest</b>: Pointer to another CFloppy object, to which the current
+disk must be copied. Obviously, the destination disk should be capable
+of fitting the current one.
+<br><b>Wipe</b>: Begin by emptying the directory of the target disk. If
+this parameter is FALSE, files will be added to the target disk, without
+removing existing files. If a copied file already exists, the new version
+overwrites the existing one.
+<br><b>DiskInfo</b>: Copies the current disk characteristics (name, size,
+density, sides, etc) to the taget disk. This forces Wipe = TRUE, no matter
+what value you passed.
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="Defragment"></a>BOOL Defragment()</h4>
+Defragments the disk, i.e ensures that each file consists in a single block
+of sectors, known as a cluster. This cluster will directly follow the FDR
+on the disk. In addition, all files are physically arranged in alphabetical
+order, starting at sector 2.
+<p>This is internally achieved by creating a temporary sector-wise copy,
+then copying back file-wise to the original disk.
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong (which may mean the disk is now scambled...).
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="SortFiles"></a>BOOL SortFiles()</h4>
+
+<p><br>Sorts all files in the directory in alphabetical order. Only the
+file pointers in sector 1 are sorted, the files themselves are not moved.
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong (which may mean the disk is now scambled...).
+<br>&nbsp;
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="CheckDisk"></a>BOOL CheckDisk(int *pError, WORD *pDiag)</h4>
+
+<p><br>This function examines the disk directory, then the FDRs of all
+the files listed in sector 1, and returns a summary diagnostic in pError
+and a detailed, sector-by-sector diagnostic in pDiag.
+<p><b>pError</b>: Error flags. Current values are:
+<br>&nbsp;&nbsp;&nbsp; 0x0001: Claimed disk size is too big for claimed
+sides and density listed in sector 0.
+<br>&nbsp;&nbsp;&nbsp; 0x0002: The file listis&nbsp; not in alphabetical
+order.
+<br>&nbsp;&nbsp;&nbsp; 0x0004: Found a FDR number out of range (&lt;2 or
+>127) in sector 1.
+<br>&nbsp;&nbsp;&nbsp; 0x0008: Found out of range sector number in a FDR
+(or more than one).
+<p><b>pDiag</b>: Pointer to an array of WORDs that should be big enough
+to accomodate every sector in the disk, assuming 1 word per sector. As
+a general rule, it's better to make this a 1440-word array. The function
+places a sector-specific error code in each word, according to the following
+code:
+<br>&nbsp;&nbsp;&nbsp; 0x8000 Sector marked as used is sector bitmap in
+sector 1.
+<br>&nbsp;&nbsp;&nbsp; 0x4000 Sector is beyond disk size, as announced
+in sector 0.
+<br>&nbsp;&nbsp;&nbsp; 0x0100 Sector is listed as containing a FDR in the
+file list in sector 1.
+<br>&nbsp;&nbsp;&nbsp; 0x00nn Number of times this sector is used by a
+file or the directory (nn should be 0 or 1).
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong.
+<p>Expected sector diagnostic values are:
+<br>&nbsp;&nbsp;&nbsp; 0x0000: Sector not used, therefore marked as free.
+<br>&nbsp;&nbsp;&nbsp; 0x8001: Sector used once and marked as used.
+<br>&nbsp;&nbsp;&nbsp; 0x9001: Sector used&nbsp; for a FDR and marked as
+used.
+<br>&nbsp;&nbsp; 0xC000: Sector is beyond disk size and marked as used
+(so the DSRs won't be tempted to use it).
+<p>And these are some abnormal combinations:
+<br>&nbsp;&nbsp;&nbsp; 0x8000: Sector is not actually used, but marked
+as used in the sector bitmap. Might be a bad sector, or hidden data (e.g.
+for a copy-protection scheme).
+<br>&nbsp;&nbsp;&nbsp; 0x0001: Sector used, but marked as free (dangerous:
+will be overwritten).
+<br>&nbsp;&nbsp;&nbsp; 0x4000: Sector is beyond disk size, but marked as
+free (this may cause an error when the DSRs attempt to use it, unless the
+disk size announced in sector 0 is incorrect).
+<br>&nbsp;&nbsp;&nbsp; 0xC0nn: Sector is beyond disk size, yet used by
+one or more files (where nn > 0).
+<br>&nbsp;&nbsp;&nbsp; 0x80nn Sector is used by more than one file (where
+nn > 1).
+<br>&nbsp;&nbsp;&nbsp; 0x90nn: Sector is used by a FDR and by one or more
+files (where nn > 1).
+<br>&nbsp;
+<br>&nbsp;
+<h2>
+
+<hr WIDTH="100%"><a NAME="File functions"></a>File-related functions</h2>
+Most functions take an integer argument called FDR, which serves to identify
+the file. It is the number of the sector containing the File Descriptor
+Record, i.e. where all file information is kept, including the list of
+sectors used by the file. Since sector 0 and 1 contain the disk directory,
+an FDR cannot reside there and FDR values lower than 2 are illegal.
+<p><a href="#FindFDR">FindFDR</a>
+<br><a href="#CreateFile">CreateFile</a>
+<br><a href="#WipeFile">WipeFile</a>
+<br><a href="#RenameFile">RenameFile</a>
+<br><a href="#GetFileInfo_Structure">GetFileInfo</a> (structure)
+<br><a href="#GetFileInfo">GetFileInfo</a> (variables)
+<br><a href="#SetFileInfo">SetFileInfo</a>
+<br><a href="#GetFilename">GetFilename</a>
+<br><a href="#TimeStamp">TimeStamp</a>
+<br><a href="#Protect">Protect</a>
+<br><a href="#Copy1File">Copy1File</a>
+<br><a href="#DeleteFile">DeleteFile</a>
+<br><a href="#Undelete">Undelete</a>
+<br><a href="#GetFileSector">GetFileSector</a>
+<br><a href="#GetFileOffset">GetFileOffset</a>
+<br><a href="#GrowFile">GrowFile</a>
+<h4>
+<a NAME="FindFDR"></a>int FindFDR(CString Filename)</h4>
+Finds a file by name and returns the number of the sector where its FDR
+sits. This value can then be used to call other functions.
+<p><b>Filename</b>: Name of the file to find. Will be padded with spaces
+if less than 10 characters.
+<p><b>Return value</b>: location of the file's FDR. 0 if the file was not
+found. -1 if an error occured.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="GetFileInfo_Structure"></a>BOOL GetFileInfo(int FDR,TI_FILEINFO
+&amp;Info)</h4>
+Returns information about a file (taken from the FDR) into a dedicated
+structure found in Floppy.h
+<p><b>FDR</b>: Location of the file's FDR.
+<br><b>Info</b>: A TI_FILEINFO structure containing the following fields:
+<p>t<tt>ypedef struct</tt>
+<br><tt>{</tt>
+<br><tt>&nbsp;char Filename[10];&nbsp;&nbsp;&nbsp;&nbsp; // file name</tt>
+<br><tt>&nbsp;WORD reserved;</tt>
+<br><tt>&nbsp;BYTE Type;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// file type, as in FDR: >80 = variable, >02 = internal, >01 = program,
+>08 = protected.</tt>
+<br><tt>&nbsp;BYTE RecPerSec;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// records per sector</tt>
+<br><tt>&nbsp;WORD Size;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// size in sectors, not including FDR</tt>
+<br><tt>&nbsp;BYTE LastByte;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// last byte in last sector (0 for 'fixed' files)</tt>
+<br><tt>&nbsp;BYTE RecLen;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// record length (0 for program files)</tt>
+<br><tt>&nbsp;WORD Records;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// number of records for 'fixed', number of sectors for 'variable', 0 for
+'program' files.</tt>
+<br><tt>&nbsp;WORD DateCreated;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; // time stamps
+(0 = not used)</tt>
+<br><tt>&nbsp;WORD TimeCreated;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; // not used
+if date = 0</tt>
+<br><tt>&nbsp;WORD DateModified;&nbsp;&nbsp;&nbsp;&nbsp; // ditto</tt>
+<br><tt>&nbsp;WORD TimeModified;</tt>
+<br><tt>&nbsp;WORD Clusters;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// number of clusters. Read only.</tt>
+<br><tt>&nbsp;WORD FDR;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// sector where FDR resides. Read only</tt>
+<br><tt>&nbsp;CDWordArray Sectors;&nbsp;&nbsp; // list of clusters: 0x0fff0LLL
+where fff=first sector and LLL=last sector in cluster.</tt>
+<br><tt>}TI_FILEINFO;</tt>
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="GetFileInfo"></a>BOOL GetFileInfo(int FDR, CString &amp;Filename,
+int &amp;Type, int &amp;RecLen, int &amp;Size)</h4>
+
+<p><br>This function return the most common elements of information about
+a file. This is the same info than with a TI_FILEINFO structure, only less
+comprehensive.
+<p><b>FDR</b>: Location of the file's FDR.
+<br><b>Filename</b>: The 10-character file name. If you wish, you may use
+TrimRight() to remove trailing spaces.
+<br><b>Type</b>: The file type, as encoded in the FDR. 0x80 = variable,
+0x02 = internal, 0x01 = 'program', 0x08 = protected.
+<br><b>RecLen</b>: Record length (0 for program files).
+<br><b>Size</b>: The file size in sectors, not including the FDR (thus
+0 for empty files).
+<br>&nbsp;
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="GetFilename"></a>CString GetFilename(int FDR)</h4>
+Returns the name of the file identified by its FDR.
+<p><b>FDR</b>: Location of the file's FDR.
+<p><b>Return value</b>: the file name, or an empty string if something
+went wrong.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="SetFileInfo"></a>BOOL SetFileInfo(int FDR,TI_FILEINFO &amp;Info)</h4>
+
+<p><br>This function can be used to modify the characteristics of a file,
+but should be used with extreme caution. In general, file characteristics
+are better by the DSRs, or by dedicated functions such as CreateFile().
+One valid reason to use SetFileInfo() is to repair an erroneous FDR.
+<p><b>FDR</b>: Location of the file's FDR.
+<br><b>Info</b>: A TI_FILEINFO structure as described <a href="#GetFileInfo_Structure">above</a>.
+The fields marked "Read only" cannot be modified (that is, they can, but
+this won't change the FDR).
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="CreateFile"></a>int CreateFile(CString Filename, int Type, int
+RecLen)</h4>
+
+<p><br>Creates an empty file with the indicated name and type.
+<p><b>Filename</b>: The desired file name. If the file already exists it
+will be overwritten, so better call FindFDR() first to see if the file
+exists.
+<br><b>Type</b>: The desired file type, encoded as in the FDR.
+<br><b>RecLen</b>: The desired record length, should be 0 for program files.
+<p><b>Return value</b>: The file's FDR location if successful, or -1 if
+an error occured.
+<p>This function internally calls <a href="#GrabSector">GrabSector</a>().
+<br>&nbsp;
+<h4>
+<a NAME="DeleteFile"></a>BOOL DeleteFile(int FDR)</h4>
+Deletes the file from the disk directory, by removing its pointer from
+the file list in sector 1, and marking all its sectors (including the FDR)
+as 'free'.
+<p><b>FDR</b>: Location of the file's FDR.
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="WipeFile"></a>BOOL WipeFile(int FDR)</h4>
+Empties the file, by reseting the cluster list in the FDR.
+<p><b>FDR</b>: Location of the file's FDR.
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong.
+<p>The list of sector is very hard to reconstitute once erased, so be careful
+with this function. It is much easier to recover an deleted file, by simply
+locating its FDR on disk, and using the info it contains to mark all file
+sectors as 'used'.
+<br>&nbsp;
+<h4>
+<br>
+<a NAME="RenameFile"></a>BOOL RenameFile(int FDR, CString Filename)</h4>
+Changes the file name. If the name already exists (and is not the name
+found in FDR), the function fails with error code ERR_DUPLICATE.
+<p><b>FDR</b>: Location of the file's FDR.
+<br><b>Filename</b>: The desired file name.
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="Protect"></a>BOOL Protect(int FDR, int Protect=1)</h4>
+
+<p><br>Modifies the protection status of a file, by toggling bit 0x08 of
+the status byte in the FDR. This function can also be used to change the
+disk protection flag ('P' or ' ' after 'DSK' in sector 0), although most
+programs just ignore disk protection.
+<p><b>FDR</b>: Location of the file's FDR. Use 0 to protect/unprotect the
+disk.
+<br><b>Protect</b>: The action to be taken: 0 = unprotect, 1 = protect,
+2 = toggle current protection state.
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="TimeStamp"></a>BOOL TimeStamp(int FDR, BOOL Force=FALSE)</h4>
+Places the current time and date into the file's FDR. It can also be used
+to install time stamps in the disk directory, in sector 0. Normally, only
+the "Last modified" stamps are updated. However, if the "Created" stamps
+are missing, they will be assigned the same values as the "Last modified"
+stamps.
+<p><b>FDR</b>: Location of the file's FDR. If FDR = 0, time-stamps the
+disk itself.
+<br><b>Force</b>: Ovrrides the option "only update existing time stamps".
+<p>This functions obeys the current time-stamping strategy defined in the
+<a href="#SetOptions">options</a>,
+which could be:
+<br>- Do not use time stamps. In which case the function returns doing
+nothing (the Force flag has no effect in this case).
+<br>- Only update existing time stamps, do not create new ones. The function
+checks the "Last modified date" word in the FDR and only installs/updates
+time stamps if this word is not zero. Unless Force is TRUE, in which case
+time stamping occures anyway.
+<br>- Always use time stamps. If time stamps are missing, the function
+will create them, otherwise it simply updates the "Last modified date"
+and "Last modified time" stamps.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="Copy1File"></a>BOOL Copy1File(int FDR, CFloppy *pDest, CString
+Filename="")</h4>
+Copies the indicated file to another CFloppy object, optionally changing
+the file name.
+<p><b>FDR</b>: Location of the file's FDR.
+<br><b>pDest</b>: Pointer to a CFloppy object to which the file must be
+copied. There should be enough room on this disk to accomodate the file.
+If the file already exists, it will be overwritten without warning.
+<br><b>Filename</b>: The file name to be used on the target disk. If empty,
+uses the current file name.
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="Undelete"></a>int Undelete(CString Filename, int Type=-1)</h4>
+This function can be used to recover a file that was deleted (but not wiped!).
+It searches the whole disk for a sector that may be a FDR and matches the
+file name (and optionally type) passed in the parameters. If found, it
+reinstalls the file in the disk directory (which may cause an error if
+the directory is full).
+<p><b>Filename</b>: The name of the file to be recoverd.
+<br><b>Type</b>: The file type, as encoded in the FDR (0x80 = variable,
+0x02 = internal, 0x01 = 'program', 0x08 = protected). Ignored if -1.
+<p><b>Return value</b>: The location of the FDR that was discoverd. Or
+0 if no matching FDR was found.
+<p>It is possible for the function to mistake a sector for the requested
+FDR. Including Type information will reduce such false positives. It may
+also be useful if several files with the same name have been present on
+the disk, at various times. In which case, the first matching FDR will
+be used, wich may not be the one you wanted...
+<p>If the file still exists in the directory (i.e. has not been erased)
+the function simply returns its FDR.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="GetFileSector"></a>int GetFileSector(int FDR, int Nb, BYTE *pBuf=NULL)</h4>
+This function returns the location (sector number) of a given sector in
+a file and optionally reads the sector into a buffer.
+<p><b>FDR</b>: Location of the file's FDR.
+<br><b>Nb</b>: Zero-based index of the desired sector within the file (i.e.
+first sector is 0, second is 1, etc). -1 returns location of the file's
+FDR (which you already know, since you passed it as an argument).
+<br><b>pBuf</b>: A pointer to a 256-byte buffer into which the sector will
+be loaded. If NULL, the sector is not read.
+<p><b>Return value</b>: The number of the requested sector. 0 means that
+Nb was out of range (sector 0 is used by the disk directory and cannot
+be part of a file). -1 means that an error occured.
+<p>This function is the "mirror image" of <a href="#GetFileOffset">GetFileOffset</a>().
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="GetFileOffset"></a>int GetFileOffset(int FDR, int Sector)</h4>
+Determines whether a given sector is part of a given file and, if so, returns
+the offset of that sector within the file.
+<p><b>FDR</b>: Location of the file's FDR.
+<br><b>Sector</b>: Number of the sector to consider.
+<p><b>Return value</b>: The zero-based offset of the sector within the
+file. -1 if the sector is the file's FDR (as in the FDR parameter). -2
+if the sector is not part of the file. -3 if an error occured.
+<p>This function is the "mirror iamge" of <a href="#GetFileSector">GetFileSector</a>().
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="GrowFile"></a>int GrowFile(int FDR)</h4>
+This function finds the next free sector in the directory's bitmap, marks
+it as used, and appends it to the indicated file (if necessary, creating
+a new cluster).
+<p><b>FDR</b>: Location of the file's FDR.
+<p><b>Return value</b>: The number of the sector that was appended to the
+file. Or -1 if an error occured (e.g. too many clusters, disk full, etc).
+<p>This function internally calls <a href="#GrabSector">GrabSector</a>().
+<br>&nbsp;
+<h2>
+
+<hr WIDTH="100%"><a NAME="Sector functions"></a>Sector-related functions</h2>
+
+<p><br>There are two levels of internal buffering for sectors.
+<ol>
+<li>
+The class comprises three member variables (m_Sec0, m_Sec1 and m_FDR),
+all 256-byte arrays, in which it stores temporary copies of disk sectors
+0, 1, and of the most recently read FDR. This provides for faster access
+when using a remote drive, and simplifies data access for many function.</li>
+
+<li>
+Optionally, an internal CMemFile (m_Temp) can be used to hold a mirror
+copy of the remote disk. Any sector read from the remote drive is copied
+into m_Temp, from which it will be accessed for subsequent read operations.
+Any sector written to the remote drive will also be written to m_Temp.
+An internal array (m_SecFlags) is used to remember which sector has been
+read. This considerably speeds up access when using a disk located on a
+remote TI-99/4A.</li>
+</ol>
+You can permanently disable buffering with <a href="#SetOptions">SetOptions</a>(),
+or temporarily reset all flags with <a href="#FlushBuffers">FlushBuffers</a>()
+to force reading from the remote drive (but only once per sector).
+<p><a href="#ReadSector">ReadSector</a>
+<br><a href="#WriteSector">WriteSector</a>
+<br><a href="#ReadSec0">ReadSec0</a>
+<br><a href="#ReadSec1">ReadSec1</a>
+<br><a href="#ReadFDR">ReadFDR</a>
+<br><a href="#WriteSec0">WriteSec0</a>
+<br><a href="#WriteSec1">WriteSec1</a>
+<br><a href="#WriteFDR">WriteFDR</a>
+<br><a href="#IsSectorFree">IsSectorFree</a>
+<br><a href="#FreeSector">FreeSector</a>
+<br><a href="#GrabSector">GrabSector</a>
+<br><a href="#CheckSectorType">CheckSectorType</a>
+<br><a href="#CheckFDR">CheckFDR</a>
+<h4>
+<a NAME="ReadSector"></a>BOOL ReadSector(int Nb, BYTE *pBuf)</h4>
+Reads a sector into the provided bufer. Depending on the buffering option
+chosen, the sector might be read from the disk, or from a local buffer.
+<p><b>Nb</b>: Sector number (zero-based).
+<br><b>pBuf</b>: Pointer to a 256-byte array into which sector data will
+be copied.
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong.
+<br>&nbsp;
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="WriteSector"></a>BOOL WriteSector(int Nb, BYTE *pBuf)</h4>
+Writes a sector, using the data in the provided buffer. Depending on the
+buffering option chosen, the same data may also be written to a local buffer.
+<p><b>Nb</b>: Sector number (zero-based).
+<br><b>pBuf</b>: Pointer to a 256-byte array which should contain the data
+be written.
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="ReadSec0"></a>BOOL ReadSec0(BOOL Force=FALSE)</h4>
+Reads sector 0 into an internal 256-byte array. Depending on your options,
+if sector 0 has already been read, the function may not read it again.
+<p><b>Force</b>: Reads sector 0 again, even if it is already in the array
+(useful to find out whether the user swapped floppies).
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong.
+<p>The behaviour of this function is influenced by the buffering strategy
+you set in the options. If you chose not to use buffering, sector 0 is
+always read into the internal byte array. If buffering is enabled, sector
+0 will not be read from the drive if it has already been read (unless Force
+is TRUE).
+<br>&nbsp;
+<h4>
+<a NAME="ReadSec1"></a>BOOL ReadSec1()</h4>
+Reads sector 1 into an internal 256-byte array. If sector 1 has already
+been read, the function may not read it again, depending on your options.
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong.
+<p>If you disabled buffering, sector 1 is always read from the drive into
+the internal array. Otherwise, the function will not query the drive again
+if sector 1 has been read before. You can use FlushBuffers() to reset this
+flag and ensure the next call to ReadSec1() will access the drive.
+<p>If "Plato" protection is enabled (see <a href="#SetDiskInfo">SetDiskInfo</a>,
+reserved word), sector 259 is used instead of sector 1.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="ReadFDR"></a>BOOL ReadFDR(int FDR)</h4>
+Reads the indicated sector into an internal 256-byte array shared by all
+file's FDR. If the last sector read into this array is the one passed in
+FDR, the function may not read it again, depending on your options.
+<p><b>FDR</b>: Number of the sector to read into the FDR-dedicated byte
+array. This number is saved for future reference, when calling ReadFDR()
+again or WriteFDR(-1).
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="WriteSec0"></a>BOOL WriteSec0()</h4>
+Writes contents of the internal array dedicaed to sector 0 to disk sector
+0. This marks sector 0 array as containing valid data to be used for future
+access (if buffering is enabled).
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="WriteSec1"></a>BOOL WriteSec1()</h4>
+Writes contents of the internal array dedicated to sector 1 to disk sector
+1 or, if Plato-protection is enabled, to sector 259. This marks sector
+the array as containing valid data to be used for future reads (if buffering
+is enabled).
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="WriteFDR"></a>BOOL WriteFDR(int FDR=-1)</h4>
+Writes the contents of the internal array dedicated to FDRs to the indicated
+sector. This marks the array as containing the indicated FDR, to be used
+for future access (if buffering is enabled).
+<p><b>FDR</b>: Sector to which the FDR should be written. If -1: use the
+current FDR, i.e. the last one passed by ReadFDR(FDR) or WriteFDR(FDR).
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="IsSectorFree"></a>int IsSectorFree(int Nb)</h4>
+Checks the sector bitmap in sector 0 to find out whether this sector is
+marked as used or free. Does not check whether Nb fits within the disk
+size announced in sector 0.
+<p><b>Nb</b>: Sector number.
+<p><b>Return value</b>: 0 (= FALSE) if the sector is used, 1 (= TRUE) if
+it is free. -1 if an error occured while reading sector 0.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="FreeSector"></a>BOOL FreeSector(int Nb, BOOL Free=TRUE)</h4>
+Mark a sector as free or used, by toggling the appropriate bit in the sector
+bitmap that resides in sector 0.
+<p><b>Nb</b>: Sector number.
+<br><b>Free</b>: If TRUE, marks the sector as free. If FALSE, marks the
+sector as used.
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="GrabSector"></a>int GrabSector()</h4>
+This function finds the next available (i.e. marked as free) sector, marks
+it as used, and returns it number.
+<p><b>Return value</b>: The sector number, or -1 if an error occured (e.g.
+the disk is full).
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="CheckSectorType"></a>int CheckSectorType(int Nb, int Type, int
+RecLen)</h4>
+This diagnostic function checks whether a given sector may contain data
+from a file of the indicated format.
+<p><b>Nb</b>: Sector to examine.
+<br><b>Type</b>: File type, as encoded in the FDR (0x80=variable, 0x02=internal,
+0x01=program).
+<br><b>RecLen</b>: Record length, as in the FDR.
+<p><b>Return value</b>: 1 if the sector might be of the indicated type.
+0 if it cannot possibly contain that type of data. -1 if an error occured
+while reading the sector.
+<p>The function is useless to detect sectors belonging to 'program' files,
+as these can contain anything, so the function always returns 1. With other
+file types, false positives are always possible, as random data may fit
+the expected format by sheer luck (or bad luck). There shouldn't be any
+false negatives, though, so if the function returns 0 you can be sure that
+the sector cannot be part of a file of the indicated type.
+<br>&nbsp;
+<br>&nbsp;
+<p><a NAME="CheckFDR"></a><b>int CheckFDR(BYTE *pBuf=NULL)</b>
+<p>Checks whether the data pointed at may constitute a valid FDR.
+<p><b>pBuf</b>: Pointer to a 256-byte array containing the data to inspect.
+If NULL, the contents of the internal FDR buffer (m_FDR) will be examined.
+<p><b>Return value</b>: 1 if the data might make a valid FDR. 0 if the
+data is incompatible with the format of a FDR. -1 if an error occured while
+reading sector 0 (to get the disk size).
+<p>This function is internally used by <a href="#Undelete">Undelete</a>().
+<br>&nbsp;
+<br>&nbsp;
+<h2>
+
+<hr WIDTH="100%"><a NAME="Conversion functions"></a>Conversion functions</h2>
+
+<p><br>This set of functions is used to extract a TI file from a disk and
+copy it into a standalone PC file, and to perform the reverse operation:
+inserting a PC file into a TI disk. In addition, provision is made to convert
+tab stops and end-of-line marks to/from PC text file standards.
+<p><a href="#ExtractFile">ExtractFile</a>
+<br><a href="#ExtractProg">ExtractProg</a>
+<br><a href="#ExtractVar">ExtractVar</a>
+<br><a href="#ExtractFix">ExtractFix</a>
+<br><a href="#InsertFile">InsertFile</a>
+<br><a href="#InsertProg">InsertProg</a>
+<br><a href="#InsertVar">InsertVar</a>
+<br><a href="#InsertFix">InsertFix</a>
+<br><a href="#InsertRDF80">InsertRDF80</a>
+<br><a href="#ToText">ToText</a>
+<br><a href="#TextToVar">TextToVar</a>
+<br><a href="#TextToFix">TextToFix</a>
+<br><a href="#CheckPcFile">CheckPcFile</a>
+<h4>
+<a NAME="CheckPcFile"></a>int CheckPcFile(CFile &amp;FilePC, CString &amp;FilenameTI,
+int &amp;Type, int &amp;RecLen, int &amp;Size)</h4>
+Checks whether the indicated PC file might contain a TI disk image or file
+image.
+<p><b>FilePC</b>: A CFile object corresponding to an open PC file.
+<br><b>FilenameTI</b>: The name of the disk or file emulated by this PC
+file.
+<br><b>Type</b>: File type, as encoded in a FDR. Not used for disks.
+<br><b>RecLen</b>: The file record length, as encoded in a FDR. Not used
+for disk.
+<br><b>Size</b>: The disk size or file size in sectors.
+<p><b>Return value</b>: Taken from the following <tt>enum PcFiles {NODRIVE,DOAD,PC99SD,PC99DD,REMOTE,BUG99,NOHEADER,FIAD,TIFILES};</tt>
+<br><tt>DAOD:</tt> Disk-on-a-disk, i.e. disk image in simple "sector dump"
+format.
+<br><tt>PC99SD</tt>: Single-density PC99 format (includes track information).
+<br><tt>PC99DD</tt>: Double-density PC 99 format (includes track information)
+<br><tt>FIAD</tt>: Files-in-a-directory. Image of a TI file, beginning
+with a 80-byte header that replicates part of the FDR. Format popularized
+by the V9T9 emulator.
+<br><tt>TIFILES</tt>: Image of a TI file, with a 80-byte header in a format
+that differs from FIAD (several versions around).
+<br><tt>NOHEADER</tt>: No recognized format. The function tries to guess
+the file format based on the PC file extension (e.g. .DF80), and places
+the corresponding values in Type and RecLen.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="ExtractFile"></a>BOOL ExtractFile(int FDR,CString FilenamePC)</h4>
+Extracts the file identified by FDR into a PC file.
+<p><b>FDR</b>: Location of the file's FDR.
+<br><b>FilenamePC</b>: Name (possibly including path) of the PC file. The
+file will be overwritten if it already exists. An error (<tt>ERR_PCFILEOPEN</tt>)
+occurs if the file is already open.
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong.
+<p>Depending on your <a href="#SetOptions">options</a>, this function generates
+a FIAD or TIFILES header, or no header at all.&nbsp; It then checks the
+file type based on its FDR and dispatches the call accordingly to <a href="#ExtractProg">ExtractProg</a>(),
+<a href="#ExtractVar">ExtractVar</a>()
+or <a href="#ExtractFix">ExtractFix</a>().
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="ExtractProg"></a>BOOL ExtractProg(int FDR, CFile *pFilePC)</h4>
+Extracts a 'program' file to a PC file.
+<p><b>FDR</b>: Location of the file's FDR.
+<br><b>pFilePC</b>: Pointer to an opened CFile object. The function closes
+the file when done.
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="ExtractVar"></a>BOOL ExtractVar(int FDR, CFile *pFilePC)</h4>
+Extracts a display/variable or internal/variable file to a PC file.
+<p><b>FDR</b>: Location of the file's FDR.
+<br><b>pFilePC</b>: Pointer to an opened CFile object. The function closes
+the file when done.
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="ExtractFix"></a>BOOL ExtractFix(int FDR, CFile *pFilePC)</h4>
+Extracts a display/fixed or internal/fixed file to a PC file.
+<p><b>FDR</b>: Location of the file's FDR.
+<br><b>pFilePC</b>: Pointer to an opened CFile object. The function closes
+the file when done.
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="InsertFile"></a>BOOL InsertFile(CString FilenamePC, CString FilenameTI="",
+CString FormatStr="", BOOL FromText=FALSE</h4>
+Inserts a PC file into the current disk.
+<p><b>FilenamePC</b>: Name (possibly including path) of the PC file. The
+file must exist but not be open, and should contain a TI file with a valid
+header. If no header is present, the file extension should indicate the
+type (e.g. Testfile.IF128).
+<br><b>FilenameTI:</b> Name the file should have on the TI system. If provided,
+this overrides any filename specified in the TI file header.
+<br><b>FormatStr</b>: Format the TI file should have (e.g. DV80, Prog,
+etc). For this to work, FilenameTI should be specied too, in which case
+the TI file header is ignored. This also allows to import files that do
+not have a TI header.
+<br><b>FromText</b>: When true, indicates the FilenamePC is a text file
+that should be converted to a TI text file. Since PC text files don't have
+a TI header, FilenameTI must be specified with this option. FormatStr is
+optional, if missing the format will be DV80.
+<p>If either FilenameTI or FormatStr is empty, the function calls CheckPCFile()
+to deduce the file type. It then calls CreateFile() to create an empty
+file of the appropriate type, and dispatches the call according to the
+file type to <a href="#InsertProg">InsertProg</a>(),
+<a href="#InsertVar">InsertVar</a>(),
+or <a href="#InsertFix">InsertFix</a>().
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="InsertProg"></a>BOOL InsertProg(int FDR, CFile *pFile)</h4>
+Inserts a 'program' file into the current disk, taking its contents from
+a PC file.
+<p><b>FDR</b>: Location of the new file's FDR.
+<br><b>pFilePC</b>: Pointer to an opened CFile object. The function does
+not close the file when done.
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="InsertVar"></a>BOOL InsertVar(int FDR, CFile *pFile, int RecLen);</h4>
+Inserts a display/variable or internal/variable file into the current disk,
+taking its contents from a PC file.
+<p><b>FDR</b>: Location of the new file's FDR.
+<br><b>pFilePC</b>: Pointer to an opened CFile object. The function does
+not close the file when done.
+<br><b>RecLen</b>: Maximum record length.
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="InsertFix"></a>BOOL InsertFix(int FDR, CFile *pFile, int RecLen);</h4>
+Inserts a display/fixed or internal/fixed file into the current disk, taking
+its contents from a PC file.
+<p><b>FDR</b>: Location of the new file's FDR.
+<br><b>pFilePC</b>: Pointer to an opened CFile object. The function does
+not close the file when done.
+<br><b>RecLen</b>: Record length.
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="InsertRDF80"></a>BOOL InsertRDF80(int FDR, CFile *pFile)</h4>
+Inserts a DF80 file into the current disk, taking its contents for a PC
+file created by Jean-Francois Rossel's assembler.
+<p><b>FDR</b>: Location of the new file's FDR.
+<br><b>pFilePC</b>: Pointer to an opened CFile object. The function does
+not close the file when done.
+<p>The Rossel assembler produces pseudo-DF80 files, with records that may
+be shorter than 80 bytes, terminated by PC-style end-of-lines. This functions
+strips the end-of-line characters (0x0D 0x0A) and pads the record with
+spaces if necessary.
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="ToText"></a>BOOL ToText(int FDR, CString FilenamePC)</h4>
+Extracts the indicated file to a PC file, converting it to a PC "text"
+format in the process.
+<p><b>FDR</b>: Location of the file's FDR.
+<br><b>FilenamePC</b>: Name (possibly including path) of the PC file. The
+file will be overwritten if it already exists. An error (ERR_PCFILEOPEN)
+occurs if the file is already open. The function closes the file when done.
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong.
+<p>Depending on your <a href="#SetOptions">options</a>, conversion to PC
+format may include converting spaces to tab stops, and adding PC-style
+end-of-lines (0x0D 0x0A).
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="TextToVar"></a>BOOL TextToVar(int FDR, CFile *pFile, int RecLen)</h4>
+Inserts a PC "text" file into the current disk, converting it to display/variable
+format.
+<p><b>FDR</b>: Location of the new file's FDR.
+<br><b>pFilePC</b>: Pointer to an opened CFile object. The function does
+not close the file when done.
+<br><b>RecLen</b>: Maximum record length.
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong.
+<p>Depending on your <a href="#SetOptions">options</a>, the conversion
+may include turning tab characters into spaces, removing PC-style end-of-lines,
+and either splitting or truncating overly long lines.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="TextToFix"></a>BOOL TextToFix(int FDR, CFile *pFile, int RecLen)</h4>
+Inserts a PC "text" file into the current disk, converting it to display/fixed
+format.
+<p><b>FDR</b>: Location of the new file's FDR.
+<br><b>pFilePC</b>: Pointer to an opened CFile object. The function does
+not close the file when done.
+<br><b>RecLen</b>: Record length.
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong.
+<p>Depending on your <a href="#SetOptions">options</a>, the conversion
+may include turning tab characters into spaces, removing PC-style end-of-lines,
+and either splitting or truncating overly long lines.
+<br>&nbsp;
+<br>&nbsp;
+<h2>
+
+<hr WIDTH="100%"><a NAME="Helper functions"></a>Helper functions</h2>
+A mixed bag of functions, dealing with options, time-stamping, CRC calculation,
+etc. Most functions, except for the CRC calculation ones, do not access
+the disk. Therefore, they do not place an error code into m_Error when
+an error occurs, but simply return a special value (e.g. -1).
+<p><a href="#GetLastError">GetLastError</a>
+<br><a href="#GetOptions">GetOptions</a>
+<br><a href="#SetOptions">SetOptions</a>
+<br><a href="#GetTabs">GetTabs</a>
+<br><a href="#SetTabs">SetTabs</a>
+<br><a href="#EncodeTime_Now">EncodeTime</a> (current)
+<br><a href="#EncodeTime_Params">EncodeTime</a> (variables)
+<br><a href="#EncodeTime_String">EncodeTime</a> (string)
+<br><a href="#EncodeDate_Today">EncodeDate</a> (current)
+<br><a href="#EncodeDate_Params">EncodeDate</a> (variables)
+<br><a href="#EncodeDate_String">EncodeDate</a> (string)
+<br><a href="#DeocdeTime_Params">DecodeTime</a> (variables)
+<br><a href="#DecodeTime_String">DecodeTime</a> (string)
+<br><a href="#DecodeDate_Params">DecodeDate</a> (variables)
+<br><a href="#DecodeDate_String">DecodeDate</a> (string)
+<br><a href="#EncodeFiletype">EncodeFiletype</a>
+<br><a href="#DecodeFiletype">DecodeFiletype</a>
+<br><a href="#FileCRC">FileCRC</a>
+<br><a href="#DiskCRC">DiskCRC</a>
+<h4>
+&nbsp;<a NAME="GetLastError"></a>CString GetLastError()</h4>
+Converts the error code found in m_Error into a more explicit text string.
+<p><b>Return value</b>: The error message or "Unknown error" if m_Error
+does not contain a valid error code.
+<p>When an error occurs, the class places an error code in the public member
+variable m_Error, then returns FALSE (or a special value) to indicate the
+error. The caller can then inspect m_Error to find what the error was (m_Error
+is only valid if an error was reported). Alternatively, you can call GetLastError()
+to convert the error code into an error message that can be displayed for
+the user's edification.
+<p>Currently defined error codes are:
+<p><tt>#define ERR_NODRIVE -1</tt>
+<br><tt>#define ERR_ENDOFDRIVE -2</tt>
+<br><tt>#define ERR_READERROR -3</tt>
+<br><tt>#define ERR_FILENOTFOUND -4</tt>
+<br><tt>#define ERR_PCFILEOPEN -5</tt>
+<br><tt>#define ERR_FRACTURED -6</tt>
+<br><tt>#define ERR_TOOMANYFILES -7</tt>
+<br><tt>#define ERR_FDRNUMBER -8</tt>
+<br><tt>#define ERR_PC99FORMAT -9</tt>
+<br><tt>#define ERR_REMOTE -10</tt>
+<br><tt>#define ERR_DISKFULL -11</tt>
+<br><tt>#define ERR_TI99IO -19&nbsp;&nbsp;&nbsp;&nbsp; // room for 8 error
+codes, depending on value received from the TI-99/4A</tt>
+<br><tt>#define ERR_BUG99 -20</tt>
+<br><tt>#define ERR_DUPLICATE -21</tt>
+<br><tt>#define ERR_USER -22</tt>
+<br><tt>#define ERR_FORMAT 23</tt>
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="SetOptions"></a>void SetOptions(int Tabs, int Truncate=-1, int
+Header=-1, int Stamp=-1, int Buffering=-1)</h4>
+Sets various options.
+<p><b>Tabs</b>: Converts tab characters to spaces, and spaces to tab stops
+with Inserting and Extracting text files. 0 = do not convert, 1 = convert,
+-1 = keep current option.
+<br><b>Truncate</b>: When importing text files, truncate overly long lines
+that wouldn't fit the record length. The alternative is to split these
+line into several successive records. 0= split, 1 = truncate, -1 = keep
+current option.
+<br><b>Header</b>: Type of header to include while extracting a TI file
+to a PC file. 0 = none, 1 = FIAD, 2 = TIFILES, -1 = keep current option.
+<br><b>Stamp</b>: Time stamping strategy. 0 = never stamp, 1 = do not stamp
+the date field is empty (0x0000), 2 = always stamp, -1 = keep current option.
+<br><b>Buffering</b>: Buffering strategy. 0 = do not use internal buffering,
+1 = only buffer sectors 0 and 1, and the last FDR, 2 = buffer the entire
+disk, -1 keep current option.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="GetOptions"></a>void GetOptions(BOOL *pTabs, BOOL *pTruncate=NULL,
+int *pHeader=NULL, int *pStamp=NULL, int *pBuffering=NULL)</h4>
+Returns the current setting for various options, if the corresponding variable
+pointer is non-NULL.
+<p><b>pTabs</b>: Pointer to a boolean variable that will hold the tab conversion
+option (TRUE = convert, FALSE = do not convert).
+<br><b>pTruncate</b>: Pointer to a boolean variable that will hold the
+trunctation option (TRUE = truncate overly long lines, FALSE = split them).
+<br><b>pHeader</b>: Pointer to an integer variable that will old the type
+of header to add when extracting a file (0 = none, 1 = FIAD, 2 = TIFILES).
+<br><b>pStamp</b>: Pointer to an integer variable that will old the stamping
+strategy (see above).
+<br><b>pBuffering</b>: Pointer to an interger variable that will old the
+buffering strategy (see above)
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="GetTabs"></a>void GetTabs(CWordArray *pTabs)</h4>
+Gets the current tab stops, used for text conversion.
+<p><b>pTabs</b>: Pointer to a CWordArray containing tab stops. Apart for
+the last one, each word in the array corresponds to a column where tabulator
+stops. When a tab is encountered, enough spaces will be issued so that
+the character following the tab will be in this column. The last word in
+the array (which may be the only one, if you are not using tab stops) represents
+the number of spaces used to replace a tab character that occurs after
+the last stop has been passed. If it is 0, the tab caracter is removed,
+but not replaced with anything. The reverse operations apply when converting
+into PC text format: stretches of spaces are replaced with tab characters,
+according to the specifications of this array.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="SetTabs"></a>void SetTabs(CWordArray *pTabs)</h4>
+Set the tab stops used for text conversion. These will only be used if
+the corresponding option is set with SetOptions().
+<p><b>pTabs</b>: Pointer to a word array containing tab stops. See <a href="#GetTabs">GetTabs</a>()
+for details.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="EncodeTime_Now"></a>int EncodeTime()</h4>
+Encodes the current time into a single WORD, that can be used to time-stamp
+a file or a disk.
+<p><b>Return value</b>: Current time stamp, in the format: hhhhhmmm mmmsssss,
+where
+<br>hhhhh is the hour in 24h notation (i.e. 0 through 23).
+<br>mmmmmm are minutes (0 through 59).
+<br>ssssss are pairs of seconds (as there aren't enough bits to encode
+60 seconds, the number is divided by 2, thereby representing only even
+numbers of seconds).
+<br>&nbsp;
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="EncodeTime_Params"></a>int EncodeTime(int hours, int min, int
+sec)</h4>
+Encodes the indicated time as a WORD that can be used as a time stamp.
+<br><b>hours</b>: hours in 24h notation (0-23).
+<br><b>min</b>: minutes (0-59).
+<br><b>sec</b>: seconds (0-59). The least significant bit is discarded
+to fit the time inside a 16-bit word.
+<p><b>Return value</b>: A 16-bit time stamp, or -1 if one of the passed
+values is out of range (the function does not place an error code in m_Error).
+<p>The formula used for conversion is: <tt>((hour&amp;0x1F)&lt;&lt;11)
++ ((min&amp;0x3F)&lt;&lt;5) + ((sec>>1)&amp;0x1F)</tt>
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="EncodeTime_String"></a>int EncodeTime(CString s)</h4>
+Encodes a time stamp from the time indicated in a text string.
+<p><b>s</b>: A text string containing the time to be encoded.
+<p><b>Return value</b>: A 16-bit time stamp in the format indicated <a href="#EncodeTime_Now">above</a>,
+or -1 if the string does not contain a valid time (the function does not
+place an error code in m_Error).
+<p>The function looks for the presence of the strings "am" or "pm". If
+neither is found, it assumes the time is in 24h notation.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+&nbsp;<a NAME="EncodeDate_Today"></a>int EncodeDate()</h4>
+Encodes the current date into a WORD that can be used to time-stamp a disk
+or a file.
+<p><b>Return value</b>: The date stamp in the format: yyyyyyym mmmddddd,
+where
+<br>yyyyyyy is the year, excluding the century (i.e. 00 through 99).
+<br>mmmm is the month (1 through 12).
+<br>ddddd is the day-of-the-month (1 through 31).
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="EncodeDate_Params"></a>int EncodeDate(int day, int month, int
+year)</h4>
+Encodes the indicated date in a single WORD.
+<p><b>day</b>:Day-of-the-month (1-31).
+<br><b>month</b>: Month (1-12).
+<br><b>year</b>: 2-digit year (0-99).
+<p><b>Return value</b>: A 16-bit date stamp, or -1 if a parameter is out
+of range.
+<p>The formula used for conversion is: <tt>((year%100)&lt;&lt;9) + ((month&amp;0x0F)&lt;&lt;5)
++ (day&amp;0x1F)</tt>
+<br>The function does not check whether the indicated month indeed contains
+the indicated day (i.e. Feb 31 is accepted).
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="EncodeDate_String"></a>int EncodeDate(CString s, int Format=0)</h4>
+Encodes a date stamp from a text string.
+<p><b>s</b>: The date to encode, in one of several formats (see below).
+<br><b>Format</b>: The date format, taken from the following
+<br>0 = European: dd/mm/yy
+<br>1 = US: mm/dd/yy
+<br>2 = Alph-sortable: yy/mm/dd
+<br>3 = European, 4-digit year: dd/mm/yyyy
+<br>4 = US, 4-digit year: mm/dd/yyyy
+<br>5 = Sortable, 4 digit year: yyyy/mm/dd
+<p><b>Return value</b>: The data stamp, or -1 if the string does not contain
+a valid date.
+<p>The function attempts to figure out the format by reading 3 numbers
+separated by slashes and checking them for limit values. For instance,
+if a number is greater than 31, it must be the year. If it's greater than
+12, it cannot be the month. The Format parameter is only used if an ambiguity
+cannot be resolved (e.g. 10/11/12 could be Nov 10 2012,&nbsp; Oct 11 2012&nbsp;
+or Nov 12 2010, depending on the format).
+<br>If the year is greater than 99, it must be between 1970 and 2069.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="DeocdeTime_Params"></a>void DecodeTime(WORD Time, int &amp;Hour,
+int &amp;Min, int &amp;Sec)</h4>
+Breaks a time stamp down into 3 time values.
+<p><b>Time</b>: A 16-bit time stamp. See EncodeTime() for the format.
+<br><b>Hour</b>: The hour, in 24-hour notation.
+<br><b>Min</b>: Minutes (0-59).
+<br><b>Sec</b>: Seconds (0-58, only even numbers are returned as odd numbers
+are rounded down to fit the time in a single WORD).
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="DecodeTime_String"></a>CString DecodeTime(WORD Time, BOOL European=TRUE)</h4>
+
+<p><br>Converts a time stamp into a string. The function arbitrarily places
+the century cutoff at '70, so in 4-digit notation the year is encoded as
+1970 through 2069.
+<p><b>Time</b>: A 16-bit time stamp.
+<br><b>European</b>: Indicates whether the European 24-hour notation should
+be used. If FALSE, the US am/pm notation is employed.
+<p><b>Return value</b>: A text string containing the time as hh:mm:ss (24h
+notation), or as hh:mm:ss xx (in US notation, where xx can be am or pm).
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="DecodeDate_Params"></a>void DecodeDate(WORD Date, int &amp;Day,
+int &amp;Month, int &amp;Year)</h4>
+Breaks down a date stamp into 3 values.
+<p><b>Date</b>: A 16-bit date stamp. See EncodeDate() for the format.
+<br><b>Day</b>: Day-of-the-month (1-31).
+<br><b>Month</b>: Month (1-12).
+<br><b>Year</b>: Year, excluding century (00-99).
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="DecodeDate_String"></a>CString DecodeDate(WORD Date, int Format=0)</h4>
+Breaks down a date stamp and converts it into a text string, in the specified
+format.
+<p><b>Date</b>: A 16-bit date stamp. See EncodeDate() for the format.
+<br><b>Format</b>: The desired format for the string. Can be one of the
+following:
+<br>0 = European: dd/mm/yy
+<br>1 = US: mm/dd/yy
+<br>2 = Alph-sortable: yy/mm/dd
+<br>3 = European, 4-digit year: dd/mm/yyyy
+<br>4 = US, 4-digit year: mm/dd/yyyy
+<br>5 = Sortable, 4 digit year: yyyy/mm/dd
+<br>&nbsp;
+<h4>
+&nbsp;<a NAME="EncodeFiletype"></a>int EncodeFiletype(CString s, BOOL Protected,
+BYTE *pRecLen)</h4>
+Parses a string for a file type and encodes it in a format compatible with
+a FDR.
+<p><b>s</b>: A text string containing the file format. It could be compact
+(DF80, IV128, Prog, EA5), abbreviated (Dis/Var 80, Int/Fix 128, Prog, Program,&nbsp;
+EA5), or Basic style (Display, Variable 80 or Internal, Fixed 128 or Program,
+or EA5).
+<br><b>Protected</b>: Indicates whether the file is protected, as the protection
+bit is part of the file type byte in the FDR.
+<br><b>pRecLen</b>: A pointer to a byte that will receive the record length
+(or 0 for 'program' files).
+<p><b>Return value</b>: A byte containing the file type, encoded as in
+byte 12 of the FDR (0x80 = variable, 0x02 = internal, 0x01 = program, 0x08
+= protected). Or -1 if the string does not contain a valid format.
+<p>Note the space in the abbreviated style, and the comma in Basic style:
+these are required. The parser is not case-sensitive, so the string can
+contain any mix of lower and upper case. EA5 stands for "Editor-Assembler
+option 5" and is encoded as 'program'.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="DecodeFiletype"></a>CString DecodeFiletype(BYTE Type, BYTE RecLen,
+BOOL *pProtected=NULL, int Format=0)</h4>
+
+<p><br>Decodes two bytes (generally taken from a FDR) and returns a string
+describing the file type in one of several formats.
+<p><b>Type</b>: The file type, as in byte 12 of the FDR: 0x80 = variable,
+0x02 = internal, 0x01 = program, 0x08 = protected.
+<br><b>RecLen</b>: The record length, as in byte 17 of the FDR.
+<br><b>pProtected</b>: Pointer to a boolean variable that will receive
+the file protection status. If NULL, this information will not be returned.
+<br><b>Format</b>: The desired format for the text string. It can be one
+of the following:
+<br>0 = Compact: DF80&nbsp;&nbsp;&nbsp; IV254&nbsp;&nbsp;&nbsp; Prog
+<br>1 = Abbreviated: Dis/Var 80&nbsp;&nbsp;&nbsp; Int/Fix 22&nbsp;&nbsp;&nbsp;
+Prog
+<br>2 = Basic: Display, Variable 80&nbsp;&nbsp;&nbsp; Internal, Fixed 128&nbsp;&nbsp;&nbsp;
+Program
+<p><b>Return value</b>: A text string containing the file type encoded
+in the selected format. Or "Invalid format" if the format byte contains
+an illegal combination (e.g. the 'program' bit together with the 'variable'
+bit). This function does not place an error code in m_Error.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="FileCRC"></a>DWORD FileCRC(int FDR)</h4>
+Calculates a 32-bit cyclic redundency check value for the contents of the
+indicated file.
+<p><b>FDR</b>: Location of the file's FDR.
+<p><b>Return value</b>: The 32-bit CRC value, or 0xFFFFFFFF if an error
+occured (see error code in m_Error).
+<p>The CRC is only calculated on the data portion of the file, excluding
+the FDR and any filler bytes at the end of a sector. For 'variable' records,
+the initial record length byte is not included in the CRC. Therefore, an
+empty file has a CRC value of 0x00000000.
+<p>The polynomial used is 0xEDB88320, if you have to know.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="DiskCRC"></a>DWORD DiskCRC(BOOL Free=FALSE)</h4>
+Calculates a 32-bit CRC value for the contents of the disk.
+<p><b>Free</b>: Indicates whether sectors marked 'free' in the disk directory
+should be included in the CRC.
+<p><b>Return value</b>: The 32-bit CRC value, or 0xFFFFFFFF if an error
+occured (error code placed in m_Error). Since sectors 0 and 1 are always
+in use, even an empty disk does not have a CRC of 0x00000000.
+<p>This CRC provides a "fingerprint" for the disk. Two disks with identical
+CRCs are 'clones' and have likely been copied sector-wise. However, if
+you copy a disk file-by-file, you may well end up with different CRCs,
+because the files may be arranged differently on the target disk and CRCs
+are sensitive to the order in which information is encountered.
+<p>If you wish, you can compute a file-based CRC by walking the file list
+(with GetNextFile), calculating a CRC for each file (with FileCRC), and
+XORing them together. Such a CRC will represent the information contained
+on the disk, regardless of the way it is organized. For instance, it will
+not consider file names, time stamps, file fragmentation, file location
+on disk, etc.
+<p><tt>// Calculate a file-based CRC for the disk.</tt>
+<br><tt>for(Pos=0,CRCF=0;;)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// initialize CRCF as zero, iterate file list</tt>
+<br><tt>{</tt>
+<br><tt>&nbsp;&nbsp;&nbsp; FDR=pFloppy->GetNextFile(Pos);&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// get next file (assuming pFloppy is a pointer to a valid CFloppy object)</tt>
+<br><tt>&nbsp;&nbsp;&nbsp; if(FDR&lt;1) break;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// no more, or error</tt>
+<br><tt>&nbsp;&nbsp;&nbsp; CRC=pFloppy->FileCRC(FDR);&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// get this file's CRC</tt>
+<br><tt>&nbsp;&nbsp;&nbsp; if(CRC==0xFFFFFFFF)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// an error occured</tt>
+<br><tt>&nbsp;&nbsp;&nbsp; {</tt>
+<br><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; AfxMessageBox(pFloppy->GetLastError());&nbsp;&nbsp;&nbsp;
+// report error</tt>
+<br><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; return;</tt>
+<br><tt>&nbsp;&nbsp; }</tt>
+<br><tt>&nbsp;&nbsp; CRCF^=CRC;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// combine all file CRCs to get a file-based CRC for disk</tt>
+<br><tt>&nbsp;}</tt>
+<br>&nbsp;
+<br>&nbsp;
+<h2>
+
+<hr WIDTH="100%">File formats</h2>
+
+<p><br>PC files can contain a TI disk image, or an exported TI-99/4A file.
+There are several formats for each. But first, let's begin with the format
+of a real TI floppy disk.
+<br>&nbsp;
+<h3>
+<a NAME="Floppy format"></a>Floppy disk format</h3>
+
+<p><br>By TI specifications, the disk directory resides on sector 0 and
+1. Sector 0 is known as the "Volume Information Block" (VIB) and contains
+all disk-related info. Sector 1 contains the list of files, or rather a
+list of pointers to files, sorted in aphabetical order.
+<p>Each file is characterized by a special sector called the "File Descriptor
+Record" (FDR), which contains all file-related information, including the
+list of sectors used by the file.
+<br>&nbsp;
+<h4>
+Volume information block</h4>
+Sector 0 contains various information about the disk: name, size, protection,
+and most importantly a sector bitmap.
+<p>This bitmap is used by the software to determine whether a sector is
+free or used. Each sector is represented by one bit (starting with the
+least significant bit of each byte): when the bit is 0, the sector is free
+and can be used to create a new file or appended to an existing file. When
+the bit is 1, the sector is either used or damaged. There are 200 bytes
+available in the bitmap, which is enough to map 1600 sectors. That's more
+than enough, since even DS/DD disks have only 1440 sectors.
+<p>Exemple:
+<pre><u>Byte&nbsp; Sectors&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</u>>38:&nbsp; 7&nbsp; 6&nbsp; 5&nbsp; 4&nbsp; 3&nbsp; 2&nbsp; 1&nbsp; 0
+>39:&nbsp; 15 14 13 12 11 10 9&nbsp; 8
+
+</pre>
+Content of sector 0:
+<br>&nbsp;
+<table BORDER >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<th>Bytes</th>
+
+<th>Contents</th>
+
+<th>Typical values</th>
+</tr>
+
+<tr>
+<td>>00-09</td>
+
+<td>Disk name</td>
+
+<td>"DISKNAME01"</td>
+</tr>
+
+<tr>
+<td>>0A-0B</td>
+
+<td># of sectors</td>
+
+<td>SS/SD: >168 DS/SD: >2D0
+<br>SS/DD: >2D0 DS/DD: >5A9</td>
+</tr>
+
+<tr>
+<td>>0C</td>
+
+<td>Sectors/track</td>
+
+<td>SD: >09 DD: >12</td>
+</tr>
+
+<tr>
+<td>>0D-0F</td>
+
+<td>DSR mark</td>
+
+<td>"DSK"</td>
+</tr>
+
+<tr>
+<td>>10</td>
+
+<td>Protection</td>
+
+<td>Unprot: " " Protected: "P"</td>
+</tr>
+
+<tr>
+<td>>11</td>
+
+<td>Tracks/side</td>
+
+<td>>23 / >28</td>
+</tr>
+
+<tr>
+<td>>12&nbsp;</td>
+
+<td>Sides</td>
+
+<td>>01 / >02</td>
+</tr>
+
+<tr>
+<td>>13</td>
+
+<td>Density</td>
+
+<td>SS: >01 DS: >02</td>
+</tr>
+
+<tr>
+<td>>14-37</td>
+
+<td>(reserved)</td>
+
+<td>>00</td>
+</tr>
+
+<tr>
+<td>>38-EB</td>
+
+<td>Bitmap</td>
+
+<td>SS/SD: >38-64
+<br>DS/SD and SS/DD: >38-91
+<br>DS/DD: >38-EB</td>
+</tr>
+
+<tr>
+<td>>EC-FF</td>
+
+<td>(reserved)</td>
+
+<td>Must be >FF</td>
+</tr>
+</table>
+
+<p>Some reserved bytes are sometimes used by disk managers to store extra
+information about the disk: for instance, DISKU by the late John Birdwell
+stores an 8-char date string into bytes >20 to >27. My IDEAL operating
+system stores internal pointers at the end of the sector, in bytes >EC
+through >FF.
+<br>&nbsp;
+<h4>
+File list</h4>
+Sector 1 contains a list of pointers (i.e. sector numbers) to file descriptor
+records, sorted in alphabetical order. Each pointer is 2 bytes long (since
+there are more that 256 sectors on a disk) and the list ends with >0000,
+which allows us to list 127 files per disk.
+<p>Interesting things happen when you play around with that sector:
+<br># If you shuffle the pointers out of order: the directory can still
+be listed, but accessing a file by name generally result in a "file not
+found" error (although this depends on the disk manager you are using).
+<br># Inserting a >0000 at the top of the list has the opposite effect:
+files are not listed in the directory, but can still be accessed by name
+(as the search algorithm begins in the middle of the list).
+<br># Duplicating a pointer lists that file twice in the directory.
+<p>"Plato" disks use a protection scheme that simply consists in having
+a the file list in sector 359 instead of sector 1. The CFloppy class allows
+you to set a bit in the options to indicate this possiblity.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+File descriptor records</h4>
+Each file consists of at least one sector, even when empty. This sector
+is known as the File Descriptor Record (FDR) and contains various informations
+about the file: its name, its type, its size, etc. It also contains a list
+of the sectors where the file data is to be found. The list does not enumerate
+each sector as this would drastically limitate the maximum file size. Rather
+it lists clusters, i.e. chunks of consecutive sectors belonging to the
+file.
+<p>Ideally, a file should consist in only one big cluster. However, as
+other files are written on the disk, it may be that the next sector is
+not available when it is time to increase the file size. It is thus necessary
+to start a new cluster, in a free area of the disk: the file is now fractured.
+Disks that contain a lot of files that have often been modified may end-up
+in a awfully fractured way, which results in decreasing the access speed
+(as the reading head must move from one cluster to the next) and may impose
+a limit on the file size (as only 76 clusters can be defined in the FDR).
+Therefore, most disk managers will rearrange the files in single clusters
+when copying a disk.
+<p>The FDR dedicates three bytes per cluster, that are used to define the
+sector number where the cluster begins and the total file size (in sectors,
+minus one) reached with this cluster. As both numbers may be bigger than
+256, each is encoded using one byte and a half (3 nibbles), as follow:
+UM SN OF Where N U M are the three nibbles forming the sector number (in
+this order) and O F S are the three nibbles forming the total file offset
+(counting from zero).
+<p><u>Exemple:</u>
+<br>A file consists in 7 sectors: sectors >02E and >02EF and sectors >192-196
+(5 more sectors).
+<br>This makes two clusters: the first starts at sector >02E and ends with
+an offset of >001, the second starts at sector >192 and ends with a total
+of >006 sectors.
+<br>The cluster list would thus look like this: >2E >10 >00 >92 >61 >00.
+<p>Note: the DISKU disk manager uses the end of the FDR to store a user
+defined comment about the content of the file, in bytes 220 to 254. My
+IDEAL DSRs may store info there for "shortcut" files, i.e. pointers to
+other disks that serve as subdirectories.
+<br>&nbsp;
+<table BORDER >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<th>Bytes</th>
+
+<th>Contents</th>
+
+<th>Comments</th>
+</tr>
+
+<tr>
+<td>>00-09</td>
+
+<td>File name</td>
+
+<td>"MYFILE01"</td>
+</tr>
+
+<tr>
+<td>>0A-0B</td>
+
+<td>(reserved)</td>
+
+<td>>00</td>
+</tr>
+
+<tr>
+<td>>0C</td>
+
+<td>File type</td>
+
+<td>>80: variable
+<br>>08: write protected
+<br>>02: internal
+<br>>01: program</td>
+</tr>
+
+<tr>
+<td>>0D</td>
+
+<td>Records/sector</td>
+
+<td>>00 for program files</td>
+</tr>
+
+<tr>
+<td>>0E-0F</td>
+
+<td># of sectors in file</td>
+
+<td>Not counting FDR</td>
+</tr>
+
+<tr>
+<td>>10</td>
+
+<td>Last byte in last sector</td>
+
+<td>>00 for fixed files</td>
+</tr>
+
+<tr>
+<td>>11</td>
+
+<td>Record length</td>
+
+<td>>00 for program files</td>
+</tr>
+
+<tr>
+<td>>12-13</td>
+
+<td>Fixed: number of records
+<br>Var: number of sectors
+<br>Program: >00</td>
+
+<td>! Bytes are swapped !</td>
+</tr>
+
+<tr>
+<td>>14-1B</td>
+
+<td>(reserved)</td>
+
+<td>>00</td>
+</tr>
+
+<tr>
+<td>>1C-FF</td>
+
+<td>Cluster list</td>
+
+<td>>UM >SN >OF == >NUM >OFS</td>
+</tr>
+</table>
+
+<br>&nbsp;
+<br>&nbsp;
+<h3>
+<a NAME="DOAD format"></a>DOAD disk format</h3>
+
+<p><br>Disk-on-a-disk is a format introduced by Ed Schwatz with his V9T9
+emulator. It is simply a sector-by-sector dump of the floppy, i.e. the
+contents of each sector is listed, in numerical order. There is no track
+information, and the file can be of various sizes, depending on the number
+of sectors.
+<br>&nbsp;
+<h3>
+<a NAME="PC99 format"></a>PC99 disk formats</h3>
+
+<p><br>The emulator PC99 introduced a more complex format, which more or
+less mirrors the actual data on a floppy disk, including the hidden information
+that appears between sectors on a tracks (this info is used by the disk
+controller to access a sector). There are actually two different formats,
+one for single-density and one for double-density disks.
+<p>On each track sectors are numbered from 0 to 8 (0 through 17 for double-density),
+but they are not arranged in this order on the track. This is because it
+will take some time for the software to deal with a sector before trying
+to access the next one. In the mean time, the disk will have spun and may
+have skipped several sectors. To optimize access speed, it is thus advisable
+to figure out an interleaving (a.k.a. interlacing) scheme designed in such
+a way that reading head arrives on the next sector just when the software
+is ready to access it.
+<p>For instance, assume that the disk spins by three sectors before the
+software is ready to proceed. The ideal sequence of sectors would be something
+like this: 0 x x x 1 x x x 2 x x x 3 x x x 4 x x x 5 x x x 6 x x x 7 x
+x x 8. Since tracks are circular, this sequence results in the following
+interleave: 0 7 5 3 1 8 6 4 2. You can verify that consecutive sectors
+are always 4 sectors apart on the disk. This is the scheme used by the
+original TI floppy disk controller, and PC99 follows it.
+<p>Note that tracks are in reverse order on side two, as they are on a
+real disk: from the outside to the inside on side one, and from the inside
+to the outside on side two. There could be various numbers of track per
+side, but most of the time there are 40, so the CFloppy class assumes this
+number. To access a sector, the CFloppy class figures out which track it
+is on, then checks the sector number fields (in bold in the table below)
+on this track to find the proper sector no matter what the interlace is.
+It does not check the track number, side, nor sector size, so non-standard
+formats are not supported.
+<p>PC99 single density format
+<br>&nbsp;
+<table BORDER >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td></td>
+
+<th>Name</th>
+
+<th>Bytes</th>
+
+<th>Value&nbsp;</th>
+
+<th>Description</th>
+</tr>
+
+<tr>
+<td></td>
+
+<td>Index gap</td>
+
+<td>16</td>
+
+<td>>00</td>
+
+<td>Normally 12 times >FF, but PC99 uses16 times >00&nbsp;</td>
+</tr>
+
+<tr>
+<td ROWSPAN="13">x9</td>
+
+<td>ID sync</td>
+
+<td>6</td>
+
+<td>>00</td>
+
+<td></td>
+</tr>
+
+<tr>
+<td>ID mark</td>
+
+<td>1</td>
+
+<td>>FE</td>
+
+<td>Start of sector ID info&nbsp;</td>
+</tr>
+
+<tr>
+<td>Track</td>
+
+<td>1</td>
+
+<td>>00-FF</td>
+
+<td>Track number (normally 0-39)</td>
+</tr>
+
+<tr>
+<td>Side</td>
+
+<td>1</td>
+
+<td>>00-01</td>
+
+<td>>00=side one, >01=side two</td>
+</tr>
+
+<tr>
+<td><b>Sector #</b></td>
+
+<td>1</td>
+
+<td>>00-FF</td>
+
+<td>Sector number (0-8)</td>
+</tr>
+
+<tr>
+<td>Length</td>
+
+<td>1</td>
+
+<td>>01-04</td>
+
+<td>Sector size ( >01=256 bytes)</td>
+</tr>
+
+<tr>
+<td>CRC</td>
+
+<td>2</td>
+
+<td>>F7F7</td>
+
+<td>Dummy value: >F7F7</td>
+</tr>
+
+<tr>
+<td>Separator</td>
+
+<td>11</td>
+
+<td>>FF</td>
+
+<td>&nbsp;</td>
+</tr>
+
+<tr>
+<td>Data sync</td>
+
+<td>6</td>
+
+<td>>00</td>
+
+<td></td>
+</tr>
+
+<tr>
+<td>Data mark&nbsp;</td>
+
+<td>1</td>
+
+<td>>FB</td>
+
+<td>Start of sector data</td>
+</tr>
+
+<tr>
+<td><b>Data</b></td>
+
+<td>256</td>
+
+<td>data</td>
+
+<td>Sector data (initially >E5)</td>
+</tr>
+
+<tr>
+<td>CRC</td>
+
+<td>2</td>
+
+<td>F7F7</td>
+
+<td>Dummy value</td>
+</tr>
+
+<tr>
+<td>Separator</td>
+
+<td>45</td>
+
+<td>>FF</td>
+
+<td>&nbsp;</td>
+</tr>
+
+<tr>
+<td></td>
+
+<td>End filler</td>
+
+<td>231</td>
+
+<td>>FF</td>
+
+<td>End of track filler</td>
+</tr>
+</table>
+
+<br>&nbsp;
+<p>PC99 double-density format
+<br>&nbsp;
+<table BORDER >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td></td>
+
+<th>Name</th>
+
+<th>Bytes</th>
+
+<th>Value&nbsp;</th>
+
+<th>Description</th>
+</tr>
+
+<tr>
+<td></td>
+
+<td>Index gap</td>
+
+<td>40</td>
+
+<td>>4E</td>
+
+<td>Start of track filler</td>
+</tr>
+
+<tr>
+<td ROWSPAN="15">x18</td>
+
+<td>ID sync</td>
+
+<td>10</td>
+
+<td>>00</td>
+
+<td>Normally 12, but PC99 uses only 10</td>
+</tr>
+
+<tr>
+<td>MFM mark</td>
+
+<td>3</td>
+
+<td>>A1</td>
+
+<td></td>
+</tr>
+
+<tr>
+<td>ID mark</td>
+
+<td>1</td>
+
+<td>>FE</td>
+
+<td>Start of sector ID info</td>
+</tr>
+
+<tr>
+<td>Track</td>
+
+<td>1</td>
+
+<td>>00-FF</td>
+
+<td>Track number (normally 0-39)</td>
+</tr>
+
+<tr>
+<td>Side</td>
+
+<td>1</td>
+
+<td>>00-01</td>
+
+<td>>00=side one, >01=side two</td>
+</tr>
+
+<tr>
+<td><b>Sector #</b></td>
+
+<td>1</td>
+
+<td>>00-FF</td>
+
+<td>Sector number (0-17)</td>
+</tr>
+
+<tr>
+<td>Length</td>
+
+<td>1</td>
+
+<td>>01</td>
+
+<td>Sector size (>01=256 bytes)</td>
+</tr>
+
+<tr>
+<td>CRC</td>
+
+<td>2</td>
+
+<td>F7F7</td>
+
+<td>Dummy value</td>
+</tr>
+
+<tr>
+<td>Separator</td>
+
+<td>22</td>
+
+<td>>4E</td>
+
+<td></td>
+</tr>
+
+<tr>
+<td>Data sync</td>
+
+<td>12</td>
+
+<td>>00</td>
+
+<td>&nbsp;</td>
+</tr>
+
+<tr>
+<td>MFM mark&nbsp;</td>
+
+<td>3</td>
+
+<td>>A1</td>
+
+<td></td>
+</tr>
+
+<tr>
+<td>Data mark</td>
+
+<td>1</td>
+
+<td>>FB</td>
+
+<td>Start of sector data</td>
+</tr>
+
+<tr>
+<td><b>Data</b></td>
+
+<td>256</td>
+
+<td>data</td>
+
+<td>Sector data (initially >E5)</td>
+</tr>
+
+<tr>
+<td>CRC</td>
+
+<td>2</td>
+
+<td>>F7F7</td>
+
+<td>Dummy value</td>
+</tr>
+
+<tr>
+<td>Separator</td>
+
+<td>24</td>
+
+<td>>4E</td>
+
+<td></td>
+</tr>
+
+<tr>
+<td></td>
+
+<td>End filler</td>
+
+<td>712</td>
+
+<td>>4F</td>
+
+<td>Normally ~190 * >FF, but PC99 uses 712 * >4E&nbsp;</td>
+</tr>
+</table>
+
+<br>&nbsp;
+<h3>
+<a NAME="FIAD format"></a>FIAD file format</h3>
+This is another format popularized by V9T9. It consists of a simple dump
+of a TI file, preceeded with a 128-byte header. The header reproduces the
+first 28 bytes of the file FDR (upto but not including the cluster list)
+and pads the rest with >00 bytes.
+<br>&nbsp;
+<h3>
+<a NAME="TIFILES format"></a>TIFILES file format</h3>
+This is a common format used by the TI-99/4A community to exchange TI files.
+Again, the format is a simple dump of a TI file with a 128-byte header,
+but the info in the header is not presented in the same way as in the FDR.
+In fact, there exist several versions, that include more or less information
+(e.g. without the filename).
+<p><tt>BYTE 0x07&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// size of ID string</tt>
+<br><tt>char[]= "TIFILES"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// ID string, always "TIFILES"</tt>
+<br><tt>WORD FileSize&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// FDR bytes >0E-0F</tt>
+<br><tt>BYTE FileType&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// FDR byte >0C</tt>
+<br><tt>BYTE RecPerSec&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// FDR byte >0D</tt>
+<br><tt>BYTE LastByte&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// FDR byte >10</tt>
+<br><tt>BYTE RecLen&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// FDR byte >11</tt>
+<br><tt>WORD Records&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// FDR byte >12</tt>
+<br><tt>char[10] Filename&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// FDR bytes >00-0A</tt>
+<br>&nbsp;
+<p>
+<hr WIDTH="100%">
+<h2>
+<a NAME="CBug99Dlg"></a>The CBug99Dlg class</h2>
+This classis derived from CDialog and is used to communicate with Bug99
+via an invisible modeless dialog entitled "VDM99 listening" (exactly so,
+as this is how Bug99 finds it). Conversely, this class looks for a top-level
+window entitled "Bug99 listening" and sends messages to it. Communications
+to and from Bug99 occur via WM_COPYDATA Windows messages, which are meant
+for app-to-app data exchange. Your application should contain only one
+CBug99 object&nbsp; which is passed to each CFloppy object that corresponds
+to a Bug99 drives.
+<p>The class' helper functions handle the specific commands received from
+CFloppy objects: ReadSector(), WriteSector(), FindDskn() and ListFloppies()
+<p>VDM99 always initiates communication by sending a 2 to 4-byte command
+to Bug99. For WriteSector(), the command is followed with 256 bytes of
+data. For other commands, Bug99 sends data back via the WM_COPYDATA message.
+It is received by OnCopyData() which copies it into member variables. The
+helper function can then get Bug99's answer from the member variables (m_String,
+m_Size and m_Code).
+<p>You do not need to access this class directly, as it will be called
+directly from the CFloppy object. All you have to do is set it up: just
+create an empty dialog template entitled&nbsp; "VDM99 listening", set the
+style to invisible, and initialize it when your program starts:
+<p>&nbsp;<tt>m_Bug99Dlg.Create(IDD_BUG99DLG);&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// create an invisible modeless dialog to communicate with Bug99</tt>
+<p>In general m_Bug99Dlg will be a global variable, or a member of your
+application class, or of CMainFrame. You can then pass a pointer to it
+to FindDSKn() and CreateDrive().
+<br>&nbsp;
+<p>If you really want to know, here are the member functions in CBug99Dlg.
+But once again, you don't need to call these, CFloppy does it for you.
+<br>&nbsp;
+<h4>
+BOOL ReadSector(int Drive, int Nb, BYTE *pBuf, CString Diskname="", int
+Device=0)</h4>
+Asks Bug99 to read a sector.
+<p><b>Drive</b>: Drive letter (e.g. '1' for DSK1).
+<br><b>Nb</b>: Sector number.
+<br><b>pBuf</b>: Pointer to a 256-byte buffer into which the data should
+be written.
+<br><b>Diskname</b>: For use with IDEAL DSRs, when accessing a disk directly
+in the collection. In this case, Drive should be '@'.
+<br><b>Device</b>: Index of the device to access, in Bug99 list. 0=default.
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong (e.g. no answer).
+<p><u>Message passed to Bug99</u>
+<br>dwData = 0xA502&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (A5=validation
+code, 02=command)
+<br>Buffer size = 16
+<br>Byte[0]&nbsp; Drive letter
+<br>Byte[1+2] Sector number (msb first)
+<br>Byte[3]&nbsp;&nbsp; Device number
+<br>Byte[4-14]&nbsp; 10-char diskname padded with spaces (or 10 spaces,
+if not used).
+<p><u>Answer from Bug99</u>
+<br>dwData = 0xA502&nbsp;&nbsp;&nbsp; (echoing command for verification)
+<br>m_String = sector data, copied into pBuf
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+BOOL WriteSector(int Drive, int Nb, BYTE *pBuf, CString Diskname="", int
+Device=0)</h4>
+Asks Bug99 to write a sector.
+<p><b>Drive</b>: Drive letter (e.g. '1' for DSK1).
+<br><b>Nb</b>: Sector number.
+<br><b>pBuf</b>: Pointer to a 256-byte buffer into which the data should
+be written.
+<br><b>Diskname</b>: For use with IDEAL DSRs, when accessing a disk directly
+in the collection. In this case, Drive should be '@'.
+<br><b>Device</b>: Index of the device to access, in Bug99 list. 0=default.
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong (e.g. no answer).
+<p><u>Message passed to Bug99</u>
+<br>dwData = 0xA503&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (A5=validation
+code, 03=command)
+<br>Buffer size = 270
+<br>Byte[0]&nbsp; drive letter
+<br>Byte[1-2]&nbsp;&nbsp; Sector number (msb first)
+<br>Byte[3]&nbsp;&nbsp; Device number
+<br>Byte[4-14]&nbsp;&nbsp; 10-char diskname padded with spaces (or 10 spaces,
+if not used).
+<br>Byte[15-269] Sector data
+<p><u>Answer from Bug99</u>
+<br>None.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+BOOL FindDSKn(char c, CDWordArray *pArray)</h4>
+Asks Bug99 to find a drive, or to list all drives
+<p><b>c</b>: Drive letter (e.g. '1' for DSK1). Or 0x01 to list all drives
+<br><b>pArray</b>: Pointer to a double-word array that receives drive info..
+<br>&nbsp;
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong (e.g. no answer).
+<p><u>Message passed to Bug99</u>
+<br>dwData = 0xA501&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (A5=validation
+code, 01=command)
+<br>Buffer size = 270
+<br>Byte[0]&nbsp; Drive letter
+<br>Byte[1]&nbsp; Device number
+<br>&nbsp;
+<p><u>Answer from Bug99</u>
+<br>dwData = 0xA502&nbsp;&nbsp;&nbsp; (echoing command for verification)
+<br>m_String contains two bytes per drive found: device number and drive
+letter
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+&nbsp;BOOL ListFloppies(CString *pStr, int Device=0)</h4>
+Asks Bug99 to list all floppies in an IDEAL collection.
+<p><b>pStr</b>: Pointer to a string that will receive the device ID, followed
+with a list of 10-character disk names. Separators are PC-style end of
+line sequences (0x0d 0x0a)..
+<br><b>Device</b>: Device number, or 0 to combine all devices that have
+an IDEAL DSR.
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong (e.g. no answer).
+<p><u>Message passed to Bug99</u>
+<br>dwData = 0xA504&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (A5=validation
+code, 01=command)
+<br>Buffer size = 1
+<br>Byte[0]&nbsp; Device number
+<br>&nbsp;
+<p><u>Answer from Bug99</u>
+<br>dwData = 0xA504&nbsp;&nbsp;&nbsp; (echoing command for verification)
+<br>m_String contains a list of 10-char disk names separated by end-of-lines
+(0x0D 0x0A). The list begins with a 1-character device number ('2' for
+IDE, '3' for USB-SM). If several devices were combined, the occurence of
+a 1-char name signals the beginning of a new device.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+LONG CBug99Dlg::OnCopyData(UINT wParam, LONG lParam)</h4>
+This is the handler for the WM_COPYDATA message. It gets the COPYDATASTRUCT
+passed by the message and copies its contents into several member variable,
+where handler functions can find them.
+<p>m_Code: Contains the dwData double-word into which Bug99 echoes the
+command.Handler function that expect an answer check this variable to see
+if the received message is an answer to their command.
+<br>m_Size: Size of the data in the buffer (m_String).
+<br>m_String: Contents of the buffer.
+<br>&nbsp;
+<p>
+<hr WIDTH="100%">
+<h2>
+<a NAME="CTI99"></a>The CTI99 class</h2>
+This class allows communication with a remote TI-99/4A or a third-party
+emulator. In general, you will have only one CTI99 object in your application
+(often a member of your app class, or of CMainFrame), and pass a pointer
+to it to all CFloppy objects that implement remote drives.
+<p>CTI99 is a class designed for use by Bug99. As a result, it contains
+many member functions that are not used by VDM99, but I didn't want to
+maintain 2 versions...
+<p>Low-level transmissions are handled by a CPort object. This would allow
+CTI99 to use more than one port, although the current version only handles
+one. Initially I had intended to derive several classes from CPort: parallel,
+serial, emulated ports, etc. In the end, I decided to put everything into
+the same class.
+<p>The CPort object contains a CLogFile object, derived from CMemFile.
+This is an optional debug feature, used to log all transmission operations.
+To trigger it, call m_Port.m_Log.Create(CString Filename) with the name
+of an existing file. The log will be placed into the file when the application
+exits. If the file does no exist, it will not be created and logging won't
+occur. This allows the user to toggle logging on/off by providing an empty
+file with that name, or not.
+<br>Logging can be toggled on/off by setting m_Port.m_DoLog TRUE or FALSE.&nbsp;
+If no file was provided before turning m_DoLog=TRUE, a message box will
+pop up each time a function is called or an error occurs (which is quite
+annoying, so be use this feature sparingly).
+<p>Transmission errors are encoded into m_Error member variables in both
+CPort and CTI99, allowing 2-level error codes. In most cases, the code
+indicates in which function the error occured.
+<p><tt>#define ERR_EXPORT 1</tt>
+<br><tt>#define ERR_IMPORT 2</tt>
+<br><tt>#define ERR_READBYTE 3</tt>
+<br><tt>#define ERR_WRITEBYTE 4</tt>
+<br><tt>#define ERR_READWORD 5</tt>
+<br><tt>#define ERR_WRITEWORD 6</tt>
+<br><tt>#define ERR_READMEMORY 7</tt>
+<br><tt>#define ERR_WRITEMEMORY 8</tt>
+<br><tt>#define ERR_BADADDRESS 9</tt>
+<br><tt>#define ERR_SETXOP 10</tt>
+<br><tt>#define ERR_STEP 11</tt>
+<br><tt>#define ERR_RUN 12</tt>
+<br><tt>#define ERR_WHERE 13</tt>
+<br><tt>#define ERR_POKECRU 14</tt>
+<br><tt>#define ERR_PEEKCRU 15</tt>
+<br><tt>#define ERR_BLWP 16</tt>
+<br><tt>#define ERR_TB 17</tt>
+<br><tt>#define ERR_GETGADDRESS 18</tt>
+<br><tt>#define ERR_SETBP 19</tt>
+<br><tt>#define ERR_SETPAGE 20</tt>
+<br><tt>#define ERR_MOVEHOOK 21</tt>
+<br><tt>#define ERR_BL 22</tt>
+<br><tt>#define ERR_BUG99 23&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// Bug99 not answering</tt>
+<br><tt>#define ERR_SERIAL 24&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// Serial port not found, or error upon initialization</tt>
+<br><tt>#define ERR_DLL 25&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// External DLL for parallel port (INPOUT32.DLL) not found, or not loaded
+properly.</tt>
+<br><tt>#define ERR_PARALLEL 26&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// Parallel port not found, or not initialized properly</tt>
+<br>&nbsp;
+<p>The only functions you need to call are those that modify the communication
+parameters. The port should be properly initialized before calling CFloppy
+functions that use a CTI99 object. These functions are described below.
+<br>Other functions called by the CFloppy object include ReadWord(), WriteWord(),
+ReadMemory(), WriteMemory(), BL(), and Where().
+<br>&nbsp;
+<h4>
+<a NAME="SetPortInfo"></a>BOOL SetPortInfo(TI_PORTINFO Info, BOOL Verbous=FALSE)</h4>
+Sets the communication parameters and initializes the port.
+<p><b>Verbous</b>:&nbsp; Display error messages in message boxes. If FALSE,
+the function just returns FALSE when an error occurs. Check m_Port.m_Error
+for details.
+<br><b>Info</b>: A dedicated TI_PORTINFO structure containing the desired
+parameters. Only those parameters relevant for the indicated bus (serial
+or parallel) will be modified. The function does not check for invalid
+parameters.
+<p><tt>typedef struct</tt>
+<br><tt>{</tt>
+<br><tt>&nbsp;int Mode;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// 0: real TI-99/4A&nbsp;&nbsp; 1: third-party emulator&nbsp; 2: Bug99
+internal debugging</tt>
+<br><tt>&nbsp;int Bus;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// 0: parallel&nbsp; 1: serial</tt>
+<br><tt>&nbsp;CString PortName;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// port name (e.g. COM1, LPT1 two, 0x378, RS232, PIO, etc)</tt>
+<br><tt>&nbsp;long Timeout;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// number of tries before reporting failure (0=keep trying forever)</tt>
+<p><tt>&nbsp;int PortAddr;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// parallel port address (e.g. 0x378). Read only, created from PortName
+by Init()</tt>
+<br><tt>&nbsp;int HandIn;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// parallel port handshake-in line: 0=Select*, 1=Init, 2=AutoLF*, 3=Strobe*</tt>
+<br><tt>&nbsp;int HandOut;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// parallel port handshake-out line: 0=Busy*, 1=Ack, 2=PaperOut, 3=SelectIn,
+4=Error</tt>
+<p><tt>&nbsp;int DTR;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// serial port DTR line: 0=none, 1=DTR, 2=RTS</tt>
+<br><tt>&nbsp;int DCD;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// serial port DCD line: 0=none, 1=CTS, 2=DCD, 3=DSR</tt>
+<br><tt>&nbsp;int CTS;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// serial port CTS line: 0=none, 1=CTS, 2=DCD, 3=DSR</tt>
+<br><tt>&nbsp;BOOL Pause;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// serial port: pause 2 msec before sending a byte</tt>
+<br><tt>&nbsp;int Bauds;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// serial port baud rate (9600, 4800, 2400, 1200, 600, 300)</tt>
+<br><tt>&nbsp;int Parity;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// serial port parity: 0=none, 1=odd, 2=even</tt>
+<br><tt>&nbsp;int Stops;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+// serial port stop bits: 0=1, 1=1.5, 2=2</tt>
+<br><tt>}TI_PORTINFO;</tt>
+<br>&nbsp;
+<p><b>Return value</b>: TRUE if all went well, FALSE if something went
+wrong (e.g. wrong port name, missing third-party DLLs for real parallel
+port, Bug99 not launched, etc).
+<p>The port name depends on the type of port and bus. Possible values are:
+<br>Emulated parallel port: PIO, PIO/1 and PIO/2.
+<br>Emulated serial port: RS232, RS232/1, RS232/2, RS232/3, RS232/4.
+<br>Real serial port: The port name (e.g. COM1:), with or without the trailing
+colon.
+<br>Real parallel port: The port address, generally 0x278, 0x378 or 0x3BC.
+Optionally, you could use the port name, but it should include the number
+of parallel ports on your machine. This is because PC BIOS assing addresses
+starting with the last port, so the address of LPT1 depends on whether
+LPT2 and LPT3 exist. Valid names are thus "LPT1 one", "LPT1 two", "LPT1
+three", "LPT2 two", "LPT2 three" and "LPT3 three".
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="GetPortInfo"></a>TI_PORTINFO GetPortInfo()</h4>
+Returns the currently set communication parameters in the structure described
+<a href="#SetPortInfo">above</a>.
+<p><b>Return value</b>: A dedicated TI_PORTINFO structure containing the
+desired parameters.Parameters not relevant to the current type of port
+and/or bus should be ignored.
+<br>&nbsp;
+<br>&nbsp;
+<p><i>Version 1.0 30/11/11</i>
+<br><i>Version 1.1 15/2/12 Added extra params to InserFile, created ERR_FORMAT.</i>
+<center>
+<p><a href="titechpages.htm">Back to the TI-99/4A Tech Pages</a></center>
+
+<p><br>
+<br>
+</body>
+</html>

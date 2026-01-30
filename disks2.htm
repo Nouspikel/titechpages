@@ -1,0 +1,1746 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+  <title></title>
+  <meta name="Author" content="">
+  <meta name="GENERATOR"
+ content="Mozilla/3.04Gold (Win95; U) [Netscape]">
+</head>
+<body>
+<h1 align="center"><a
+ href="http://www.nouspikel.com/ti99/titechpages.htm"><img
+ src="logo.jpg" style="border: 0px solid ; height: 33px; width: 95px;"
+ title="" alt=""></a></h1>
+<h2><a name="CRUmap"></a>The TI disk controller card</h2>
+<p><a href="#CRUmap">CRU and registers map</a> <br>
+<b>Sample programs<br>
+</b><a href="#Low-level%20routines">Low-level routines<br>
+</a><a href="#Track%20access">Track-by-track access</a> <br>
+<a href="#Sector%20R/W">Sector access<br>
+</a><a href="#Check%20speed">Checking drive speed</a> <br>
+<a href="#formats">Goofy formats</a> <br>
+<b>The card ROM<br>
+</b><a href="#VDPmem">File buffers in VDP memory<br>
+</a><a href="#power-up">Power-up routine<br>
+</a><a href="#DSR">Device Service Routines<br>
+</a><a href="#Subprograms">Subprograms</a></p>
+<p><b><a href="#Drives">Floppy disk drives</a></b></p>
+<h3>CRU map and FDC registers</h3>
+<p>A 74LS259 and a 74LS251 provide as a 8-bit CRU interface. The CRU
+base
+address of the card is &gt;1100. The meaning of the 8 bits is the
+following:</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Bit</th>
+      <th>Meaning when read</th>
+      <th>Meaning when written to</th>
+    </tr>
+    <tr>
+      <td>0</td>
+      <td>Load head requested (HLD pin)</td>
+      <td>1: Select ROM, turn light on</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>Drive 1 selected</td>
+      <td>1: Strobe motor (for 4.23 sec)</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>Drive 2 selected</td>
+      <td>0: Ignore IRQ + DRQ</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>Drive 3 selected</td>
+      <td>1: Signal head loaded (HLT pin)</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>0: Motor strobe on</td>
+      <td>1: Select drive 1</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>Always 0</td>
+      <td>1: Select drive 2</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td>Always 1</td>
+      <td>1: Select drive 3</td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td>Selected side</td>
+      <td>Select side</td>
+    </tr>
+  </tbody>
+</table>
+<p>As mentionned above, the five registers of the floppy disk
+controller
+map in the memory area &gt;FFF0-FFFF. The addresses are different for
+read
+operations than for write operations:</p>
+<table border="2" cellspacing="2" cellpadding="2">
+  <tbody>
+    <tr>
+      <th>Address</th>
+      <th>I/O</th>
+      <th>Name</th>
+    </tr>
+    <tr>
+      <td>&gt;5FF0</td>
+      <td>I</td>
+      <td>Status register</td>
+    </tr>
+    <tr>
+      <td>&gt;5FF2</td>
+      <td>I</td>
+      <td>Track register</td>
+    </tr>
+    <tr>
+      <td>&gt;5FF4</td>
+      <td>I</td>
+      <td>Sector register</td>
+    </tr>
+    <tr>
+      <td>&gt;5FF6</td>
+      <td>I</td>
+      <td>Data register</td>
+    </tr>
+    <tr>
+      <td>&gt;5FF8</td>
+      <td>O</td>
+      <td>Command register</td>
+    </tr>
+    <tr>
+      <td>&gt;5FFA</td>
+      <td>O</td>
+      <td>Track register</td>
+    </tr>
+    <tr>
+      <td>&gt;5FFC</td>
+      <td>O</td>
+      <td>Sector register</td>
+    </tr>
+    <tr>
+      <td>&gt;5FFE</td>
+      <td>O</td>
+      <td>Data register</td>
+    </tr>
+  </tbody>
+</table>
+<h3><br>
+Electronic circuitery</h3>
+<h4>Selection logic</h4>
+<p>Most of the selection logic is provided by an 18-pin custom control
+chip. Its inputs are mostly address lines (combined via external AND,
+OR
+or inverting gates). The outputs control the different parts of the
+card:</p>
+<p><u>Inputs<br>
+</u>Memen*<br>
+CRU bit 0 (from 74LS259).<br>
+A0 to A7.<br>
+Tripple OR gate (74LS27): A4 to A6.<br>
+Hex AND gate (74LS30): A4 to A11.<br>
+Tripple AND gate (74LS11): AMA&amp;AMB&amp;AMC (always high).<br>
+PCBEN (always high).</p>
+<p><u>Ouputs<br>
+</u>Enable the first ROM chip.<br>
+Enable the second ROM chip.<br>
+Enable the FDC (CE* pin), also controls WE* and RE* pins in conjunction
+with the A12, A11 and WE* bus lines.<br>
+Enable CRU input (74LS251).<br>
+Enable CRU output (ORed with CRUCLK* to 74LS259).<br>
+Enable data bus transceiver (74LS245) and the RDBEN* bus line.</p>
+<h4><br>
+CRU interface</h4>
+<p>As mentionned above, the interface is implemented the classical way,
+with a 74LS251 for CRU input and a 74LS259 for CRU output. With the
+exception
+of bit 7, none of the output is directly reflected to an input. So
+let's
+examine them separately.</p>
+<p><u>Ouputs (74LS259)<br>
+</u><b>Bit 0</b>: Turn on a LED via a 2N3904 transistor, goes to the
+custom
+control IC.<br>
+<b>Bit 1</b>: Triggers the B input of a 74LS123 one-shot. The A input
+is
+tied to ground. The cap is 47 uF, the resistor 200K, thus the pulse
+lenght
+will be 4.23 sec. The one-shot is retriggable though, which means that
+the pulse can be prolonged indefinitely by constantly toggling CRU bit
+1. The Q output is inverted via a 74LS16 and goes to the disk
+connector,
+pin 16 (motor on). Before inversion, it also goes to the READY pin of
+the
+FDC and is combined with CRU bits 4-6 (see below).<br>
+<b>Bit 2</b>: Inverted, NORed with the CS* signal for the FDC and the
+"ORed"
+ouputs of the above one-shot, the IRQ and the DRQ pin combined via two
+D flip-flops synchronized by the clock line. When set to 1, it allows
+the
+IRQ and DRQ pins to inactivate the READY line in the PE-box bus, which
+puts the TMS9900 CPU on hold.<br>
+<b>Bit 3</b>: Connected directly to the HLT pin of the FDC, provides a
+"head loaded" confirmation.<br>
+<b>Bit 4</b>: NANDed with bit 1, goes to pin 10 of the drive connector
+(SEL1). Also reflected to CRU input bit 1, via a +12V LM2901 buffer and
+1K pull-ups to +5V (beats me).<br>
+<b>Bit 5</b>: Same as bit 4, to pin 12 of connector (SEL2) and CRU
+input
+bit 2.<br>
+<b>Bit 6</b>: Same as bit 4, to pin 14 of connector (SEL3) and CRU
+input
+bit 3.<br>
+<b>Bit 7</b>: Connected directly to CRU input bit 7, goes to pin 32 of
+the drive connector (SIDE) via a 74LS16 inverter.</p>
+<p><u>Inputs (74LS251)<br>
+</u><b>Bit 0</b>: Connected directly to the HLD output pin of the FDC
+("please
+load head" signal).<br>
+<b>Bit 1</b>: Reflects the SEL1 connection, via a LM2901 buffer.<br>
+<b>Bit 2</b>: Reflects the SEL2 connection, via a LM2901 buffer.<br>
+<b>Bit 3</b>: Reflects the SEL3 connection, via a LM2901 buffer.<br>
+<b>Bit 4</b>: Inverted output of the "motor strobe" one-shot.<br>
+<b>Bit 5</b>: Grounded.<br>
+<b>Bit 6</b>: tied to +5V.<br>
+<b>Bit 7</b>: reflects CRU output bit 7.</p>
+<h4><br>
+FDC connections</h4>
+<p>The card uses a FD1771 single-density-only FDC.</p>
+<p><u>CPU interface</u></p>
+<p>MR* gets its input from a 74LS16 tripple AND gate whose inputs are:
++5V, RESET* bus line and a power-up reset circuit (47 uF cap to ground,
+47K to ground, 15K to +5V).<br>
+CS* is triggered by the custom control chip.</p>
+<p>DAL0-DAL7: connected to D7-D0 via a 74LS245 bus transceiver whose
+DIR
+pin is controlled by DBIN (via a 74LS244) and enabled by the custom
+control
+IC (together with RDBEN*).<br>
+A0 and A1 are connected to bus lines A14 and A13 respectively.<br>
+WE* and RE* are connected to the first two ouputs of a 74LS139 2-to-4
+decoder,
+whose selection inputs are the A12 and WE* bus lines, and which is
+enabled
+by the custom control chip (same signal as CS*, ORed with A15).</p>
+<p>CLK receives a clock signal from a crystal oscillator. The crystal
+is
+a 8MHz NDK080, oscillating via two 74LS04 inverters. The signal is
+inverted
+twice via 74LS00 NAND gates (1 pin tied to +5V via 470 ohm resistors),
+then triggers the CLK input of a 74LS161 4-bit counter. The Q2 output
+is
+connected to the Clk pin, thereby providing a 1 MHz clock signal.</p>
+<p>INTREQ and DRQ are ORed together and with the inverted motor strobe
+then go the the D input of a 74LS74 D-flip-flop clocked by the CLKOUT*
+bus line (buffered by a 74LS244) and cleared by the CS* signal from the
+custom control chip, via a 74LS04 inverter. The Q output clocks a
+second
+74LS74 whose D input is pulled-up (also cleared by the inverted CS*
+signal)
+and whose Q output is ORed with the (non-inverted) CS* signal from the
+custom IC and CRU bit 2 inverted by a 74LS04. The resulting output is
+inverted
+again by a 74LS04 and enabled a 74LS125 buffer whose input is grouded
+and
+whose output controls the READY bus line. Got that?</p>
+<p><u>Drive interface</u></p>
+<p>An external data deparator is used, so XTDS is grounded. FDCLK and
+FDDATA
+receive their input from pin 30 of the drive connector (READ DATA), via
+an awfully complicated circuit involving: three 74LS123 one-shots, four
+74LS74 D-flip-flop, six 74LS00 NAND gates, four 74LS04 inverters and
+one
+74LS244 buffer.</p>
+<p>TR00* receives its input from a 74LS244 buffer, whose input is
+pull-up
+by a 1K resistor and connected to pin 26 of the drive connector
+(TRACK0).<br>
+IP* is similarly connected to pin 8 of the connector (INDEX&nbsp;PULSE).<br>
+WRPT* is similarly connected to pin 28 of the connector
+(W&nbsp;PROTECTED).<br>
+READY receives its input from the 74LS123 one-shot that provides the
+motor
+strobe.</p>
+<p>WG is NANDed with the MR* signal and send to pin 24 of the connector
+(W GATE).<br>
+WD outputs to pin 22 of the drive connector (W DATA) via a 74LS16
+inverter.<br>
+STEP is similarly connected to pin 18 of the drive connector (STEP) via
+a 74LS16 inverter.<br>
+DIRC is similarly connected to pin 20 of the drive connector (DIR) via
+a 74LS16 inverter.<br>
+3PM is connected to +5V to specify a step/dir type of interface.<br>
+<br>
+PH3 and TG43 are not connected.<br>
+TEST, WF* and DINT* are not used and are connected to +5V.</p>
+<h3><br>
+<br>
+<a name="FDCexamples"></a>Sample programs</h3>
+<h4><a name="Low-level routines"></a>Low-level access routines</h4>
+<p>Here are some routines that you could use to talk directly to the
+FDC.
+Most of them are adapted from the routines in the disk controller card
+ROM. The main difference when using a double-density CorComp controller
+is that the card is built around a FD179x that does not invert its data
+bus. Also, the head-step time must be determined in a fairly
+complicated
+way.</p>
+<table bgcolor="#dadada">
+  <tbody>
+    <tr>
+      <td>
+      <pre>* All routines assume that R12 contains the disk controller card's CRU <br>* and that the card has been turned on.<br>       LI   R12,&gt;1100     Disk controller CRU<br>       SBO  0             Must be on to talk to the FDC<br><br>* Once done, don't forget to turn the card off:<br>       SBZ  0             Now you can return to caller...<br></pre>
+      <pre>* This routine is used to insert delays between commands.<br>* It expects the delay value in a data word following the call.<br>* Delays are for a 3MHz console with a workspace in 16-bits memory. <br>DELAY  MOV  *R11+,R6       Get delay<br>DLP1   SRC  R6,8           Kill time<br>       SRC  R6,8<br>       DEC  R6<br>       JNE  DLP1<br>       B    *R11</pre>
+      <pre>* This routine selects the drive specified in R0<br>* It assumes R0 contains &gt;0001 to &gt;0003<br>* and R12 contains the CRU base address of the controller card<br>SELDRV MOV  R11,R10        Save return point<br>       AI   R12,8          Address of CRU bit 4 (SEL1)<br>       LI   R1,&gt;0080<br>       SLA  R1,0           Selection bit (&gt;0100, &gt;0200 or &gt;0400) <br>       LDCR R0,3           Deselect all drives<br>       AI   R12,-6         Address of CRU bit 1 (optional)<br>       STCR R0,3           Read drive selection lines<br>       CZC  R1,R0          See if our drive is deselected<br>       JNE  ERROR          Something went wrong<br>       AI   R12,6          Back to CRU bit 4<br>       LDCR R1,3           Select drive<br>       AI   R12,-8         Back to CRU base address<br>       BL   @DELAY         Here we need a short delay<br>       DATA &gt;0BB8          until the drive is ready<br>       B    *R10</pre>
+      <pre>* This routine selects the side specified in R0<br>SIDE   MOV  R0,R0          Which side?<br>       JNE  SIDE1<br>       SBZ  7              Select side 0<br>       B    *R11<br>SIDE1  SBO  7              Select side 1<br>       B    *R11</pre>
+      <pre>* This routine sends a command to the FDC<br>* It expects the command in the data word following the call<br>* and the CRU base address of the card in R12<br>SENDCM MOV  *R11+,R0       Get command<br>       MOV  R11,R10        Save return address<br>       INV  R0             FDC has an inverted data bus<br>       MOVB @&gt;5FF0,R6      Read FDC status register<br>       SBZ  1              Strobe motor<br>       SBO  1<br>       JLT  RDY            See if the "ready" bit is set<br>       BL   @DELAY         Drive is not ready<br>       DATA &gt;7530          Wait a long time, then assume it is<br>RDY    MOVB R0,@&gt;5FF8      Send command to FDC command register<br>       SBO  3              Signal "head loaded" on HLT pin<br>       SRC  R0,8           Kill time<br>       SRC  R0,8<br>       B    *R10</pre>
+      <pre>* This routine waits for command completion<br>* It returns with the status byte in R0 msb<br>WAITCM MOVB @&gt;5FF0,R0      Read FDC status register<br>       INV  R0             FDC has an inverted data bus<br>       JLT  ERROR          Drive in not ready any more!<br>       SRC  R0,9           Test the "busy" bit<br>       JOC  WAITCM         Drive is busy: keep waiting<br>       SRC  R0,7           Restore original status byte<br>       B    *R11            </pre>
+      <pre>* This routine should be called after an error occured.<br>ERR    MOV  R11,R9         Save return address<br>       BL&nbsp;&nbsp;&nbsp;@SENDCM        Send "Force interrupt" command<br>       DATA &gt;D000          with no interrupt allowed<br>INAL1  MOVB @&gt;5FF0,R0      Read FDC status register<br>       SRC  R0,9           Check "Busy" bit<br>       JNC  INAL1          Remember: the byte is inverted<br>       B    *R9            Not busy any more: command completed</pre>
+      <pre>* This routine reinitializes the controller card. <br>INIALL AI   R12,8          Address of CRU bit 4 (SEL1 line)<br>       LI   R6,&gt;0000<br>       LDCR R6,4           Reset all 3 SEL lines and SIDE line<br>       AI   R12,-8         Back to CRU base address<br>       SBZ  1              Strobe motor<br>       SBO  1<br>       LI   R6,&gt;2F00       "Force interrupt" command (&gt;D0 inverted) <br>       MOVB R6,@&gt;5FF8      Send it, whether ready or not<br>       BL   @WAITCM        Wait for command completion<br>       B    *R9</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h4><br>
+<a name="Track access"></a>Track-by-track access</h4>
+<table bgcolor="#dadada">
+  <tbody>
+    <tr>
+      <td>
+      <pre>* This routine seeks track 0 and verifies it was reached<br>* It returns with the status byte in R0 msb<br>TRACK0 MOV  R11,R9         Save return address<br>       BL   @SENDCM        Send "Reset" command<br>       DATA &gt;0A00          (head loaded, no verify, step time=20 ms)<br>       BL   @WAITCM        Wait for completion<br>       MOVB @&gt;5FF0,R0      Read FDC status register again<br>       INV  R0             FDC has an inverted data bus<br>       SRC  R0,11          Check "Track 0" bit<br>       JNC  ERROR          We did not reach it!<br>       SRC  R0,5           Restore original status byte<br>       B    *R9            The track register is automatically loaded with &gt;00<br> <br>* This routine moves to the next track<br>NXTRAK MOV  R11,R9         Save return address<br>       BL   @SENDCM        Send "Step in" command<br>       DATA &gt;5A00          (update track reg, head loaded, no verify, 20 msec steps)<br>       BL   @WAITCM        Wait for command completion<br>       B    *R9  <br></pre>
+      <pre>* This routine moves to the previous track<br>PRTRAK MOV  R11,R9         Save return address<br>       BL   @SENDCM        Send "Step out" command<br>       DATA &gt;7A00          (update track reg, head loaded, no verify, 20 msec steps)<br>       BL   @WAITCM        Wait for command completion<br>       B    *R9            </pre>
+      <pre>* This routine seeks a given track, whose number is in R1<br>* It assumes the FDC track register contains the current track # for this drive<br>* if this were not the case either update the register or call TRACK0 first.<br>TOTRAK MOV  R11,R9         Save return address<br>       INV  R1             FDC has an inverted data bus<br>       MOVB R1,@&gt;5FFE      Put desired track # in FDC data register<br>*      INV  R7             Optional (if we just changed drives)<br>*      MOVB R7,@&gt;5FFA      Place current track # (for this drive)in FDC track register <br>       BL   @SENDCM        Send "Seek" command<br>       DATA &gt;1A00          (head loaded, no verify, step time=20 ms)<br>       BL   @WAITCM        Wait for completion<br>       SRC  R0,13          Check "Seek error" flag } only meaningfull if "verify"<br>       JOC  ERROR          Track ID does not match } bit is set (command &gt;1E00)<br>       B    *R9     </pre>
+      <pre>* This reads a track into a buffer in VDP memory.<br>* It assumes the VDP address has been set to write to it.<br>* The number of bytes to be read from that track should be in R3.<br>RDTRAK MOV  R11,R9         Save return address<br>       BL   @SENDCM        Send "Read track" command<br>       DATA &gt;E400          with a 15 msec delay<br>       SBO  2              Enable wait states<br>RDTL1  MOVB @&gt;5FF6,R0      Get a byte from FDC data register<br>       INV  R0             FDC has an inverted data bus<br>       MOVB R0,@&gt;8C00      Save byte to VDP buffer<br>       MOVB @&gt;5FF6,R0      Repeat that twice (I've no idea why, but<br>       INV  R0             the TI routines do it this way...)<br>       MOVB R0,@&gt;8C00      <br>       DECT R3             We read 2 bytes<br>       JNE  RDTL1          More to come<br>       SBZ  2              Disable wait states<br>       BL   @WAITCM        Wait for command completion<br>       SLA  R0,4           Test the "Lost data" status bit<br>       JOC  ERROR          Optionally, we could try again a few times<br>       B    *R9</pre>
+      <pre>* This routine formats a track. It assumes the data for the track has been<br>* placed in VDP memory and the VDP address set to read it.<br>* The number of bytes for that track should be in R3.<br>WRTRAK MOV  R11,R9         Save return address<br>       BL   @SENDCM        Send "Write track" command<br>       DATA &gt;F400          with a 15 msec delay<br>       SBO  2              Enable wait states<br>WTL1   MOVB @&gt;8800,R0      Get a byte<br>       INV  R0             FDC has an inverted data bus<br>       MOVB R0,@&gt;5FFE      Send byte to FDC data register<br>       MOVB @&gt;8800,R0      Repeat that twice (I've no idea why, but<br>       INV  R0             the TI routines do it this way...)<br>       MOVB R0,@&gt;5FFE      <br>       DECT R3             We wrote 2 bytes<br>       JNE  WTL1           More to come<br>       SBZ  2              Disable wait states<br>       BL   @WAITCM        Wait for command completion<br>       SLA  R0,2           Test the "Write protect" status bit<br>       JOC  ERROR          The darn disk is write protected!<br>       SLA  R0,4           Test the "Lost data" status bit<br>       JOC  ERROR          Optionally, we could try again a few times<br>       B    *R9<br></pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>You'll have noted that I wrote "format a track" and not "write
+a track". This is because the FDC interprets most data bytes in the
+range &gt;F5-FE as formating instructions. Therefore, the "write track"
+command cannot be used to write a track that contains data, since these
+data are likely to include such a byte which would screw up the track
+format.
+</p>
+<p>I don't know how the track copy programs overcome that problem. A
+possible,
+although clumsy, solution would be:</p>
+<li>Read a track from the source drive into a buffer</li>
+<li>Copy the buffer into another buffer. While doing so, identify the
+data
+blocks in each sector and replace all bytes &gt;F5 to &gt;FE with
+&gt;00.
+Also, change the CRC bytes to &gt;F7 (which tells the FDC to calculate
+a new CRC for the data block).</li>
+<li>Write that track to the source disk</li>
+<li>Access each sector on that track and patch the bytes we have
+modified,
+fetching the correct values from the first buffer.</li>
+<h4><br>
+<a name="Sector R/W"></a>Sector access</h4>
+<table bgcolor="#dadada">
+  <tbody>
+    <tr>
+      <td>
+      <pre>* This routine reads the next sector ID block encounted on disk.<br>* It returns with R0msb=side, R1msb=track #, R2msb=sector #, R3=sector size.<br>RDID   MOV  R11,R9         Save return address<br>       BL   @SENDCM        Send "Read ID" command<br>       DATA &gt;C000          with no 15 msec delay<br>       SBO  2              Enable wait states<br>       MOVB @&gt;5FF6,R1      Get track # from FDC data register<br>       INV  R1             FDC has an inverted data bus<br>       MOVB @&gt;5FF6,R6      Get side #<br>       INV  R6           <br>       MOVB @&gt;5FF6,R2      Get sector #<br>       INV  R2             <br>       MOVB @&gt;5FF6,R3      Get sector size code<br>       INV  R3 <br>       MOVB @&gt;5FF6,R11     Skip CRC, first byte            <br>       SRL  R3,7           Translate size code to # of bytes (optional)<br>       ANDI R3,&gt;0006<br>       MOV  @SIZES(R3),R3  <br>       MOVB @&gt;5FF6,R11     Skip CRC, second byte     <br>       SBZ  2              Disable wait states<br>       BL   @WAITCM        Wait for command completion<br>       SLA  R0,4           Test the "Rec not found" status bit<br>       JOC  ERROR          No ID&nbsp;block was found<br>       SLA  R0,1           Test the "CRC" then the "Lost data" bits<br>       JOC  ERROR          CRC mismatch. Optionally, we could try next ID block <br>       JLT  ERROR          Lost data. Here also, we could try again<br>       MOV  R6,R0          Put side # in R0<br>       B    *R9 </pre>
+      <pre>SIZES DATA 128,256,512,1024 Meaning of the (standard) size code</pre>
+      <pre>* This routine reads a given sector on the current track into a buffer in VDP memory. <br>* It expects the VDP to be ready to write to this buffer.<br>* R3 should contain the # of bytes per sector (i.e. the size of the buffer).<br>* R2 should contain the sector # (on the track) and R1 the track #.<br>* The proper track (and side) should already have been seeked.<br>RDSECT MOV  R11,R9         Save return address<br>       INV  R1             Because of the inverted data bus<br>       MOVB R1,@&gt;5FFA      Put current track # in track register<br>       INV  R2             Inverted data bus<br>       MOVB R2,@&gt;5FFC      Put required sector # in sector register<br>       BL   @SENDCM        Send "Read sector" command<br>       DATA &gt;8800          (1 sect, standard sizes, no delay, don't check sides)<br>       SBO  2              Enable wait states<br>RDSL1  MOVB @&gt;5FF6,R0      Get a byte from FDC data register<br>       INV  R0             FDC has an inverted data bus<br>       MOVB R0,@&gt;8C00      Save byte to VDP buffer<br>       MOVB @&gt;5FF6,R0      Repeat that twice (I've no idea why, but<br>       INV  R0             the TI routines do it this way...)<br>       MOVB R0,@&gt;8C00      <br>       DECT R3             We read 2 bytes<br>       JNE  RDSL1          More to come<br>       SBZ  2              Disable wait states<br>       BL   @WAITCM        Wait for command completion<br>       SLA  R0,4           Test the "Rec not found" status bit<br>       JOC  ERROR          No data&nbsp;block was found<br>       SLA  R0,1           Test the "CRC" then the "Lost data" bits<br>       JOC  ERROR          CRC mismatch. Optionally, we could try again<br>       JLT  ERROR          Lost data. Here also, we could try again<br>       B    *R9  </pre>
+      <pre>* This routine fills a given sector with data from a buffer in VDP memory. <br>* It expects the VDP to be ready to read data from this buffer.<br>* R3 should contain the # of bytes per sector (i.e. the size of the buffer).<br>* R2 should contain the sector # (on the track) and R1 the track #.<br>* The proper track (and side) should already have been seeked.<br>WRSECT MOV  R11,R9         Save return address<br>       INV  R1             Because of the inverted data bus<br>       MOVB R1,@&gt;5FFA      Put current track # in track register<br>       INV  R2             Inverted data bus<br>       MOVB R2,@&gt;5FFC      Put required sector # in sector register<br>       BL   @SENDCM        Send "Write sector" command<br>       DATA &gt;A800          (1 sect, standard sizes, no delay, no side check, normal mark) <br>       SBO  2              Enable wait states<br>WRSL1  MOVB @&gt;8800,R0      Get a byte from VDP buffer<br>       INV  R0             FDC has an inverted data bus<br>       MOVB R0,@&gt;5FFE      Send byte to FDC data register<br>       MOVB @&gt;8800,R0      Repeat that twice (I've no idea why, but<br>       INV  R0             the TI routines do it this way...)<br>       MOVB R0,@&gt;5FFE      <br>       DECT R3             We wrote 2 bytes<br>       JNE  WRSL1          More to come<br>       SBZ  2              Disable wait states<br>       BL   @WAITCM        Wait for command completion<br>       SLA  R0,2           Test the "write protected" status bit<br>       JOC  ERROR          The disk is write-protected<br>       SLA  R0,2           Test the "Rec not found" status bit<br>       JOC  ERROR          No data&nbsp;block was found<br>       SLA  R0,2           Test the "Lost data" status bit<br>       JLT  ERROR          Lost data. Alternatively, we could try again<br>       B    *R9  <br>      </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p><br>
+</p>
+<h4><a name="Check speed"></a>Checking the rotation speed</h4>
+<p>We saw above that one of the bits in the Status register returns the
+state of the index hole. We could use it for several purposes.</p>
+<p>First, to detect whether there is a disk in the drive. If not, the
+"hole"
+will always be here. If there is a disk, the hole will be closed most
+of
+the time, and only briefly flash open. If the drive door has been left
+open, the disk will not rotate and (most probably) the hole will be
+permanently
+close.</p>
+<table bgcolor="#dadada">
+  <tbody>
+    <tr>
+      <td>
+      <pre>* This routine tests the drive specified in R0<br>* It returns with R0 = 0 if there is no disk in the drive (test with JEQ),<br>* R0 = &gt;FFFF if there is a disk, but not spinnig (test with JLT)<br>* R0 = 1 if there is a disk and it's spinning (test with JGT)</pre>
+      <pre>TSTDSK MOV  R11,R9               Save return address<br>       BL   @SELDRV              Specify drive number<br>       SBZ  1                    Strobe motor<br>       SBO&nbsp; 1<br>       BL   @DELAY               Let drive start spinning<br>       DATA &gt;FFFF<br>       MOV  R9,R11               Restore return address<br>       MOV  @&gt;5FF0,R0            Read FDC status register<br>       SRL  R0,10                Test "Index hole" bit in status<br>       JOC  CLOSED               Hole is closed (remember: bus is inverted) </pre>
+      <pre>       LI   R1,&gt;1000             Hole is open, see if it stays so for a time <br>TSL1   MOVB @&gt;5FF0,R0            Get status again<br>       SRL  R0,10                Check if hole is still open<br>       JOC  CHANGE               Now it's closed<br>       DEC  R1<br>       JNE  TDL1                 Keep trying<br>       CLR  R0                   Still open: no disk in drive<br>       B    *R11</pre>
+      <pre>CLOSED LI   R1,&gt;3000             Hole is closed, see if it stays so<br>TDL2   MOVB @&gt;5FF0,R0            Get status again<br>       SRL  R0,10                Check if hole still closed<br>       JNC  CHANGE               Now it's open<br>       DEC  R1<br>       JNE  TDL2                 Keep trying<br>       SETO R0                   Still closed: drive door not closed<br>       B    *R11</pre>
+      <pre>CHANGE CLR  R0                   Hole toggles between open and close<br>       INC  R0                   A disk is spinning<br>       B    *R11</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p><br>
+Another thing we could do is to time the occurences of the hole. This
+will
+allow us to measure the rotation speed of the drive. Defective drives
+could
+then be sent out for fine-tuning of their rotation speed (unless you
+now
+how to adjust it yourself). TI drives spin at 300 rpm nominal, which
+means
+we should detect the index hole five times per second.</p>
+<table bgcolor="#dadada">
+  <tbody>
+    <tr>
+      <td>
+      <pre>* This routine checks the rotation speed of the drive specified in R0.<br>* It assumes there is a disk in the drive (else speed=0)<br>* and that the door is closed (else it never returns).<br>* It uses the timer in the TMS9901 to impart a 7.5 sec measuring time.<br>* It then returns with the speed in RPM in R1.</pre>
+      <pre>SPEED  MOV  R11,R9               Save return address<br>       BL   @SELDRV              Specify drive number<br>SPL1   SBZ  1                    Strobe motor<br>       SBO&nbsp; 1<br>       MOVB @&gt;5FF0,R0            Get status <br>       SRC  R0,10                Check if hole is open<br>       JNE  SPL1                 No: keep waiting</pre>
+      <pre>       LI   R0,4692              Delay for 100 msec (100msec / 64*333ns = 4692)<br>       LI   R1,MYISR             Where to go when timer fires<br>       BL   @TIMEON              Starts timer<br>       LI   R2,75                75*100msec = 7.5 secs<br>       LIMI 2                    Enable interrupts</pre>
+      <pre>       CLR  R1                   Reset counter<br>SPL2   MOVB @&gt;5FF0,R0            Get status <br>       SRC  R0,10                Check if hole is still open<br>       JOC  SPL2                 Yes: keep waiting<br>SPL3   MOVB @&gt;5FF0,R0            Get status again<br>       SRC  R0,10                Check if hole is still closed<br>       JNC  SPL3                 Yes: keep waiting<br>       INC  R1                   One more rotation completed<br>       SBZ  1                    Keep motors running<br>       SBO  1<br>       JMP  SPL2                 Loop: timer will interrupt us</pre>
+      <pre>MYISR  DEC  R2                   Timer fired: count 100 msec<br>       JEQ  TIMOUT               Have 7.5 seconds elapsed?<br>       LIMI 2                    Enable interrupts (disabled by main ISR)<br>       SLA  R0,1                 Not 7.5 secs yet, keep waiting<br>       JOC  SPL2                 Hole was open<br>       JMP  SLP3                 Hole was closed</pre>
+      <pre>TIMOUT BL   @TIMOFF              Time out: stop timer and clean up<br>       SLA  R1,3                 Calculate speed in RPM (resolution: 60/7.5 = 8) <br>       B    *R11 <br><br>* NB Since we are only testing for 7.5 sec, the expected resolution is:<br>* 60 / 7.5 = +/-8 rpm. To get a more accurate value, we must increase the sampling time.<br>* E.g. 30 sec (LI R2,300) gives a resolution of +/-2 rpm (SLA R1,1 to calculate speed),<br>* 60 sec (LI R2,600) gives a resolution of +/-1 rpm (comment out the SLA R1), etc</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>NB See the page on the TMS9901 for an explanation of <a
+ href="../tms9901.htm#Timer%20mode">timer
+interrupts</a>.</p>
+<h4><br>
+<a name="formats"></a>Goofy formats</h4>
+<p>Now that we know how to format a track, we can format our disk is
+all
+kind of weird ways. All we have to do is to place the proper data in
+the
+buffer, then call WRTRAK. The main purpose of doing so would be to
+prevent
+standard disk controllers from copying a disk, but there are also less
+mean reasons.</p>
+<p><u>Sector size</u></p>
+<p>We could format one or more sectors with a size different from the
+standard
+256 bytes. For instance, setting the size length code as &gt;03 in the
+ID block allows us to use sectors of 1024 bytes. Obviously, only two of
+these will fit on a track (possibly together with a standard 256-byte
+sector).
+This will considerably speed up disk access since we don't need to look
+for a new sector every 256 bytes. The drawback is that a 1025 bytes
+long
+file will use 2048 bytes of disk space: what a waste!</p>
+<p><u>Sector number</u></p>
+<p>Normally, sectors are numbered from 0 to 8 on each track. This is
+because
+the sector register is one byte wide, but there are more than 256
+sectors
+on a disk (hopefully).</p>
+<p>However, nothing prevents us from scrambling the sector numbers, as
+long as we know which is where. Thereafter any program trying to access
+a sector with the "Read sector" or "Write sector" commands
+will fail, since the sector field in the ID block will never match. But
+if we know that a sector on track 6 is numbered &gt;A8, we can fetch it
+easily by placing &gt;A8 in the sector register, while on track 6.</p>
+<p>Of course, this is not a very good protection scheme: a simple "Read
+ID" command will reveal the "secret" sector number to anybody
+willing to check.</p>
+<p><u>Track / side number</u></p>
+<p>Similarly, we could scramble the track numbering. Note that this
+will
+not perturbate the track seeking commands, unless the "V" verify
+bit was set in the command. However, most disk manager will check that
+the correct track was reached by reading an ID&nbsp;block. If we number
+our tracks 1-2-3-144-5-6... all accesses to track 4 are likely to fail.</p>
+<p><u>CRC</u></p>
+<p>Instead of using the &gt;F7 value to tell the FDC to issue the
+proper
+CRC, we could place a dummy value in these bytes upon formating. This
+will
+cause a CRC error when the user tries to read such an ID (or data)
+block.
+Our program will purposedly ignore such errors. However, the missing
+&gt;F7
+code could cause a different problem:</p>
+<p><u>Missing marks</u></p>
+<p>The "Read track" command ends with a "lost data"
+error if it does not encouter data marks and ID marks (encoded in a
+special
+way) where they should be. This is because the command uses these mark
+to synchronize the flow of bits, and arrange them in bytes. By omiting
+such a mark, we can make a track unreadable as a whole. However, it
+will
+still be accessible for the "Read sector", "Read ID"
+and "Write sector" commands (except for the sector with the missing
+mark, of course). NB: there is a way to prevent address mark detection
+with the FD1771 controller: thus this method is not fool-proofed.</p>
+<p><u>Multiple index holes</u></p>
+<p>You certainly know about "flippies": double-sided disks that
+can be used in a single-side drive, by just inserting them upside down
+to access the other side. These disks have a second write-protection
+notch,
+symetrical to the original one. They also have a second index hole in
+the
+disk envelope, but not in the disk itself. What I'm suggesting here is
+to do just the opposite: pierce a second hole in the disk itself, but
+not
+in the envelope. This will effectively abort the "Read track"
+command when the second hole is encountered and prevent track-by-track
+copying.</p>
+<p>On the other hand, the "Read ID", "Read sector"
+and "Write sector" will operate normally since they only abort
+after 5-6 occurences of an index hole.</p>
+<p>Once again, this is not a very good protection method since the bad
+guy can just tape the extra hole shut!</p>
+<p><u>Pin hole in the media</u></p>
+<p>This method was sometimes used in the PC world: make a small hole in
+the disk (using a laser) then detect the position of the hole to ensure
+the disk is an original.</p>
+<p>We could do this with a pin: make a scratch or a small hole towards
+the outside of the disk (but not completely to the rim, to avoid
+damaging
+sector 0 and 1). Then use a disk manager to locate the position of the
+damage on the disk and include this information in your program</p>
+<p>The protected program will then look for the presence of the damage
+in one or more sectors and react accordingly. Please don't make it a
+JEQ/JNE
+test: a quick disassembly will allow any hacker to bypass your
+protection.
+A more clever scheme would be to encrypt your main program and to place
+the (preferably long) key in a damaged sector, at a fixed distance from
+the damage.</p>
+<p>To locate a damaged sector, your program can just read it, invert
+every
+byte, and write it back. Then read it again: the damaged bytes won't be
+inverted (just don't forget to restore the other bytes once you're
+done).</p>
+<h2><br>
+<a name="ROM"></a>The controller card ROM</h2>
+<p>The controller card comprises a 8192 bytes (&gt;2000) ROM that
+contains
+a power-up subroutine, four DSR for high-level file access and many
+subprograms
+for low- or mid- or high-level disk access. As usual with peripheral
+cards,
+that ROM appears at &gt;4000-5FFF when CRU bit 0 is set to one for that
+card. Note that the controller's register map at &gt;5FF0-5FFF, thus
+the
+last 16 bytes of the ROM cannot be accessed. You'll find a commented
+disassemly
+listing of the whole ROM on my <a href="download.htm#disass">download</a><a
+ href="../download.htm#disass">
+</a>page (warning: it's written in an ugly programming style).</p>
+<h3><br>
+<a name="VDPmem"></a>File buffers in VDP memory</h3>
+<p>Upon initialisation, the disk controller power-up routine reserves
+room
+for three files at the end of the VDP memory. Subsequently, the
+subroutines
+FILES (to be called from Basic) or &gt;16 (to be called from assembly)
+can modify the amount of memory reserved, from 1 to 16 files. The
+bottom
+of the reserved area (i.e. the highest free address) is pointed at by
+&gt;8370.</p>
+<p>This memory area is used by the disk controller to store
+characteristics
+of the current disk, and of the currently accessed files. It has the
+following
+structure (exemple with 3 files):</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Address</th>
+      <th>Bytes</th>
+      <th>Name</th>
+      <th>Contents</th>
+    </tr>
+    <tr>
+      <td>&gt;37D8</td>
+      <td rowspan="4">5</td>
+      <td rowspan="4">Buffer area header</td>
+      <td>Validation code: &gt;AA</td>
+    </tr>
+    <tr>
+      <td>&gt;37D9</td>
+      <td>Pointer to top of buffer: &gt;3FFF</td>
+    </tr>
+    <tr>
+      <td>&gt;37DB</td>
+      <td>CRU base of disk controller card: &gt;11</td>
+    </tr>
+    <tr>
+      <td>&gt;37DC</td>
+      <td>Max number of files (here: &gt;03)</td>
+    </tr>
+    <tr>
+      <td>&gt;37DD</td>
+      <td rowspan="4">6</td>
+      <td rowspan="4">File control block<br>
+for first file</td>
+      <td>Current sector offset in file ( 2 bytes)</td>
+    </tr>
+    <tr>
+      <td>&gt;37DF</td>
+      <td>Sector number of FDR (2 bytes)</td>
+    </tr>
+    <tr>
+      <td>&gt;37E1</td>
+      <td>Record offset in sector (for Var only)</td>
+    </tr>
+    <tr>
+      <td>&gt;37E2</td>
+      <td>Drive number (add &gt;80: modified data)</td>
+    </tr>
+    <tr>
+      <td>&gt;37E3</td>
+      <td>256</td>
+      <td>FDR for <br>
+first file</td>
+      <td>Copied from disk (add &gt;80 to first byte<br>
+to signal a modified FDR).</td>
+    </tr>
+    <tr>
+      <td>&gt;38E3</td>
+      <td>256</td>
+      <td>Data buffer<br>
+for first file</td>
+      <td>Contents of current sector data block</td>
+    </tr>
+    <tr>
+      <td>&gt;39E3</td>
+      <td>6</td>
+      <td>File control block<br>
+for second file</td>
+      <td>See above</td>
+    </tr>
+    <tr>
+      <td>&gt;39E9</td>
+      <td>256</td>
+      <td>FDR for<br>
+second file</td>
+      <td>See above</td>
+    </tr>
+    <tr>
+      <td>&gt;3AE9</td>
+      <td>256</td>
+      <td>Data buffer <br>
+for second file</td>
+      <td>See above</td>
+    </tr>
+    <tr>
+      <td>&gt;3BE9</td>
+      <td>6</td>
+      <td>File control block<br>
+for third file</td>
+      <td>See above</td>
+    </tr>
+    <tr>
+      <td>&gt;3BEF</td>
+      <td>256</td>
+      <td>FDR for<br>
+third file</td>
+      <td>See above</td>
+    </tr>
+    <tr>
+      <td>&gt;3CEF</td>
+      <td>256</td>
+      <td>Data buffer<br>
+for third file</td>
+      <td>See above</td>
+    </tr>
+    <tr>
+      <td>&gt;3DEF</td>
+      <td>252</td>
+      <td>VDP stack</td>
+      <td>Used by the routines in the controller card</td>
+    </tr>
+    <tr>
+      <td>&gt;3EEB</td>
+      <td rowspan="4">4</td>
+      <td rowspan="4">Disk drive info</td>
+      <td>Last drive number accessed (&gt;01 - 03)</td>
+    </tr>
+    <tr>
+      <td>&gt;3EEC</td>
+      <td>Last track accessed on drive 1</td>
+    </tr>
+    <tr>
+      <td>&gt;3EED</td>
+      <td>Last track accessed on drive 2</td>
+    </tr>
+    <tr>
+      <td>&gt;3EEE</td>
+      <td>Last track accessed on drive 3</td>
+    </tr>
+    <tr>
+      <td>&gt;3EEF</td>
+      <td>6</td>
+      <td>Not used</td>
+      <td>Meant for TI-99/4 (not 4A) ?</td>
+    </tr>
+    <tr>
+      <td>&gt;3EF5</td>
+      <td>256</td>
+      <td>VIB<br>
+copied from sector 0 </td>
+      <td>Copied from last drive accessed <u>for a write</u></td>
+    </tr>
+    <tr>
+      <td>&gt;3FF5</td>
+      <td rowspan="2">11</td>
+      <td rowspan="2">Filename compare</td>
+      <td>Disk number</td>
+    </tr>
+    <tr>
+      <td>&gt;3FF6</td>
+      <td>Filename</td>
+    </tr>
+  </tbody>
+</table>
+<h3><br>
+<br>
+<a name="power-up"></a>The power-up routine</h3>
+<p>This routine performs the equivalent of a CALL FILES(3), i.e. it
+reserves
+room for three file acess blocks at the end of the VDP memory.</p>
+<h3><br>
+<a name="DSR"></a>The DSRs</h3>
+<p>There are four DSR subroutines in the original TI disk controller
+card:</p>
+<p><b>DSK1 </b>accesses the first disk drive<br>
+<b>DSK2 </b>accesses the second disk drive<br>
+<b>DSK3 </b>accesses the third disk drive<br>
+<b>DSK </b>expects a disk name after a decimal point (e.g.
+DSK.DISKNAME)
+and accesses the drive that contains this disk (if any).</p>
+<p>A file name should be provided after the DSR name, using a decimal
+point
+as a separator (e.g. DSK1.MYFILE). If no filename is provided after the
+dot, the disk directory is accessed as a read-only, D/F 38 file. </p>
+<p>If the disk directory is accessed, only opcode 0-2 (Open, Close and
+Read) are recognized. Otherwise, the DSRs understands all the standard
+PAB opcodes, except for Scratch Record (&gt;08).</p>
+<h4><br>
+0 Open</h4>
+<p>Opens a file, either exisiting or new. Puts its characteristics in a
+file access block in VDP memory, provided there is one free.</p>
+<ul>
+  <li>Get file type from PAB+1. Return with "bad attributes" error
+if a Dis/Fix file is opened for "append".</li>
+  <li>Get record length from PAB+4. Return with "bad attributes"
+is a Var file has a record size of 255.</li>
+  <li>If the file is open for "output":</li>
+  <ul>
+    <li>Check if it exists. If yes return with error "file error".</li>
+    <li>Create the file. Return with "memory full " error if there
+is not 1 sector free on disk, or if there are already 127 file pointers
+in sector 1.</li>
+    <li>Set file type and rec len in FDR. Use a default rec length of
+80 if
+it is 0 in PAB.</li>
+    <li>Calculate the # records per sector (using max value for var).
+Set it
+in FDR.</li>
+    <li>Get the # of records needed from PAB+6</li>
+    <ul>
+      <li>Return with "bad attributes" if it is greater than 32767.</li>
+      <li>If it is not 0:</li>
+      <ul>
+        <li>Calculate the number of sectors needed (using max size for
+var).</li>
+        <li>Set it in FDR.</li>
+        <li>Add that number of sectors to the file.</li>
+      </ul>
+    </ul>
+    <li>Return</li>
+  </ul>
+  <li>If the file is not open for "output":</li>
+  <ul>
+    <li>Check if it exists. If not:</li>
+    <ul>
+      <li>Return with "file error" if it was open for "input".</li>
+      <li>Otherwise create the file: goto "output" above.</li>
+    </ul>
+    <li>Get file status from FDR.</li>
+    <li>Return with "write protected" error if a protected file is
+opened for "update" or "append".</li>
+    <li>Return with "bad attributes" error if the file type does
+not match the one specified in PAB+1.</li>
+    <li>Check rec len in PAB+4:</li>
+    <ul>
+      <li>If it is 0, replace it with the rec len taken from the FDR</li>
+      <li>If it is not 0, compare it with that in the FDR. Return with
+"bad
+attributes" if they differ.</li>
+    </ul>
+    <li>If the file is opened for "append":</li>
+    <ul>
+      <li>Get the # of sectors and the eof-offset byte from the FDR.</li>
+      <li>Unless the file is empty, load the last sector into memory.</li>
+    </ul>
+    <li>Return</li>
+  </ul>
+</ul>
+<h4><br>
+1 Close </h4>
+<p>Closes the file. Frees the file access block in VDP memory.</p>
+<ul>
+  <li>Find the file in the VDP buffers. Return with "file error"
+if not found.</li>
+  <li>Save any modifications to the FDR and the current sector.</li>
+  <li>Return.</li>
+</ul>
+<h4><br>
+2 Read</h4>
+<p>Input data from a file, one record at a time. Data is transfered
+into
+a buffer located in VDP memory.</p>
+<ul>
+  <li>Find the file in the VDP buffers. Return with "file error"
+if not found.</li>
+  <li>Return with "illegal opcode" if the file was opened for "append"
+or "output" (from PAB+1).</li>
+  <li>Get file type from FDR (not PAB+1).</li>
+  <li>If fixed:</li>
+  <ul>
+    <li>Get the record # from PAB+6.</li>
+    <li>Calculate which sector it is in, using the rec/sect byte from
+the FDR.</li>
+    <li>If it is not in file: return with "EOF reached" error.</li>
+    <li>Load that sector into the data buffer are in VDP buffers.</li>
+    <li>Write rec length in PAB+5 (# of bytes read).</li>
+    <li>Transfer that number of bytes into the data buffer in VDP mem,
+whose
+address is at PAB+2.</li>
+    <li>Return.</li>
+  </ul>
+  <li>If variable:</li>
+  <ul>
+    <li>Get the record # from PAB+6.</li>
+    <li>Read the file sector by sector, count the records on each,
+until that
+number is reached (slow!).</li>
+    <li>If not in file: return with "EOF reached" error.</li>
+    <li>Get record length from the data in sector, write it length in
+PAB+5
+(# of bytes read).</li>
+    <li>Transfer that number of bytes into the data buffer in VDP
+memory, whose
+address is at PAB+2.</li>
+    <li>Return.</li>
+  </ul>
+</ul>
+<h4><br>
+3 Write</h4>
+<p>Writes data to a file, one record at a time . Data is taken from a
+buffer
+in VDP memory.</p>
+<ul>
+  <li>Find the file in the VDP buffers. Return with "file error"
+if not found.</li>
+  <li>Return with "illegal opcode" if the file was opened for "input"
+(from PAB+1).</li>
+  <li>Get file type from FDR (not PAB+1).</li>
+  <li>If fixed:</li>
+  <ul>
+    <li>Get the record # from PAB+6.</li>
+    <li>Calculate which sector it is in, using the rec/sect byte from
+the FDR.
+Check it it is in file, using the sect/file byte.</li>
+    <li>If it is not in file: </li>
+    <ul>
+      <li>Append enough sectors to the file to fit that record in. </li>
+      <li>Or return with "memory full" error, if there is not enough
+room on disk.</li>
+    </ul>
+    <li>If it is in file:</li>
+    <ul>
+      <li>Load the sector it is on in the data buffer area in VDP
+memory.</li>
+    </ul>
+    <li>Get # of bytes to write from the record length byte in FDR.</li>
+    <li>Transfer that number of bytes from the data buffer in VDP mem,
+whose
+address is at PAB+2, into the data buffer area for that file.</li>
+    <li>Return.</li>
+  </ul>
+  <li>If variable:</li>
+  <ul>
+    <li>Get the record # from PAB+6.</li>
+    <li>Read the file sector by sector, count the records on each,
+until that
+number is reached.</li>
+    <li>If not it file:</li>
+    <ul>
+      <li>Append enough sectors to file so as to fit that # of records,
+assuming
+max size for each.</li>
+      <li>Or return with "memory full" error, if there is not enough
+room on disk.</li>
+    </ul>
+    <li>Get # of bytes to write from PAB+5.</li>
+    <li>See if it fits in the current sector. If not get next sector
+(if no
+more: append one).</li>
+    <li>Update the # of sectors byte and the eof-offset byte in the FDR.</li>
+    <li>Write the # of bytes as 1 byte at the beginning of the new
+record.</li>
+    <li>Transfer that number of bytes from the data buffer in VDP
+memory, whose
+address is at PAB+2.</li>
+    <li>Return.</li>
+  </ul>
+</ul>
+<h4><br>
+4 Rewind</h4>
+<p>Sets the internal pointer to a given record in a relative file, to
+record
+0 in a sequential file.</p>
+<ul>
+  <li>Find the file in the VDP buffers. Return with "file error"
+if not found.</li>
+  <li>Return with "illegal opcode" if the file was opened for "output"
+or "append" (from PAB+1).</li>
+  <li>Update data buffer if needed. </li>
+  <li>If the file is sequential:</li>
+  <ul>
+    <li>Write 0 into PAB+6 (record number).</li>
+  </ul>
+  <li>Return.</li>
+</ul>
+<h4><br>
+5 Load</h4>
+<p>Loads a memory image ("program") file into a buffer in VDP
+memory.</p>
+<ul>
+  <li>Find FDR on disk. If not found return with "file error".</li>
+  <li>Make sure the file is "program". If not return with "file
+error".</li>
+  <li>Get the number of sectors in file. If it's 0 return with "file
+error".</li>
+  <li>Get eof-offset byte from FDR, combine with # of sectors to get
+the
+file size in bytes.</li>
+  <li>Compare with the size in PAB+6. Return with "file error"
+if the file is too big.</li>
+  <li>Write the whole file to VDP memory, at address found at PAB+2
+(only
+the relevant part of the last sector if transfered).</li>
+</ul>
+<h4><br>
+6 Save</h4>
+<p>Saves data in a "program" file, from a buffer located in VDP
+memory.</p>
+<ul>
+  <li>Check if file exists. If yes, return with error</li>
+  <li>Create the file. Return with "memory full " error if there
+is not 1 sector free on disk, or if there are already 127 file pointers
+in sector 1.</li>
+  <li>Write the content of the buffer to the file, in as many sectors
+as
+it takes to store the # of bytes specified in PAB+6. The last sector
+will
+be padded with garbage, if necessary.</li>
+  <li>Set file type to "program", adjust # of sectors and eof-offset
+bytes in FDR.</li>
+</ul>
+<h4><br>
+7 Delete</h4>
+<p>Removes a file from the disk directory.</p>
+<ul>
+  <li>Find the file in the VDP buffers. </li>
+  <ul>
+    <li>If found: read sector 1, find the FDR pointer for that file in
+the
+directory list.</li>
+    <li>If not found: find it on disk (this gives us the pointer in
+sector
+1).</li>
+    <ul>
+      <li>If not found return.</li>
+    </ul>
+  </ul>
+  <li>Free the sectors occupied by the file and its FDR in VIB bitmap
+(sector
+0).</li>
+  <li>Remove the FDR pointer from the directory list (sector 1).</li>
+  <li>Clear the first character of the filename in the FDR copy in VDP
+buffers:
+invalidates the file.</li>
+  <li>Return</li>
+</ul>
+<h4><br>
+8 Scratch record</h4>
+<p>Not implemented. Returns with "bad attributes" (why not "illegal
+opcode"?).</p>
+<h4><br>
+9 Status</h4>
+<p>Returns the status of the specified file according to the following
+format:</p>
+<p>&gt;80: File not found<br>
+&gt;40: File is write protected<br>
+&gt;20 (not used)<br>
+&gt;10: File is internal<br>
+&gt;08: File is program<br>
+&gt;04: File is variable<br>
+&gt;02: Memory full<br>
+&gt;01: EOF reached</p>
+<ul>
+  <li>Look for the file in the VDP buffers.</li>
+  <li>If not there, look for it on disk. </li>
+  <ul>
+    <li>If not found, set the "not found" bit and return with result
+in PAB+8.</li>
+    <li>If the file is found on disk:</li>
+    <ul>
+      <li>Invalidate its newly loaded FDR in VDP buffers (so that it's
+not mistaken
+for an open file).</li>
+      <li>Set the file-type and file-protection bits and return with
+result in
+PAB+8.</li>
+    </ul>
+  </ul>
+  <li>If the file is found in VDP buffers, it is open. Check if it's
+Var
+or Fix.</li>
+  <li>If var: </li>
+  <ul>
+    <li>Check if the record # in PAB+6 is in file (using # of rec/file
+byte
+in the FDR). If not:</li>
+    <ul>
+      <li>Set the "EOF" bit.</li>
+      <li>See if there is room for one more sector on disk. If not, set
+the "memory
+full" bit</li>
+    </ul>
+    <li>Add file-type and file-protection bits and return with result
+in PAB+8.</li>
+  </ul>
+  <li>If fixed:</li>
+  <ul>
+    <li>Calculate the sector # from the record # in PAB+6 and the
+rec/sect
+byte in the FDR.</li>
+    <li>Check if the record is in the file. If not:</li>
+    <ul>
+      <li>Set the "EOF" bit.</li>
+      <li>Calculate how many sectors would be needed for it. Check if
+there are
+that many free sectors on disk. If not, set the "memory full"
+bit.</li>
+    </ul>
+    <li>Add file-type and file-protection bits and return with result
+in PAB+8.</li>
+  </ul>
+</ul>
+<h4><br>
+0 Open directory</h4>
+<p>Allows to catalog a disk by opening a file called "DSKx."
+or "DSK.DISKNAME." (i.e. missing a filename).</p>
+<ul>
+  <li>Get file type from PAB+1.</li>
+  <li>Return with "bad attributes" if the file is not Int/Fix,
+opened as "output".</li>
+  <li>If rec len is 0, make it 38. If it's not 38 return with "bad
+attributes".</li>
+  <li>Check if file was already open (look for a filename beginning
+with
+a space in the VDP buffers). </li>
+  <ul>
+    <li>If yes, return with "file error".</li>
+  </ul>
+  <li>Check if there is a free buffer to open the file. If not, return
+with
+"memory full".</li>
+  <li>Set the filename as " xxxxxxxx" (1 space and 9 bytes of garbage)
+in the VDP buffers.</li>
+  <li>Return</li>
+</ul>
+<h4><br>
+1 Close directory</h4>
+<ul>
+  <li>Look for the file in the VDP buffers. If not found, return with
+"file
+error" (was not open).</li>
+  <li>Clear the drive # in the file control block (invalidate it).</li>
+  <li>Return.</li>
+</ul>
+<h4><br>
+2 Read directory</h4>
+<p>Record 0 provides disk informations, records 1 through 128 provide
+file
+informations.</p>
+<ul>
+  <li>Look for the file in the VDP buffers. If not found, return with
+"file
+error" (was not open).</li>
+  <li>Get record # from PAB+6.</li>
+  <li>Write it in the VDP buffer, after the space in the filename
+(first
+2 bytes of garbage). Why??</li>
+  <li>Return with "EOF reached" error if it is greater than 128.</li>
+  <li>For record 0:</li>
+  <ul>
+    <li>Read VIB (sector 0) into data buffer area after FDR.</li>
+    <li>Get # of sectors on disk from VIB</li>
+    <li>Count free sectors in VIB bitmap (upto last byte in sector,
+even if
+no drive can use that many sectors).</li>
+    <li>Pass parameters in VDP buffer whose address is found in PAB+2:</li>
+    <ul>
+      <li>Diskname: a 10-characters ascii string (i.e. with a leading
+length
+byte).</li>
+      <li>0 (as an 8-bytes floating point number, plus a leading size
+byte).</li>
+      <li>Number of sectors on disk (floating point number).</li>
+      <li>Number of free sectors on disk (floating point number).</li>
+    </ul>
+  </ul>
+  <li>For other records:</li>
+  <ul>
+    <li>Read sector 1 (FDR list) into data buffer area.</li>
+    <li>Get the pointer for the file corresponding to that record
+number.</li>
+    <li>If the pointer is null, pass parameters in the VDP buffer whose
+address
+in found in PAB+2:</li>
+    <ul>
+      <li>Empty string (size byte = 0).</li>
+      <li>0 (as an 8-bytes floating point number, plus a leading size
+byte).</li>
+      <li>0</li>
+      <li>0</li>
+    </ul>
+    <li>If the pointer is valid:</li>
+    <ul>
+      <li>Read FDR into data buffer area (not into FDR buffer: this is
+for directory
+file).</li>
+      <li>Get the # of sectors from FDR, add 1 for FDR itself. Get the
+file-type
+and rec-len bytes.</li>
+      <li>Pass parameters in VDP buffer whose address is found in PAB+2:</li>
+      <ul>
+        <li>Filename: a 10-characters ascii string.</li>
+        <li>File type: 1=D/F 2=D/V, 3=I/F, 4=I/V, 5=Program. Negated if
+the file
+is protected.</li>
+        <li>File size, in sectors including the FDR.</li>
+        <li>Record length.</li>
+      </ul>
+    </ul>
+  </ul>
+  <li>Write 38 in PAB+5 (# of bytes read), although there may be less
+than
+that if the string is less than 10 chars.</li>
+  <li>Return.</li>
+</ul>
+<h3><br>
+<br>
+<br>
+<a name="Subprograms"></a>The subprograms</h3>
+<p>Most of these subprograms have 1-char long names, the character
+being
+in the range &gt;10 to &gt;16. Therefore, they cannot be called from
+Basic
+(the only exception is FILES). Each subprogram expects parameters to be
+passed at specific addresses in the scratch-pad RAM (generally
+&gt;834A-&gt;8350).</p>
+<p>Subprograms can be classified in three categories. </p>
+<ul>
+  <li>Low-level subprograms (Sector I/O and Format disk) whose function
+is
+to make higher level routines independent on the physical disk medium.
+  </li>
+  <li>Mid-level subprograms (File protect and File rename) that
+introduce
+the concept of files, as a block of information but don't care how the
+information is organised in the file. They call low-level subroutines
+to
+perform all disk operations.</li>
+  <li>High-level subprograms (File input, File output, Number of files)
+deal
+with data buffering from files to VDP memory and conversely. </li>
+  <li>DSRs provide more sophisticated file access, that take the format
+of
+the data into account. They call the above subprograms to perform most
+of their functions.</li>
+</ul>
+<h4><br>
+&gt;10 Sector I/O</h4>
+<p>This subprogram reads or writes a sector from the disk. The number
+of
+bytes is always 256.</p>
+<p>Input parameters</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <td>&gt;834A</td>
+      <td colspan="2" width="80%">-</td>
+    </tr>
+    <tr>
+      <td>&gt;834C</td>
+      <td width="40%">Drive # (1-3) </td>
+      <td width="40%">0: write <br>
+&lt;&gt;0: read</td>
+    </tr>
+    <tr>
+      <td>&gt;834E</td>
+      <td colspan="2" width="80%">VDP buffer address</td>
+    </tr>
+    <tr>
+      <td>&gt;8350</td>
+      <td colspan="2" width="80%">Sector number</td>
+    </tr>
+  </tbody>
+</table>
+<p>Output parameters</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <td>&gt;834A</td>
+      <td colspan="2" width="80%">Sector number</td>
+    </tr>
+    <tr>
+      <td>&gt;834C</td>
+      <td width="40%">-</td>
+      <td width="40%">-</td>
+    </tr>
+    <tr>
+      <td>&gt;834E</td>
+      <td colspan="2" width="80%">-</td>
+    </tr>
+    <tr>
+      <td>&gt;8350</td>
+      <td colspan="2" width="80%">Error code</td>
+    </tr>
+  </tbody>
+</table>
+<p><br>
+</p>
+<h4>&gt;11 Format disk</h4>
+<p>This routine formats a disk.</p>
+<p>Input parameters</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <td>&gt;834A</td>
+      <td colspan="2" width="80%">-</td>
+    </tr>
+    <tr>
+      <td>&gt;834C</td>
+      <td>DSR / Drive # </td>
+      <td width="40%"># of tracks</td>
+    </tr>
+    <tr>
+      <td>&gt;834E</td>
+      <td colspan="2" width="80%">VDP buffer address</td>
+    </tr>
+    <tr>
+      <td>&gt;8350</td>
+      <td width="40%">Density </td>
+      <td># of sides</td>
+    </tr>
+  </tbody>
+</table>
+<p><br>
+DSR: 0 = standard format, can be done by DSR version 1.0<br>
+1 = needs DSR version 2.0 (double-sided, or track # not 35 nor 40)<br>
+2 = needs a higher DSR version (double density, etc)</p>
+<p>Output parameters</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <td>&gt;834A</td>
+      <td colspan="2" width="80%"># of sectors / disk</td>
+    </tr>
+    <tr>
+      <td>&gt;834C</td>
+      <td width="40%">-</td>
+      <td width="40%">-</td>
+    </tr>
+    <tr>
+      <td>&gt;834E</td>
+      <td colspan="2" width="80%">-</td>
+    </tr>
+    <tr>
+      <td>&gt;8350</td>
+      <td colspan="2" width="80%">Error code</td>
+    </tr>
+  </tbody>
+</table>
+<p><br>
+</p>
+<h4>&gt;12 File protection</h4>
+<p>This routine is used to modify the protection status of a file, i.e
+whether the file can or cannot be deleted and modified.</p>
+<p>Input parameters</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <td>&gt;834C</td>
+      <td width="40%">Drive # (1-3) </td>
+      <td width="40%">0: unprotected<br>
+&gt;FF: protected</td>
+    </tr>
+    <tr>
+      <td>&gt;834E</td>
+      <td colspan="2" width="80%">Filename ptr (in VDP mem)</td>
+    </tr>
+    <tr>
+      <td>&gt;8350</td>
+      <td colspan="2" width="80%">-</td>
+    </tr>
+  </tbody>
+</table>
+<p>The filename must be a left-justified, 10-char string. Add as many
+trailing
+spaces as necessary.</p>
+<p><br>
+Output parameters</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <td>&gt;834C</td>
+      <td width="40%">-</td>
+      <td width="40%">-</td>
+    </tr>
+    <tr>
+      <td>&gt;834E</td>
+      <td colspan="2" width="80%">-</td>
+    </tr>
+    <tr>
+      <td>&gt;8350</td>
+      <td colspan="2" width="80%">Error codes</td>
+    </tr>
+  </tbody>
+</table>
+<p><br>
+</p>
+<h4>&gt;13 Rename file</h4>
+<p>This routine changes the name of a file on a given drive.</p>
+<p>Input parameters</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <td>&gt;834C</td>
+      <td width="40%">Drive # (1-3) </td>
+      <td width="40%">-</td>
+    </tr>
+    <tr>
+      <td>&gt;834E</td>
+      <td colspan="2" width="80%">New name ptr (in VDP mem)</td>
+    </tr>
+    <tr>
+      <td>&gt;8350</td>
+      <td colspan="2" width="80%">Old name ptr (in VDP mem)</td>
+    </tr>
+  </tbody>
+</table>
+<p>Filenames must be 10 character strings, with as many trailing spaces
+as necessary. No check is made to ensure that the new name is legal!</p>
+<p><br>
+Output parameters</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <td>&gt;834C</td>
+      <td width="40%">-</td>
+      <td width="40%">-</td>
+    </tr>
+    <tr>
+      <td>&gt;834E</td>
+      <td colspan="2" width="80%">-</td>
+    </tr>
+    <tr>
+      <td>&gt;8350</td>
+      <td colspan="2" width="80%">Error codes</td>
+    </tr>
+  </tbody>
+</table>
+<p><br>
+</p>
+<h4>&gt;14 File input</h4>
+<p>This routine reads data from a file sector-wise, irrespective of its
+type, record length, etc. For instance, it can read a "program"
+file by chunks of 512 bytes (or whatever is convenient).</p>
+<p>Input parameters</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <td>&gt;834C</td>
+      <td width="40%">Drive # (1-3) </td>
+      <td width="40%"># of sectors</td>
+    </tr>
+    <tr>
+      <td>&gt;834E</td>
+      <td colspan="2" width="80%">Filename ptr (in VDP mem)</td>
+    </tr>
+    <tr>
+      <td>&gt;8350</td>
+      <td width="40%">Info ptr (&gt;83xy)</td>
+      <td width="40%">-</td>
+    </tr>
+  </tbody>
+</table>
+<p># of sectors: 0 = Get file info (fill the structure below, using
+data
+from the file's FDR)<br>
+&lt;&gt;0 = Read that number of sectors (from first sector indicated in
+the structure below).</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <td>&gt;83xy</td>
+      <td colspan="2" width="80%">VDP buffer address</td>
+    </tr>
+    <tr>
+      <td>+2</td>
+      <td colspan="2" width="80%">First sector #</td>
+    </tr>
+    <tr>
+      <td>+4</td>
+      <td width="40%">File type</td>
+      <td width="40%">Recs / sector</td>
+    </tr>
+    <tr>
+      <td>+6</td>
+      <td width="40%">EOF offset</td>
+      <td width="40%">Rec lenght</td>
+    </tr>
+    <tr>
+      <td>+8</td>
+      <td width="40%"># of rec</td>
+      <td width="40%">-</td>
+    </tr>
+  </tbody>
+</table>
+<p><br>
+Output parameters</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <td>&gt;834C</td>
+      <td width="40%">-</td>
+      <td width="40%"># of sectors read</td>
+    </tr>
+    <tr>
+      <td>&gt;834E</td>
+      <td colspan="2" width="80%">-</td>
+    </tr>
+    <tr>
+      <td>&gt;8350</td>
+      <td colspan="2" width="80%">Error codes</td>
+    </tr>
+  </tbody>
+</table>
+<p>Result of get file info:</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <td>&gt;83xy</td>
+      <td colspan="2" width="80%">-</td>
+    </tr>
+    <tr>
+      <td>+2</td>
+      <td colspan="2" width="80%">-</td>
+    </tr>
+    <tr>
+      <td>+4</td>
+      <td width="40%">File type</td>
+      <td width="40%">Recs / sector</td>
+    </tr>
+    <tr>
+      <td>+6</td>
+      <td width="40%">EOF offset</td>
+      <td width="40%">Rec lenght</td>
+    </tr>
+    <tr>
+      <td>+8</td>
+      <td width="40%"># of rec</td>
+      <td width="40%">-</td>
+    </tr>
+  </tbody>
+</table>
+<h4><br>
+&gt;15 File output</h4>
+<p>This routine writes data to a file sector-wise, irrespective of its
+type, record lenght etc.</p>
+<p>Input parameters</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <td>&gt;834C</td>
+      <td width="40%">Drive # (1-3) </td>
+      <td width="40%"># of sectors</td>
+    </tr>
+    <tr>
+      <td>&gt;834E</td>
+      <td colspan="2" width="80%">Filename ptr (in VDP mem)</td>
+    </tr>
+    <tr>
+      <td>&gt;8350</td>
+      <td width="40%">Info ptr (&gt;83xy)</td>
+      <td width="40%">-</td>
+    </tr>
+  </tbody>
+</table>
+<p># of sectors: 0 = Create file (using info in the structure below to
+create the FDR)<br>
+&lt;&gt;0 = Write that number of sectors (from first sector indicated
+in
+the structure below).</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <td>&gt;83xy</td>
+      <td colspan="2" width="80%">VDP buffer address</td>
+    </tr>
+    <tr>
+      <td>+2</td>
+      <td colspan="2" width="80%">First sector #</td>
+    </tr>
+    <tr>
+      <td>+4</td>
+      <td width="40%">File type</td>
+      <td width="40%">Recs / sector</td>
+    </tr>
+    <tr>
+      <td>+6</td>
+      <td width="40%">EOF offset</td>
+      <td width="40%">Rec lenght</td>
+    </tr>
+    <tr>
+      <td>+8</td>
+      <td width="40%"># of rec</td>
+      <td width="40%">-</td>
+    </tr>
+  </tbody>
+</table>
+<p><br>
+Output parameters</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <td>&gt;834C</td>
+      <td width="40%">-</td>
+      <td width="40%"># of sectors writen </td>
+    </tr>
+    <tr>
+      <td>&gt;834E</td>
+      <td colspan="2" width="80%">-</td>
+    </tr>
+    <tr>
+      <td>&gt;8350</td>
+      <td colspan="2" width="80%">Error codes</td>
+    </tr>
+  </tbody>
+</table>
+<h4><br>
+&gt;16 Number of files</h4>
+<p>This subprogram sets the number of file access blocks reserved at
+the
+end of the VDP memory. Thus, it controls the number of files that can
+simultaneously
+be open. The maximum is 16.</p>
+<p>Input parameters</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <td>&gt;834C</td>
+      <td width="40%"># of files(1-16)</td>
+      <td width="40%">-</td>
+    </tr>
+    <tr>
+      <td>&gt;834E</td>
+      <td colspan="2" width="80%">-</td>
+    </tr>
+    <tr>
+      <td>&gt;8350</td>
+      <td colspan="2" width="80%">-</td>
+    </tr>
+  </tbody>
+</table>
+<p><br>
+Output parameters</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <td>&gt;834C</td>
+      <td width="40%">-</td>
+      <td width="40%">-</td>
+    </tr>
+    <tr>
+      <td>&gt;834E</td>
+      <td colspan="2" width="80%">-</td>
+    </tr>
+    <tr>
+      <td>&gt;8350</td>
+      <td colspan="2" width="80%">Error codes</td>
+    </tr>
+  </tbody>
+</table>
+<p><br>
+</p>
+<h4>FILES Number of files</h4>
+<p>This is the same subprogram as &gt;16, except that it is meant to be
+called from Basic. It limitates the number of files to 9.</p>
+<address>
+</address>
+<hr width="100%">
+<h2><a name="Drives"></a>Floppy disk drives</h2>
+<p><a href="#Drive%20models">Models<br>
+</a><a href="#Connection%20cable">Connection cable<br>
+</a><a href="#Resistor%20pack">Terminal resistor pack<br>
+</a><a href="#Shunt%20pack">Shunt pack<br>
+</a><a href="#Power%20plug">Power supply</a></p>
+<h3><a name="Drive models"></a>Models</h3>
+<p>Many 5/25" floppy drives are compatible with the TI-99/4A disk
+controller. Here are a few examples:</p>
+<p>Texas Instruments PHP1250<br>
+Magnetic Peripherals BR8B1A<br>
+Mitsubishi M4851-362U<br>
+MPI 51 &amp; 52<br>
+Pertec FD200<br>
+Qumetrak 142<br>
+Remex RFD480<br>
+Shugart 400L, 450<br>
+Siemens 82, FDD100-5<br>
+Tandon TM65-2, Tm100-2A<br>
+Wango 82</p>
+<h3><br>
+<a name="Connection cable"></a>Connection cable</h3>
+<p>The connection cable follows a standard convention:</p>
+<pre>#  I/O  Name            Function<br>-- ---- --------------- ---------<br> 2         ?             (used on PCs, for 1.44 MB drives)<br> 4         -             not used<br> 6  &gt;    SEL4            Select DSK4 (not on original TI FDC)<br> 8  &lt;    INDEX           Index pulse (hole in floppy detected)<br>10  &gt;    SEL1            Select DSK1<br>12  &gt;    SEL2            Select DSK2<br>14  &gt;    SEL3            Select DSK3<br>16  &gt;    STROBE          Motor on<br>18  &gt;    DIR             Direction to step at (0=out, 1=in)<br>20  &gt;    STEP            Step by one track<br>22  &gt;    WDATA           Data output<br>24  &gt;    WGATE           Enable data output<br>26  &lt;    TRACK0          Track 0 reached<br>28  &lt;    WPROTECT        Write protection detected<br>30  &lt;    RDATA           Data input<br>32  &gt;    SIDE            Side selection<br>34        -              not used<br><br>All odd numbered pins are connected to ground</pre>
+<p>So that you don't have to set your drive number yourself, Texas
+Instruments
+provided small connectors that redirect the SEL1, SEL2 and SEL3 lines,
+in the following way:</p>
+<pre>Controller  Drive 1    Connector    Drive 2    Connector    Drive 3<br>SEL1 &gt;------ SEL1 ------ ,---------- SEL1 ------ ,---------- SEL1<br>SEL2 &gt;------ SEL2 -------' ,-------- SEL2 -------' ,-------- SEL2<br>SEL3 &gt;------ SEL3 ---------' ------- SEL3 ---------' ------- SEL3</pre>
+<p>See how it works? All drives are set to react to SEL1, but for the
+second
+drive SEL1 is actually connected to the SEL2 line. Similarly, for the
+last
+drive, SEL1 is actually connected to the SEL3 line. This technique is
+known
+as "wire twisting".</p>
+<h3><br>
+<a name="Resistor pack"></a>Terminal resistor pack</h3>
+<p>Some of the connection lines require a pull-up resistors: SEL1,
+SEL2,
+SEL3, STROBE, DIR, SETP, WDATA and WGATE. For reasons that are not very
+clear to me, the pull-up resistors must be located at the far end of
+the
+cable, i.e. in the last drive in the chain. This means that this drive
+MUST&nbsp;ALWAYS BE&nbsp;TURNED&nbsp;ON, even if you are not actually
+using
+it. Otherwise signals will not carry properly.</p>
+<p>Normally, all drives come out of factory with a resistor pack
+installed.
+However, we cannot leave the pack in place in each drive as this would
+pull up the lines too strongly and may damage the controller card.
+Therefore,
+you MUST remove the resistor pack from each drive but the last one in
+the
+chain. Let me mellow that: in fact, this depends on the value of the
+resistor.
+Most drives use 150 ohm resistor, and having more than 1 pack installed
+may damage the card, but some manufacturers (e.g. TEAC) use 500 ohm
+resistors
+and these can be left in place without any risk of damaging the
+controller
+(three 500 ohms resistors in parallel add up to 167 ohms).</p>
+<p>Most of the time, the resistors come in the form of a DIP pack
+(dual-in-line)
+that looks like a small integrated circuit. It is generally installed
+on
+a socket, so you can remove it easily. Make sure you save it, in case
+you
+want to reinstall it later...</p>
+<h3><br>
+<a name="Shunt pack"></a>Shunt pack / DIP switch</h3>
+<p>As floppy disk drives were built to work on many different systems,
+they can be configure according to the user's needs. Sometimes, this is
+done by cutting connections on a so-called shunt pack. Occasionally,
+the
+shunt pack is replaced with a DIP-switch pack which only requires
+flipping
+tiny switches. Finally, you may encounter jumpers, i.e. two small pins
+connected by a little cap: just remove the cap to open the connection.</p>
+<p>The problem is that, even though there is a convention on which
+options
+should be made available, each manufacturer does things in a slightly
+different
+way, labels the connections with different names, arranges them in a
+different
+order, or even splits the pack in several jumpers. Normally, you should
+see a single 14 or 16-pin pack (or switch) with the following labels:</p>
+<p>HL or HS or H: Head loaded by drive selection line.<br>
+DS0 or DS1: Drive selected by SEL1.<br>
+DS1 or DS2: Drive selected by SEL2. <br>
+DS2 or DS3: Drive selected by SEL3. <br>
+DS3 or DS4: Drive selected by SEL4.<br>
+MX or X: mutiplex. Caution: DS4 and MX are often inverted. <br>
+HM or MH or M: Head loaded by the Strobe signal.</p>
+<p>In case of doubt, follow the SEL1 connection (pin 10 on the cable)
+and
+see where it ends in the shunt pack.</p>
+<h4>Settings</h4>
+<p>As mentionned above, all drives should respond to SEL1, because we
+are
+using twisted connectors to redirect SEL2 and SEL3 to the SEL1 line.
+Thus,
+open all DS connections, except for DS0 (sometimes labelled DS1). If
+you
+decide for a straight cable solution (for instance, if you have twin,
+slim
+drives) connect the line you want and leave the other three open. Each
+drive should have one and only one DSx line connected.</p>
+<p>HL and HM are mutually exclusive. They determine which signal should
+cause the magnetic head to be loaded on the disk: the SELx signal or
+the
+STROBE signal. Normally, you would want it to be the selection signal,
+so that only the drive you are accessing loads its head. To this end,
+connect
+HL and open HM. However, if you have only one drive, using HM may
+result
+in a slightly better performance (in this case, you should also connect
+MX).</p>
+<p>MX determines whether the drive output lines should be enabled by
+the
+selection signal (MX open) or be permanently enabled (MX connected).
+Obviously,
+when using multiple drives MX should be left open. In a single-drive
+system,
+connecting MX may slightly improve the drive performance.</p>
+<h3><br>
+<a name="Power plug"></a>Power connector</h3>
+<p>The power connector in the drive looks like this (looking inside the
+drive plug):</p>
+<pre>,---+<br>| O | +12V<br>| O | Gnd (for 12V)<br>| O | Gnd (for 52V)<br>| O | +5V<br>`---+<br></pre>
+<p><a href="disks.htm">Previous page</a></p>
+<address>Preliminary version. 3/19/99. Not for release.<br>
+Revision 1. 5/15/99. OK to release (fully disassembled card ROM).<br>
+Revision 2. 5/30/99. Tested &amp; debugged examples.</address>
+<address>Revision 3. 7/4/99. Added an explanation of the CRC.</address>
+<address>Revision 4. 7/13/99. Added a paragraph on magnetic media and
+write
+precomp.<br>
+Revision 5. 9/18/99. Added data on the FD1771, a word on the CorComp
+card.<br>
+Revision 6. 6/16/00. Got the FD171 manual. Added section on drives.
+Split
+in two pages.<br>
+</address>
+<center>
+<p><br>
+<a href="titechpages.htm">Back to the TI-99/4A Tech Pages</a></p>
+</center>
+</body>
+</html>

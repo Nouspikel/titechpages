@@ -1,0 +1,187 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+  <title></title>
+  <meta name="Author" content="ThN">
+  <meta name="GENERATOR"
+ content="Mozilla/3.04Gold (Win95; U) [Netscape]">
+</head>
+<body>
+<h1 align="center"><a
+ href="http://www.nouspikel.com/ti99/titechpages.htm"><img
+ src="logo.jpg" style="border: 0px solid ; height: 33px; width: 95px;"
+ title="" alt=""></a></h1>
+<h1>The ForTI card</h1>
+<p>The ForTI card is a sound card that features four TMS9919 sound
+chips,
+identical to the one located within the console. The card-controlling
+software
+is written in Forth, wich may be the reason for the card's name.</p>
+<p><b>Hardware<br>
+</b><a href="#Bus%20interface">Bus interface<br>
+</a><a href="#Power">Power supply<br>
+</a><a href="#Address%20decoding">Address decoding<br>
+</a><a href="#TMS9919%20wiring">TMS9919 wiring</a></p>
+<p><b>Software<br>
+</b><a href="#Software">Low-level access<br>
+</a><a href="#high-level">High level program</a></p>
+<h2><br>
+Hardware</h2>
+<h4><a name="Bus interface"></a>Bus interface</h4>
+<p>The card interfaces with the PE-box bus in the prescribed manner: a
+74LS245 buffers the data bus, and three 74LS244 take care of the
+address
+and control bus. A 74LS125 is used to buffer the card-generated RDBENA*
+signal that will enable the data bus drivers in the PE-box connection
+card
+and firehose connector. The remaining 3 gates on the 74LS125 are not
+used.</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS244&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +------+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp; A0&gt;---|&nbsp;&nbsp;&nbsp;   |---A0&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;  &nbsp; |&nbsp;  .&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;  &nbsp; |&nbsp;  .&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;  &nbsp; |&nbsp;  .&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;  &nbsp; |&nbsp;  .&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;  &nbsp; |&nbsp;  .&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp; A7&gt;---|&nbsp;&nbsp;&nbsp;   |---A7&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Gnd--|EN*   |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +------+&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS244&nbsp;&nbsp;&nbsp; &nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +------+&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp; A8&gt;---|&nbsp;&nbsp;  &nbsp; |---A8&nbsp;&nbsp;&nbsp;&nbsp; <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;  &nbsp; |&nbsp;  .&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;  &nbsp; |&nbsp;  .&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;  &nbsp; |&nbsp;  .&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;  &nbsp; |&nbsp;  .&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;   |&nbsp;  .&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp; A15&gt;--|&nbsp;&nbsp;  &nbsp; |---A15&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Gnd--|EN*   |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +------+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS244&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +------+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;  AMA&gt;---|      |---AMA<br>    AMB&gt;---|      |---AMB<br>    AMC&gt;---|      |---AMC<br>&nbsp;MEMEN*&gt;---|&nbsp;&nbsp;  &nbsp; |---Memen*<br>&nbsp;&nbsp;&nbsp; WE*&gt;---|&nbsp;&nbsp;  &nbsp; |---WE*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>CRUCLK*&gt;---|&nbsp;&nbsp;  &nbsp; |&nbsp;(nc)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>CLKOUT*&gt;---|&nbsp;&nbsp;  &nbsp; |&nbsp;(nc)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp; DBIN&gt;---|&nbsp;&nbsp;&nbsp;   |---,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Gnd--|EN*   |&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +------+&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS245&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +------+&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |   DIR|&lt;--'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp; &nbsp; D0&lt;---|&nbsp;&nbsp;  &nbsp; |---D0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp; &nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;  &nbsp; |   .&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp; &nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;   |&nbsp;  .&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp; &nbsp;&nbsp; .&nbsp; &nbsp; |&nbsp;&nbsp;  &nbsp; |   .&nbsp;&nbsp;&nbsp; <br>&nbsp;&nbsp; &nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;  &nbsp; |   .&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp; &nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;   |   .&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp; &nbsp; D7&lt;---|&nbsp;&nbsp;&nbsp;   |---D7&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |   OE*|&lt;------+---CardSel*&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +------+&nbsp;&nbsp;     |&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;    &nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>RDBENA*&lt;------------------&lt;|--Gnd<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;74LS125&nbsp;&nbsp;<br> </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p><br>
+There is no CRU interface, and no memory to hold DSRs. Also, there is
+no
+LED to shine when the card is accessed.</p>
+<h4><br>
+<a name="Power"></a>Power supply</h4>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>                  78L05&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   &nbsp;&nbsp;&nbsp; All chips<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+----------+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +5V&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;    +-----+<br>+8V---+--------|Vin&nbsp;&nbsp; Vout|----+-+----- ... --+------|Vcc&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  |&nbsp;&nbsp; Gnd&nbsp;&nbsp;&nbsp; |&nbsp;  &nbsp;| |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= 0.1 uF +----------+&nbsp;47&nbsp;= = 0.1 uF&nbsp;&nbsp; &nbsp; =0.1uF |&nbsp;&nbsp;&nbsp;&nbsp; |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;uF&nbsp;| |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Gnd&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Gnd&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   Gnd&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;    '------|Vss&nbsp; |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+-----+</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>Power supplied by a standard 7805 +5 volts voltage regulator,
+hoooked
+to the unregulated +8 volts line. </p>
+<p>Each chip (including the sound chips) has a 0.1 uF bypass capacitor
+across its power lines, to damp oscillations.</p>
+<h4><br>
+<a name="Address decoding"></a>Address decoding</h4>
+<p>The address decoding is performed with few TTL chips: a triple 3-bit
+NOR gate (74LS27), a dual 4-input NAND gate (74LS20) and two inverters
+from a 74LS04 hex-inverter chip. Together, they sample A0 through A5 to
+make sure the address is in the range &gt;84xx, as well as Memen*, WE*
+(the card can only be written to), A15 (only even bytes are
+accessible),
+and the reserved address lines AMA through AMC.</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre> A1___ <br> A2--<u>-</u>)&gt;o--------,<br> A3-'    74LS27  |<br>     A4___       |<br>    A15--<u>-</u>)&gt;o--, |<br> Memen*-'      | |  _<br>      _        | '-| )<br>A0---| )       '---|  )o---CardSel* <br>AMA--|  )o---|&gt;o---|  )<br>AMB--|  )   '04  ,-|_) 74LS20<br>AMC--|_)         |<br>                 |<br>WE*-----,__      |<br>A5---|&gt;o--<u>-</u>)&gt;o---'<br>  74LS04 |   74LS27<br>        Gnd</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>The resulting CardSel* signal enables the 74LS245 data bus
+transceiver,
+generates the RDBENA* signal, and enables one or the other sound chip.</p>
+<p>The sound chips are not selected by a multiplexer though, but rather
+by the address lines A11 through A14 (active low). This means that it
+is
+possible to access several chips at a time, for instance to play the
+same
+sound on more than one chip (stereo, etc). As can be seen below, each
+address
+line is combined with the CardSel* signal via an OR gate (74LS32) to
+activate
+the CS* pin of a TMS9919 chip.</p>
+<h4><br>
+<a name="TMS9919 wiring"></a>TMS9919 wiring</h4>
+<p>The wiring is common to the four chips for all pins but the CS* pin
+and of course the AudioOut pin. Pins D0 through D7 are connected to the
+data bus, pin WE* is held low permanently (why not use the WE*
+signal?),
+and the READY pins are connected direclty to the SysRdy* line in the
+PE-box
+bus.</p>
+<p>The clock signal is generated by an onboard oscillating circuit,
+since
+the required 3.58 MHz signal is not part of the PE-box bus. The
+oscillator
+consists of a 3.58 MHz crystal, and three inverters, from the 74LS04
+TTL
+chip (which leaves only one gate unused in this chip). The signal is
+then
+divided by 8 thanks to a 74LS161 counter. I'm not sure why this is
+necessary.
+Maybe so that sounds with a frequency lower than 110 Hz (the minimum
+with
+3.58 MHz) can be programmed?</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>                             74LS161<br>       3.58 MHz             +-------+<br> ,------|[]|------,  +5V--+-|EnP    |   <br> | 1K2        1K2 |       +-|EnT    | <br> +-WWW-,    ,-WWW-+       +-|Rst*   |<br> |     |    |     |       '-|LD*    |<br> +-|&gt;o-+-||-+-|&gt;o-+---|&gt;o---|Ck     |<br> |      10nF    74LS04      |    RCO|<br> = 33pF                   ,-|A    QA|<br> |                        +-|B    QB|<br>Gnd                       +-|C    QC|--,<br>                          +-|D    QD|  |<br>                            +-------+  |<br>          ,----------------------------'<br>          |  +--------+<br>          '--|Ck Ready|----------&gt;SysRdy*    <br>     D0------|D0      |+<br>     .       | .      ||<br>     .       | .      ||+<br>     D7------|D7      ||| <br>        Gnd--|WE*     |||+<br> A14---,     |        ||||    100 uF<br>,------=)&gt;---|CS*  Out|----+---||------------<u>&lt;</u>  #1<br>| A13---,    +--------+||| |            Gnd-'<br>+-------=)&gt;---|CS*  Out|---|-+---||----------<u>&lt;</u>  #2<br>|  A12---,    +--------+|| | |          Gnd-'<br>+--------=)&gt;---|CS*  Out|--|-|-+---||--------<u>&lt;</u>  #3<br>|   A11---,    +--------+| | | |        Gnd-'<br>'---------=)&gt;---|CS*  Out|-|-|-|-+---||------<u>&lt;</u>  #4<br>        74LS32  +--------+ | | | |      Gnd-'<br>                           = = = = 0.1 uF<br>                           | | | |<br>                           R R R R 10 Ohms<br>                           | | | |<br>                           '-+-+-+-Gnd</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>Finally, each AudioOut pin is filtered and applied to one of the
+four
+audio jacks, at the back of the card, thereby providing a quadriphonic
+output. A mixer adapter can be build with six 390 Ohms resistors to
+convert
+these four outputs into a stereo signal, with chips #1 and #3 making up
+one channel, and chips #2 and #4 making up the other.</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre><u>  </u>      390 Ohms<br><u>#4</u>|--+--WWW--------&lt;<br><u>  </u>   '--WWW--,<br><u>#2</u>|-----WWW--+-------------&lt; Stereo 1<br><u>  <br>#3</u>|-----WWW--+-------------&lt; Stereo 2<br><u>  </u>   ,--WWW--'<br><u>#1</u>|--+--WWW-------&lt;</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h2><br>
+<a name="Software"></a>Software</h2>
+<p>As I mentionned, the card does not have any DSR memory. All the
+software
+must thus be loaded upon use.</p>
+<h4><br>
+Low-level access</h4>
+<p>Refer to <a href="tms9919.htm#Programming">this page</a> for
+details
+on programming a TMS9919 chip. The target address changes according to
+the chip, remember that it is possible to access more than one chip at
+a time.</p>
+<p>The memory map for all four chips is the following:</p>
+<pre><u>Address TMS9919#1 #2 #3 #4    Chip accessed<br></u> &gt;8400          +  +  +  +    All <br> &gt;8402             +  +  +<br> &gt;8404          +     +  +<br> &gt;8406                +  +<br> &gt;8408          +  +     +   <br> &gt;840A             +     +<br> &gt;840C          +        +<br> &gt;840E                   +    #4 alone<br> &gt;8410          +  +  +   <br> &gt;8412             +  +   <br> &gt;8414          +     +   <br> &gt;8416                +       #3 alone<br> &gt;8418          +  +      <br> &gt;841A             +          #2 alone<br> &gt;841C          +             #1 alone<br> &gt;841E                        none (console chip alone)</pre>
+<pre>NB The console TMS9919 answers to all addresses.<br>   The above pattern is repeated for addresses &gt;8420-843E, &gt;8440-845E, upto &gt;87FE.</pre>
+<p>In most cases, you will only need to access one chip at a time,
+except
+to silence them all. The usefull addresses thus boil down to:</p>
+<pre>&gt;841C: TMS9919 #1<br>&gt;841A: TMS9919 #2<br>&gt;8416: TMS9919 #3<br>&gt;840E: TMS9919 #4<br>&gt;8400: All<br>&gt;841E: Console chip only</pre>
+<h3><br>
+<a name="high-level"></a>High-level program</h3>
+<p>A sophisticated Forth program is provided with the card, that lets
+you
+program music within a Forth "Screen". It lets you define:</p>
+<li>Voices: a succession of sounds, i.e. one melodic line.</li>
+<li>Envelopes: the volume characteristics of each note (attack, fading,
+etc).</li>
+<li>Conductors: that distributes voices among the twelve available
+TMS9919
+sound chanels, sets the tempo, the global volume, etc.</li>
+<p>If you're used to compose on music paper, it will seem a little
+complicated
+at first, but for programmers with little musical backgroud, the system
+is quite appealing.</p>
+<address><br>
+Revision 1 1/7/03. Ok to release.</address>
+<center>
+<p><br>
+<a href="titechpages.htm">Back to the TI-99/4A Tech Pages</a></p>
+</center>
+</body>
+</html>

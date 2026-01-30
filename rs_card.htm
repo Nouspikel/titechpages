@@ -1,0 +1,133 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+  <title></title>
+  <meta name="Author" content="">
+  <meta name="GENERATOR"
+ content="Mozilla/3.04Gold (Win95; U) [Netscape]">
+</head>
+<body>
+<h1 align="center"><a
+ href="http://www.nouspikel.com/ti99/titechpages.htm"><img
+ src="logo.jpg" style="border: 0px solid ; height: 33px; width: 95px;"
+ title="Back to main index" alt=""></a></h1>
+<h1>RS232c / PIO interface card</h1>
+<p><br>
+<img src="rs232c.jpg" alt="Blow-up of RS232/PIO board" height="328"
+ width="534"></p>
+<p><font color="#00ff00">*</font> This card was modified so as to
+answer
+at CRU &gt;1500. This lets me have two RS232 cards in my PE-box. See <a
+ href="#CRU%20modif">below</a>
+for details.</p>
+<p><br>
+PE-box connector</p>
+<li>Connections #2 to 60 on this side, connections #1 to 59 on back side</li>
+<li><b>244</b>: Three 8-bit buffers, 74LS244 for the address bus and
+control
+lines.</li>
+<li><b>245</b>: A 8-bit transceiver, 74LS245 for the data bus.</li>
+<li><b>125</b>: A quad 74LS125 buffers, for 3-state output signals
+(e.g.
+RDBENA* , EXTINT*).</li>
+<li><b>7805</b>: Voltage regulator, TL780-05C, +5 volts. Three 47 uF
+bypass
+caps (C12, C40, C41).</li>
+<li><b>7812</b>: Voltage regulator, 78M12C, +12 volts. Two 47 uF bypass
+caps (C13, C38).</li>
+<li><b>-12</b>: Negative voltage regulator, 79L12A. Two 47 uF bypass
+caps
+(C18, C100).</li>
+<p><br>
+<br>
+CRU logic</p>
+<li><b>259</b>:An 8-bit addressable latch, 74LS259 for CRU output.</li>
+<li><b>251</b>: An 8-to-1 multiplexer, 74LS251 for CRU input operations
+(unbuffered CRUIN line to the PE-box).</li>
+<li><b>T</b>: A transistor NP2N3904 to control the LED.</li>
+<li><b>LED</b>: A yellow light-emitting diode controlled by CRU bit 7
+(not
+bit 0 as usual!).</li>
+<p><br>
+Memory</p>
+<li><b>ROM</b>: A 4K ROM, labelled CD3235A-NL DBT8240</li>
+<p>Selection logic</p>
+<li><b>Custom</b>: Custom control chip, labelled I500280-3 RS00MMI8245.
+Selects the ROM (pin #13), the PIO port (pin # 14 for PIO in, pin #15
+for
+PIO out), CRU chips (pin #16), and TMS9902 chips (pin #17 for RS232/1,
+pin #18 for RS232/2).</li>
+<li><b>00</b>: A quad NAND gates, 74LS00. One gate not used.</li>
+<li><b>02</b>: A quad NOR gates, 74LS02.</li>
+<li><b>21</b>: A dual 4-input AND&nbsp;gates, 74LS21.</li>
+<li><b>32</b>: A quad OR gates, 74LS32.</li>
+<p><br>
+PIO port</p>
+<li><b>373</b>: Two 8-bit latches, 73LS373. One for input, one for
+output.</li>
+<li><b>PIO</b>: Parallel port connector, 16 pin. Odd pins on top, even
+pins at bottom.</li>
+<p><br>
+RS232c port</p>
+<li><b>9902</b>: Two UART chips, TMS9902. Each handles one serial port.</li>
+<li><b>084</b>: A TL084ACN quad op amp, -12 to +12 volts. Handles TX
+and
+DCD output lines.</li>
+<li><b>082</b>: A TL082CP dual op amp, -12 to +12 volts. Handles CTS
+output
+lines.</li>
+<li><b>189</b>: A 75189 quad inverters. Handles RD and DTR input lines.</li>
+<li><b>RS232</b>: DB-25 connector combining the two RS232C ports in a
+single
+plug. Pin 1 to 12 on top, 14 to 25 at bottom.<br>
+</li>
+<h4><br>
+<a name="CRU modif"></a>CRU modification</h4>
+<p>This card is designed so that two cards can be installed in the
+PE-box,
+one with CRU &gt;1300, the other with CRU &gt;1500. The DSRs are
+written
+so as to handle this situation and provide two parallel ports and four
+serial ports. </p>
+<p>Unfortunately, instead of using a simple switch, TI designed the
+card
+so that a resistor must be moved to change the CRU. This resistor is
+identified
+as R5 (see the green star <font color="#80ff00">*</font> in the
+picture
+above) and must be moved in the position labelled PTH1 (just below it).
+</p>
+<p>Here is a blow-up of the modification:</p>
+<p><img src="rs_cru.jpg" alt="Blow-up of CRU modification" height="318"
+ width="552"></p>
+<p>The resistor was initially in position R5, just below the 74LS02. I
+desoldered it and transplanted it to position PTH1. This connects pin19
+of the custom control chip (on the right of the picture) to +5 volts,
+instead
+of ground.</p>
+<h4><br>
+Pin assignment modifications</h4>
+<p>TI also made provisions for us to change the pin assignments for the
+DTR lines. Normally DTR-1 is pin 20 (jumper W5) and DTR-2 is pin 19
+(jumper
+W6). However, It is possible to assign DTR-1 to pin 11 instead, by
+cutting
+W5 and replacing it with a jumper at W7. Similarly, DTR-2 can be
+assigned
+to pin 18 by cutting W6 and wiring W8.</p>
+<p>The location of these jumpers is flagged by two white stards ** on
+the
+main picture. Note that jumper W7 is a bit further up.</p>
+<p>The above card was not modified in such a way, as I'm not sure what
+this modification is meant for.</p>
+<p><br>
+<br>
+For further details, see my <a href="rs232c.htm">RS232c page</a>.</p>
+<address><br>
+Revision 1. 8/26/01. OK to release.</address>
+<center>
+<p><br>
+<a href="titechpages.htm">Back to the TI-99/4A Tech Pages</a></p>
+</center>
+</body>
+</html>

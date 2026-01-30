@@ -1,0 +1,801 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+  <title></title>
+  <meta name="Author" content="">
+  <meta name="GENERATOR"
+ content="Mozilla/3.04Gold (Win95; U) [Netscape]">
+</head>
+<body>
+<h1 align="center"><a
+ href="http://www.nouspikel.com/ti99/titechpages.htm"><img
+ src="logo.jpg" style="border: 0px solid ; height: 33px; width: 95px;"
+ title="Back to main index" alt=""></a></h1>
+<h1>Interrupts</h1>
+<p>An interrupt is a signal that tells the CPU to interrupt execution
+of
+the current program and to call a special subroutine: the <b>ISR </b>(interrupt
+service routine). Once the ISR returns, execution of the current
+program
+will resume where it was. This is extremely usefull for many reasons:
+you
+can automatically perform a task at given intervals, or you can have a
+peripheral asking for the attention of the CPU. The alternative is for
+the CPU to constantly check all peripherals to see if one of them needs
+attention, obviously a very inneficient way (however, that's how the
+TI-99/4A
+scans the keyboard. Wouldn't it be nice if the keyboard could send
+interrupts
+just like a PC? More on this later).</p>
+<p>The TMS9900 accepts two kind of interrupts:16 different maskable
+interrupts
+that are signaled by activating the INTREQ* pin (and whose number is
+expected
+on the IC0-IC3 pins) and a single non-maskable interrupt signalled by
+the
+LOAD* pin.</p>
+<p><br>
+<b>Non-maskable interrupt<br>
+</b><a href="#load%20triggering">Triggering LOAD*<br>
+</a><a href="#UISR">Service routine</a></p>
+<p><b>Maskable interrupts<br>
+</b><a href="#maskable">In the TI-99/4A</a></p>
+<p><b>Interrupt service routine<br>
+</b><a href="#ISR">Peripheral interrupts<br>
+</a><a href="#VDP%20ISR">VDP interrupts<br>
+</a><a href="#sprites">__Sprites<br>
+</a><a href="#sounds">__Sounds<br>
+</a><a href="#quit">__Quit key<br>
+</a><a href="#blank">__Blank screen<br>
+</a><a href="#hook">__ISR hook<br>
+</a><a href="#Timer%20ISR">Timer interrupts</a></p>
+<h2><br>
+<br>
+Non-maskable, LOAD* interrupt</h2>
+<p>When the LOAD* line becomes active (low) the TMS9900 executes the
+equivalent
+of a <tt>BLWP @&gt;FFFC</tt>, i.e. it fetches a new workspace pointer
+at
+&gt;FFFC, saves the old workspace, program counter and status in the
+new
+R13, R14 and R15 respectively, then branches to the address found in
+&gt;FFFE.
+Since &gt;FFFC-FFFE are in the high memory expansion, we can place any
+vectors we want in there.</p>
+<h3><br>
+<a name="load triggering"></a>Activating the LOAD* line</h3>
+<p>This line is present in the side-port of the TI-99/4A, on pin #13
+(7th
+from the right, at the bottom of the connector when looking inside the
+console). However, the flex cable connector does not carry this signal
+to the PE-Box. If we want to use it we must intercept it at the level
+of
+the connector.</p>
+<p>I have a mouse (WiPo mouse 99) that works according to this
+principle:
+a small printed circuit board is placed inbetween the side port and the
+flex cable. The circuitery on it drives power from the side port and
+issues
+non-maskable interrupts when the mouse is moved. A piece of cable cable
+feeds all remaining informations (which way did it move, wich buttons
+are
+down) to the joystick port. </p>
+<p>You can easily build a small circuit to connect the LOAD* pin to the
+ground and trigger non-maskable interrupts. However, make sure your
+circuit
+is a "one-shot", since interrupts will be issued as long as pin
+#13 is low. That kind of interrupt is called "level-triggered"
+as opposed to "edge-triggered" (an interrupt that would only
+occur when the pin changes from high to low).</p>
+<p>The main advantage of level trigerred interrupts, apart from being
+less
+sensitive to transients (i.e. noise), is that several devices can share
+the same interrupt line. Suppose a first device brings the line down
+but,
+before the ISR cleared the interrupt and brought the line up again,
+another
+interrupt occurs. Once the ISR is done with the first interrupts and
+clears
+it, the line stays down which triggered a new interrupt (it wouldn't
+with
+level-triggering since the line does not change from high to low, which
+is the triggering event). Of course, there is another side to that
+coin...</p>
+<h3><br>
+<a name="UISR"></a>Unmaskable interrupt service routine (UISR)</h3>
+<p>The drag with an unmaskable interrupt (especially level triggered)
+is
+that another interrupt could occur before we have processed the current
+one. We may thus run into two problems when the UISR is entered for the
+second time:</p>
+<ol>
+  <li>Wherever we saved the return address, it will now be overwritten
+by
+a new return address (pointing inside the UISR itself). Thus the UISR
+will
+never return to the main program.</li>
+  <li>Re-entering the UISR before its completion is likely to mess up
+all
+variables used by the first instance of it.</li>
+</ol>
+<p>Here is a simple, but imperfect solution:</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>* Unmaskable interrupt service routine<br>UISR   MOV  @NEWWR,@&gt;FFFC        Change workspace for futur interrupts <br>       MOV  @NEWPC,@&gt;FFFE        Change PC: now points at RTWP<br>       LWPI&nbsp;UREGS1               In case we-retered after line 1<br>       ...                       Handle interrupt <br>INSTAL MOV  @UISRPC,@&gt;FFFE       Restore pointer to UISR entry point <br>       MOV  @UISRWR,@&gt;FFFC       Restore workspace <br>TORTWP RTWP                      Resume program execution</pre>
+      <pre>UISRPC DATA UISR                 Address of UISR<br>UISRWR DATA UREGS1               UISR workspace<br>NEWPC  DATA TORTWP               Address of a RTWP<br>NEWWR  DATA UREGS2               Alternate workspace: provides one level of recurence </pre>
+      <pre>* This routine installs the UISR hook<br>HOOKUI DATA UREGS1,INSTAL        Call it by BLWP @HOOKUI </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>See how it works? The first <tt>MOV </tt>instruction changes the
+workspace
+to be used in case of a new interrupt. This way, the return values are
+perfectly safe: no interrupt will occur before this first instruction
+is
+completed. And after that, new return values will be saved in R13-R15
+of
+workspace UREGS2, thus won't overwrite those in UREGS1.</p>
+<p>This solves problem 1, but what about problem 2 (re-entrancy)? The
+second
+<tt>MOV </tt>instruction takes care of it: all subsequent interrupts
+will
+transfer control to a <tt>RTWP </tt>instruction, that return
+immediately
+to where we were in the UISR. Of course an interrupt could occur in
+between
+the first two <tt>MOV </tt>instructions, but we don't care: this will
+just
+repeat the first <tt>MOV</tt>, which is fine. We just have to make
+sure
+we've got the right workspace: the <tt>LWPI UREGS1</tt> instruction
+takes
+care of that.</p>
+<p>Things are a bit more tricky at the end of the routine, when we must
+restore the two vectors. If an interrupt occurs after we have restored
+&gt;FFFE we will repeat the whole UISR from the beginning. This may or
+may not be OK, depending on what we are doing inside this routine. If
+however
+an interrupt occurs between the second <tt>MOV </tt>and the <tt>RTWP</tt>,
+the return address will be overwritten and our UISR will loop forever!
+</p>
+<p>I struggled with this problem for quite a time before a found a
+solution.
+It's fairly intricate, so study it carefully.</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre><tt>* Unmaskable interrupts service routine  Version 2<br>UISR   MOV  @NEWWR,@&gt;FFFC        Change workspace for futur interrupts<br>       MOV  @NEWPC,@&gt;FFFE        Change PC: now points at RTWP<br>       CI   R13,UREGS2           Check for rentrancy<br>       JEQ  ENDUI                We came from the end point (before TORTWP)<br>       CI   R13,UREGS3           Double re-entrancy (after ENDUI + after UISR)<br>       JEQ  TORTWP               Return from the second one<br>       CI   R13,UREGS1           From next instruction after UISR or after ENDUI <br>       JNE  UIOK                 From outside UISR: no re-entrancy<br>       CI   R14,ENDUI            We re-entered, but from where?<br>       JL   TORTWP               From line 2, just after we changed &gt;FFFC<br>       JMP  ENDUI                From ENDUI, after we changed &gt;FFFC or &gt;FFFE<br> <br>UIOK   MOV  R13,@UREGS2+26       OK, we did not re-enter<br>       MOV  R14,@UREGS2+28       Save return parameters in R13-R15 of UREGS2<br>       MOV  R15,@UREGS2+30<br> <br>*      ...                       Do what we want to do in this UISR<br> <br>       MOV  @OLDUWR,R13          (Optional) Link to previously installed  UISR<br>       JEQ  ENDUI                None<br>       BLWP @OLDUWR              Call previously installed UISR<br> <br>ENDUI  MOV  @UISRPC,@&gt;FFFE       Restore pointer to UISR entry point<br>       MOV  @UISRWR,@&gt;FFFC       Restore initial UISR workspace<br>       LWPI UREGS2               Switch to worskspace that contains saved values<br>TORTWP RTWP                      Return to caller</tt></pre>
+      <pre><tt>UISRWR DATA UREGS1               Normal workspace for UISR<br>UISRPC DATA UISR                 UISR entry point<br>NEWWR  DATA UREGS3               Alternate workspace, if re-entered<br>NEWPC  DATA TORTWP               Points to a RTWP<br> <br>OLDUWR DATA 0                    To save WS of previous UISR, if any<br>OLDUPC DATA 0                    To save PC of previous UISR<br> <br>UREGS1 BSS  6                    Regular UISR worskpace<br>UREGS2 BSS  6                    Worskpace used to save R13-R15<br>UREGS3 BSS  32                   Alternate worksapce (uses only R13-R15)<br> <br><br>* These routines install the UISR vectors in memory<br>HOOKUI DATA UREGS2,ENDUI         Just install our UISR<br> <br>LINKUI DATA UREGS2,LNK0          Check is another one is here, link to it<br> <br>LNK0   CLR  @OLDUWR              Flag: no link to previous UISR<br>       MOV  @&gt;FFFC,R1            Get current UISR worskpace<br>       C    R1,@UISRWR           Is it ours?<br>       JEQ  ENDUI                Yes: don't link<br>       CI   R1,&gt;2000             Check if valid<br>       JL   ENDUI                A workspace can't be in ROM<br>       CI   R1,&gt;8400<br>       JL   LNK1<br>       CI   R1,&gt;A000<br>       JL   ENDUI                Can't be in mapped area either<br>       SRL  R1,1<br>       JOC  ENDUI                Shouldn't be an uneven address<br>LNK1   MOV  @&gt;FFFE,R1            Get current UISR vector<br>       JEQ  ENDUI                None<br>       C    R1,@UISRPC           Is it our UISR?<br>       JEQ  ENDUI                Yes: then don't link<br>       CI   R1,&gt;8400             Check if valid<br>       JL   LNK2<br>       CI   R1,&gt;A000<br>       JL   ENDUI                Can't be in mapped area<br>LNK2   SRL  R1,1<br>       JOC  ENDUI                Shouldn't be an uneven address<br>       MOV  @&gt;FFFC,@OLDUWR       Ok, we may have a valid hook: save its workspace <br>       MOV  @&gt;FFFE,@OLDUPC       Save its vector<br>       JMP  ENDUI                And install ours instead<br> <br>*This routine unhooks the UISR<br>UNHOKU MOV  @OLDUWR,@&gt;FFFC       Restore previous workspace (or &gt;0000)<br>       MOV  @OLDUPC,@&gt;FFFE       Restore previous vector<br>       B    *R11                 Called with BL for simplicity</tt></pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>As you can see, the UISR tests the workspace of the caller. If it's
+not its own, it knows there was no re-entrancy and it saves the return
+vectors R13-R15 in an alternate workspace (so they can be loaded with a
+single instruction). If the caller's worskpace is that of the UISR, it
+means we re-entered. This can only happen at two places: before the
+first
+<tt>MOV @NEWPC,@&gt;FFFE</tt> or after the last <tt>MOV
+@UISRPC,@&gt;FFFE</tt>.
+The action to be taken is different in each case, but we can
+distinguish
+them by checking R14 (return point).</p>
+<p>Now let's see what happen if the UISR is re-entered:</p>
+<ul>
+  <li>After the first line (<tt>MOV @NEWWS,@&gt;FFFC</tt>). We're going
+to
+repeat this instruction upon re-entrancy: no problem, it can be
+repeated
+as many times as necessary. Once we can go on, the UISR will detect the
+re-entrancy thanks to R13, and immediately perform a <tt>RTWP</tt>,
+since
+R14 points to the beginning of the UISR.</li>
+  <li>After the second line (<tt>MOV @NEWPC,@&gt;FFFE</tt>). From that
+point
+on, an immediate <tt>RTWP </tt>occurs. We can just ignore the
+re-entrancy
+problem from now on.</li>
+  <li>After ENDUI (<tt>MOV @UISRPC,@&gt;FFFE</tt>). We're going to
+start
+the UISR from the beginning again. However, it will detect the
+re-entrancy
+thanks to R13 and branch to ENDUI again, after checking R14. But wait,
+what if another interrupt occurs just after the first line? This will
+repeat
+the first line (which is ok) and change R14! But that's no problem
+either:
+thanks to the value of R13 (UREGS3), a RTWP will be executed and we'll
+be returned to line 2 as if nothing had happened.</li>
+  <li>After the last <tt>MOV @UISRWR,@&gt;FFFC</tt>. We re-enter and
+overwrite
+the return address! Fortunately, it was saved in another workspace by
+the
+three instructions at UISROK. The UISR will detect the re-entrancy and
+branch to the exit again.</li>
+  <li>After the <tt>LWPI UREGS2</tt>. We re-enter with a different
+workspace.
+But this one also is detected, and the UISR attempts to exit again.</li>
+  <li>After the <tt>RTWP</tt>. Well, we were back to the caller. So
+there
+is no re-entrancy problem here.</li>
+</ul>
+<p>Another refinement I introduced is the possibility to link to a
+previously
+installed UISR. This is slightly dangerous to do, as there is no
+guaranty
+that the values found in &gt;FFFC and &gt;FFFE represent valid UISR
+vectors.
+First of all, some programs just ignore unmaskable interrupts and use
+the
+whole range of addresses to store their data. To try to detect this
+possibility,
+the installation routine LINKUI performs several checks to ensure the
+vectors
+are valid. Of course, another possibility is that there was a valid
+UISR
+that was erased or overwritten, but whose vectors remained intact. In
+this
+case, the computer will most probably crash! Therefore, it is probably
+safer to use HOOKUI to install your UISR unless you know for sure there
+is another program running, with a valid UISR loaded (such as a mouse
+driver).</p>
+<p>Finally, just to avoid the above problem, you should call <tt>BL
+@UNHOKU</tt>
+to clear the unmaskable interrupt vectors, once you are done.</p>
+<h2><br>
+<br>
+<a name="maskable"></a>Maskable interrupts</h2>
+<p>When the INTREQ* line is low, the TMS9900 starts reading the number
+present on lines IC0-IC3 after each instruction. It compares this
+number
+to the value of the interrupt mask stored in the status register and if
+the interrupt level is lower or equal to the mask it performs a <tt>BLWP
+</tt>at an address that depend on the interrupt level. <br>
+Level 0 performs <tt>BLWP @&gt;0000</tt> <br>
+Level 1 performs <tt>BLWP @&gt;0004</tt> <br>
+Level 2 performs <tt>BLWP @&gt;0008</tt> <br>
+... <br>
+Level 15 performs <tt>BLWP @&gt;003C</tt></p>
+<p>The TMS9900 also automatically decreases the value of the interrupt
+mask (provided it's not 0), so that interrupts with higher priority can
+interrupt the ISR of the current one. You can programmatically change
+the
+value of the interrupt mask with the <tt>LIMI </tt>instruction (Load
+Interrupt
+Mask Immediate): <tt>LIMI 0</tt> through <tt>LIMI 15</tt>. Note that
+interrupt
+0 cannot be masked since <tt>LIMI -1</tt> is not allowed. But this
+does
+not matter since interrupt 0 performs the same <tt>BLWP</tt> as the
+reset
+signal, and would thus be useless as an interrupt anyway.</p>
+<h3><br>
+Maskable interrupts in the TI-99/4A</h3>
+<p>Texas Instruments obviously decided to make things simple with the
+TI-99/4A:
+pins IC0 through IC3 are hardwired so that every interrupt has a level
+of 1. This means that there are only two relevant <tt>LIMI </tt>instructions:
+</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre><tt>       LIMI 2       E</tt>nable interrupts <br>       LIMI 0       Mask out interrupts</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>The vectors for interrupt 1 in the console ROM (at address
+&gt;0004-0007)
+contain the values &gt;83C0, &gt;0900 therefore they branch to an
+interrupt
+service routine that is also located in the console ROM. Which means we
+have no control on maskable interrupts. What a pain in the neck!</p>
+<h2><br>
+<br>
+<br>
+<a name="ISR"></a>The TI-99/4A interrupt service routine </h2>
+<p>The TI-99/4A unique ISR is located at address&gt;0900 and is entered
+with worskpace &gt;83C0. The first thing it does is to disable further
+interrupt with a <tt>LIMI 0</tt> instruction, thus getting rid of the
+reentrancy
+problem. Then it changes the workspace to &gt;83E0, which is the main
+workspace
+used by the GPL interpreter.</p>
+<p>It then checks whether the interrupt was generated by the timer in
+the
+TMS9901 chip. This timer is used for cassette operations, and the
+routines
+that initializes it also loads a flag in bit 2 (value &gt;20) of word
+&gt;83FD.
+If this bit is 1 the ISR branches to the timer subroutines. Note that
+these
+routines never check whether the interrupt really came from the timer,
+which means any other interrupt will be mistaken for a timer interrupt
+if the flag bit is set in &gt;83FD!</p>
+<p>If the timer flag is not set, the ISR tests bit 2 of the CRU: this
+asks
+the interrupt controller TMS9901 whether the interrupt was generated by
+the videoprocessor. If this is the case, the ISR executes VDP
+subroutines.</p>
+<p>If the interrupt did not come from the VDP, the ISR turns on
+peripherals
+cards one at a time, from CRU address &gt;1000 to &gt;1F00. It then
+calls
+each and every ISR is can find in these cards, untils either all cards
+have been called or one of the cards stopped the search process.</p>
+<p>The ISR then restores workspace &gt;83C0, and performs a <tt>RTWP </tt>to
+return to the main program.</p>
+<h3><br>
+<a name="card ISRs"></a>Peripheral cards interrupts </h3>
+<p>To generate an interrupt, a peripheral card must have some piece of
+hardware that brings the EXTINT* line low. This line is present on the
+side port of the TI-99/4A (pin #4) and is fed to the PE-Box by the flex
+cable connector. In the PE-Box slots it is pin # 17.</p>
+<p>To implement an ISR, the peripheral card must have onboard ROM (or
+RAM)
+that will be turned on by CRU bit 0 in its CRU address space (i.e
+&gt;1000,
+&gt;1100, &gt;1200,... &gt;1F00). The first byte in the ROM must be
+&gt;AA
+to indicate a standard header. Then word &gt;400C-400D must contain a
+pointer
+to a chain of ISRs (which may consist in only one ISR). Each link in
+the
+chain is made of two words: the address of the next link, and the
+address
+of the ISR to be branched at. Here is an example, featuring two ISRs:</p>
+<pre><u>Address  Value      Meaning                     <br></u>&gt;4000    &gt;AA        Signals a standard header <br>&gt;400C    &gt;4020      Points to first link in chain of ISRs</pre>
+<pre>&gt;4020    &gt;4028      Points to next link <br>&gt;4024    &gt;4100      Address of first ISR <br>&gt;4028    &gt;0000      No more links <br>&gt;402C    &gt;4200      Address of second ISR</pre>
+<pre>&gt;4100     ...       First ISR starts here <br>&gt;4200     ...       Second ISR starts here </pre>
+<p>Note that multiple ISRs are kind of a luxury. Most of the time, you
+won't need more than one ISR per card. </p>
+<p><br>
+The peripheral ISR is in charge of checking whether the interrupt came
+from that card or not. If it determines that the interrupt was indeed
+issued
+by that card it should clear it by reseting line INTREQ* to high (this
+may be done automatically by the electronics) . It then performs
+whatever
+action the interrupt is meant to trigger.</p>
+<p>In any case, ISR should return with:</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre><tt> </tt>       B    *R11  </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>Theoretically, the ISR should also reset the "peripheral interrupt"
+bit in the TMS9901:</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre><tt> </tt>       CLR   R12   <br>        SBO   1  </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>However, this is generally not necessary because the TMS9901 only
+latches
+interrupts for one clock cycle. If the peripheral card resets its own
+interrupt-generating
+circuitery, CRU bit 1 will become inactive at the next clock cycle.</p>
+<p>Note that the main ISR will keep scanning peripheral cards and call
+their ISRs until all CRU addresses are checked. There is a way to
+prevent
+this after you dealt with an interrupt comming from your card. See <a
+ href="headers.htm#ISR">ISRs</a>
+in the page on standard headers.</p>
+<p>I am only aware of one card that handles interrupts: the RS232 card
+(and it's quite buggy: see my <a href="rs232c.htm#RomISR">RS232 page</a>).
+The Horizon Ramdisk however, has RAM at &gt;4000-5FFF and thus offers
+you
+the possibility to write your own peripheral ISR. The ramdisk won't
+trigger
+interrupts, but if you install it at a low CRU address (e.g. &gt;1000)
+you'll be able to intercept any interrupt issued by other cards.</p>
+<h3><br>
+<a name="VDP ISR"></a>VDP interrupts</h3>
+<p>The videoprocessor TMS9918 can be <a href="tms9918a.htm#Registers">programmed</a>
+to issue an interrupt each time it refreshes the screen, which occurs
+60
+times per second (50 times per second for the European model TMS9929A).
+This interrupt is routed to the interrupt controller TMS9901 that echos
+it on CRU bit 2 and triggers the INTREQ* line.</p>
+<p>Once the ISR has determined that the interrupt came from the VDP it
+does the following: </p>
+<ul>
+  <li>Move sprites in auto-motion, if any. </li>
+  <li>Play sound list, if any.</li>
+  <li>Test &lt;quit&gt; key, reset the TI-99/4A if it's pressed. </li>
+  <li>Read VDP status and place it in byte &gt;837B. </li>
+  <li>Increment by two a timeout counter and turn the screen off when
+it
+reaches zero.</li>
+  <li>Call a user defined ISR, if any.</li>
+</ul>
+<p>Four bits in byte &gt;83C2 are used to enable/disable the first 3
+functions:
+<br>
+If the first bit (weight &gt;80) is set, the ISR jumps directly to
+point
+4. <br>
+If the second bit (&gt;40) is set, the ISR won't handle sprites. <br>
+If the third bit (&gt;20) is set, the ISR won't process the sound list.
+<br>
+If the fourth bit (&gt;10) is set, the ISR won't test the &lt;quit&gt;
+key.</p>
+<h4><br>
+<a name="sprites"></a>Sprite auto-motion </h4>
+<p>The ISR expects byte &gt;837A to contain the number of the highest
+sprite
+in automotion. It also expects the sprite descriptor table to be at
+address
+&gt;0300 in the VDP memory (VDP register 5 must contain &gt;06) and a
+sprite
+motion table at &gt;0780 in the VDP memory. This motion table comprises
+4 bytes for each sprite in auto-motion: the first two must be
+initialised
+with the desired speed, the next two are used by the ISR as internal
+buffers.</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Sprite 0 </th>
+      <th>&gt;0780</th>
+      <td>X-speed</td>
+      <td>Y-speed</td>
+      <td>...........</td>
+      <td>..........</td>
+    </tr>
+    <tr>
+      <th>Sprite 1</th>
+      <th>&gt;0784</th>
+      <td>X-speed</td>
+      <td>Y-speed</td>
+      <td>..........</td>
+      <td>..........</td>
+    </tr>
+    <tr>
+      <th>Etc upto<br>
+(if needed)</th>
+      <th>&gt;07FC</th>
+      <td>X-speed</td>
+      <td>Y-speed</td>
+      <td>..........</td>
+      <td>..........</td>
+    </tr>
+  </tbody>
+</table>
+<p>Positive speeds (&gt;01 to &gt;7F) move the sprite to the right (or
+down). The larger the number, the faster the sprite. Negative speeds
+(&gt;80
+to &gt;FF) move the sprite to the left (or up). &gt;FF is the slowest,
+&gt;80 the fastest. If speed is zero the sprite does not move in this
+dimension.
+If both speeds are zero that sprite does not move at all.</p>
+<h4><br>
+<a name="sounds"></a>Sound list </h4>
+<p>The ISR expects the address of the sound list in the word
+&gt;83CC-83CD.
+As it processes the list, it will update this word so as to constantly
+point to the next bar to be processed. The sound list can be located
+either
+in VDP memory or in GROM, the last bit of byte &gt;83FD is used to
+determine
+which memory it is in: 0 for GROM, 1 for VDP. Finally &gt;83CE serves
+as
+a buffer for the duration counter: nothing will be played if it
+contains
+zero, so it should be initialized as &gt;01.</p>
+<p>In summary, the sound-processing subroutine in the ISR does the
+following:
+</p>
+<ul>
+  <li>Check the byte at &gt;83CE, if it's zero don't do anything (end
+of
+list reached). </li>
+  <li>Decrement &gt;83CE, if it does not become zero don't do anything
+(sound
+is being played). </li>
+  <li>Get the size byte from the relevant memory. If it's a branch
+order
+(&gt;00 or &gt;FF) put the new address in &gt;83CC but do not change
+sounds
+yet. </li>
+  <li>Else pass all sound bytes to the sound chip at address &gt;8400. </li>
+  <li>Place new duration byte in &gt;83CE.</li>
+</ul>
+<p><br>
+Each bar in the sound list begins with a mandatory size byte, followed
+by several data bytes to be passed to the TMS9919 sound chip, and ends
+with a duration byte. A given bar does not need to access all 4
+generators:
+any generator that is not specified will continue to play the same
+sound
+(if any). </p>
+<pre> &gt;ss                    Number of data bytes (not counting size nor duration) <br> &gt;8z &gt;xy                Set frequency &gt;xyz on generator 1 (watch the nibble order!) <br> &gt;9x                    Set attenuation &gt;x on generator 1 (&gt;0=max volume &gt;F=off) <br> &gt;Az &gt;xy                Set frequency &gt;xyz on generator 2 <br> &gt;Bx                    Set attenuation &gt;x on generator 2 <br> &gt;Cz &gt;xy                Set frequency &gt;xyz on generator 3 <br> &gt;Dx                    Set attenuation &gt;x on generator 3 <br> &gt;Ex                    Set noise type+frequency <br> &gt;Fx                    Set attenuation x on noise generator <br> &gt;tt                    Duration in 60th of a second (50th in Europe)</pre>
+<pre> ...                    Next bar(s)</pre>
+<pre> &gt;ss &gt;9F &gt;BF &gt;DF &gt;FF    Turn all generators off (wise but optional) <br> &gt;00                    Duration zero: end of list</pre>
+<p><br>
+<u>Number of bytes<br>
+</u>This specifies the number of sound bytes to be passed to the sound
+generator, therefore it does not incluse the duration (nor the # of
+bytes
+itself)</p>
+<p>There are two special values for this byte, &gt;00 and &gt;FF, that
+allow to jump from one sound list to another or to create a loop inside
+the current list (to repeat a tune forever). The syntax is:</p>
+<pre> &gt;00        Fetch next bar at address wxyz in the current memory <br> &gt;wx &gt;yz    (i.e. place &gt;wxyz in &gt;83CC) </pre>
+<pre> &gt;FF        Ditto, but change memory: go to VDP if we were in GROM and conversely<br> &gt;wx &gt;yz    (i.e. invert bit 7 at &gt;83FD)</pre>
+<p><u>Attenuation<br>
+</u>The attenuation is 2 decibel (100 times less energy!) for each
+increment
+by 1. Specifying an attenuation of &gt;F turns that generator off.</p>
+<p><u>Frequency<br>
+</u>For tone generators 1 to 3, the frequency in Hertz can be
+calculated
+as: </p>
+<pre>F = <u>111860.8</u> <br>      &gt;xyz </pre>
+<p>For the noise generator, the noise characteristics are determined by
+the last 3 bits of the frequency byte:</p>
+<pre>1110 0wrr<br>      |||<br>      |00: 6691 Hz <br>      |01: 3496 Hz <br>      |10: 1748 Hz <br>      |11: Pick up frequency from tone generator 3 (whether it's on or not)<br>      |<br>      0: Periodic noise <br>      1: White noise</pre>
+<p><u>Duration<br>
+</u>The duration byte specifies how many times the ISR must be called
+before
+it processes the next bar.</p>
+<h4><br>
+<a name="quit"></a>Testing the &lt;quit&gt; key </h4>
+<p>The ISR scans column zero of the keyboard (=, space, enter, Fctn,
+Shift,
+and Ctrl keys). If it matches the value found at &gt;004C in the
+console
+ROM (&gt;11 for Fctn =), it immediately performs a <tt>BLWP @&gt;0000</tt>,
+effectively reseting the TI-99/4A. This is one of the rare cases when
+the
+ISR does not return to the calling program.</p>
+<h4><br>
+Saving the VDP status</h4>
+<p>The ISR just reads the VDP status byte from &gt;8802 and stores it
+in
+byte &gt;837B. This also clears the interrupt condition in the VDP.</p>
+<h4><br>
+<a name="blank"></a>Blanking the screen </h4>
+<p>The ISR increments by two the word at &gt;83D6. If it becomes zero,
+the ISR uses a copy of VDP register 1 stored in byte &gt;83D4, sets the
+INT bit (&gt;20) to ensure that further VDP interupts will be
+generated,
+clears the SCR bit (&gt;40) and writes that byte to VDP register 1,
+which
+results in turning the screen off. </p>
+<p>Note that the word at &gt;83D6 is incremented by two, therefore if
+it
+contains an odd value it will never reach zero and the screen will
+never
+be blanked. Placing &gt;0000 it that word ensures the longer delay
+before
+blanking the screen (it requires 32768 calls to the ISR, which takes
+about
+9 minutes), whereas &gt;FFFE turns the screen off at the next interrupt.</p>
+<h4><br>
+<a name="hook"></a>Calling a user-define ISR</h4>
+<p>Now here comes the best part! The ISR checks the word at &gt;83C4
+(the
+interrupt hook), if it contains a non-zero value the ISR uses this
+value
+as a pointer to a user-defined routine. It branches to this routine via
+a <tt>BL </tt>instruction, with &gt;83E0 as the workspace. This means
+that
+we can install an ISR of our own by placing its address in this word.
+In
+general, you should first check whether another program has already
+hooked
+it before to install your hook: this way you can chain the call to the
+other program and don't disturb anything.</p>
+<p><u>Example:</u></p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>       MOV  @&gt;83C4,@OLDHOK       Let's save any pre-existant hook <br>       LI   R0,MYISR <br>       MOV  R0,@&gt;83C4            Now hook the ISR <br>       ... <br>       LIMI 2                    Interrupts must be enabled somewhere <br>       LIMI 0                    in the main program<br>       ...</pre>
+      <pre>MYISR ...                        Do what I want to do in our hooked routine <br>       MOV  @OLDHOK,R2           Chain to old hook <br>       B    *R2                  R11 still contains return address to the ISR </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p><br>
+<u>The anti-virus bug<br>
+</u>Note that reseting the TI-99/4A clears the whole scratch-pad
+including
+&gt;83C4, therefore a hook will not survive a reset. This was
+intentional
+from Texas Instruments, to prevent a virus from remaining active by
+just
+hooking the interrupt routine. </p>
+<p>BUT... the code that clears &gt;83C4 is written in GPL... and the
+GPL-interpreter
+allows interrupts! Thus, it is possible that an interrupt occurs after
+a reset, before &gt;83C4 has been cleared, which would leave the
+hooking
+program in control. This never occurs in case of a hardware reset (e.g.
+turn the TI-99/4A off, then on) since the VDP chip takes a long time to
+reset itself before it generates the first interrupt. However, a
+software
+reset, such as pressing the &lt;quit&gt; key does not reset the VDP, so
+an interrupt may occur in time for the hook to survive the reset...</p>
+<h3><br>
+<br>
+<a name="Timer ISR"></a>Timer interrupts</h3>
+<p>You can generate timed interrupts by loading a delay value in the
+TMS9901
+chip, via the CRU. When the timer fires, an interrupt is generated. The
+TI-99/4A uses this feature for cassete operations: it times the
+cassette
+player by reading a long string of leading zeros on the tape, then uses
+this value to detect incoming data.</p>
+<p>Unfortunately, it never occured to the TI engineers that somebody
+may
+want to use this timer for anything else than cassette operations. As a
+consequence, they wrote this part of the ISR in a way that makes it
+very
+hard to use for us.</p>
+<h4><br>
+Timer ISR subroutine</h4>
+<p>As mentioned above, the ISR branches to the timer ISR subroutine if
+bit 3 (&gt;20) of byte &gt;83FC is set. The timer ISR then behaves as
+follows:</p>
+<ul>
+  <li>It resets the interrupt flags in the TMS9901 (whithout checking
+it). </li>
+  <li>Then it checks the word at. &gt;83E2-83E3,</li>
+  <li>If &gt;83E2 is positive or zero, the ISR checks the instruction
+it
+is supposed to return to, </li>
+  <li>If that instruction is a <tt>JMP $-2</tt> it returns by skipping
+it.
+(This allows to wait for an interrupt in a forever loop). </li>
+  <li>If &gt;83E2 is negative, or if the main program is not in a
+forever
+loop, the ISR fetches an address from &gt;83EC and places it in R14,
+thereby
+overwritting the return address to the main program!!! </li>
+  <li>It then performs a <tt>RTWP, </tt>which effectively results in
+branching
+to the address found in &gt;83EC with whatever workspace and status the
+main program had when the interrupt occured.</li>
+</ul>
+<h4><br>
+Hooking the timer interrupt </h4>
+<p>Now, how can we make use of that routine?</p>
+<p>What we want to do is to place a delay value in the TMS9901 and
+start
+the countdown. But first we must set the timer interrupt flag and
+disable
+all other interrupts as the main ISR would mistake them for a timer
+interrupt
+(remember, it only checks the flag to determine where the interrupt
+came
+from).</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>*&nbsp;This routine hooks the timer interrupts<br>* It expects a delay value in R0<br>* and a branch vector in R1 (or &gt;0000 to use a forever loop)<br>TIMEON SOCB @H20,@&gt;83FD        Set timer interrupt flag bit<br>       MOV  R12,@OLDR12        Preserve caller's R12 <br>       CLR  R12                CRU base address &gt;0000 <br>       SBZ  1                  Disable peripheral interrupts <br>       SBZ  2                  Disable VDP interrupts <br>       SBO  3                  Enable timer interrupts</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>Now we have to decide what to do when the interrupt occurs:</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>       MOV  R1,@&gt;83E2          Zero if we want to wait in a forever loop<br>       JEQ  EVERLP      <br>       SETO @&gt;83E2             Flag: we intend to branch elsewhere <br>       MOV  R1,@&gt;83EC          Set address where to go</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>Now, we can initialize the timer:</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>EVERLP SLA  R0,1               Make room for clock bit<br>       INC  R0                 Set the clock bit to put TMS9901 in clock mode <br>       LDCR R0,15              Load the clock bit + the delay <br>       SBZ  0                  Back to normal mode: start timer<br>       MOV  @OLDR12,R12        Restore caller's R12<br>*      LIMI 2                  (optional, see below) Enable interrupts now<br>       B    *R11</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>If we decide to wait for the timer to fire, the caller should soon
+go
+into a forever loop. If the timer fires before we do, the ISR will try
+to branch to the address found in &gt;83EC (which may be a usefull
+feature,
+by the way). </p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>* This routine sets the timer interrupts and wait for one to occur<br>       LI   R0,&gt;1254           Value for 100 msec<br>       CLR  R1                 Let's use a forever loop<br>       BL   @TIMEON            Hook the timer interrupt<br>       LIMI 2                  Enable interrupts (if not done in TIMEON) <br>EVER   JMP  EVER               Stays here until timer fires <br>       BL   @TIMOFF            Escape loop: clean up timer setup<br>       ...</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>Alternatively, we could do something else until the timer interrupts
+us.</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>* This routine sets the timer interrupts and wait for one to occur<br>       LI   R0,&gt;1254           Value for 100 msec<br>       LI   R1,COMEBY          That's where we want to come<br>       BL   @TIMEON            Hook the timer interrupt<br>       LIMI 2                  Enable interupts (if not done by TIMEON)<br><br>HERE   INC&nbsp; R0<br>       JMP  HERE               Do something (in this case, wait forever)</pre>
+      <pre>* We'll land here when the timer fires<br>COMEBY LWPI WREGS             As we don't know for sure what the WS will be <br>       ...                    Do our stuff... and never return!</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>The only problem with the second solution is that the return address
+is lost by the main ISR. Which means we cannot resume execution of the
+main program after a timer interrupt. Well, we don't know the return
+address
+for sure, but we can sort of guess it since interrupts must be enabled
+by a <tt>LIMI </tt>instruction. Most programs place a couple of such
+instructions
+is a frequenly visited loop: </p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre><tt> </tt>      LIMI 2 <br>RETRN  LIMI 0 </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>If an interrupt occurs, it will be processed just after the <tt>LIMI
+2</tt> is executed. Thus, we know where to return: to the <tt>LIMI 0</tt>
+instruction. Of course, this won't work if we have placed the <tt>LIMI
+2</tt> in our initialisation sequence: in this case the interrupt could
+occur anywhere. Curse the stupid TI programmer who coded that horror of
+an ISR! </p>
+<p>Oh yes, and we should not forget to clean up our mess once we are
+done:
+</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre><tt>* This routines "unhooks" the timer interrupt<br>TIMOFF </tt>SZCB @H20,@&gt;83FD        Clear timer interrupt flag bit <br>       MOV  R12,@OLDR12        Preserve caller's R12    <br>       CLR  R12                CRU base address &gt;0000 <br>       SBO  1                  Enables peripheral interrupts <br>       SBO  2                  Enables VDP interrupts <br>       SBZ  3                  Disables timer interrupts<br>       MOV  @OLDR12,R12        Restore caller's R12<br>       B    *R11</pre>
+      <pre>OLDR12 DATA 0                  Temporary buffer for caller's R12 </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>See the disk controller page for an example on how to use the timer
+interrupts to <a href="disks.htm#Check%20speed">check the rotation
+speed</a>
+of a disk drive.<br>
+</p>
+<p>See my page on the<a href="tms9901.htm"> TMS9901</a> for more
+examples on how to program this chip and play with interrupts.<br>
+</p>
+<address>Revision 2. 3/25/99 Polishing<br>
+Revision 3. 5/29/99 Tested &amp; debugged examples<br>
+Revision 4. 5/30/99 Solved the UISR re-entrancy problem</address>
+<address>Revision 5. 5/12/00. Corrected a few typos</address>
+<address>Revision 6. 8/28/00. Discussion of CRU bit 1 reset by ISR.<br>
+Revision 7. 1/20/06. Corrected bug: flag bit is at &gt;83FD, not
+&gt;83FC.<br>
+</address>
+<center>
+<p><br>
+<a href="titechpages.htm">Back to the TI-99/4A Tech Pages</a></p>
+</center>
+</body>
+</html>

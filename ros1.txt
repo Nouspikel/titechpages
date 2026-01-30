@@ -1,0 +1,619 @@
+*=======================================
+* Ramdisk Operating System ROS 8.14b
+* ------------------------
+* Runs in card RAM at >4000-57FF
+* Addresses >5800-5FFF map to Ramdisk
+* but can also contain some more ROS routines
+* or RAMBO routines (in first 3 sectors of Ramdisk)
+*=======================================
+       AORG >4000
+*
+A4000  BYTE >AA               rom header
+       BYTE >81               version 1, flaged
+       DATA 0                 no programs
+       DATA A4036             power-up
+       DATA 0                 program address
+       DATA A42EA             dsr        "
+       DATA A422E             subroutine "
+       DATA A4030             interrupt  "
+*
+DRIVNB DATA >0003             drive #
+DRIVSZ DATA >05A0             drive size
+WPRFL  DATA >0000             write protection flag
+PAGE0  DATA >0700             page buffer ??
+SCRCOL DATA >00F4             screen color
+DRIVPA DATA >0009             drive page
+OLDPA  DATA >0700             memorize page #
+PGRCRU DATA >0000             gram-card cru address
+MEMTYP DATA >0000             mem type: -1 cpu  0 vdp
+*
+A4020  DATA A57EE             user dsr: next link (>B0)
+       DATA A574E             address
+       BYTE 8                 size
+       TEXT '01234567'        name
+       BYTE 0
+       DATA A57F6             vector
+*
+A4030  DATA >0000             interrupt header: no more
+       DATA A5752             address
+       DATA >0000             no name
+*
+A4036  DATA A4228             power-up header: next link
+       DATA A43EC             address of first
+       DATA 0                 no name
+ 
+A403C  DATA >57F6             vector for 1rst pwr-up
+       DATA >57F6             vector for interrupts
+*
+*                             open files list
+OPENFI DATA >0000             current sector
+       DATA >0000             header's sector
+       BYTE >00               eof offset
+       BYTE >00               drive #
+       DATA >0,0,0,>0,0,0,>0,0,0,>0,0,0,>0,0,0  same for 16 files
+       DATA >0,0,0,>0,0,0,>0,0,0,>0,0,0,>0,0,0
+       DATA >0,0,0,>0,0,0,>0,0,0,>0,0,0,>0,0,0
+*
+PABOPC BYTE >00               pab buffer: opcode
+PABFTY BYTE >00               file type
+PABDBF DATA >0000             data buffer
+PABRLN BYTE >00               rec length
+PABCNT BYTE >00               char count
+PABREC DATA >0000             rec number
+PABSTA BYTE >00               status/bias
+NAMSZ  BYTE >00               name size
+DSRNAM TEXT '     '           drive name (5 chars)
+FILNAM TEXT '          '      file name  (20 chars)
+       TEXT '          '
+       BYTE 0
+*                     opcode execution addresses
+A40C4  DATA A49B6             open
+       DATA A4B8E             close
+       DATA A4BB0             read
+       DATA A4D6E             write
+       DATA A4E6E             restore
+       DATA A4E98             load
+       DATA A4EC0             save
+       DATA A4F3C             delete
+       DATA A4F98             scratch rec
+       DATA A501C             status
+       DATA A50CE             load assembly file
+       DATA A51CE             load x-basic file
+       DATA A52BE             load cartridge file
+*
+PABPTR DATA >0000
+*                             workspace registers
+WREGS  DATA >0000,>0000,>0000,>0000,>0000,>0000,>0000,>0000
+       DATA >0000,>0000,>0000,>0000,>1000,>8800,>8C00,A467E
+*
+CPUBUF DATA 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0  data buffer
+       DATA 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+       DATA 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+       DATA 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+       DATA 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+       DATA 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+       DATA 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+       DATA 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+A41FE  DATA 0
+*
+DRIVES DATA >0003,>0168       drives page + size
+       DATA >005D,>0168       (write protect: negate page)
+       DATA >00B7,>0168
+       DATA >0111,>00D0
+       DATA >0145,>0168
+       DATA >019F,>0388
+       DATA >0281,>0070
+       DATA >029D,>02F8
+       DATA >035B,>0388
+       DATA >043D,>0388
+*
+A4228  DATA >0000             2nd power-up: no more
+       DATA A43B2             address
+       DATA 0                 no name
+*
+*                             subroutine headers
+A422E  DATA A4238             user's calls: next link
+       DATA A5746             common start
+       BYTE 4                 size
+       TEXT 'BOOT '           name
+A4238  DATA A4242
+       DATA A5746
+       BYTE 2
+       TEXT 'DU   '
+A4242  DATA A424C
+       DATA A5746
+       BYTE 3
+       TEXT 'CFG  '
+A424C  DATA A4256
+       DATA A5746
+       BYTE 4
+       TEXT 'MENU '
+A4256  DATA A4260
+       DATA A5746
+       BYTE 2
+       TEXT 'U5   '
+A4260  DATA A426A
+       DATA A5746
+       BYTE 2
+       TEXT 'U6   '
+A426A  DATA A4274
+       DATA A5746
+       BYTE 2
+       TEXT 'U7   '
+A4274  DATA A427E
+       DATA A5746
+       BYTE 2
+       TEXT 'U8   '
+A427E  DATA A4288
+       DATA A5746
+       BYTE 2
+       TEXT 'U9   '
+*                             specific sbrs
+A4288  DATA A4292             auto-start off
+       DATA A444E             common start
+       BYTE 2                 size
+       TEXT 'AF '             name
+       DATA A5CD6             vector
+A4292  DATA A429C             auto-start on
+       DATA A444E
+       BYTE 2
+       TEXT 'AO '
+       DATA A5CCE
+A429C  DATA A42A6             change drive #
+       DATA A444E
+       BYTE 2
+       TEXT 'DN '
+       DATA A5C5E
+A42A6  DATA A42B0             write-protection on
+       DATA A444E
+       BYTE 2
+       TEXT 'WO '
+       DATA A5CC2
+A42B0  DATA A42BA             write-protection off
+       DATA A444E
+       BYTE 2
+       TEXT 'WF '
+       DATA A5CC8
+*                             standard sbrs
+A42BA  DATA A42C2             sector r/w
+       DATA A4488             common start
+       BYTE 1,>10             size + name
+       DATA A46F8             vector
+A42C2  DATA A42CA             format drive
+       DATA A4488
+       BYTE 1,>11
+       DATA A4728
+A42CA  DATA A42D2             file (un)protect
+       DATA A4488
+       BYTE 1,>12
+       DATA A473E
+A42D2  DATA A42DA             file rename
+       DATA A4488
+       BYTE 1,>13
+       DATA A4764
+A42DA  DATA A42E2             access input file
+       DATA A4488
+       BYTE 1,>14
+       DATA A47BE
+A42E2  DATA A4020             access output file
+       DATA A4488
+       BYTE 1,>15
+       DATA A4842
+*                             dsr header
+A42EA  DATA A42F4             user's drives: next link
+       DATA A45E4             address
+       BYTE 4                 size
+       TEXT 'DSK3'            name
+A42F3  BYTE >03               drive #
+A42F4  DATA A42FE
+       DATA A45E4
+       BYTE 4
+       TEXT 'DSK4'
+       BYTE >04
+A42FE  DATA A4308
+       DATA A45E4
+       BYTE 4
+       TEXT 'DSK5'
+       BYTE >05
+A4308  DATA A4312
+       DATA A45E4
+       BYTE 4
+       TEXT 'DSKM'
+       BYTE >1D
+A4312  DATA A431C
+       DATA A45E4
+       BYTE 4
+       TEXT 'DSK9'
+       BYTE >09
+A431C  DATA A4326
+       DATA A45E4
+       BYTE 4
+       TEXT 'DSKT'
+       BYTE >24
+A4326  DATA A4330
+       DATA A45E4
+       BYTE 4
+       TEXT 'DSKE'
+       BYTE >15
+A4330  DATA A433A
+       DATA A45E4
+       BYTE 4
+       TEXT 'DSKG'
+       BYTE >17
+A433A  DATA A4344
+       DATA A45E4
+       BYTE 4
+       TEXT 'DSKA'
+       BYTE >11
+A4344  DATA A434E
+       DATA A45E4
+       BYTE 4
+       TEXT 'DSKP'
+       BYTE >20
+A434E  DATA A4356             dsk.
+       DATA A455E
+       BYTE 3
+       TEXT 'DSK'
+A4356  DATA A422E             direct load
+       DATA A573E             continue with sbrs!
+       BYTE 2
+       TEXT 'LD'
+*
+ZERO   BYTE '0'
+H8000  DATA >8000
+H4000  BYTE >40
+H00    BYTE >00
+H2000  DATA >2000
+H1000  DATA >1000
+H0800  DATA >0800
+H0400  DATA >0400
+H0200  DATA >0200
+H0100  DATA >0100
+HFFFF  DATA >FFFF
+HFF00  DATA >FF00
+FLAG   DATA >0000             multi-purpose flag
+H0B14  DATA >0B14
+H0404  DATA >0404
+CRUVAL BYTE >00               cru value buffer
+H05    BYTE >05
+H06    BYTE >06
+DOT    TEXT '.'
+H60    BYTE >60
+H83    BYTE >83
+HA0    BYTE >A0
+HA5    BYTE >A5
+HC0    BYTE >C0
+HE0    BYTE >E0
+VDPREG BYTE >00               vdp reg 6
+       BYTE >06               vdp reg 5
+       BYTE >01               vdp reg 4
+       BYTE >0E               vdp reg 3
+       BYTE >00               vdp reg 2
+VDPR1  BYTE >B0               vdp reg 1
+       BYTE >00               vdp reg 0
+       BYTE 0
+*
+*
+A438A  MOVB @SCRCOL+1,@>8C02  set vdp registers
+       MOVB @VDPR1,@>83D4     ----------------- copy reg 1
+       LI   2,VDPREG          vdp regs values
+       LI   1,>8800           vdp reg #
+A439E  AI   1,>FF00
+       MOVB 1,@>8C02          pass #
+       CI   1,>8000
+       JEQ  A43D6             done: start execution
+       MOVB *2+,@>8C02        pass value
+       JMP  A439E             then #
+*
+*
+A43B2  LDCR @PAGE0,0          2nd power-up
+A43B6  LWPI WREGS             ============
+       CLR  12
+       TB   8                 shift key pressed ?
+       JEQ  A43C4             no
+       B    @A4554            yes: return
+A43C4  LI   2,A5E5C           power-up scanning routine
+ 
+A43C8  MOV  *2+,0             where to copy
+       MOV  0,@BEGIN          also: start address
+       MOV  *2+,1             # of bytes to copy
+A43D0  MOV  *2+,*0+           copy code outside ramdisk ram
+       DECT 1
+       JNE  A43D0             next word
+ 
+A43D6  LWPI >83E0             execution from scratch pad
+       LI   0,A43E6           ---------
+       MOV  *0+,1             copy 3 words to >83E0
+       MOV  *0+,2
+       MOV  *0,0
+       B    0                 i.e. B @>83E0: SBZ 0  B *2
+ 
+A43E6  B    *2                2nd word: branch
+BEGIN  DATA >0000             3rd word (r2): address
+       SBZ  0                 1rst word: ramdisk off
+*
+*
+A43EC  MOV  @PAGE0,@OLDPA     first power-up
+       LDCR @PAGE0,0          ==============
+       LI   0,OPENFI          clear open files list
+A43FA  CLR  *0+
+       CI   0,PABOPC
+       JL   A43FA
+       LI   2,A5DAC           copy code in highmem
+       JMP  A43C8             branch to it (find p-gram cru)
+*
+A4408  MOV  11,@A4418+2       return from the above
+       LI   11,A4418
+       MOV  @A403C,1          user-defined routine
+       B    @A5758            branch to it
+*
+A4418  LI   11,>0000          return from the above
+       CB   11,@H83           call from pad ?
+       JNE  A4428             no: return
+       MOV  @A4036,0          2nd power-up there?
+       JNE  A442A             yes
+A4428  B    *11               no: return to 1rst pwrup caller
+ 
+A442A  LDCR @PAGE0,0          page 1
+       LWPI WREGS
+       CLR  12
+       TB   8                 shift key pressed ?
+       JEQ  A443C
+       B    @A4554            yes: return to gpl
+A443C  MOV  @H0B14,@>83F6     r11 of gpl ws (ret to rom search)
+       MOV  @H0404,@>836C     # of power-up found
+       CLR  @>8354
+       JMP  A43C4             to 2nd power-up routine
+*
+*
+A444E  LWPI WREGS             ramdisk specific sbr
+       MOV  @>8356,@PABPTR    --------------------
+       MOV  @PABPTR,8         read name
+       BL   @A4682
+       CB   *13,@DOT          format is xx.# ?
+       JNE  A4476             no: use default drive
+A4466  MOVB *13,2             get drive #
+A4468  AI   2,>D000           make it hex
+       MOV  @>83D2,1          link pointer
+       MOV  @>0008(1),11      data word: address
+       JMP  A44AA
+ 
+A4476  MOVB @A42F3-1,2        first drive #
+       MOVB *13,1
+       CB   *13,@DOT          format is xxxx.# ?
+       JNE  A4468             no: use first drive
+       INCT @PABPTR           yes: get #
+       JMP  A4466
+*
+A4488  LWPI WREGS             standard sbr
+       MOV  @>83D2,1          ------------  header ptr
+       MOV  @>0006(1),11      get address (in sub list)
+       MOVB @>834C,2          drive #
+       CLR  @MEMTYP
+       COC  @H8000,2          data buffer in cpu mem ?
+       JNE  A44AA             no
+       SETO @MEMTYP           yes: set mem-type flag
+       SZCB @H8000,2          clear ctrl bit
+A44AA  MOVB 2,@DRIVNB+1       save drive #
+       MOV  @>83F8,12         get cru base
+       LDCR @PAGE0,0          page 0
+       MOV  11,3
+       CLR  2                 scan drive list
+       LI   0,>000A
+       LI   1,A42F3           drive # (hex)
+A44C2  CB   *1,@DRIVNB+1
+       JEQ  A450C             found
+       C    *2+,*2+
+       AI   1,>000A           next
+       DEC  0
+       JNE  A44C2
+       ABS  @MEMTYP           not found: was it cpu mem?
+       JNE  A4554             yes: err flag set
+       CI   3,A46F8           no: was it sector r/w?
+       JNE  A4554
+       MOVB @>834D,0          yes: read or write?
+       JEQ  A4554
+       MOV  @>834E,8          read: get buffer address
+       BL   *15
+       LI   1,>0100           256 bytes
+       MOV  @>8350,0          sector #
+       JNE  A4504             other than 0: empty
+       LI   0,A5C00           sector 0: copy from data
+A44F8  MOVB *0,*14
+       JLT  A44FE             same until end (>FF)
+       INC  0                 next byte
+A44FE  DEC  1
+       JNE  A44F8
+       JMP  A4554
+ 
+A4504  CLR  *14               clr buffer
+       DEC  1
+       JNE  A4504
+       JMP  A4554
+ 
+A450C  SETO @WPRFL            drive found
+       MOV  @DRIVES(2),8      drive page
+       JLT  A451C
+       JEQ  A4554             none
+       CLR  @WPRFL
+A451C  ABS  8
+       MOV  8,@DRIVPA         save page
+       MOV  @DRIVES+2(2),@DRIVSZ   drive size
+       JEQ  A4554             empty
+       MOV  @>8370,8          highest free address in vdp
+       INCT 8                 top of mem pointer
+       BL   @A4682            vdp read
+       MOVB *13,8
+       MOVB *13,@WREGS+17     r8 lsb
+       AI   8,>FEEC           drive info area
+       BL   *15
+       MOVB @DRIVNB+1,*14     set: last drive accessed
+       AI   8,>010A           file name compare buffer
+       BL   *15
+       MOVB @DRIVNB+1,*14     put drive # before name
+       B    *3                execute sbr
+*
+A4550  INCT @>83F6            return from sbr: inct r11
+A4554  LWPI >83E0             gpl ws
+       LDCR @OLDPA,0          old page
+       B    *11               return
+*
+*
+A455E  LWPI WREGS             dsk. dsr
+       BL   @A4652            ========
+       DATA >0001             get pab, offset 1
+       LI   3,>2E00           .
+       LI   4,A42EA-1
+       LI   5,-4
+A4574  LI   0,>000A           name size
+       MOV  0,1
+       C    *5+,*5+           next drive
+       A    1,4               drive hex # ptr
+       MOV  @DRIVES(5),8      drive page
+       JEQ  A4554             last
+       LI   6,>5800           disk name buffer (sector 0)
+       CB   @H4000+1,@PAGE0+1
+       JNE  A4592
+       SWPB 8
+A4592  LDCR 8,0               call that page
+       LI   8,DSRNAM+4        point at .
+A4598  CB   *8,3
+       JEQ  A45AC             . eo name
+       CB   *8+,*6+           compare names
+       JNE  A4574             mismatch: next drive
+       DEC  0
+       JNE  A4598             next char
+       CB   *8,3              perfect match
+       JEQ  A45B6             next is .
+A45A8  B    @A4B52            name is too long
+A45AC  C    0,1
+       JEQ  A45A8             size=0
+       CB   *6,@H2000         space ?
+       JNE  A4574             name is too short: next drive
+A45B6  INC  8
+       MOVB @NAMSZ,2          full size
+       SRL  2,8
+       AI   2,-5
+       S    0,1               disk name size
+       S    1,2
+       MOV  2,0
+       AI   0,>0005
+       SWPB 0
+       MOVB 0,@NAMSZ          size without disk name
+       MOV  2,2
+       JEQ  A45F6             filename size = 0
+       LI   0,FILNAM          copy file name over disk name
+A45DA  MOVB *8+,*0+
+       DEC  2
+       JNE  A45DA
+       MOVB *4,2              drive #
+       JMP  A45F6
+*
+*
+A45E4  LWPI WREGS             drives dsr
+       BL   @A4652            ==========
+       DATA >0000             get pab
+       MOVB @DSRNAM+3,2       get drive #
+       AI   2,>D000           make it hex
+A45F6  BL   @A44AA            check it, set vdp
+       BL   @A4624            pass file name
+       CLR  1
+       MOVB @PABOPC,1         opcode
+       CLR  @MEMTYP
+       COC  @H4000,1          data buffer in cpu mem ?
+       JNE  A4616             no
+       SETO @MEMTYP           yes:  set flag
+       SZCB @H4000,1          clear ctrl bit
+A4616  SRL  1,7
+       CI   1,>0018           illegal opcode
+       JGT  A4554
+       MOV  @A40C4(1),11      get opcode execution address
+       B    *11               execute
+*
+*-------------------------------------------------------------------------
+*      subroutines for internal use
+*
+A4624  MOVB @NAMSZ,2          pass file name to vdp mem
+       SRL  2,8               -------------- size
+       LI   1,>000F
+       S    2,1               space left
+       JLT  A45A8             too big
+       JEQ  A4642
+       LI   2,DSRNAM+14       add trailing spaces
+A4638  MOVB @H2000,*2
+       DEC  2
+       DEC  1
+       JNE  A4638
+A4642  LI   0,>0009           copy file name to vdp
+       LI   1,FILNAM
+A464A  MOVB *1+,*14
+       DEC  0
+       JNE  A464A
+       B    *11
+*
+A4652  MOV  @>8356,@PABPTR    read pab from vdp mem
+       A    *11+,@PABPTR      ---------------------
+       MOV  11,10
+       MOV  @>83F8,12         gpl cru base
+       MOV  @PABPTR,8
+       AI   8,-14
+       BL   @A4682            vdp read
+       LI   0,>0023
+       LI   1,PABOPC
+A4676  MOVB *13,*1+           read 35 bytes into pab buffer
+       DEC  0
+       JNE  A4676
+       B    *10
+*
+A467E  SOCB @H4000,8          write to vdp
+A4682  SWPB 8                 read from vdp
+       MOVB 8,@>8C02          -------------
+       SWPB 8
+       MOVB 8,@>8C02
+       B    *11
+*
+A4690  MOV  @>834E,8          copy filename (vdp->cpu buffer)
+A4694  LI   0,>000A           -------------
+       LI   6,FILNAM
+       JMP  A46B0
+*
+A469E  MOVB @WREGS+1,@PABCNT  read info to data buffer
+       JEQ  A46F6             ------------------------ nothing
+       MOV  @PABDBF,8         data buffer
+       ABS  @RWFL
+       JNE  A46D2             copy to data buffer
+ 
+A46B0  ABS  @MEMTYP           write sector from data buffer
+       JNE  A46CA             -----------------------------
+       MOVB @WREGS+17,@>8C02  set vdp read address
+       MOVB 8,@>8C02
+       A    0,8               point at end
+A46C2  MOVB *13,*6+           write from vdp data buffer
+       DEC  0
+       JNE  A46C2
+       B    *11
+A46CA  MOVB *8+,*6+           write from cpu data buffer
+       DEC  0
+       JNE  A46CA
+       B    *11
+*
+A46D2  ABS  @MEMTYP           read a sector to data buffer
+       JNE  A46F0             ----------------------------
+       SOCB @H4000,8          set vdp write address
+       MOVB @WREGS+17,@>8C02
+       MOVB 8,@>8C02
+       A    0,8               point at end
+A46E8  MOVB *6+,*14           copy to vdp data buffer
+       DEC  0
+       JNE  A46E8
+       B    *11
+A46F0  MOVB *6+,*8+           copy to cpu data buffer
+       DEC  0
+       JNE  A46F0
+A46F6  B    *11
+*
+       COPY "DSK1.ROS2/S"
+       COPY "DSK1.ROS3/S"
+       COPY "DSK1.ROS4/S"
+       COPY "DSK1.ROS5/S"
+       COPY "DSK1.ROS6/S"

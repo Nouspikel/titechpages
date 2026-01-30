@@ -1,0 +1,713 @@
+*=============================================================*
+*                                                             *
+*              T I - W R I T E R    M O D U L E               *
+*                                                             *
+*=============================================================*
+6000   BYTE  >AA
+       BYTE  >01
+       BYTE  >03,00
+       DATA  >0000
+       DATA  >6010
+       DATA  >0000,>0000,>0000,>0000
+*
+6010   DATA  >6034,>6028           Spanish
+       STRI  'PROCESSADOR DE TEXTO'
+6028   DST   >74BB,@>8388
+       ST    >07,@>8390
+       B     G@>60E2
+6034   DATA  >6056,>604A           Dutch
+       STRI  'TI-TEKSTWERVERKER'
+604A   DST   >72DB,@>8388
+       ST    >06,@>8390
+       B     G@>60E2
+6056   DATA  >6072,>6066           Swedish
+       STRI  'TI-SKRIVARE'
+6066   DST   >70F9,@>8388
+       ST    >05,@>8390
+       B     G@>60E2
+6072   DATA  >6094,>6088           Italian
+       STRI  'TRATAMENTO TESTI'
+6088   DST   >6F1D,@>8388
+       ST    >04,@>8390
+       B     G@>60E2
+6094   DATA  >60B2,>60A6           German
+       STRI  'TI-TEXTSYSTEM'
+60A6   DST   >6D31,@>8388
+       ST    >03,@>8390
+       B     G@>60E2
+60B2   DATA  >60CB,>60BF           French
+       STRI  'TEXTE-TI'
+60BF   DST   >6B4B,@>8388
+       ST    >02,@>8390
+       B     G@>60E2
+60CB   DATA  >0000,>60D9           English
+       STRI  'TI-WRITER'
+60D9   DST   >69C4,@>8388
+       ST    >01,@>8390
+60E2   MOVE  >08,V@>0850,V@>0FF8
+60EA   MOVE  >07,G@>68BB,#>01      set VDP regs 1-7
+       ST    >A6,@>8372            data ptr
+       ST    >90,@>8373            sbr ptr
+       ST    >D0,V@>0300           no sprite
+       DST   >1000,@>8386          VDP buffer
+       ST    >05,@>8374
+       SCAN
+       CZ    @>8374
+       BR    G@>6110
+       DST   >0B00,@>834A
+       CALL  G@>4A                 load lower-case chars
+       BR    G@>6129
+6110   DST   >0A00,@>834A
+       CALL  G@>18                 load small upper-case
+       DST   >0B00,@>834A
+611B   ST    >C0,V*>834A          |>C0 every 8th byte
+       DADD  >08,@>834A           |
+       DCHE  >0C00,@>834A         |in VDP >0B00-0C00
+       BR    G@>611B              |
+*PA
+6129   DST   >0900,@>834A
+       CALL  G@>18                 load small upper-case
+       CLR   V@>0800
+       MOVE  >FF,V@>0800,V@>0801   load char patterns 0-31
+       MOVE  >0100,G@>68C4,V@>0800
+       DCEQ  >6B4B,@>8388
+       BR    G@>6180
+       MOVE  >08,G@>6CF1,V@>0A00   french chars
+       MOVE  >08,G@>6CF9,V@>0AD8
+       MOVE  >08,G@>6D01,V@>0AE0
+       MOVE  >08,G@>6D09,V@>0AE8
+       MOVE  >08,G@>6D11,V@>0BD8
+       MOVE  >08,G@>6D19,V@>0BE0
+       MOVE  >08,G@>6D21,V@>0BE8
+       MOVE  >08,G@>6D29,V@>0BF0
+6180   DCEQ  >6D31,@>8388
+       BR    G@>61BF
+       MOVE  >08,G@>6EDD,V@>0A00   german chars
+       MOVE  >08,G@>6EE5,V@>0AD8
+       MOVE  >08,G@>6EED,V@>0AE0
+       MOVE  >08,G@>6EF5,V@>0AE8
+       MOVE  >08,G@>6EFD,V@>0BD8
+       MOVE  >08,G@>6F05,V@>0BE0
+       MOVE  >08,G@>6F0D,V@>0BE8
+       MOVE  >08,G@>6F15,V@>0BF0
+61BF   DCEQ  >6F1D,@>8388
+       BR    G@>61F7
+       MOVE  >08,G@>70C1,V@>0AD8   italian chars
+       MOVE  >08,G@>70C9,V@>0AE8
+       MOVE  >08,G@>70D1,V@>0B00
+       MOVE  >08,G@>70D9,V@>0BD8
+       MOVE  >08,G@>70E1,V@>0BE0
+       MOVE  >08,G@>70E9,V@>0BE8
+       MOVE  >08,G@>70F1,V@>0BF0
+61F7   DCEQ  >70F9,@>8388
+       BR    G@>624B
+       MOVE  >08,G@>7283,V@>0920   swedish chars
+       MOVE  >08,G@>728B,V@>0A00
+       MOVE  >08,G@>7293,V@>0AD8
+       MOVE  >08,G@>729B,V@>0AE0
+       MOVE  >08,G@>72A3,V@>0AE8
+       MOVE  >08,G@>72AB,V@>0AF0
+       MOVE  >08,G@>72B3,V@>0B00
+       MOVE  >08,G@>72BB,V@>0BD8
+       MOVE  >08,G@>72C3,V@>0BE0
+       MOVE  >08,G@>72CB,V@>0BE8
+       MOVE  >08,G@>72D3,V@>0BF0
+624B   DCEQ  >74BB,@>8388
+       BR    G@>627C
+       MOVE  >08,G@>7661,V@>0918   spanish chars
+       MOVE  >08,G@>7669,V@>0AD8
+       MOVE  >08,G@>7671,V@>0AE0
+       MOVE  >08,G@>7679,V@>0AE8
+       MOVE  >08,G@>7681,V@>0BD8
+       MOVE  >08,G@>7689,V@>0BE0
+*PA
+627C   ALL   >20
+       FMT                        |
+       ROW   >1C                  |
+       COL   >00                  |color table
+       HCHA  >20,>F5              |white on blue
+       FEND                       |
+       CALL  G@>65AC               prompt 1-5
+       BYTE  >00,>01,>02           main menu
+       BYTE  >01,>04,>02
+       BYTE  >02,>06,>03
+       BYTE  >03,>08,>03
+       BYTE  >04,>0A,>03,>FF
+       FMT
+       ROW   >15
+       COL   >03
+       HTEX  ' 1982  TEXAS INSTRUMENTS' first char = >FF
+       FEND
+       MOVE  >01,G@>68C2,#>01      screen on
+       CLR   @>8374
+       ST    >BA,@>838A           |
+       CLR   @>838C               |
+       MOVE  >01,@>838A,@>A000    |check for memory
+       MOVE  >01,@>A000,@>838C    |expansion
+       CEQ   >BA,@>838C           |
+       BS    G@>62E4              |
+       CALL  G@>65AC               error message
+       DATA  >1817,>02FF
+62E4   RND   >FF
+       SCAN
+       BR    G@>62E4
+       CEQ   >31,@>8375
+       BS    G@>62FE               writer
+       CEQ   >32,@>8375
+       BS    G@>6320               formatter
+       CEQ   >33,@>8375
+       BS    G@>6342               utility
+       CALL  G@>36                 'honk'
+       B     G@>62E4
+*PA
+*=============================================================*
+*      EDIT                                                   *
+*-------------------------------------------------------------*
+62FE   CALL  G@>6777               load CHAR?1
+       CALL  G@>6663              |call files(1)
+       BYTE  >01                  |
+       BS    G@>6686               error
+       CALL  G@>66CD              |prepare
+       DATA  >676B                |EDIT?1
+       CALL  G@>6794               set ^
+       CALL  G@>66FD               load
+       BR    G@>6361
+       CALL  G@>66CD              |prepare
+       DATA  >676B                |EDITA1
+       CALL  G@>66FD               load
+       BS    G@>6686               error
+       BR    G@>6361
+*=============================================================*
+*      FORMAT                                                 *
+*-------------------------------------------------------------*
+6320   CALL  G@>6777               load CHAR?1
+       CALL  G@>6663              |call files(4)
+       BYTE  >04                  |
+       BS    G@>6686               error
+       CALL  G@>66CD              |prepare
+       DATA  >6771                |FORM?1
+       CALL  G@>6794               set ^
+       CALL  G@>66FD               load
+       BR    G@>6361
+       CALL  G@>66CD              |prepare
+       DATA  >6771                |FORMA1
+       CALL  G@>66FD               load
+       BS    G@>6686               error
+       BR    G@>6361
+*=============================================================*
+*      UTILITY                                                *
+*-------------------------------------------------------------*
+6342   CALL  G@>6663              |call files(3)
+       BYTE  >03                  |
+       BS    G@>6686               error
+       CALL  G@>65AC              |
+       BYTE  >16,>0E,>02          |prompt
+       BYTE  >17,>0F,>02,>FF
+       CALL  G@>66CD              |prepare
+       DATA  >676B                |EDITA1
+       CALL  G@>67A3               input name
+       CALL  G@>66FD               load
+       BS    G@>6686
+       BR    G@>6361
+*=============================================================*
+*      EXECUTE       executes program loaded                  *
+*-------------------------------------------------------------*
+6361   DST   >1000,@>8386
+       MOVE  >01,G@>68C3,#>01      screen off
+       ALL   >20
+       CLR   @>8384
+636E   XML   >F0
+       CZ    @>8384                test return code
+       BR    G@>637B
+       B     G@>60EA               0:restart
+*
+*PA
+637B   CEQ   >01,@>8384
+       BR    G@>6389               code 1
+       CALL  G@>66FD               load
+       BS    G@>6386
+6386   B     G@>636E               direct execution
+*
+6389   CEQ   >02,@>8384
+       BR    G@>6591               code 2
+       ST    >D0,V@>0300           CATALOG DISK
+       MOVE  >06,G@>68BB,#>01      set VDP regs 1-6
+       FMT                        |
+       ROW   >1C                  |
+       COL   >00                  |
+       RPTB  >20                  |color table
+639F   HTEX  >01,@>83BF           |
+       LOOP  G@639F               |
+       FEND                       |
+       ALL   >20
+       MOVE  >01,G@>68C2,#>01      screen on
+       CALL  G@>65AC              |"Catalog disk"
+       BYTE  >13,>01,>02          |"press clear..."
+       BYTE  >07,>16,>02,>FF      |
+       ST    @>8385,@>834C         drive #
+       DCLR  @>8350                sector 0
+       DST   >0400,@>834E          buffer
+       DST   >0110,V@>077E
+       DST   >077E,@>8356
+       ST    >EE,@>8381
+       CALL  G@>10                |sub link
+       BYTE  >0A                  |
+       BS    G@>658B               error
+       ST    @>8350,@>8381
+       CZ    @>8381
+       BR    G@>658B               status error
+       CALL  G@>65AC              |"DSK -Diskname"
+       BYTE  >08,>03,>02,>FF      |
+       FMT
+       COL   >05                  |
+       ROW   >03                  |drive #
+       SCRO  >30                  |
+       HTEX  >01,@>834C           |
+       FEND                       |
+       MOVE  >0A,V@>0400,V*>8382   diskname
+       DST   >0640,@>834A
+       ST    >C8,@>834D
+       DST   >0438,@>834E
+6404   ST    V*>834E,@>8350       |
+       CEQ   >FF,@>8350           |
+       BR    G@>6414              |
+       DSUB  >08,@>834A           |
+       B     G@>6422              |bit count
+6414   CLOG  >80,@>8350           |
+       BS    G@>641B              |
+       DDEC  @>834A               |
+641B   SLL   >01,@>8350           |
+       CZ    @>8350               |
+6422   BR    G@>6414
+       DINC  @>834E               |next byte
+       DEC   @>834D               |
+       BR    G@>6404              |
+       DST   @>834A,@>838A         free
+       DST   V@>040A,@>838C        tot
+       DSUB  @>838A,@>838C         used
+       CALL  G@>65AC
+       BYTA  >09,>04,>02,>FF       "Available="
+*PA
+       CALL  G@>65FC
+       BYTE  >8A,>FE               display free
+       CALL  G@>65AC
+       BYTE  >0A,>FE,>FF           "Used="
+       DDECT @>838C
+       CALL  G@>65FC
+       BYTE  >8C,>FE               display used-2
+       ST    @>8385,@>834C         drive #
+       DST   >01,@>8350            sector 1
+       ST    >FF,@>834D            read
+       DST   >0400,@>834E          buffer
+       DST   >0110,V@>077E
+       DST   >077E,@>8356
+       ST    >EE,@>8381
+       CALL  G@>10                |sub link
+       BYTE  >0A                  |
+       BS    G@>658B               error
+       ST    @>8350,@>8381
+       CZ    @>8381
+       BR    G@>658B               status error
+       DST   >0400,@>836E
+       DCZ   V*>836E
+       BS    G@>655A               no file
+       CALL  G@>65AC              |
+       BYTE  >0B,>12,>02          |"Filename Size ..."
+       BYTE  >0C,>13,>02,>FF      |"-------- ----    "
+648E   DCZ   V*>836E
+       BS    G@>655A               last file
+       ST    @>8385,@>834C         drive #
+       DST   V*>836E,@>8350        sector #
+       ST    >FF,@>834D            read
+       DST   >0500,@>834E          buffer
+       DST   >0110,V@>077E
+       DST   >077E,@>8356
+       ST    >EE,@>8381
+       CALL  G@>10                |sub link
+       BYTE  >0A                  |
+       BS    G@>658B               error
+       ST    @>8350,@>8381
+       CZ    @>8381
+       BR    G@>658B               error
+       MOVE  >01E0,V@>00C0,V@>00A0 scroll
+       CEQ   >20,V@>A2
+       BS    G@>64D5               header scrolled?
+       CALL  G@>65AC              |
+       BYTE  >0B,>05,>02          |rewrite it
+       BYTE  >0C,>06,>02,>FF      |
+64D5   MOVE  >0A,V@>0500,V@>0262   filename
+       DST   V@>050E,@>838A       |
+       DINC  @>838A               |
+       CALL  G@>65FC              |display size+1
+       BYTE  >8A,>13,>0D          |
+       CLOG  >01,V@>050C
+       BS    G@>64F9
+       CALL  G@>65AC              |"program"
+       BYTE  >0D,>13,>12,>FF      |
+       BR    G@>6533
+64F9   CLR   @>838A
+       ST    V@>0511,@>838B       |
+       CALL  G@>65FC              |record length
+       BYTE  >8A,>13,>18          |
+       CLOG  >02,V@>050C
+       BS    G@>6516
+       CALL  G@>65AC              |"int/"
+       BYTE  >0F,>13,>12,>FF      |
+       BR    G@>651D
+*PA
+6516   CALL  G@>65AC              |"dis/"
+       BYTE  >0E,>13,>12,>FF      |
+651D   CLOG  >80,V@>050C
+       BS    G@>652C
+       CALL  G@>65AC              |"var"
+       BYTE  >10,>13,>16,>FF      |
+       BR    G@>6533
+652C   CALL  G@>65AC              |"fix"
+       BYTE  >11,>13,>16,>FF      |
+6533   CLOG  >08,V@>050C
+       BS    G@>6540
+       CALL  G@>65AC              |"Y" protected
+       BYTE  >12,>13,>1D,>FF      |
+6540   DINCT @>836E
+       SCAN
+       BR    G@>6557               (B G@648E) cont
+       CEQ   >02,@>8375           |
+       BS    G@>655A              |clear
+       CEQ   >20,@>8375
+       BR    G@>6557               continue
+654F   SCAN                       |
+       BR    G@>654F              |
+       CEQ   >20,@>8375           |wait
+       BR    G@>654F              |
+6557   B     G@>648E               next file
+*
+655A   CALL  G@>34                 'beep'
+       ST    >20,V@>02C0           erase lines 23,24
+       MOVE  >3F,V@>02C0,V@>02C1
+       CALL  G@>65AC              |"command completed"
+       BYTE  >14,>16,>02          |
+       BYTE  >15,>17,>02,>FF      |"press: enter"
+6572   SCAN
+       BR    G@>6572
+       CEQ   >0D,@>8375
+       BS    G@>6580
+       CALL  G@>36                 'honk'
+       B     G@>6572
+6580   ALL   >20
+       MOVE  >06,@>83B9,#>01       restore VDP regs 1-6
+       B     G@>636E               return to program
+*
+658B   CALL  G@>6697               disk error
+       B     G@>6572
+*
+6591   CEQ   >03,@>8384            code 3
+       BR    G@>659A
+       B     G@>6320               call formatter
+       B     G@>60EA               restart
+*
+659A   RTN
+*
+659B   BYTE  >0D,>07,>00,>00      |
+       BYTE  >00,>00,>00,>00      |PAB
+       STRI  'DSK1.'              |
+*PA
+*=============================================================*
+*      PROMPT       displays a message                        *
+*-------------------------------------------------------------*
+65AC   FETC  @>8303
+       CEQ   >FF,@>8303
+       BR    G@>65B4               end
+       RTN
+65B4   CLR   @>8302
+       FETC  @>8305
+       CEQ   >FE,@>8305
+       BS    G@>65D1
+       CLR   @>8304               |
+       DSLL  >05,@>8304           |screen adress
+       FETC  @>8307               |row / col
+       CLR   @>8306               |
+       DADD  @>8306,@>8304        |>FE = next position
+       DST   @>8304,@>8382        |
+       B     G@>65D5
+65D1   DST   @>8382,@>8304
+65D5   DSLL  >01,@>8302            prompt #
+       DADD  @>8388,@>8302         language
+       MOVE  >02,G@>02(@>8302),@>8306
+       MOVE  >02,G@>00(@>8302),@>8302
+       DSUB  @>8302,@>8306         size
+       MOVE  @>8306,G@>00(@>8302),V*>8304
+       DADD  @>8306,@>8382         inc position
+       B     G@>65AC
+*=============================================================*
+*      NUMBER       displays a decimal number                 *
+*-------------------------------------------------------------*
+65FC   FETC  @>8306
+       DST   *>8306,@>8306
+       FETC  @>8305
+       CEQ   >FE,@>8305
+       BS    G@>661D
+       CLR   @>8304               |
+       DSLL  >05,@>8304           |
+       FETC  @>8303               |
+       CLR   @>8302               |screen adress
+       DADD  @>8302,@>8304        |
+       DST   @>8304,@>8382        |
+       B     G@>6621              |
+661D   DST   @>8382,@>8304         >FE = next position
+6621   CLR   @>834A
+       MOVE  >07,@>834A,@>834B
+       DCZ   @>8306                =0 ?
+       BS    G@>6643
+       ST    >40,@>834A
+       DIV   >64,@>8306            divide by 100
+       ST    @>8306,@>834B
+       ST    @>8307,@>834C
+       CZ    @>834B
+       BR    G@>6641
+       EX    @>834B,@>834C         <256 (1 byte)
+       BR    G@>6643
+6641   INC   @>834A
+6643   CLR   @>8355
+       CALL  G@>14                 convert # to $tring
+       CLR   @>8302
+       ST    @>8356,@>8303        |size
+       DST   >04,@>8306           |
+       DSUB  @>8302,@>8306        |calc. screen adress
+       DADD  @>8306,@>8304        |
+       MOVE  @>8302,*>8355,V*>8304
+       DADD  >04,@>8382
+       RTN
+*PA
+*=============================================================*
+*      FILES       sets number of files                       *
+*-------------------------------------------------------------*
+6663   FETC  @>834C                # of files
+       DST   >0116,V@>077E
+       DST   >077E,@>8356
+       ST    >EE,@>8381
+       CALL  G@>10                |link sub [16]
+       BYTE  >0A                  |
+       BS    G@>6682               error
+       ST    @>8350,@>8381
+       CZ    @>8381
+       BR    G@>6682               status error
+       RTN
+6682   CEQ   @>8300,@>8300         return with error
+       RTNC
+*=============================================================*
+*      ERROR       handles errors                             *
+*-------------------------------------------------------------*
+6686   CALL  G@>6697               error message
+6689   SCAN
+       BR    G@>6689
+       CEQ   >0D,@>8375
+       BS    G@>60EA               restart
+       CALL  G@>36                 'honk'
+       B     G@>6689
+*=============================================================*
+*      REPORT      displays error message                     *
+*-------------------------------------------------------------*
+6697   ST    >20,V@>0240          |clear lines 19-24
+       MOVE  >BF,V@>0240,V@>0241  |
+       CALL  G@>65AC
+       BYTE  >06,>15,>04          |"disk error"
+       BYTE  >15,>17,>02,>FF      |"press: enter"
+       CGT   >00,@>8381
+       BR    G@>66B8              |
+       CGT   >08,@>8381           |if err not in [0..8]
+       BR    G@>66BB              |then err=0
+66B8   CLR   @>8381               |
+66BB   ST    @>8381,@>838A
+       ADD   >30,@>838A           |display error number
+       ST    @>838A,V@>02A2       |
+       CALL  G@>36                 'honk'
+       RTN
+*=============================================================*
+*      PREPAB      prepares PAB                               *
+*-------------------------------------------------------------*
+66CD   FETC  @>838A               |
+       FETC  @>838B               |address of file name
+       MOVE  >06,G@>00(@>838A),V@>068F
+       DCLR  @>8300
+       MOVE  >0F,G@>6756,V@>0680
+       DST   @>8386,V@>0682        VDP buffer
+       DST   @>8370,@>838A         highest adress
+       DSUB  @>8386,@>838A
+       DSUB  >02,@>838A
+       DST   @>838A,V@>0686        max # of bytes
+       RTN
+*PA
+*=============================================================*
+*      LOAD        loads a program file                       *
+*-------------------------------------------------------------*
+66FD   DST   >0689,@>8356
+       ST    >EE,@>8381
+       CALL  G@>10                |DSR link
+       BYTE  >08                  |
+       BS    G@>6752               error
+       ST    V@>0681,@>8381
+       SRL   >05,@>8381
+       CZ    @>8381
+       BR    G@>6752               status error
+       MOVE  >06,V@>1000,@>838A    fetch Flag,Size,Address
+       DCZ   @>8300
+       BR    G@>6729
+       DST   @>838E,@>8300         first: starting adress
+6729   DSUB  >8300,@>838E          CPU adress
+       DST   @>838C,@>8348         size
+       MOVE  @>8348,V@>06(@>8386),@>8300(@>838E)
+       DCZ   @>838A                >FFFF = continue
+       BS    G@>6751
+       CLR   @>838A               |
+       ST    V@>0689,@>838B       |inc DSKx.xxxxx1
+       DADD  >0689,@>838A         |              ^
+       INC   V*>838A              |
+       BR    G@>66FD
+6751   RTN
+6752   CEQ   @>8300,@>8300         return with error
+       RTNC
+*-------------------------------------------------------------*
+6756   BYTE  >05,>00,>00,>00
+6756   BYTE  >00,>00,>00,>00,>00
+       STRI  'DSK1.CHARA1'
+       TEXT  'EDITA1'
+       TEXT  'FORMA1'
+*=============================================================*
+*      CHAR        load file char?1                           *
+*-------------------------------------------------------------*
+6777   MOVE  >15,G@>6756,V@>0680
+       DST   >07FA,V@>0682         buffer
+       DST   >0800,V@>0686         max # of bytes
+       CALL  G@>6794               set language
+       DST   >0689,@>8356
+       CALL  G@>10                |DSR link
+       BYTE  >08                  |
+       RTN
+*=============================================================*
+*      SET         change file name according to language     *
+*-------------------------------------------------------------*
+6794   ST    @>8390,@>838A
+       ADD   >40,@>838A
+       ST    @>838A,V@>0693
+       RTN
+*PA
+*=============================================================*
+*      INPUT       inputs a string form keyboard              *
+*-------------------------------------------------------------*
+67A3   ST    >02,@>8308            first
+       ST    >1E,@>830C            size
+       ST    >1F,@>830A            last
+       ST    @>8308,@>837F         col |GPL defined
+       ST    >0F,@>837E            row |
+       CLR   @>8312                insert flag
+       ST    >1E,@>830E            cursor
+67B7   CLR   @>8379                interrupt timer
+       CLR   @>8375
+67BB   SCAN
+       BS    G@>67C9
+       CHE   >14,@>8379           |
+       BR    G@>67BB              |cursor blinks
+67C3   EX    @>830E,@>837D        |
+       B     G@>67B7              |
+67C9   CEQ   >1E,@>837D
+       BR    G@>67D1
+       EX    @>837D,@>830E         del cursor
+67D1   CHE   >20,@>8375
+       BS    G@>6883               char
+*
+       CEQ   >03,@>8375            <delete>
+       BR    G@>67FF
+       CLR   @>8312
+       ST    >20,@>8310           |
+       MPY   @>837E,@>8310        |
+       ST    @>837F,@>830A        |screen adress
+       DSRA  >08,@>830A           |
+       DADD  @>830A,@>8310
+       DST   @>8310,@>830A        |
+       DINC  @>830A               |shift text to the left
+       MOVE  >1C,V*>830A,V*>8310  |
+       ST    >1F,@>830A
+       B     G@>67C3
+*
+67FF   CEQ   >04,@>8375            <insert>
+       BR    G@>6809
+       ST    >01,@>8312
+       BR    G@>67C3
+*
+6809   CEQ   >0D,@>8375            <enter>
+       BR    G@>6860
+       ST    @>8308,@>837F         first char
+       B     G@>6816
+6814   INC   @>837F                next char
+6816   CGT   @>830A,@>837F
+       BS    G@>6825               last char : return
+       CEQ   >20,@>837D           |
+       BR    G@>6828              |
+       DEC   @>830C               |count down leading spaces
+       B     G@>6814              |
+6825   B     G@>68BA               return
+6828   ST    >20,@>8310           |
+       MPY   @>837E,@>8310        |screen adress (1)
+       ST    @>837F,@>8308        |
+       ST    @>8308,@>837F
+       B     G@>6839
+6837   INC   @>837F
+6839   CGT   @>830A,@>837F         last ?
+       BS    G@>6848
+       CEQ   >20,@>837D           |
+       BR    G@>6845              |count down non-spaces
+       DEC   @>830C               |
+6845   B     G@>6837              |
+*PA
+6848   DSRA  >08,@>8308
+       DADD  @>8308,@>8310         screen adress (2)
+       ST    @>830C,V@>0689
+       DSRA  >08,@>830C            copy size + name to PAB
+       MOVE  @>830C,V*>8310,V@>068A
+       B     G@>68BA
+*
+6860   CEQ   >08,@>8375            <left>
+       BR    G@>6870
+       CLR   @>8312
+       CEQ   @>8308,@>837F
+       BS    G@>67C3               first
+       DEC   @>837F
+       BR    G@>67C3
+*
+6870   CEQ   >09,@>8375            <right>
+       BR    G@>6880
+       CLR   @>8312
+       CEQ   @>830A,@>837F
+       BS    G@>67C3               last
+       INC   @>837F
+       BR    G@>67C3
+*
+6880   B     G@>67C3               next input
+*
+6883   CGT   >5F,@>8375            char
+       BS    G@>67C3
+       CZ    @>8312
+       BS    G@>68AE
+       CEQ   @>830A,@>837F         insert on
+       BS    G@>67C3               last char
+       ST    @>837F,@>8308        |
+       ST    >1E,@>837F           |
+6897   ST    @>837D,@>830A        |
+       INC   @>837F               |
+       ST    @>830A,@>837D        |shift text to the right
+       DECT  @>837F               |
+       CGTE  @>8308,@>837F        |
+       BS    G@>6897              |
+       INC   @>837F
+       ST    >02,@>8308           |restore
+       ST    >1F,@>830A           |
+68AE   ST    @>8375,@>837D         next char
+       CEQ   @>830A,@>837F
+       BS    G@>67C3               last char
+       INC   @>837F
+       BR    G@>67C3
+68BA   RTN
+*-------------------------------------------------------------*
+68BB   BYTE  >20,>00,>0E,>01       VDP registers 1-7
+       BYTE  >01,>06,>00,>F5
+68C2   BYTE  >60,>30               VDP reg 1: sreen on/off

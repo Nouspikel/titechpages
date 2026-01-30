@@ -1,0 +1,130 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+  <title></title>
+  <meta name="Author" content="">
+  <meta name="GENERATOR"
+ content="Mozilla/3.04Gold (Win95; U) [Netscape]">
+</head>
+<body>
+<h1 align="center"><a
+ href="http://www.nouspikel.com/ti99/titechpages.htm"><img
+ src="logo.jpg" style="border: 0px solid ; height: 33px; width: 95px;"
+ title="" alt=""></a></h1>
+<h1>Horizon Ramdisk</h1>
+<p><br>
+<img src="ramdisk.jpg" alt="Blow-up of ramdisk board" height="426"
+ width="570"></p>
+<p>Shown here is a 1.5 Megabytes Horizon Ramdisk 3000, with RAMBO board
+installed. All chips are socketed except on the RAMBO board.</p>
+<p>Previous versions of this board may look differently. Also,
+different
+memory configurations are possible, and several modifications could be
+made (Phoenix, RAMBO, 32K).</p>
+<p><br>
+PE-box connector</p>
+<li>Connections #2 to 60 on this side, connections #1 to 59 on back side</li>
+<li><b>244</b>: Two 8-bit buffers, 74LS244 for the address bus and
+control
+lines.</li>
+<li><b>245</b>: A 8-bit transceiver, 74LS245 for the data bus.</li>
+<li><b>7805</b>: Voltage regulator, UA7805, +5 volts. Three caps under
+the heat sink.</li>
+<p><br>
+Backup power</p>
+<li><b>Bat</b>:&nbsp;Three NiCad batteries 1.2V, 0.18 AH. They power
+the
+SRAMs and the 74HC154 (which is why these are HC instead of LS).</li>
+<p><br>
+CRU logic</p>
+<li><b>DIP</b>: An 8-switches DIP switch to select a CRU address
+between
+&gt;1000 and &gt;1700.</li>
+<li><b>138</b>: Two 3-to-8 decoders, 74LS138 (one for the switch, one
+to
+select the proper '259).</li>
+<li><b>259</b>: Two 8-bit addressable latch, 74LS259 for CRU output (16
+bits).</li>
+<li><b>T</b>: A transistor NTX2N2222A to control the red LED.</li>
+<li><b>T2</b>: Another 2N2222, not mentionned on the schematics. Used
+to
+control the green LED ??</li>
+<li><b>LEDs</b>: A red light-emitting diode reacts to CRU bit 0. A
+green
+LED (barely visible over green background) is connected to the CS2 pin
+of the DSR RAM for test purposes.</li>
+<p><br>
+Memory</p>
+<li><b>SRAM</b>: In this case, twelve HM628128LP-10 static RAM, 128
+Kbyyes
+each (total = 1.5 megs).</li>
+<li><b>DSR</b>: A SRM2264C static RAM, 8 Kbytes.</li>
+<p><br>
+Selection logic</p>
+<li><b>138</b>: A 3-to-8 decoder, 74LS138 (under the RAMBO board).</li>
+<li><b>156</b>: Half a dual 2-to-4 decoder, 74LS156. (Was under the
+RAMBO
+board, now on it).</li>
+<li><b>SW</b>: Main switch that prevents the DSR from showing up at
+&gt;4000-5FFF.</li>
+<p><br>
+Memory paging logic</p>
+<li><b>138</b>: A 3-to-8 decoder, 74LS138.</li>
+<li><b>154</b>: A CMOS 3-to-16 decoder, 74HC154.</li>
+<li><b>U2b</b>: Socket for another '154 to support 12 more SRAM chips,
+piggy-backed on the existing ones. <br>
+Also used by the Phoenix modification.<br>
+</li>
+<p><br>
+Phoenix modification</p>
+<p>Mainly for use with the "Geneve". Splits the Ramdisk in two:
+a small boot drive controlled by 8 CRU bits, and a larger ramdrive
+controlled
+by 16 bits. When installed in a TI-99/4A such a modified board will
+appear
+as two Ramdisks having different CRU addresses.</p>
+<p>The board shown above has not been modified, but carries the
+necessary
+sockets so that the modification can easily be made.</p>
+<li><b>U25</b>: Socket for a 74LS00 quad AND gates. Two gates selects
+two
+CRU addresses, the other two are mounted as a flip-flop to count the
+number
+of CRU bits written (8 vs 16), i.e. select the drive.</li>
+<li><b>SW2 </b>&amp; <b>SW3</b>: Room for two additional switches to
+toggle
+between "TI-99/4A" and "Geneve" modes.</li>
+<li>The Phoenix modification also implies re-wiring some of the 74LS138
+and using two 74LS154.</li>
+<p><br>
+RAMBO board</p>
+<p>The RAMBO board lets you access part of the Ramdisk memory at CPU
+memory
+in the area &gt;6000-7FFF.</p>
+<li><b>RAMBO</b>: A programmable logic array (PAL) that contains all
+the
+necessary logic gates.</li>
+<li><b>156</b>: The RAMBO board is plugged into the socket meant for a
+74LS156. For this reason, a new 74LS156 is present on the board.</li>
+<li>The blue wires are the various connections of the RAMBO chip. One
+goes
+under the board, to a bent-out pin of the 74LS138 that lies under here.</li>
+<p><br>
+32K modification</p>
+<p>This modification adds some memory so that the board duplicates as a
+32K memory expansion. It involves the following:</p>
+<li>Piggy-backing a 32K SRAM chip on top of the DSR chip. HM62256-LP12
+or 43256-12L.</li>
+<li>Piggy-backing a 74LS08 quad-AND gates on top of the 74LS138 that's
+near the DIP-switch (just for power supply, no common pins).</li>
+<p>Obviously, the board show here doe not carry this modification. </p>
+<p><br>
+For details, see my <a href="horizon.htm">Horizon Ramdisk page</a>.</p>
+<address><br>
+Revision 1. 8/26/01. OK to release.</address>
+<center>
+<p><br>
+<a href="titechpages.htm">Back to the TI-99/4A Tech Pages</a></p>
+</center>
+</body>
+</html>

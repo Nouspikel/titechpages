@@ -1,0 +1,628 @@
+*=========================================================
+* Assembly routines loaded in low memory expansion
+* ----------------- but stored in GROM at addressES >7000-772F
+*
+*=========================================================
+*G7000 DATA >0008,>2000            size, address where to load
+*      ML99                        assembly language stored here
+*
+       AORG >2000
+ 
+A2000  DATA >A55A                  prog flag
+       DATA A2128                  xml 21 link label
+       DATA A2398                  xml 22 loader
+       DATA A225A                  xml 23 int->real
+ 
+*---------------------------------------------------------
+*      GPL
+*G700C DATA >0654,>2022            size, address where to load
+*      ML99                        assembly language stored here
+*
+       AORG >2022
+ 
+A2022  DATA >0000                  err code/sub addr
+A2024  DATA >A000                  fsthi
+A2026  DATA >FFD7                  lsthi
+A2028  DATA A2676                  fstlow
+A202A  DATA A3F38                  lstlow
+A202C  DATA >0000                  checksum
+A202E  DATA >0000                  pab status ptr
+A2030  DATA >0000                  xml r11 buffer
+A2032  DATA >0000                  cru base for dsr
+A2034  DATA >0000                  dsr address   "
+A2036  DATA >0000                  name size     "
+A2038  DATA >0000                  e o name ptr  "
+A203A  DATA >0000                  counts        "
+A203C  DATA 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+       DATA 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+       DATA 0,0,0,0,0,0,0,0        record buffer
+A208C  DATA 0,0,0,0                dsr name buffer
+A2094  DATA 0,0,0                  workspaces
+A209A  DATA 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+A20BA  DATA 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+A20DA  DATA 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+A20FA  DATA 100                    constants
+A20FC  DATA >2000
+A20FE  TEXT '.'
+A20FF  BYTE >AA
+*
+A2100  DATA A2094,A21C4            gpllnk wp,pc
+A2104  DATA A2094,A2196            xmllnk
+A2108  DATA A2094,A21DE            kscan
+A210C  DATA A2094,A21F4            vsbw
+A2110  DATA A2094,A2200            vmbw
+A2114  DATA A2094,A220E            vsbr
+A2118  DATA A2094,A221A            vmbr
+A211C  DATA A2094,A2228            vwtr
+A2120  DATA A209A,A22B2            dsrlnk wp,pc
+A2124  DATA A20DA,A23BA            loader wp,pc
+*PA
+A2128  MOV  11,@A2030              run program xml 21
+       MOVB @>8349,1               -----------
+       COC  @A20FC,1               gpllnk flag
+       JEQ  A218A                  return to prog
+       MOV  @>8350,0
+       JEQ  A215E                  same name
+       BL   @A2646                 check if undef
+       JMP  A217E                  error >0D
+A2142  CI   1,A3F38                last = predefined
+       JEQ  A217A
+       MOV  1,0                    label list
+       LI   2,>834A                label to be run
+       C    *0+,*2+
+       JNE  A2174                  compare names
+       C    *0+,*2+
+       JNE  A2174
+       C    *0+,*2+
+       JNE  A2174
+       MOV  *0,@A2022              save value
+A215E  LWPI A20BA
+       MOV  @A2022,0               get address
+       JEQ  A217A
+       BL   *0                     link to sub
+       LWPI >83E0
+       MOV  @A2030,11              restore r11
+       B    *11                    to xml end
+A2174  AI   1,>0008
+       JMP  A2142                  next label
+A217A  LI   0,>0F00                not found
+A217E  MOVB 0,@>8322               err code >0F
+       LWPI >83E0
+       B    @>00CE                 to gpl, bit set
+A218A  SZCB @A20FC,@>8349          clear flag
+       LWPI A2094                  to gpllnk call
+       RTWP
+*                                  xmllnk
+A2196  MOV  *14+,@>83E2            ======
+       LWPI >83E0
+       MOV  11,@A2094+22           save r11
+       MOV  1,2                    xml code
+       CI   1,>8000
+       JH   A21B8                  direct address
+       SRL  1,12                   from tables
+       SLA  1,1
+       SLA  2,4
+       SRL  2,11
+       A    @>0CFA(1),2
+       MOV  *2,2
+A21B8  BL   *2                     execute
+       LWPI A2094
+       MOV  11,@>83F6              restore gpl r11
+       RTWP
+*                                  gpllnk
+A21C4  MOVB @>8373,1               ======
+       SRL  1,8
+       MOV  *14+,@>8304(1)         addr on stack
+       SOCB @A20FC,@>8349          >20 flag
+       LWPI >83E0                  to xml end
+       MOV  @A2030,11              (load and run)
+       B    *11
+*                                  kscan
+A21DE  LWPI >83E0                  =====
+       MOV  11,@A2094+22           save to old r11
+       BL   @>000E
+       LWPI A2094
+       MOV  11,@>83F6              restore gpl r11
+       RTWP
+*PA
+*                                  vsbw
+A21F4  BL   @A223A                 ====
+       MOVB @>0002(13),@>8C00
+       RTWP
+*                                  vmbw
+A2200  BL   @A223A                 ====
+A2204  MOVB *1+,@>8C00
+       DEC  2
+       JNE  A2204                  loop
+       RTWP
+*                                  vsbr
+A220E  BL   @A2240                 ====
+       MOVB @>8800,@>0002(13)
+       RTWP
+*                                  vmbr
+A221A  BL   @A2240                 ====
+A221E  MOVB @>8800,*1+
+       DEC  2
+       JNE  A221E                  loop
+       RTWP
+*                                  vwtr
+A2228  MOV  *13,1                  ====
+       MOVB @>0001(13),@>8C02
+       ORI  1,>8000
+       MOVB 1,@>8C02
+       RTWP
+*
+A223A  LI   1,>4000                vdp write
+       JMP  A2242                  ---------
+A2240  CLR  1                      vdp read
+A2242  MOV  *13,2                  --------
+       MOVB @A2094+5,@>8C02
+       SOC  1,2
+       MOVB 2,@>8C02
+       MOV  @>0002(13),1           fetch old r1,r2
+       MOV  @>0004(13),2
+       B    *11
+*                                  int to real xml 23
+A225A  LI   4,>834A                -----------
+       MOV  *4,0                   int
+       MOV  4,6
+       CLR  *6+                    clear space
+       CLR  *6+
+       MOV  0,5
+       JEQ  A22B0                  =0
+       ABS  0
+       LI   3,>0040                exponent
+       CLR  *6+
+       CLR  *6
+       CI   0,100
+       JL   A22A0                  < 100
+       CI   0,10000
+       JL   A2290                  < 10000
+       INC  3                      exp+1 *100
+       MOV  0,1
+       CLR  0
+       DIV  @A20FA,0               div by 100
+       MOVB @>83E3,@>0003(4)        remainder
+A2290  INC  3                      exp+1 *100
+       MOV  0,1
+       CLR  0
+       DIV  @A20FA,0               div by 100
+       MOVB @>83E3,@>0002(4)       remainder
+A22A0  MOVB @>83E1,@>0001(4)       result
+       MOVB @>83E7,*4              exponent
+       INV  5
+       JLT  A22B0                  positive
+       NEG  *4                     negative
+A22B0  B    *11
+*PA
+*                                  dsrlnk wp A209A
+A22B2  MOV  *14+,5                 ======
+       SZCB @A20FC,15              >20 eq=0
+       MOV  @>8356,0
+       MOV  0,9
+       AI   9,-8                   pab status
+       BLWP @A2114                 vsbr: read size
+       MOVB 1,3
+       SRL  3,8
+       SETO 4
+       LI   2,A208C                name buffer
+A22D0  INC  0
+       INC  4
+       C    4,3
+       JEQ  A22E4                  full size
+       BLWP @A2114                 vsbr
+       MOVB 1,*2+                  copy 1 char
+       CB   1,@A20FE               is it .
+       JNE  A22D0
+A22E4  MOV  4,4
+       JEQ  A238C                  size=0
+       CI   4,>0007
+       JGT  A238C                  size>7
+       CLR  @>83D0
+       MOV  4,@>8354
+       MOV  4,@A2036               save size
+       INC  4
+       A    4,@>8356
+       MOV  @>8356,@A2038          e o name ptr
+       LWPI >83E0                  call dsr
+       CLR  1
+       LI   12,>0F00
+A2310  MOV  12,12
+       JEQ  A2316
+       SBZ  0                      card off
+A2316  AI   12,>0100
+       CLR  @>83D0
+       CI   12,>2000
+       JEQ  A2388                  last
+       MOV  12,@>83D0              save cru base
+       SBO  0                      card on
+       LI   2,>4000
+       CB   *2,@A20FF              >AA = header
+       JNE  A2310                  no: next card
+       A    @A209A+10,2            old r5: offset
+       JMP  A2340
+A233A  MOV  @>83D2,2               next sub
+       SBO  0                      card on
+A2340  MOV  *2,2                   link to next
+       JEQ  A2310                  last: next card
+       MOV  2,@>83D2               save link
+       INCT 2
+       MOV  *2+,9                  save address
+       MOVB @>8355,5
+       JEQ  A2364                  size=0
+       CB   5,*2+
+       JNE  A233A                  diff size: next
+       SRL  5,8
+       LI   6,A208C                name buffer
+A235C  CB   *6+,*2+                check name
+       JNE  A233A                  diff name: next
+       DEC  5
+       JNE  A235C                  ok: next char
+A2364  INC  1                      same name
+       MOV  1,@A203A               save # of calls
+       MOV  9,@A2034               save address
+       MOV  12,@A2032              save cru base
+       BL   *9                     link
+       JMP  A233A                  skip or next
+*PA
+       SBZ  0                      card off
+       LWPI A209A
+       MOV  9,0
+       BLWP @A2114                 read pab status
+       SRL  1,13
+       JNE  A238E                  err
+       RTWP
+A2388  LWPI A209A                  errors
+A238C  CLR  1                      code 0
+A238E  SWPB 1
+       MOVB 1,*13                  code in r0
+       SOCB @A20FC,15              eq=1
+       RTWP
+*PA
+*                                  gpl load xml 22
+A2398  MOV  11,@A2030              --------
+       LWPI A20BA
+       BLWP @A2124                 call loader
+       LWPI >83E0
+       JEQ  A23B0                  error
+       MOV  @A2030,11              restore r11
+       B    *11                    to xml end
+A23B0  MOVB @A20BA,@>8322           err code
+       B    @>00CE                 to gpl, bit set
+*
+*                                  loader wp A20DA
+A23BA  CLR  @A2022                 ======
+       SZCB @A20FC,15              clear eq + err code
+       MOV  @>8356,0
+       BLWP @A2120                 dsrlnk
+       DATA >0008                  code for dsr
+       JEQ  A2432                  err
+       AI   0,-9
+       LI   1,>0200
+       BLWP @A210C                 set read opcode
+       INC  0
+       MOV  0,@A202E               save status addr
+       MOV  @A2024,7               fsthi
+       MOV  7,5
+       CLR  12                     no comp flag
+       BL   @A25E0                 input a record
+       CI   3,>0001
+       JNE  A243A                  to case table
+       INC  12                     compressed flag
+       CLR  3
+       JMP  A243E                  to case table
+*
+A23F8  CI   3,>0046       |J|      special tag
+       JNE  A243A                  value -> tag
+A23FE  CLR  2             |F|      next record
+A2400  BL   @A262E        |8|      next char
+       CI   3,>003A
+       JNE  A23F8                  not : => loop
+       MOV  @A202E,0      |:|      end
+       DEC  0
+       LI   1,>0100                opcode = close
+       BLWP @A210C                 vsbw
+       BL   @A25E0                 call dsr
+       MOV  @A2022,0
+       JEQ  A2430
+       BL   @A2646                 all defined?
+       JMP  A2432                  no:  error >0D
+       MOV  14,@>0016(13)          old pc > r11
+       MOV  @A2022,14              new return address
+A2430  RTWP
+A2432  MOVB 0,*13                  r0
+       SOCB @A20FC,15              eq=1
+       RTWP
+*                                  case table
+A243A  BL   @A25C2                 ----------
+A243E  CLR  4                      convert char^
+       MOVB @A2662(3),4            offset
+       SRL  4,7
+       MOV  8,@A202C               save checksum
+       BL   @A2594                 put value in r0
+       B    @A23F8(4)              to char routine
+*PA
+A2452  INC  0             |0|      new module
+       ANDI 0,>FFFE                even
+       MOV  @A2024,4               fsthi
+       A    0,4
+       JOC  A2470                  too big: in low
+       C    4,@A2026               lsthi
+A2464  JH   A2470                  too big: in low
+       MOV  @A2024,5               save old
+       MOV  4,@A2024               new fsthi
+       JMP  A2484
+A2470  MOV  @A2028,4               fstlo
+       A    0,4
+       C    4,@A202A               lstlo
+       JHE  A2494                  too big
+       MOV  @A2028,5               save old
+       MOV  4,@A2028               new fstlo
+A2484  MOV  5,7                    new pointer
+A2486  LI   9,>0008       |I|      segment id
+A248A  BL   @A262E                 skip name (8 chars)
+       DEC  9
+       JNE  A248A
+       JMP  A2400
+A2494  LI   0,>0800                mem overflow
+       JMP  A2432
+*
+A249A  A    5,0           |2|      auto start
+A249C  MOV  0,@A2022      |1|      save address
+       JMP  A2400
+*
+A24A2  A    0,@A202C      |7|      test checksum
+       JEQ  A2400
+       LI   0,>0B00                checksum err
+       JMP  A2432
+*
+A24AE  A    5,0           |A|      rel new ptr
+A24B0  MOV  0,7           |9|      abs new ptr
+       JMP  A2400
+*
+A24B4  A    5,0           |C|      rel data
+A24B6  MOVB 0,*7+         |B|      abs data
+       MOVB @A20DA+1,*7+           r0 byte 2
+       JMP  A2400
+*
+A24BE  A    5,0           |3|      rel ref
+A24C0  BL   @A2566        |4|      abs ref
+       MOV  0,0                    make new label
+       JEQ  A24F4                  no ref list
+A24C8  AI   6,-8                   fisrt label
+       C    6,4
+       JH   A24D4                  last ?
+       NEG  *4                     undef
+A24D2  JMP  A2400
+A24D4  C    *4,*6                  compare name
+       JNE  A24C8                  diff: next
+       C    @>0002(4),@>0002(6)
+       JNE  A24C8
+       C    @>0004(4),@>0004(6)
+       JNE  A24C8
+       MOV  @>0006(6),3            same: get value
+A24EC  MOV  *0,9                   get list link
+       MOV  3,*0                   place value
+       MOV  9,0                    next occurence
+       JNE  A24EC
+A24F4  AI   4,>0008
+       MOV  4,@A202A               del new copy
+       JMP  A24D2
+*PA
+A24FE  A    5,0           |5|      rel def
+A2500  BL   @A2566        |6|      abs def
+A2504  AI   6,-8                   make new label
+A2508  C    6,4
+       JEQ  A24D2                  last: continue
+       MOV  *6,10                  get name
+       JGT  A2512                  defined
+       NEG  10                     undefined
+A2512  C    *4,10                  compare names
+       JNE  A2504                  diff: next
+       C    @>0002(4),@>0002(6)
+       JNE  A2504
+       C    @>0004(4),@>0004(6)
+       JNE  A2504
+       MOV  *6,10                  same
+       JGT  A2556                  defined: err
+       MOV  @>0006(6),3            undef: get link
+A252E  MOV  *3,9                   get old link
+       MOV  0,*3                   place value
+       MOV  9,3                    next occurence
+       JNE  A252E
+       MOV  6,9                    del old label
+       S    4,9                    size to last
+       MOV  6,10
+       AI   10,>0008               next
+       MOV  6,3                    current
+A2542  DECT 3
+       DECT 10
+       MOV  *3,*10                 copy next on current
+       DECT 9
+       JNE  A2542
+       AI   4,>0008
+       MOV  4,@A202A               update lstlo
+       JMP  A2508                  to next ref
+*
+A2556  MOV  4,@>0002(13)           name ptr in r1
+       LI   0,>0C00                duplicate def
+       B    @A2432                 rtwp with err
+A2562  B    @A2494
+*                                  make new label
+A2566  MOV  11,10                  --------------
+       LI   9,>0006                value in r0
+       MOV  @A202A,6               lstlo
+       AI   6,-8
+       MOV  6,4                    new address
+       C    6,@A2028               check fstlo
+       JL   A2562                  mem overflow
+       MOV  6,@A202A               new lstlo
+A2580  BL   @A262E                 read 1 byte
+       MOVB @A20DA+7,*6+
+       DEC  9
+       JNE  A2580                  copy name
+       MOV  0,*6                   copy address
+       LI   6,A4000
+       B    *10
+*PA
+*                                  read number
+A2594  MOV  11,10                  -----------
+       CLR  0                      returned in r0
+       MOV  12,12
+       JEQ  A25AC
+       BL   @A262E                 read 1 byte
+       MOVB @A20DA+7,0             in r0 byte 1
+       BL   @A262E                 one more
+       A    3,0                    in r0 byte 2
+       B    *10
+A25AC  LI   9,>0004                not compressed
+A25B0  BL   @A262E                 read 1 byte
+       BL   @A25C2                 convert char
+       SLA  0,4
+       A    3,0                    in r0 nibble 4
+       DEC  9
+       JNE  A25B0                  4 times
+       B    *10
+*                                  byte to tag
+A25C2  AI   3,>FFD0                -----------
+       CI   3,>000A                returned in r3
+       JL   A25D6                  0-9
+       AI   3,-7                   A-O
+       CI   3,>0019
+       JH   A25D8                  after O: illegal
+A25D6  B    *11
+A25D8  LI   0,>0A00      |DEGH|    illegal tag
+       B    @A2432
+*                                  input a record
+A25E0  LWPI >83E0                  --------------
+       LI   0,A2032                saved by dsrlnk
+       MOV  *0+,12                 cru base
+       MOV  *0+,9                  prog address
+       MOV  *0+,@>8354             name size
+       MOV  *0+,@>8356             e o name ptr
+       MOV  *0,1                   # of calls
+       SBO  0                      card on
+       CB   @>4000,@A20FF
+       JNE  A263A                  no header
+       BL   *9                     link
+       JMP  A263A                  err (skipped)
+       SBZ  0                      card off
+       LWPI A20DA
+       MOV  @A202E,0               pab status
+       LI   1,A20DA+1              r0 2nd byte
+       LI   2,>0004
+       BLWP @A2118                 vmbr
+       SB   0,0
+       SRL  0,5
+       JNE  A2640                  error flagged
+       SRL  2,8                    rec len
+       MOV  1,0                    data buffer
+       LI   1,A203C                record buffer
+       BLWP @A2118                 vmbr
+       CLR  8                      read 1 byte
+A262E  DEC  2                      -----------
+A2630  JLT  A25E0                  next record
+       MOVB *1+,3
+       SRL  3,8                    returned in r3
+       A    3,8                    checksum
+       B    *11
+A263A  LWPI A20DA                  io error 0
+       CLR  0
+A2640  SWPB 0
+       B    @A2432
+*PA
+*                                  check if undef
+A2646  LI   1,A3F38+8              --------------
+A264A  AI   1,-8
+       MOV  *1,0
+       JLT  A265C                  undefined
+       C    @A202A,1
+       JNE  A264A                  not lstlo: loop
+       INCT 11                     ok: skip
+       B    *11
+A265C  LI   0,>0D00                unresolved ref
+       B    *11
+*                   tag    -    jump table
+A2662  BYTE >2D      0             A2452
+       BYTE >52      1             A249C
+       BYTE >51      2             A249A
+       BYTE >63      3             A24BE
+       BYTE >64      4             A24C0
+       BYTE >83      5             A24FE
+       BYTE >84      6             A2500
+       BYTE >55      7             A24A2
+       BYTE >04      8             A2400
+       BYTE >5C      9             A24B0
+       BYTE >5B      A             A24AE
+       BYTE >5F      B             A24B6
+       BYTE >5E      C             A24B4
+       BYTE >F0      D             A25D8
+       BYTE >F0      E             A25D8
+       BYTE >03      F             A23FE
+       BYTE >F0      G             A25D8
+       BYTE >F0      H             A25D8
+       BYTE >47      I             A2486
+       BYTE >00      J             A23F8
+A2676  BSS  6        K-P            ?   not loaded
+*
+*---------------------------------------------------------
+*PA
+*      GPL
+*G7664 DATA >00C8,>3F38            size, address where to load
+*      ML99                        assembly language stored here
+ 
+       AORG >3F38                  def table
+*                                  ---------
+A3F38  TEXT 'UTLTAB'
+       DATA A2022
+       TEXT 'PAD   '
+       DATA >8300
+       TEXT 'GPLWS '
+       DATA >83E0
+       TEXT 'SOUND '
+       DATA >8400
+       TEXT 'VDPRD '
+       DATA >8800
+       TEXT 'VDPSTA'
+       DATA >8802
+       TEXT 'VDPWD '
+       DATA >8C00
+       TEXT 'VDPWA '
+       DATA >8C02
+       TEXT 'SPCHRD'
+       DATA >9000
+       TEXT 'SPCHWT'
+       DATA >9400
+       TEXT 'GRMRD '
+       DATA >9800
+       TEXT 'GRMRA '
+       DATA >9802
+       TEXT 'GRMWD '
+       DATA >9C00
+       TEXT 'GRMWA '
+       DATA >9C02
+       TEXT 'SCAN  '
+       DATA >000E
+       TEXT 'XMLLNK'
+       DATA A2104
+       TEXT 'KSCAN '
+       DATA A2108
+       TEXT 'VSBW  '
+       DATA A210C
+       TEXT 'VMBW  '
+       DATA A2110
+       TEXT 'VSBR  '
+       DATA A2114
+       TEXT 'VMBR  '
+       DATA A2118
+       TEXT 'VWTR  '
+       DATA A211C
+       TEXT 'DSRLNK'
+       DATA A2120
+       TEXT 'LOADER'
+       DATA A2124
+       TEXT 'GPLLNK'
+       DATA A2100
+A4000  BYTE 0                      e o cpu mem
+*                                  e o grom >7730
+       END

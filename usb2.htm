@@ -1,0 +1,2376 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+  <title></title>
+  <meta http-equiv="Content-Type"
+ content="text/html; charset=iso-8859-1">
+  <meta name="Author" content="">
+  <meta name="GENERATOR"
+ content="Mozilla/3.04Gold (Win95; U) [Netscape]">
+</head>
+<body bgcolor="#ffffff">
+<h1 align="center"><a
+ href="http://www.nouspikel.com/ti99/titechpages.htm"><img
+ src="logo.jpg" style="border: 0px solid ; height: 33px; width: 95px;"
+ title="Back to main index" alt=""></a></h1>
+<h1>Programming the USB-Smartmedia card</h1>
+<p>This page contains specific informations on how the program the
+various
+chips on board the USB-SM card. For general instructions on how to
+write
+DSRs for the USB-SM card, follow <a href="usb_dsr.htm">this link</a>.
+For
+a description of ELM, the EEPROM loader and manager for the USB-SM
+card,
+see <a href="usb_load.htm">here</a>.</p>
+<p>For information on the USB-SM card hardware, follow <a
+ href="usb.htm">this
+link</a>. For instructions on how to build the card, look <a
+ href="usbhowto.htm">here</a>.</p>
+<p><a href="#CRU%20map">CRU map<br>
+</a><a href="#Memory%20map">Memory map<br>
+</a><a href="#StrataFlash">StrataFlash operations<br>
+</a><a href="#SmartMedia">SmartMedia operations<br>
+</a><a href="#USB%20operations">USB controller operations</a></p>
+<h3><br>
+<a name="CRU map"></a>CRU map</h3>
+<p>The CRU bas address can be set with the DIP switch to any address
+from
+&gt;10xx to &gt;1Fxx. </p>
+<p>There are 24 CRU bits available for output, but only 8 for input.
+The
+meaning of the input bits is independent of the corresponding output
+bits.
+Here are the output bits:</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Bit</th>
+      <th>R12 address </th>
+      <th>Function when written</th>
+    </tr>
+    <tr>
+      <td>0</td>
+      <td>&gt;1x00</td>
+      <td>0: Card DSRs off.<br>
+1: Card maps at &gt;4000-5FFF </td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>&gt;1x02</td>
+      <td>0: Only EEPROM and SRAM map in DSR space.<br>
+1: SmartMedia maps at &gt;4FF0-4FFF, USB at &gt;5FF0-5FFE </td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>&gt;1x04</td>
+      <td>0: Interrupts disabled.<br>
+1: Interrupts enabled.</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>&gt;1x06</td>
+      <td>0: SmartMedia card in standby.<br>
+1: Smart Media card selected.</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>&gt;1x08</td>
+      <td>0: EEPROM write-protected, read-enabled.<br>
+1: EEPROM write-enabled, read-disabled.</td>
+    </tr>
+    <tr>
+      <td>5-15</td>
+      <td>&gt;1x0A</td>
+      <td>Page number (&gt;000 through &gt;7FF) for Flash-EEPROM</td>
+    </tr>
+    <tr>
+      <td>16-23</td>
+      <td>&gt;1x20</td>
+      <td>Page number (&gt;00 through &gt;FF) for SRAM.</td>
+    </tr>
+  </tbody>
+</table>
+<p>And here are the 8 input bits:</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Bit </th>
+      <th>R12 address </th>
+      <th>Meaning when read </th>
+    </tr>
+    <tr>
+      <td>0</td>
+      <td>&gt;1x00</td>
+      <td>0: Host controller requests interrupt. </td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>&gt;1x02</td>
+      <td>0: Device controller requests interrupt. </td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>&gt;1x04</td>
+      <td>1: Host controller suspended.</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>&gt;1x06</td>
+      <td>1: Device controller suspended.</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>&gt;1x08</td>
+      <td>0: Flash-EEPROM is busy.<br>
+1:&nbsp;Flash-EEPROM is ready.</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>&gt;1x0A</td>
+      <td>0: SmartMedia card is busy.<br>
+1: SmartMedia card absent or ready.</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td>&gt;1x0C</td>
+      <td>0: No SmartMedia card present.<br>
+1: A card is in the connector.</td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td>&gt;1x0E</td>
+      <td>0: SmartMedia card is protected.<br>
+1: Card absent or not protected.</td>
+    </tr>
+  </tbody>
+</table>
+<p>Example: switching pages</p>
+<table cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>* This routine selects an EEPROM page<br>* Assume card CRU is in R12, page number in R0<br>ROMPG  AI   R12,&gt;000A    Points to first bit of page number <br>       LDCR R0,11        Select page<br>       AI   R12,-10      Restore original R12<br>       B    *R11</pre>
+      <pre>* This routine selects a SRAM page<br>* Assume card CRU is in R12, page number in R0<br>RAMPG  AI   R12,&gt;0020    Points to first bit of page number<br>       SLA  R0,8         Page # is only 8 bits <br>       LDCR R0,8         Select page<br>       SRL  R0,8         Restore R0<br>       AI   R12,-32      Restore original R12<br>       B    *R11 </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h3><br>
+<a name="Memory map"></a>Memory map</h3>
+<p><tt>&gt;4000-4FFF</tt>: Flash-EEPROM 8 megabytes. Mapped as 2048
+pages
+of 4K, switched via the CRU.<br>
+<tt>&gt;5000-5FFF</tt>: SRAM 1 megabyte. Mapped as 256 pages of 4K,
+switched
+via the CRU.</p>
+<p><br>
+Only when CRU bit 1 is set to '1':</p>
+<p><tt>&gt;4FF0</tt>: SmartMedia read data<br>
+<tt>&gt;4FF8</tt>: SmartMedia write data<br>
+<tt>&gt;4FFA</tt>: SmartMedia write address<br>
+<tt>&gt;4FFC</tt>: SmartMedia write command</p>
+<p><tt>&gt;5FF0</tt>: USB host controller read data<br>
+<tt>&gt;5FF4</tt>: USB device controller read data<br>
+<tt>&gt;5FF8</tt>: USB host controller write data<br>
+<tt>&gt;5FFA</tt>: USB host controller write command (i.e. register #)<br>
+<tt>&gt;5FFC</tt>: USB device controller write data<br>
+<tt>&gt;5FFE</tt>: USB device controller write command (i.e. register #)</p>
+<p>The Smartmedia bus is 8-bit wide, so all SM ports map at even
+addresses.
+You can just disregard the odd byte.</p>
+<p>The ISP1161 has a 16-bit bus, although its registers vary in size
+from
+8 to 32 bits. The rules are the following:</p>
+<ul>
+  <li>8-bit registers are accessed through the most significant (i.e.
+left)
+byte.</li>
+  <li>16-bit registers are accessed word-wise, but remember that the
+data
+bus is inverted, so perform a SWPB when accessing the ports directly
+(my
+low-level routines do this for you).</li>
+  <li>32-bit registers are accessed as two words in succession, at the
+same
+address, with the least significant word first. Both are byte-swapped,
+which means that the bytes come in reverse order: least significant to
+most. Again, my low-level routines hide this from you.</li>
+  <li>The stacks (ATL, ITLs and endpoint stacks) are accessed
+word-wise,
+but the bytes are NOT swapped (they obey the "Intel" byte order,
+but I rewired the data bus to correct this, which is why registers are
+now byte-swapped). Thus data can be transfered to/from the stack in
+TI's
+usual manner: most significant byte first, i.e. in the left byte of the
+word.</li>
+</ul>
+<h2><br>
+<a name="StrataFlash"></a>StrataFlash operations</h2>
+<p><a href="#read%20array">Read array<br>
+</a><a href="#write%20word">Write word<br>
+</a><a href="#write%20buffer">Write buffer<br>
+Block erase<br>
+</a><a href="#suspend">Suspend/Resume<br>
+</a><a href="#lock%20bits">Set/Clear lock-bits<br>
+</a><a href="#read%20status">Read status<br>
+</a><a href="#clear%20status">Clear status<br>
+</a><a href="#read%20id">Read ID<br>
+</a><a href="#read%20query">Read query<br>
+</a><a href="#config">Configuration<br>
+</a><a href="#others">Other commands</a></p>
+<h3>Introduction</h3>
+<p>The Flash-EEPROM maps at &gt;4000-4FFF (although, when CRU bit 1 is
+'1', the Smartmedia card maps at &gt;4FF0-4FFF). This corresponds to a
+4-Kbyte page. You can toggle pages by writing a page number to CRU bits
+4 through 15. With an 8-meg chip, you have 2048 available pages, with a
+4-meg chip "only" 1024 pages.</p>
+<p>Reading from the chip requires no other operation than setting the
+proper
+page number. Writing to the chip, however, is more complicated. First,
+all writing operations consists in at least two write cycles. Any
+illegal
+value, or intervening read cycle, will abort the operation.</p>
+<p>When writing to, or erasing the Flash-EEPROM, you must first set CRU
+bit 4 to '1'. This will prevent reading from the chip (because the
+TMS9900's
+"read before write" strategy could abort the unlocking sequence)
+and enable the Vpen write-enabling pin. The corresponding switch on the
+DIP-switch must be closed for this to work properly. Don't forget to
+turn
+bit 4 back to '0' so you can read the chip once done. </p>
+<p>Because the StrataFlash is an EEPROM, you can only turn '1' bits
+into
+'0' when writing. Initially, the chip contain only '1's, so you can
+write
+anything you want. Correcting mistakes is trickier, however. Sometimes
+it is possible, e.g.when turning a 'C' (ascii 67, binary 0110 0111)
+into
+a 'B' (ascii 66, binary 0110 0110): in this case we are changing the
+rightmost
+bit from '1' to '0', so it's OK. Changing the 'B' into a 'A' (ascii 65,
+binary 0110 0101) is not possible however, because the rightmost bit
+need
+to be changed from '0' to '1'.</p>
+<p>In such a case, you must first erase the byte, i.e. turn it into an
+&gt;FF (binary 1111 1111). But because the chip is a 'Flash', you
+cannot
+erase only one byte: you must erase 128 kbytes at a time! This might
+appear
+like an inconvenience, but it was done so it is possible to erase the
+whole
+chip very rapidly: erasure is a very slow operation and erasing 8 megs
+byte-per-byte would take forever.</p>
+<p>Let's now review the various commands that can be sent to the
+StrataFlash:</p>
+<pre>&gt;FF Read multiple words<br>&gt;10 Write word<br>&gt;40 Write word<br>&gt;E8 Setup write from buffer<br>&gt;D0 Confirm write from buffer<br>&gt;20 Setup block erase<br>&gt;D0 Confirm block erase<br>&gt;B0 Suspend write/erase<br>&gt;D0 Resume write/erase<br>&gt;60 Setup set/clear lock bits<br>&gt;01 Confirm set lock bit<br>&gt;F1 Confirm set master lock bit<br>&gt;D0 Confirm clear all lock bits<br>&gt;70 Read status<br>&gt;50 Clear status<br>&gt;90 Read chip ID<br>&gt;98 Read query<br>&gt;B8 Set configuration</pre>
+<h4><br>
+<a name="read array"></a>Read array</h4>
+<p>By default, the StrataFlash will be in 'Read array' mode upon
+power-up,
+i.e. it operates like a regular ROM memory: the data port returns the
+word
+found at the address placed on the address bus. The device will remain
+in this mode until you send a command to enter another mode. If you
+wish
+to return to 'Read array' mode after switching to another mode, you
+only
+need to write the command &gt;FF to the chip, at any address. </p>
+<p>So does this imply that there are other read modes? Yes there are
+several:
+you can read the chip ID codes, or a more detailed "query structure".
+You can also check the chip status, or clear it.</p>
+<h4><br>
+<a name="write word"></a>Write word</h4>
+<p>But before we go there, let's first see how to program a word, i.e.
+write to the Flash-EEPROM. There are two commands for this, &gt;40 and
+&gt;10. You can write either one at any address (e.g the adress of the
+word to be written). Then you write the word you want at the desired
+address.
+At this point, the 'write state machine' inside the chip takes over,
+writes
+the word, and verifies it. Any incoming read cycle will return the
+current
+status (see 'read status' <a href="#read%20status">below</a>). You can
+also
+check the status of the STS pin, via CRU bit 4 to determine when
+writing
+is completed: it reads '1' when the chip is done.</p>
+<p>Note that the status only reports errors due to bits that did not
+turn
+from '1' to '0' (which they should). The opposite operation is
+impossible
+and requires prior erasure, which can only be done block-wise. Thus, it
+is good practice to check that your write operation is legal
+beforehand,
+using for instance the CZC instruction: any '0' bit that needs to be
+converted
+to a '1' won't work.</p>
+<p>Remember that you need to toggle CRU bit 4 to '1' before issuing the
+command to enable writing (and disable reading), and that the
+"antiviral"
+DIP-switch must be closed. Obviously you can't read the status byte
+while
+in this mode. Thus, it's better to monitor the STS pin, via CRU bit 4,
+until the chip is ready to be placed back in reading mode.</p>
+<h4><br>
+<a name="write buffer"></a>Write buffer</h4>
+<p>To speed things up, it is possible to write several words in
+parallel.
+To do so, you must copy these words to a RAM buffer inside the
+StrataFlash,
+which the 'write machine' will use for the writing. Obviously, this is
+a multi-step command.</p>
+<p>You must first write the command &gt;E8 to an address within the
+block
+where you intend to write (e.g. the starting address). This allows the
+chip to issue the 'extended status' for this block upon read
+operations.
+You can tell wether the block is available for writing by checking the
+status bit with weight &gt;80: if it reads as '0' the chip isn't ready
+to write to this block yet (e.g. it's being erased, but suspended). </p>
+<p>Then you must write the number of words you intend to write, again
+to
+an address within the block. This number should obviously be within the
+limits of the RAM buffer (which is 32 bytes). Legal values are &gt;0000
+through &gt;000F, which correspond to 1 through 16 words, since the
+count
+begins with zero.</p>
+<p>Now you can start writing the data words at the required addresses.
+You don't have to enter them in order, but all addresses must lie
+between
+the start address and the end address (which must be start + count). Be
+carefull that all words must be written to the same block. </p>
+<p>Finally, you must issue the confirmation command &gt;D0, at which
+time
+the 'write state machine' will begin programming the chip. It will also
+issue the status data upon any read cycle. Note that an error will
+occur
+if you trespass the limit between two blocks.</p>
+<h4><br>
+<a name="block erase"></a>Block erase</h4>
+<p>So, if 'write' can only change 1s to 0s, how can you revert these
+changes?
+This is done with an 'erase' operation. However, because the chip is a
+Flash, you cannot erase individual words. You must erase at least one
+block,
+which is 128 Kbytes in length.</p>
+<p>To erase a block, you must first write the command &gt;20 to any
+address.
+Then you must write the confirmation command &gt;D0 to an address
+within
+the block to be erased. The 'write state machine' then takes over and
+turns
+every word within the block to &gt;FFFF. It also continuously issues
+status
+data, so you can check the status during and after erasure with a
+simple
+read cycle (for which you must toggle CRU bit 4 back to '0').</p>
+<h4><br>
+<a name="suspend"></a>Suspend &amp; Resume</h4>
+<p>These commands allow to temporarily suspend erasure, in order to
+read
+or write data to a block other than the one being erased. To do so,
+write
+the &gt;B0 command to any address within the chip. Then check the
+status:
+bit &gt;80 and &gt;40 should both become '1'.</p>
+<p>At this point, you can issue any of the following commands: Read
+array,
+Read query, Read status, Clear status, Configure, Write word and Write
+to buffer.</p>
+<p>Once you are done, issue the 'Resume' command by writing &gt;D0 to
+any
+address. This will cause the chip to resume erasing where it paused,
+and
+status data to be issued upon read cycles. Note that erasure won't
+resume
+until any intervening write command is completed.</p>
+<h4><br>
+<a name="lock bits"></a>Set/Clear lock-bits</h4>
+<p>An additional protection system is provided to avoid spurious
+writings:
+for each block you can set a 'lock-bit' which effectively protects the
+block against any modification, being writing or erasure. These bits
+can
+be cleared subsequently, if you do need to modify a block.</p>
+<p>To set a 'lock-bit' first write the command &gt;60 to an address
+located
+within the block you intend to write-protect. Then write &gt;01, again
+to any address within the block. This command automatically outputs the
+status data unpon subsequent read cycles.</p>
+<p>Lock-bits cannot be unlocked individually, but you can issue the
+'clear
+lock-bits' command by writing &gt;60 to any address, then &gt;D0 to any
+address. This will reset all lock-bits and output the status.</p>
+<p>There is also a 'master lock-bit' that can only be set (by writing
+&gt;F1
+after command &gt;60), but not reset. Setting it results in making it
+impossible
+to set block lock-bits unless the RP* pin is held high. Since this pin
+is connected to the Reset* line in the USB-SM card, it will always be
+high
+and the master lock bit won't make any difference for us.</p>
+<h4><br>
+<a name="read status"></a>Read status</h4>
+<p>As you probably noticed, many commands automatically issue the chip
+status during and after completion. What this means is that a read
+cycle
+will not show the contents of the memory, but rather the status of
+the'write
+state machine'. You will need to issue the 'read array' command to
+return
+to standard mode. </p>
+<p>In case you need to read the status while in a 'Read array' mode,
+write
+command &gt;70 to any address, then read the status from any address. </p>
+<p>Status data consists in the following bits:</p>
+<pre>&gt;0001: reserved<br>&gt;0002: write-protection error<br>&gt;0004: reserved<br>&gt;0008: error, low Vpp<br>&gt;0010: error in writing, or in setting lock-bits<br>&gt;0020: error in erasing, or in clearing lock-bits<br>&gt;0040: block erase was suspended<br>&gt;0080: write-machine is ready (if not, rest of status is invalid)</pre>
+<h4><br>
+<a name="clear status"></a>Clear status</h4>
+<p>The four error bits in the status are set by the write state
+machine,
+but must be reset by software. You do this by writing the command
+&gt;50
+to any address in the chip. Note that this won't work if the
+write-machine
+is still programming.</p>
+<h4><br>
+<a name="read id"></a>Read ID</h4>
+<p>This command is mainly usefull as a test to make sure that the chip
+is answering properly. You can also use it to determine which blocks
+are
+locked, so you can relock them after a 'Clear lock-bits' command. </p>
+<p>To enter 'Read ID' mode, write command &gt;90 to any address. Then
+read
+the desired code from one of the following addresses:</p>
+<pre><u>Address     Contents                                  <br></u>&gt;00000      Manufacturer code (&gt;89 = Intel)<br>&gt;00001      Device code (&gt;14 = 4 Meg, &gt;15 = 8 Meg)<br>&gt;x0002      Block 0 lock-bit (&gt;01 = block 0 is locked)<br>&gt;00003      Master lock-bit (&gt;01 = setting lock-bits needs RP* high)<br>&gt;x0002      Block x lock-bit (&gt;01 = block x is locked)</pre>
+<p>To exit 'Read ID' mode, simply enter another command. </p>
+<p>Example:</p>
+<table cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>      LI   R0,&gt;0090         Command "read ID"<br>      MOV  R0,@&gt;4000        Write at any address<br>      MOV  @&gt;4000,@MFG      Save manufacturer code <br>      MOV  @&gt;4002,@DEV      Save device code </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h4><br>
+<a name="read query"></a>Read query</h4>
+<p>This feature is mainly used by programs that can handle different
+kinds
+of Flash chips. It lets you access the so-called "query structure",
+a set of data describing the chip. To enter "Read query" mode,
+you write the command &gt;98 at any address in the chip. Then you can
+read
+the data you want from the adequate address. Note that the table below
+contains word addresses, the actuall address is &gt;4000 + (2 *
+word_address).
+Since we're reading data 16 bits at a time, the MSbyte will always be
+&gt;00:
+e.g. the string "QRY" reads as &gt;0051, &gt;0052, &gt;0059.</p>
+<pre><u>Word address  Contents                                                    <br></u>&gt;00000        Manufacturer code<br>&gt;00001        Device code<br>&gt;00004-F      Reserved for vendor-specific info<br>&gt;00010-2      String "QRY"<br>&gt;00013-4      Primary vendor command set address (low byte - high byte)<br>&gt;00015-6      Primary vendor extended query table address (low - high)<br>&gt;00017-8      Alternative vendor command set address (&gt;0000 = none)<br>&gt;00019-A      Alternative vendor extended query table address (&gt;0000 = none)<br>&gt;0001B        Min Vcc: first nibble = volts, 2nd = 10th volts (e.g. &gt;0045 = 4.5&nbsp;V)<br>&gt;0001C        Max Vcc: coded as above<br>&gt;0001D        Min Vpp (programming voltage)<br>&gt;0001E        Max Vpp<br>&gt;0001F        Single word program time out: 2 at power of 'n' microseconds<br>&gt;00020        Buffer write time out: coded as above (e.g. &gt;0007 = 128 usec)<br>&gt;00021        Block erase time out: 2 at power of 'n' milliseconds<br>&gt;00022        Full chip erase time out: coded as above<br>&gt;00023        Maximum single word program time out<br>&gt;00024        Maximum buffer write time out <br>&gt;00025        Maximum block erase time out<br>&gt;00026        Maximum full chip erase time out<br>&gt;00027        Device layout info: 2 at power of 'n' bytes<br>&gt;00028-9      Device interface: &gt;00000000=byte, &gt;00010000=word, &gt;00020000=mixed<br>&gt;0002A-B      Write buffer size: 2 at power of 'n' bytes (n: low - high bytes)<br>&gt;0002C        Number of erase block regions<br>&gt;0002D-E      Number of blocks in erase region #1<br>&gt;0001F-30     Block size (in region #1): 'n' * 256<br>&gt;0x002        Status register for block x: &gt;0001 = locked, &gt;0002 = erased failed.</pre>
+<p><br>
+The optional "extended query table" can be found at the address
+specified in bytes &gt;00015-6. Its structure is the following:</p>
+<pre><u>Word   Contents                                               <br></u>0-2    String "PRI"<br>3-4    Version number (major - minor) in ascii<br>5      Optional features: &gt;01=chip erase, &gt;02=suspend erase, &gt;04=suspend program<br>       &gt;08: legacy lock/unlock, &gt;10: queud erase<br>6-8    Reserved for more options<br>9      Program after erase suspended? &gt;0001=yes<br>&gt;A     Block status register mask (&gt;01=lock bit status register, &gt;02=lock down bit status)<br>&gt;B     Reserved<br>&gt;C     Optimal Vcc: first nibble = volts, 2nd = 10th volts<br>&gt;D     Optimal Vpp: coded as above<br>&gt;E     Reserved</pre>
+<h4><br>
+<a name="config"></a>Configuration</h4>
+<p>This command only lets you define the usage of the STS pin. By
+default,
+this pin is high when the chip is ready and low when it's busy. This is
+how we want it for the USB-SM card. It is however possible to configure
+it so that it stays high all the time and just briefly pulses low for
+250
+ns when a write operation is completed, or when erasure is completed,
+or
+both. This would be usefull if we had wired that pin to generate
+edge-triggered
+interrupts. Only, we can't because interrupts are level-trigered in the
+TI-99/4A.</p>
+<p>To set the configuration, you would write the &gt;B8 command to any
+address, followed with the configuration code: &gt;00 for default
+behaviour,
+&gt;01 to pulse once erasure is completed, &gt;02 to pulse once writing
+is completed, &gt;03 to pulse in both cases.</p>
+<h4><br>
+<a name="others"></a>Additional commands</h4>
+<p>There are two addtional command, not explained in the StrataFlash
+data
+sheet: 'Protection program' and 'Set read configuration'. </p>
+<p>Protection program involves writing command &gt;C0 at any address,
+then
+writing a data word at the required address.</p>
+<p>Set read configuration involves writing command &gt;60 (set/clear
+lock
+bits) at any address, followed with data &gt;03 at a special address
+dubbed
+RCD. And I haven't the faintest idea what it does.</p>
+<p>All other commands words are reserved for future versions and should
+not be used.</p>
+<h2><br>
+<br>
+<a name="SmartMedia"></a>SmartMedia operations</h2>
+<p><a href="#SM%20read">Read data<br>
+</a><a href="#SM%20status">Read status<br>
+</a><a href="#SM%20ID">Read chip ID<br>
+</a><a href="#SM%20reset">Reset<br>
+</a><a href="#SM%20write">Write data<br>
+</a><a href="#SM%20multi-write">Multiple write<br>
+</a><a href="#SM%20erase">Erase block<br>
+</a><a href="#SM%20multi-erase">Mutiple erase</a> </p>
+<h3>Introduction</h3>
+<p>Smartmedia cards contain so-called NAND-Flash EEPROMs. These
+resemble
+GROMs in that all bytes are accessed through a single port: you pass an
+address to the Flash, then read (or write) consecutive bytes. The
+differences
+with GROMs are a) that you cannot read back the current address, and b)
+that you must first write a command (e.g. read bytes) before you can
+actually
+access the card.</p>
+<p>There are thus three "ports" to a Smartmedia card: a bidirectional
+data port, a write-only adress port and a write-only command port. Each
+of these are 8 bits-wide.</p>
+<p>In the USB-SM card, these ports map at 4 distinct addresses in the
+DSR
+space. The data port is split in an "input-only" and an "output-only"
+ports. This is necessary because the TMS9900 microprocessor always
+performs
+a read before each write, which would confuse multiple byte operations.
+All ports are 8-bit wide, so the least significant byte should be
+ignored.
+The addresses are:</p>
+<p>&gt;4FF0: Read data<br>
+&gt;4FF8: Write data<br>
+&gt;4FFA: Write address<br>
+&gt;4FFC: Write command</p>
+<p>In addition the following CRU bits are used:</p>
+<p>Bit 3 (output). Set to '1' to enable the card. Set to '0' to place
+the
+card in standby mode (default upon power-up).<br>
+Bit 5 (input). 0: card is busy. 1: card is ready<br>
+Bit 6 (input). 0: no card inserted. 1: a card is in.<br>
+Bit 7 (input). 0: card is write-protected. 1: card can be written to.</p>
+<p>The card memory is divided into "sectors" of 512 bytes (although
+some early cards used 256-byte sectors). Each sector is accompanied by
+16 bytes of extra information (8 bytes for 256 bytes/sector cards):
+these
+can be used for cyclic-redundancy check, "bad sector" mark, or
+anything you want. You can begin reading at any byte in any sector.
+Similarly,
+you can begin writing anywhere. However, because it's EEPROM memory,
+corrections
+are often impossible: you can turn a '1' bit into a '0' but not the
+opposite.
+If you need to reprogram a sector, you'll have to erase it first.</p>
+<p>But because its a "flash" EEPROM, you cannot erase an individual
+byte, not even an individual sector: you must always erase at least a
+block
+of 32sectors (for Toshiba cards.Samsug cards tend to use only 16
+sectors
+per block). Sectors are attributed to blocks in numerical order, i.e.
+sectors
+0-31, sectors 32-63, etc. To speed things up when erasing a large
+number
+of sectors, it is possible to send a command that will erase more than
+one block. However, the blocks must be located in different districts.
+There are 4 districts, each comprising one block out of four, in
+alternance.</p>
+<p>To begin any operation, whether read, write, erase or read status,
+you
+must send a command byte, optionally followed with an address.
+Depending
+on the card, addresses can be 3, 4 or 5 bytes. Then you would typically
+read or write some bytes, and possibly send a termination command.
+Valid
+commands (for Toshiba cards) are the following. Be aware that sending
+any
+other command might corrupt the contents of the card.</p>
+<pre>&gt;FF: Reset<br>&gt;00: Read<br>&gt;01: Read (offset 256)<br>&gt;50: Read sector info<br>&gt;80: Place data into write buffer<br>&gt;10: Write buffered data<br>&gt;11: End buffering, but don't write<br>&gt;15: Write buffered data, don't reset status<br>&gt;60: Prepare for erasing<br>&gt;D0: Begin erasing<br>&gt;70: Read status<br>&gt;71: Read status after multiple write/erase<br>&gt;90: Read chip ID<br>&gt;91: Read extended ID</pre>
+<p>Commands should only be sent when the chip is ready, which can be
+checked
+by making sure CRU bit 7 is '1'. The only exceptions are the reset
+(&gt;FF)
+and the status (&gt;70 and &gt;71) commands, which are accepted while
+the
+chip is busy.</p>
+<p>The SmartMedia selection bit, CRU bit 3, should remain low until the
+command is completed. Bringing it high will deselect the card, and
+generally
+result in aborting the operation.</p>
+<p><u>Important</u>: a new card is not supposed to be 100% functional.
+There might be some bad sectors on it (upto 160, for a 8192-sectors
+card).
+So the first thing to do when formatting a new card is to read it
+entirely:
+any sector that contains anything else than &gt;FF bytes is bad and
+should
+not be used (i.e. do not try to erase it). You may use one of the info
+bytes (the 6th one, by convention: &gt;00 indicates a bad block) to
+flag
+bad sectors, or implement a "bad blocks table" at the beginning
+of the chip. If you decide to erase the chip later on, you must first
+save
+the bad blocks table, so that it can be reconstituted afterwards.</p>
+<h4><br>
+<a name="SM read"></a>Read data commands</h4>
+<p>There are three read commands: &gt;00, &gt;01 and &gt;50. After you
+write the command to the command port, you must write a 3- to 5-byte
+(depending
+on the card) address to the address port, then you can start reading
+bytes
+out of the data port.</p>
+<p>The first byte in the address is the offset of the first byte you
+want
+to read in a sector. The next bytes are the number of this sector. (NB
+few cards have 5-byte addresses. Most 4-byte cards will ignore the 5th
+byte, so it won't hurt to send a &gt;00 anyway. On the other hand, some
+3-byte cards do not like extra address bytes: thay cancel the command!).</p>
+<pre>Write command &gt;00 at &gt;4FFC<br>Write byte offset at &gt;4FFA<br>Write sector # LSB at &gt;4FFA<br>Write sector # byte 2, at &gt;4FFA (if needed)<br>Write sector # byte 3, at &gt;4FFA (if needed)<br>Write secor # MSB at &gt;4FFA<br>Read bytes from &gt;4FF0</pre>
+<p>You'll note that there is a slight problem with the above scheme, a
+survivance from the time sectors were 256-byte in length: the first
+byte
+to read within the sector must be passed as a byte, i.e. a number
+between
+0 and 256, yet sectors are 512 bytes! This means that you can only
+start
+reading within the first half of a sector. To overcome this problem, a
+second read command (opcode &gt;01, instead of &gt;00) is provided.
+This
+command automatically add 256 to the byte offset, so you start reading
+in the second half of the sector.</p>
+<p>In both cases, if you keep reading past the end of the sector,
+you'll
+reach the info bytes. After these, you will read the next sector, from
+its first byte to the last, then its info bytes, etc. (Note: the chip
+needs
+some time to change sectors, about 25 microsecond. During that time CRU
+bit 7 will be low. But given the duration of the average copy loop in
+assembly
+language, you probably don't need to worry about this). You can go on
+reading
+this way upto the limit of the block. Then, to move into another block,
+you will need to resend the read command.</p>
+<p>A third read command (opcode &gt;50) serves to read the sector info
+bytes. Since there are only 16 such bytes, the byte offset is limited
+to
+&gt;00-0F. In this case, if you attempt to read more bytes, you will
+not
+start reading the next sector. Rather, you will read the info bytes for
+the next sector. In other words, command &gt;02 always reads sector
+info,
+never sector data. It's thus very usefull to look for bad sectors, free
+sectors, etc. </p>
+<p>Theoretically, you don't need to re-issue a command and long as you
+keep reading in the same half-sector: you could just send another
+address
+and keep reading. However, it's good practice to send the proper
+command
+each time you want to change the address.</p>
+<h4><br>
+<a name="SM status"></a>Read status commands</h4>
+<p>There are two status read commands: &gt;70 and &gt;71, the latter
+being
+used for multiblock programming. To read the status, you must write the
+command to the command port, then retrieve one byte of data from the
+data
+port.</p>
+<p>With command &gt;70, only 3 status bits are used:</p>
+<pre>&gt;01: write/erase failed (only valid if the chip is ready)<br>&gt;40: ready<br>&gt;80: not protected</pre>
+<p>With command &gt;71 (to be used after multiple write/erase), four
+more
+bits come into use:</p>
+<pre>&gt;01: write/erase failed (global result)<br>&gt;02: write/erase failed in district 0<br>&gt;04: write/erase failed in district 1<br>&gt;08: write/erase failed in district 2<br>&gt;10: write/erase failed in district 3<br>&gt;40: ready<br>&gt;80: not protected</pre>
+<p>Note that the chip remains in status mode after the command in
+completed.
+So to return to read mode, you must issue a read command.</p>
+<h4><br>
+<a name="SM ID"></a>Read ID command</h4>
+<p>There are two ID read commands, &gt;90 and &gt;91, which each let
+you
+recover some information about the type of chip within the card.</p>
+<p>To read the chip ID, first write command &gt;90 to the command port,
+then write &gt;00 to the address port. You can then read two bytes of
+data
+out of the data port. The first byte is the manufacturer ID (e.g.
+&gt;98
+for Toshiba), the second is the chip ID (e.g. &gt;79 for a TH58100FT).</p>
+<p>The procedure is identical for command &gt;91, except that you can
+only
+read one byte of data: the extended ID code (&gt;21 indicates a Toshiba
+chip that supports multiple writes and erases). Older cards do not
+support
+the extended ID feature, in which case you are likely to read back the
+last byte you wrote to the card (this echo phenomenon is due to the
+74LVT245
+buffers), in our case &gt;00.</p>
+<p>Example:</p>
+<table cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>      SBO  3                Assuming R12 contains card CRU<br>      LI   R0,&gt;9000         Command "read ID"<br>      MOVB R0,@&gt;4FFC        Write it<br>      CLR  @&gt;4FFA           Set address as 0<br>      CLR  @&gt;4FFA<br>      CLR  @&gt;4FFA<br>      CLR  @&gt;4FFA           If address is 4 bytes<br>      CLR  @&gt;4FFA           If address is 5 bytes<br>      MOVB @&gt;4FF0,@MFG      Save manufacturer code <br>      MOVB @&gt;4FF0,@DEV      Save device code<br>      SBZ  3                Back to standby mode (optional)</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h4><br>
+<a name="SM reset"></a>Reset command</h4>
+<p>Issuing the reset command &gt;FF will abort all pending
+writing/erasing
+operations. It may take some time (upto 1/2 a second) to unload the
+high
+voltage that's internally generated for writing or erasing a chip. By
+monitoring
+CRU bit 7, you can tell when the reset is completed: the bit goes back
+to 1. Alternatively, you could use the status read (&gt;70) command to
+monitor the busy bit.</p>
+<p>It is highly recommended to issue a reset command after a power-up
+(in
+case some garbage might have been sent to the card during power-up, and
+mistaken for a command).</p>
+<h4><br>
+<a name="SM write"></a>Write command</h4>
+<p>To write data into the SmartMedia chip, you must first send the
+program
+command (&gt;80) to the command port, then send the 4-byte address of
+the
+first byte to program to the address port, then pass the appropriate
+number
+of bytes to the data port. At this point, the data is only stored into
+a RAM buffer within the chip. There is room for upto 528 bytes, so that
+you can write the whole sector plus its 16 bytes of info. Older cards
+only
+feature 256 bytes per sector, plus 8 extra info bytes.</p>
+<p>Once all the data has been sent, write the confirmation command
+(&gt;10)
+to the command port. The chip will start "burning" the data you
+just sent into its EEPROM. During that time, CRU bit 7 will remain low,
+so you can tell when the chip is done by monitoring this bit.</p>
+<p>Once writing is completed, it's generally a good idea to perform a
+status
+check (command &gt;70) to make sure everything went all right.</p>
+<pre>Write command &gt;80 at &gt;4FFC<br>Write byte offset at &gt;4FFA<br>Write sector # LSB at &gt;4FFA<br>Write sector # byte 2, at &gt;4FFA (if needed)<br>Write sector # byte 3, at &gt;4FFA (if needed)<br>Write secor # MSB at &gt;4FFA<br>Write data bytes at &gt;4FF8<br>Write termination command &gt;10 at &gt;4FFC</pre>
+<p>Notes:</p>
+<ul>
+  <li>If you don't mean to write a whole sector, you can send only part
+of
+it. However, you should still send 528 bytes (or 264 for older cards)
+of
+data with the command. Just pass &gt;FF bytes for the parts of the
+sector
+that you want to leave untouched. You can then come back later and
+program
+another part, passing &gt;FF bytes for the part you already did. But
+you
+can only do this 3 times, I don't know why.</li>
+  <li>It is possible to program only the info bytes, by first
+performing
+a read with the &gt;50 command, then a write as described above.</li>
+  <li>The manufacturer insits on sectors being used in order within a
+block,
+i.e. first sector 0, then sector 1, etc. As opposed to a traditonal
+NOR-Flash
+EEPROM, in which you can program sectors in any order you like.</li>
+  <li>Obviously, writing is not possible if the card is
+write-protected.
+So always check CRU bit 6 before attempting to write to the card. If
+this
+bit is '0' the card is write-protected. It might be possible to ignore
+the protection and program the card anyhow, depending wether the user
+has
+closed the appropriate DIP-switch on the USB-SM card.</li>
+</ul>
+<h4><br>
+<a name="SM multi-write"></a>Multiple write command</h4>
+<p>You can write upto 4 sectors at a time. if the SmartMedia card is
+built
+around a chip that supports multiple write (check ID with command
+&gt;91).
+The only catch is that each sector must be in a different "district".
+There is a total of 4 districts in the chip, each comprising one erase
+block (of 32 sectors for Toshiba cards) out of four. So district 0
+comprises
+blocks 0, 4, 8, etc, whereas district 1 comprises blocks 1, 5, 9, etc;
+district 2 comprises blocks 2, 6, 10, etc; and district 3 comprises
+blocks
+3, 7, 11, etc.</p>
+<pre><u>Sectors  Block  District<br></u> &gt;00-1F   00     0<br> &gt;20-3F   01     1<br> &gt;40-5F   02     2 <br> &gt;60-7F   03     3<br> &gt;80-9F   04     0<br> &gt;A0-BF   05     1<br> &gt;C0-DF   06     2<br> &gt;E0-FF   07     3<br>        etc</pre>
+<p>To perform a multi-block write, send a write command with address
+and
+data as described above, but use &gt;11 instead of &gt;10 as the
+termination
+command. This tells the chip that there is more to come (the chip may
+become
+busy for a short while at this point: check CUR bit 7). You can then
+repeat
+the whole procedure for the second sector, the third, etc (in any
+order).
+Only for the last sector will you use the &gt;10 termination command,
+which
+triggers programming.</p>
+<p>Alternatively, you could use &gt;15 as a termination command. The
+difference
+is that, with &gt;15, the chip won't update its status register before
+it starts the next write operation. So if you were to program the whole
+chip, you could chain 32 multiple writes (4-sector each, terminated
+with
+&gt;15, except for the last one terminated with &gt;10) and check the
+status
+at the end with command &gt;71.</p>
+<p>Note that status command &gt;71 should be used with multiple writes,
+because it details the results for each district.</p>
+<p>In summary, the command sequence for such a giant write would be (
+...
+means: send address and data):</p>
+<pre>&gt;80...&gt;11   &gt;80...&gt;11   &gt;80...&gt;11   &gt;80...&gt;15<br>&gt;80...&gt;11   &gt;80...&gt;11   &gt;80...&gt;11   &gt;80...&gt;15<br>      (repeated upto 32 times)<br>&gt;80...&gt;11   &gt;80...&gt;11   &gt;80...&gt;11   &gt;80...&gt;10<br>&gt;71...</pre>
+<p>The only other command accepted after an &gt;80 is reset (&gt;FF),
+to
+abort the sequence in case you made a mistake.</p>
+<h4><br>
+<a name="SM erase"></a>Erase command</h4>
+<p>SmartMedia cards are actually nothing more than an extra flat
+Flash-EEPROM
+chip embedded into a fancy looking card. Which means that, like every
+Flash,
+it can only be erased blockwise. On most Toshiba cards, a block is
+defined
+as a set of 32 sectors: block 0 is sectors 0-31, block 2 is sectors
+32-63,
+etc. For Samsung, a block is generally 16-sectors long.</p>
+<p>To trigger erasure, write the erase command (&gt;60) to the command
+port, followed with the 3-byte address of the block into the address
+port.
+The address in only 3 bytes in this case, because we don't need to
+specify
+the offset of the first byte: the whole block is erased anyhow. For
+older
+cards with 3-byte addresses, you would only need to send the last 2
+address
+bytes, whereas 5-byte addressed cards require only 4 of them for
+erasing.</p>
+<p>Then you must write the confirmation command &gt;D0 to the command
+port.
+The chip will begin erasing the block. During that time, CRU bit 7 will
+remain low, so you can monitor this bit to know when the chip is
+finished.
+At this point, it's a good idea to perform a status check (command
+&gt;70)
+to make sure everything went well.</p>
+<h4><br>
+<a name="SM multi-erase"></a>Multiple erase command</h4>
+<p>Just like you can write upto 4 sectors at a time, you can also erase
+upto 4 blocks together. Again, this is only possible if the blocks
+reside
+in different sectors.</p>
+<p>To initiate a multiple block erase, issue a regular erase sequence
+(command
+&gt;60 and address) but do not send the confirmation code yet. Instead,
+issue another erase command, a third, and even a fourth. Once you are
+done,
+send the &gt;D0 confirmation command. The chip will erase all 4 blocks
+in the same time it would take to erase only one. So this is a neat
+trick
+to speed up erasure.</p>
+<p>Once the chip is done, CRU bit 7 will become 1 again. At this point,
+you should perform a status check, preferably with command &gt;71 so
+you
+can tell in which district a problem occured, if any.</p>
+<h2><br>
+<a name="USB operations"></a>USB operations</h2>
+<p><a href="#USB%20primer">Brief USB primer<br>
+</a><a href="#data%20encoding">_Data encoding<br>
+</a><a href="#device%20structure">_Device structure</a></p>
+<p><b><a href="#The%20ISP1161">The ISP1161<br>
+</a></b><a href="#Root%20hub">_The root hub controller</a></p>
+<p><a href="#Host%20controller">The host controller<br>
+_Command registers<br>
+</a><a href="#Stack%20access">_Accessing the stacks<br>
+</a><a href="#PTD%20structure">_PTD structure<br>
+</a><a href="#Int%20management">_Managing interrupts<br>
+</a><a href="#Frame%20management">_Managing frames<br>
+</a><a href="#Misc%20registers">_Miscellaneous registers<br>
+</a><a href="#HC%20reg%20summary">_Host controller register summary</a></p>
+<p><a href="#Device%20controller">The device controller<br>
+</a><a href="#DC%20init">_Initialization<br>
+</a><a href="#DC%20data%20flow">_Data flow<br>
+</a><a href="#DC%20ints">_Managing interrupts<br>
+</a><a href="#DC%20DMA">_Managing DMA<br>
+</a><a href="#DC%20misc">_Miscellaneous registers<br>
+</a><a href="#DC%20reg%20summary">_Device controller register summary</a></p>
+<h3><br>
+<a name="USB primer"></a>Brief USB primer</h3>
+<p>The Universal Serial Bus (USB) is a host-centric tiered-star type of
+bus. What this means is that there is only one host in the system,
+which
+initiates all transactions. A device thus cannot address the host,
+unless
+prompted for it. Which means that the host must constantly poll all the
+devices to see if one of them has something to say. But don't worry:
+this
+chore is taken care of by the host controller and you wont have to
+program
+it yourself.</p>
+<p>Each device is connected to the host via a dedicated cable. Since
+the
+host can handle upto 127 devices, a USB card would need 127 plugs! Not
+very convenient, is it? To solve this problems, intermediary processors
+called "hubs" can merge the connections from several devices
+into a single connection to the host. But from the host's point of
+view,
+each device is still independently connected: the hub acts as a proxy
+for
+the host. And of course, hubs can be connected to other hubs...</p>
+<p>Physically, each USB connections consists in 4 wires: 2 for the
+signal
+and 2 for power supply. That's right, USB is a powered bus: wire #1
+carries
++5 volts (#4 is the ground), which allows for devices that do not have
+their own power supply. At power-up time, such devices must negotiate
+with
+the host to determine how much power they'll be allowed to draw from
+the
+bus.</p>
+<p>The fact that every device has its dedicated line allows the host
+controller
+to detect the presence of a device, as soon as it's plugged in. Here is
+how it works: the host card pull both lines down with weak pull-down
+resistors
+(15K), the device pulls one of the lines up with a stronger resistor
+(1.5K):
+the DM line if the device only handles half-speed, the DP line if it
+can
+handle full speed or high speed (which of the two is chosen must be
+negotiated
+with the host by software).</p>
+<h4><br>
+<a name="data encoding"></a>USB data encoding</h4>
+<p>First, there are 3 possible transmission speeds: low-speed (USB 1
+only,
+1.5 Mbits/sec), full-speed (USB 1 and 2, 12 Mbits/sec), and high-speed
+(USB 2 only, 480 Mbits/sec). The ISP1161 is a USB 1.1 chip, so it won't
+do high speed, but it is USB 2.0-compliant as far as full-speed is
+concerned.</p>
+<p>The signal is encoded on the two signal lines DP and DM (a.k.a. D+
+and
+D-) that toggle in a differential manner, i.e. one is high (+3.3 volts)
+while the other is low (0 volts), although there are a few special
+conditions
+when both lines can have the same value (e.g. to indicate and end of
+packet
+or a reset), or when lines are left "floating" (idle state).
+Data is encoded by a "non-return to zero invert" encoding scheme,
+which means that lines toggle to indicate a '0' bit and don't toggle
+for
+a '1'. So that synchronization is not lost over a long stretch of 1s,
+the
+sender includes an extra 0 is included after six 1s, which will be
+removed
+by the recipient. This is known as "bit stuffing". You do not
+have to worry about these details, it's all taken care of by the serial
+engine in the ISP1161.</p>
+<p>USB data are always transmitted as packets. There can be four type
+of
+packets: frame packets, token packets, data packets, and handskake
+packets.
+In general, a USB transfer comprises a token packet which serves as a
+header,
+one or more data packets, and a handshake packet for aknowledgement
+purposes.</p>
+<p>Frame packets are used for synchronization, which is especially
+important
+with isochroneous (real time) transfers. The host sends one such packet
+every millisecond. They comprise the following bit fields:</p>
+<ul>
+  <li>Synchronization (8 bits)</li>
+  <li>Packet ID (SOF, 8 bits)</li>
+  <li>Frame number (11 bits)</li>
+  <li>Cyclic redundancy check (5 bits)</li>
+  <li>End-of-packet mark (3 bits, one with both lines low)</li>
+</ul>
+<p>Token packets serve as headers for a transaction: they define the
+type
+of transaction and the target device. They are always generated by the
+host. The bit fields are</p>
+<ul>
+  <li>Synchronization (8 bits)</li>
+  <li>Packet ID (SETUP, IN or OUT, 8 bits)</li>
+  <li>Device number (7 bits: 0-127. All devices answer to number 0)</li>
+  <li>Endpoint number (4 bits: 0-15. All devices must have endpoint 0)</li>
+  <li>Cyclic redundancy check (5 bits)</li>
+  <li>End-of-packet mark (3 bits)</li>
+</ul>
+<p>Data packets contain the payload. They can be generated by the host
+(for an OUT transaction) or by the device (for an IN). The amount of
+data
+is limited to 8 bytes at low speed, and 1023 bytes at full speed. If
+more
+bytes are to be transfered, additional data packets will be sent,
+alternating
+the packet ID between DATA0 and DATA1 so that a missing packet can be
+spotted.
+The bit fields are:</p>
+<ul>
+  <li>Synchronization (8 bits)</li>
+  <li>Packet ID (DATA0 or DATA1, 8 bits)</li>
+  <li>Data (various number of bytes)</li>
+  <li>Cyclic redundancy check (16 bits)</li>
+  <li>End-of-packet mark (3 bits)</li>
+</ul>
+<p>Handshake packets serve for the recepient to acknowledge the
+transaction.
+They comprise the following bit fields:</p>
+<ul>
+  <li>Synchronization (8 bits)</li>
+  <li>Packet ID (ACK, NAK, STALL or NYET)</li>
+  <li>End-of-packet mark (3 bits)</li>
+</ul>
+<p>The ISP1161 takes care of all the burden of building packets and
+sending
+them. However, to do so it needs some information from you:</p>
+<ul>
+  <li>The type of token you want (IN, OUT or SETUP)</li>
+  <li>The device number and endpoint number of the target</li>
+  <li>The number of bytes to transfer</li>
+  <li>The maximum number of bytes to include in a single data packet</li>
+</ul>
+<p>This information is included is a structure called a PTD (Philips
+Transfer
+Descriptor) that you pass to the host controller together with your
+data.</p>
+<p>You don't have to worry about frame packets: the host controller
+sends
+them automatically. Although you can influence the process if you want
+to, by altering a few dedicated registers in the ISP1161.</p>
+<p>The host can generate four types of transactions: control, bulk,
+interrupt
+and isochroneous. Control transactions are used to control a device,
+query
+its structure, select its configuration, etc. Bulk transfers are used
+to
+transfer data from/to the device at the initiative of the host program,
+e.g. to access a disk drive. Interrupt transfers are used by devices
+which
+must ring up the host computer when something happens, e.g. when you
+type
+on a keyboard (since USB is host-centric, the host controller must
+constantly
+poll the devices for this type of transfer). Isochroneous transfers are
+used for real-time data transfer, e.g. from a webcam.</p>
+<p>In general, a transaction consists in 3 stages, each comprising at
+least
+3 packets (token, data and handshake):</p>
+<ol>
+  <li>A setup stage, where a request is sent (by the host)</li>
+  <li>An (optional) data stage, during which data is transfered. This
+stage
+can contain more than 1 data packet.</li>
+  <li>A status stage, in which the device reports the result of the
+transaction.</li>
+</ol>
+<p>You will need to take care of this yourself, by passing three PTDs
+to
+the host controller. The good news is that, if more than one data
+packet
+is required, the host controller will take care of sending them: you
+don't
+need to pass any extra PTD for that.</p>
+<h4><a name="device structure"></a>Logical structure of an USB device</h4>
+<p>Software-wise, a device consists in upto 16 "endpoints" that
+the host can address. You can envision endpoints as different workers
+in
+the same office. For instance, you can have a different endpoint for
+each
+type of transfer. Every device must have endpoint 0, because it's the
+one
+the host will address to query the device about its configuration. The
+logical connection between the host and a given endpoint in a device is
+known as a "pipe". Characteristics of the pipes are direction
+of transfer, type of transfer, and speed.</p>
+<p>Endpoints are arranged in a hierarchical manner: several endpoints
+are
+grouped in one or more "interface" (although this feature is
+rarely used: in general there is only one interface per configuration).
+Several interfaces make up a "configuration" and a "device"
+can have several configurations. On top of this, a given piece of
+hardware
+can contain more than one device (e.g. a fax machine could have a
+scanner
+device, a printer device and a modem device), which is why USB people
+like
+to talk about USB "functions" rather than devices.</p>
+<p>At power up time, the host queries each device for its
+configuration(s),
+and for a description of each interfaces and endpoints, then it selects
+the most appropriate configuration and assigns a unique number to each
+device. Each time a new device is connected (which the host controller
+detects by seeing one data line pulled up) the host should query it.
+This
+is a chore that you must perform yourself. The asnwers from the various
+devices should then be stored in RAM for future reference.</p>
+<p>For more details, consults the excellent "USB in a nutshell"
+webpages by Craig Peakcock, at <a
+ href="http://www.beyondlogic.org/usbnutshell/usb1.htm">www.beyondlogic.org/usbnutshell/usb1.htm</a></p>
+<h2><br>
+<a name="The ISP1161"></a>The ISP1161</h2>
+<p>The ISP1161 actually consists in three different controllers: </p>
+<ul>
+  <li>A host controller which controls transactions with USB devices</li>
+  <li>A hub controller, which physically handles the two device ports
+present
+on the card</li>
+  <li>A device controller, which makes the card look like a USB device,
+for
+connection with another computer.</li>
+</ul>
+<p>The three controllers operate in a completely independent manner,
+and
+according to slightly different software models.</p>
+<p>The interface between the host controller and the TI-99/4A consists
+in a whole bunch of registers. To talk to the controller, you pass the
+number of the register you want to access to the host command port
+(&gt;5FFA),
+then you read its contents from the host data port (&gt;5FF0). To write
+to a register, you must pass its number plus &gt;80 to the command port
+(a bit like writing to VDP memory, isn't it?), then write its new
+content
+to the host data port at &gt;5FF8 (write-only address).</p>
+<p>The hub controller is integrated within the host controller, and is
+accessed in the same manner via 5 dedicated registers.</p>
+<p>The interaction with the USB devices is mediated via a First-In
+First-Out
+(FIFO) stack in the host controller's memory. There is one register
+that
+constantly points at the top of the stack, you use it to place on the
+stack
+the data that you want to send, together with a header called a Philips
+Transfer Descriptor (PTD) that tells the host controller what to do
+with
+the data. And then you can forget about it: the controller will send
+the
+data to the device at its leisure. To reveice data, you just place the
+appropriate PTD on the stack, together with some dummy bytes to reserve
+space, and come back later to read the data that came in.</p>
+<p>Things are a bit more complicated for isochroneous transfers,
+because
+the host controller cannot interrupt itself to let you access the
+stack.
+So there are two stacks (independent of the normal stack), arranged in
+a "ping-pong" manner: while the controller is using one, you
+can access the other. A dedicated register point to the top of the
+currently
+available stack. There is a total of 4 Kbytes to be divided between the
+3 stacks at power up time. The ping-pong stacks must have the same
+size,
+but the regular stack can differ in size. Depending on your system, you
+may devote a lot of memory to the ping-pong stacks, or just part of it,
+or none at all.</p>
+<p>The interface between the device controller and the TI-99/4A follows
+a "function" paradigm: you write a function number to the device
+command port (&gt;FFFE) and write parameters to the device data port
+(&gt;FFFC,
+write only), or retreive the function result from the device data port
+(&gt;FFF4). Which, you will have noticed, is the same as for the host
+and
+hub controllers, just with different names...</p>
+<p>Internally, the device controller consists of 16 endpoints. At
+power-up
+time, you must tell the device controller which endpoints you want to
+use,
+how much memory to devote to each, which type of transfer it handles,
+and
+in which direction. The first two enpoints must be endpoint 0, in the
+IN
+and OUT direction (each uses 64 bytes), the others are up to you. There
+is a total of 2462 bytes to be shared between the endpoints that you
+elect
+to have. Each endpoint will thus have its own independent FIFO stack.</p>
+<p>Example: Reading the chip ID</p>
+<table cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>      LI   R0,&gt;0027         Number for "HcChipID" register <br>      MOV  R0,@&gt;5FFA        Write register number (to be read) <br>      MOV  @&gt;5FF0,@HOST     Save host controller ID<br><br>      LI   R0,&gt;00B5         Number for "Read chip ID" function<br>      MOV  R0,@&gt;5FFE        Write function number <br>      MOV  @&gt;5FF4,@DEV      Save device controller ID<br></pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>For more information, refer to the ISP1161A1 data sheet, which you
+can
+find on the <a
+ href="http://www.semiconductors.philips.com/pip/ISP1161ABD.html">Philips
+website</a>. I have a copy <a href="isp1161.pdf">here</a> (pdf file, 3
+Mbytes), but be aware that it might not be the most recent version.</p>
+<p>When it comes to writing higher level DSRs, you will find a very
+usefull
+application note on the Philips website. Again, I have a copy <a
+ href="an1161.pdf">here</a>
+(pdf file, 781 Kbytes) which may not be the most recent version.</p>
+<h3><br>
+<a name="Root hub"></a>The root hub controller</h3>
+<p>Hubs serve to split a single USB connection from the host into two
+or
+more device connections (the maximum is 15). Hubs themselves are a
+class
+of USB devices and appear as such to the host.</p>
+<p>The main functions of a hub controller are: </p>
+<ol>
+  <li>To mediate traffic between the upstream host and the downstream
+devices.
+To this end, it can enable or disable a port, suspend or resume it, and
+reset it.</li>
+  <li>To manage power and distribute it to the devices that need any.
+There
+are 3 power options: always on, global control, or per-port control.</li>
+</ol>
+<p>The root hub controller integrated within the ISP1161 handles these
+functions for two device ports. Its inteface to the host is a bit
+primitive
+in that it won't answer USB requests for descriptors, process USB
+requests,
+etc. Instead, you access it via registers integrated within the host
+controller.
+The rest has to be emulated by software, but that's no big deal: when
+you
+create your descriptor tables, you can initialize it with the values
+corresponding
+to the root hub controller. The few parameters that can vary can be
+extracted
+from the dedicated registers.</p>
+<p>The root hub controller comprises five registers: two descriptor
+register,
+a hub status register, and two port status registers (one for each
+port).</p>
+<h4><br>
+<a name="reg 12"></a>HubDescriptorA register &gt;12 (32-bit)</h4>
+<p>This register is used to configure the hub controller. It consists
+in
+the following bit fields:</p>
+<pre><u>Bit value  Meaning                           <br></u>xx00 0000  How long to wait before accessing a port that was just powered on. &gt;01 = 2 msec.<br>0000 0100  1 = no overcurrent (OC) protection reported.<br>0000 0080  0 = OC condition reported globally. 1 = OC reported per port.<br>0000 0040  0 = hub is not a compound device. Always 0.<br>0000 0020  1 = all ports always powered.<br>0000 0010  0 = all ports powered together. 1 = power controlled per port.<br>0000 000x  Number of ports. 1 or 2 depending on the wiring of the NDP_SEL pin.</pre>
+<p>If you select global overcurrent report, OC conditions will be
+reported
+in the hub status regiser, otherwise they'll be reported in the
+corresponding
+port status register.</p>
+<p>If you select global powe control, you can toggle power on/off for
+all
+ports via the hub status register. If you select a per-port power
+control,
+a bitmap located in descriptor register B lets you decide if a port
+will
+be controlled via the hub status register, or via its own status
+register.</p>
+<p>My advise is to select both OC and power control per port. With only
+two ports, the overhead is insignificant and the extra amount of
+control
+is worth it. I'm not sure about how long to wait after powering a port,
+&gt;FF is the safest value (about 1/2 a second) but it's probably
+uselessly
+high...</p>
+<p>Suggested initial value: &gt;8000 0812</p>
+<h4><br>
+<a name="reg 13"></a>HubDescriptorB register &gt;13 (32-bit)</h4>
+<p>This register holds two bitmaps: in the upper word is a power
+control
+bitmap. Each bit corresponds to one port, if the bit is '1' the port is
+controlled globally, via the HubStatus register. If the bit is '0', the
+port is controlled individually, via its own PortStatus register.</p>
+<p>The lower word holds a similar bitmap that indicated whether the
+attached
+device is removable or not. A '0' means removable, a '1' means not
+removable.</p>
+<p>Since the ISP1161 handles only two ports, only 2 bits (or of 15) are
+meaningful.</p>
+<pre><u>Bit value  Meaning                           <br></u>0002 0000  Port #1 controlled globally.<br>0004 0000  Port #2 controlled globally.<br>0000 0002  Port #1 has non-removable device.<br>0000 0004  Port #2 has non-removable device.</pre>
+<p>I suggest you initialize the upper word as &gt;0006, so that both
+ports
+can be controlled individually.</p>
+<h4><br>
+<a name="reg 14"></a>HubStatus register &gt;14 (32-bit)</h4>
+<p>Note that the meaning of a bit may be slightly different when it's
+read
+than when it's written.</p>
+<pre><u>Bit value  When read                           When written<br></u>8000 0000      -                               1: resets bit 0000 8000<br>0002 0000  1=bit 0000 0002 has changed         1: clear bit 0002 0000<br>0001 0000  Always 0                            1: turn power on  "globally"<br>0000 8000  1=connecting device wakes up host   1: set bit 0000 8000<br>0000 0002  1=overcurrent detected (global mode)      -<br>0000 0001  Always 0                            1: turn power off "globally"</pre>
+<h4><br>
+<a name="reg 15 + 16"></a>PortStatus registers &gt;15 and &gt;16
+(32-bit)</h4>
+<p>Register &gt;15 is used to check and control port #1, register
+&gt;16
+plays the same role for port #2. For many of the status bit, a "change"
+feature is available: a bit in the upper word indicates whether the
+corresponding
+bit in the lower word has changed recently. You can clear these
+reporter
+bits by writing a '1' to them (writing a '0' has no effect), so that
+next
+time you check the register you will know if one of the status bit has
+toggled back and forth.</p>
+<p>Here again, the meaning of a bit changes depending whether it's read
+(status) or written to (command). Only '1' bits are meaningfull when
+writting:
+writing a '0' has no effect.</p>
+<pre><u>Bit value  When read                           When written          <br></u>0010 0000  1=port reset completed (10 msec)    1: clear bit 0010 0000<br>0008 0000  1=bit 0000 0008 has changed         1: clear bit 0008 0000<br>0004 0000  1=bit 0000 0004 has changed         1: clear bit 0004 0000<br>0002 0000  1=bit 0000 0002 has changed         1: clear bit 0002 0000<br>0001 0000  1=bit 0000 0001 has changed         1: clear bit 0001 0000<br>0000 0200  1=low speed device                  1: turn power off (if per-port)<br>0000 0100  1=port power is on                  1: turn power on (if per-port)<br>0000 0010  1=resetting port                    1: reset the port<br>0000 0008  1=overcurrent detected (per port)   1: resume suspended port<br>0000 0004  1=port is suspended                 1: suspend port<br>0000 0002  1=port is enabled                   1: enable port<br>0000 0001  1=device connected                  1: disable port</pre>
+<p>Note that the controller is smart enough to reject meaningless
+commands.
+Namely, you cannot enable, suspend or reset a port if no device is
+connected
+to it. Instead of setting the corresponding status bit, the controller
+will report the error by setting bit 0001 0000. <br>
+</p>
+<h3><a name="Host controller"></a>The host controller</h3>
+<p>The host controller manages the USB bus and controls all the devices
+connected to it via the hub controller. The host controller is
+responsible
+for initiating every USB transaction, including in the device-to-host
+direction.
+It also generates a "Start-of-frame" packet every millisecond,
+for bus synchronization purposes.</p>
+<h3>Command registers</h3>
+<h4><a name="reg 20"></a>HardwareConfiguration register &gt;20 (16-bit)</h4>
+<p>This register is used to setup hardware options. These are best set
+a power-up time and left untouched from there on. I recommend that you
+keep the default values, except for the pull-down resistors and the OC
+detector (we are using the internal ones) for INT1, which should be
+enabled.</p>
+<pre><u>Bit   Meaning <br></u>1000  1: Use internal 15K pull-down resistors. 0: There are external resistors (default).<br>0800  0: Can stop clock when suspended (default). 1: Don't stop clock.<br>0400  1: Use onchip overcurrent detector. 0: There is an external circuit (default).<br>0100  0: Regular DACK mode (default). 1: Reserved, do not use.<br>0080  0: EOT active low (default). 1: EOT active high.<br>0040  0: DACK1 active low (default). 1: Reserved.<br>0020  0: DREQ1 active low. 1: DREQ1 active high (default).<br>0018  Data bus witdth. 08: 16-bit (leave it so).<br>0004  0: INT1+2 active low (default). 1: Active high.<br>0002  0: INT1+2 stable (default). 1: Pulsed (i.e. edge-triggered).<br>0001  0: INT1 disabled (default). 1: INT1 active.</pre>
+<h4><br>
+<a name="reg 21"></a>DMAconfiguration register &gt;21 (16-bit)</h4>
+<p>This register is used to setup options for Direct Memory Transfer
+(DMA),
+a mode in which data can be tansfered to/from the computer memory
+directly,
+without having the cpu doing the job. Currently, this is not possible
+with
+the TI-99/4A, but I'm thinking of designing a DMA board that would
+allow
+it, and the necessary circuitery was included on the USB-SM board.</p>
+<p>The ISP1161 allows two types of DMA: the classical Intel 8237A type
+(which is the one we want) and the Motorola DACK-only type. The type of
+DMA and the polarity of all three signals ( DREQ, DACK and EOT) is
+programmable
+in the HardwareConfiguration register.</p>
+<p>To perform DMA, you would load the number of bytes to be transfered
+in the TransferCounter register, as usual. Then you would program the
+DMA
+controller board, so that it know what to do with the data. Finally,
+you
+would set the DMAconfiguration register, therby triggering the DMA
+process.</p>
+<pre><u>Bit   Meaning                                                        <br></u>0060  Burst length. 0: 1-cycle, 2: 4-cycle, 4: 8-cycle, 6: reserved.<br>0010  1: Enable DMA (will be reset once transfer is completed).<br>0004  1: Use byte counter (TransferCounter register) 0: use external EOT signal.<br>0002  1: Use ATL stack. 0: Use current ILT stack.<br>0001  1: Write to stack from TI-99/4A memory. 0: Read from stack to TI-99/4A. </pre>
+<h4><br>
+<a name="reg 02"></a>CommandStatus register &gt;02 (32-bit)</h4>
+<p>Even though it's 32-bit, this register only implement 3 bits. Two
+bits
+indicate how many time (upto 4) a scheduling overrun has occured so far
+(this happens when a frame boundary occurs before an ongoing
+transmission
+was completed). One bit is used to cause a software reset of the host
+controller,
+which will return most registers to their default values and stop USB
+traffic.</p>
+<pre><u>Bit value  Meaning <br></u>0003 0000  Number of scheduling overruns (0-3, rolls over to 0).<br>0000 0001  1: Reset the host controller (not the root hub). </pre>
+<h4><br>
+<a name="reg 01"></a>Control register &gt;01 (32-bit)</h4>
+<p>This register is mostly used to change the USB operational state of
+the host controller, but there are also two configuration bits that
+decide
+which external event will wake up a suspended controller.</p>
+<pre><u>Bit value  Meaning <br></u>0000 0400  1: Remote wakeup signal is enabled.<br>0000 0200  1: Remote wakeup signalling is supported (0=power-up value).<br>0000 00x0  0: Reset. 4: Resume. 8: Operational. C: Suspended</pre>
+<p>Moving to an "operational" state will cause a start-of-frame
+to be sent 1 millisecond later. A reset state can also be triggered by
+a software reset, or a hardware reset. The controller can move by
+itself
+from "suspended" to "resume" if a remote wakeup signal
+is sent by a device.</p>
+<h4><br>
+<a name="reg 29"></a>SoftwareReset register &gt;29 (16-bit)</h4>
+<p>Writing &gt;00F6 to this write-only register resets all registers in
+the host controller, but does not affect the ATL and ITL stacks.</p>
+<h3><br>
+<a name="Stack access"></a>Accessing the stacks</h3>
+<p>As mentionned earlier, all USB transfer is handled via internal RAM
+buffers, organized a FIFO (first in, first out) stacks. There is one
+stack
+for acknolwdged transfers, and two "ping-pong" stacks for isochroneous
+transfer. The amount of space devoted to these stacks should be
+determined
+at power-up time by setting up registers &gt;2A and &gt;2B (although it
+can always be changed later on).</p>
+<p>To access the ATL (Acknowledged Transfer List) stack, you must first
+write the number of bytes that you intend to read or write into
+register
+&gt;22. Then you can read or write the bytes from register &gt;41. To
+do
+so, you pass the register number to &gt;5FFA (&gt;40 to read data,
+&gt;C0
+to write), then you transfer the proper number of byte to/from
+&gt;5FF8.
+This is true whether you use regular memory transfer or DMA.</p>
+<p>The procedure is the same for the ITL (Isochroneous Transfer List)
+stacks,
+except that the register number is &gt;40. The ISP1161 decides which of
+the "ping" or the "pong" stack you will access through
+this register.</p>
+<p>The ISP1161 maintains internal pointers to the top of the ATL and
+ITLs.
+Every time you write data to a stack, the corresponding pointer moves
+up,
+when you read data , the pointer moves back down. The ISP1161 itself
+can
+access the stacks without affecting the pointers. In fact it does it
+all
+the time, looking for PTDs with the "active" bit set, i.e. that
+need to be processed. When imputing data it's obvious that you have to
+read it from the stack, but when sending out data, you may be tempted
+not
+to read it back, or to just read back the PTDs so you know the error
+code.
+However, doing this would prevent the pointer from coming back to the
+bottom
+of the stack: after each such operation you would push the poiner
+further
+ahead, until the whole stack is full. If you have only the ATL stack,
+it
+may be ok, as the pointer will roll over to zero, but if you are using
+several stacks, you'll end up overwriting the next one! So the rule is:
+always read back the same number of bytes that you have written: PTD
+and
+all.</p>
+<p>A very important register is the BufferStatus register, which
+indicates
+the status of the 3 stacks so you can know when to go and read or write
+one of them. In addition, there are two registers which tell you how
+many
+bytes are waiting to be read in which ITL stack. For some reason, there
+is no such register for the ATL stack (I guess, you're supposed to know
+what's waiting for you there, since you set up the PTD for it...).</p>
+<p>The drag with these stacks is that they are stacks of bytes,
+accessed
+word-wise, and aligned by double-words! To add insult to injury,
+Philips
+used the Intel byte order, with the odd-address stack byte in the most
+significant byte of the data bus and the even address stack byte in the
+least significant data bus byte. In practice, this means that data
+bytes
+are swapped during transfer! The dword alignment is not too much of a
+problem:
+it just means that the total number of bytes transfered must always be
+a multiple of 4. If it isn't, just add padding bytes.</p>
+<p>There is an additional problem with the ITL stacks: the host
+controller
+emits a frame packet every millisecond, at which time it switches the
+ping-pong
+stacks. It expects you to read back the old ITL stack, while it's using
+the other one. You don't need to read more than one word, but you must
+do it in time. If a new frame begins before you read the ITL stack, the
+host controller considers both ITL stacks as full and stops
+isochroneous
+transmissions. From that point on, you can only access ITL1 until you
+perform
+a reset.</p>
+<h4><br>
+<a name="reg 2B"></a>ATLbufferLength register &gt;2B (16-bit)</h4>
+<p>In this register you indicate the amount of RAM that you wish to
+dedicate
+to acknowledged transfers, in the form of the ATL stack. The maximum
+value
+is &gt;1000, which is 4 Kbytes.</p>
+<h4><br>
+<a name="reg 2A"></a>ITLbufferLength register &gt;2A (16-bit)</h4>
+<p>In this register you indicate how much RAM you want to dedicate to
+each
+of the two ITL stacks used for isochroneous transfers. The actual
+amount
+of RAM used for this kind of transfer will thus be twice the number
+that
+you write (because there are two ITL stacks). Thus, the maximum value
+is
+&gt;800, or 2 Kbytes.</p>
+<p>The RAM is shared by the ATL stack and both ITL stacks, so make sure
+the total of ATL + 2*ITL does not exceed &gt;1000.</p>
+<p>It is quite acceptable to use use the whole RAM for the ATL stack
+(sizes:
+&gt;1000 and &gt;0000 bytes) or for the ITL stack (&gt;0000 and
+&gt;0800
+bytes). Or you could split it between the two types of transfer, for
+instance
+&gt;800 bytes for the ATL and &gt;400 bytes for either ITL.</p>
+<h4><br>
+<a name="reg 2C"></a>BufferStatus register &gt;2C (16-bit)</h4>
+<pre><u>Bit   Meaning <br></u>0020  1: ATL done. Data read by host controller.<br>0010  1: ITL1 done. Data read by host controller.<br>0008  1: ITL0 done. Data read by host controller.<br>0004  1: ATL full.<br>0002  1: ITL1 full.<br>0001  1: ITL0 full.</pre>
+<h4><br>
+<a name="reg 2D"></a>ReadbackITL0length register &gt;2D (16-bit)</h4>
+<p>This register contains the number of bytes waiting to be read in the
+ITL0 "ping" stack.</p>
+<h4><br>
+<a name="reg 2E"></a>ReadbackITL1length register &gt;2E (16-bit)</h4>
+<p>This register contains the number of bytes waiting to be read in the
+ITL1 "pong" stack.</p>
+<h4><br>
+<a name="reg 22"></a>TransferCounter register &gt;22 (16-bit)</h4>
+<p>In this register you place the number of bytes that you intend to
+read
+or write to either stack. For instance, when reading the ITL0 stack,
+you
+would place here the number found in register &gt;2D. </p>
+<p>Once you have actually read/written that number of bytes, bit
+&gt;0004
+in the MicroprocessorInterrupt register (&gt;24) will be set and the
+BufferStatus
+register will be updated..</p>
+<p>In DMA mode, the TransferCounter register serves to indicate how
+many
+bytes are to be transfered by direct memory access. Again, bit &gt;0004
+in register &gt;24 will be set when done (which may generate an
+interrupt,
+if so desired) and the BufferStatus register will be updated.</p>
+<h4><br>
+<a name="reg 41"></a>ATLport register &gt;41</h4>
+<p>This is the port that you use to write data to the ATL stack, or to
+read data back from it. The host controller manages an internal pointer
+that always points at the proper location on the stack, and is
+incremented
+by two each time you transfer a word.</p>
+<h4><br>
+<a name="reg 40"></a>ITLport register &gt;40</h4>
+<p>This is the port to use to write to, or read from one of the ITL
+ping-pong
+stacks. In addition to the internal pointer, the host controller also
+determines
+which of the two stacks (ITL0 or ITL1) will be accessed.</p>
+<h4><br>
+<a name="PTD structure"></a>Philips Transfer Descriptor (PTD)</h4>
+<p>A PTDs is a header that you place before your data on the host
+controller
+stack (ATL or ITL), so that the controller knows what to do with the
+data.
+A PTD consists of 8 bytes. Because communication with the ISP1161
+occurs
+word-wise and the data bus was inverted, you will need to swap the
+bytes
+from this structure before you place it on the stack. Payload bytes are
+not swapped, though.</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>
+      <pre>  8  </pre>
+      </th>
+      <th>
+      <pre>  4  </pre>
+      </th>
+      <th>
+      <pre>  2  </pre>
+      </th>
+      <th>
+      <pre>  1  </pre>
+      </th>
+      <th>
+      <pre>  8  </pre>
+      </th>
+      <th>
+      <pre>  4  </pre>
+      </th>
+      <th>
+      <pre>  2  </pre>
+      </th>
+      <th>
+      <pre>  1  </pre>
+      </th>
+      <th>
+      <pre>  <u>8</u>  </pre>
+      </th>
+      <th>
+      <pre>  <u>4</u>  </pre>
+      </th>
+      <th>
+      <pre>  <u>2</u>  </pre>
+      </th>
+      <th>
+      <pre>  <u>1</u>  </pre>
+      </th>
+      <th>
+      <pre>  <u>8</u>  </pre>
+      </th>
+      <th>
+      <pre>  <u>4</u>  </pre>
+      </th>
+      <th>
+      <pre>  <u>2</u>  </pre>
+      </th>
+      <th>
+      <pre>  <u>1</u>  </pre>
+      </th>
+    </tr>
+    <tr>
+      <td align="center" colspan="4">Completion code</td>
+      <td align="center">Active</td>
+      <td align="center">Toggle</td>
+      <td align="center" colspan="10">Actual bytes</td>
+    </tr>
+    <tr>
+      <td align="center" colspan="4">Endpoint #</td>
+      <td align="center">Last</td>
+      <td align="center">Speed </td>
+      <td align="center" colspan="10">Max bytes</td>
+    </tr>
+    <tr>
+      <td align="center" colspan="2">Reserved</td>
+      <td align="center">B5_5</td>
+      <td align="center">Res</td>
+      <td align="center" colspan="2">PID</td>
+      <td align="center" colspan="10">Total bytes</td>
+    </tr>
+    <tr>
+      <td align="center" colspan="8">Reserved </td>
+      <td align="center">Fmt</td>
+      <td align="center" colspan="7">Device #</td>
+    </tr>
+    <tr>
+      <td align="center" colspan="8"><i>First payload byte </i></td>
+      <td align="center" colspan="8"><i>Second byte, etc</i></td>
+    </tr>
+  </tbody>
+</table>
+<p><b>Total bytes</b>: indicates the number of data bytes in the
+payload
+area following the PTD.For IN packets, this is the size of the buffer,
+but you must load dummy data into the stack, together with the PTD.</p>
+<p><b>Max bytes</b>: tells the controller how many bytes can be
+transfered
+at one time. If it's less than the total, the controller will
+automatically
+generate extra transfer operations, each time toggling the "toggle"
+bit.</p>
+<p><b>Actual bytes</b>: is only valid after the operation is completed,
+when the PTD is read back. It's the number of payload data bytes that
+were
+actually transfered.</p>
+<p><b>Device</b>: is the number of the USB device. All devices will
+answer
+to #0.</p>
+<p><b>Endpoint</b>: is the number of the endpoint addressed on the
+remote
+device. All devices are guaranteed to have endpoint #0. For others
+numbers,
+you should get the device to enumerate them.</p>
+<p><b>PID</b>: Packet ID, this could be &gt;00=SETUP, &gt;04=OUT, or
+&gt;08=IN</p>
+<p><b>Speed</b>: speed of the endpoint: &gt;00=full, &gt;04=low.</p>
+<p><b>Fmt</b>: type of endpoint: &gt;80=isochronous, &gt;00=other (i.e.
+bulk, control, or interrupt).</p>
+<p><b>Active</b>: always set this bit (i.e. &gt;08) when loading a PTD.
+The controller will reset it once the PTD has been processed. This way
+it won't process the same data twice, even if you leave it on the stack
+for a while.</p>
+<p><b>Toggle</b>: value of the data toggle PID. &gt;00=DATA0,
+&gt;04=DATA1.
+The controller will toggle it after each transaction.You must check
+this
+bit when reading back the PTD, and toggle it in the next PTD.</p>
+<p><b>Last</b>: a value of &gt;08 indicates this is the last PTD in the
+ATL (or ITL).</p>
+<p><b>B5_5</b>: This bit is specific to the ISP1161A1, as opposed to
+the
+former ISP1161. When it's set (i.e. &gt;20), only 1 transaction will be
+sent out per millisecond, during interrupt transfers for this PTD.</p>
+<p><b>Completion code</b>: This is only meaningful when reading back
+the
+PTD. The controller will set it to indicate any error condition. The
+codes
+are as follow:</p>
+<p>&gt;00: No error<br>
+&gt;10: CRC error in last data packet from endpoint<br>
+&gt;20: Bit stuffing violation in last data packet from endpoint<br>
+&gt;30: DATA0/DATA1 toggle mismatch<br>
+&gt;40: Endpoint returned a "STALL" PID<br>
+&gt;50: Device not responding<br>
+&gt;60: PID check bits mismatch<br>
+&gt;70: Unexpected PID (illegal value, or legal but at the wrong time)<br>
+&gt;80: Data overrun, i.e. the endpoint returned more than "max bytes"
+in a packet, or more than "total bytes".<br>
+&gt;90: Data underrun. i.e. the endpoint did not returned less than
+"total
+bytes", yet less than "max bytes" (i.e. no more coming).<br>
+&gt;A0: reserved<br>
+&gt;B0: reserved<br>
+&gt;C0: Buffer overrun. During an IN, the host controller received data
+faster than it could pass them to the system.<br>
+&gt;D0: Buffer underrun. During an OUT, the host controller could not
+get
+data from the system fast enough to send them.</p>
+<h3><br>
+<a name="Int management"></a>Interrupt management</h3>
+<p>The host controller can generate interrupts upon a number of various
+events. These events are signalled in two dedicated status registers,
+cascaded
+into each other (i.e. any interrupt in the first one will raise a bit
+into
+the second). Each register has its associated enabling register in
+which
+you decide which event should generate an interrupt. In addition, there
+is one bit (weight &gt;0001) in the HardwareConfiguration register that
+decides whether the interrupt will actually be signalled on the INT1
+pin.
+Note that, to reset pin INT1, this bit must be set to '1' and all
+interrupts
+disabled. Then, the bit can be set to '0', so as to freeze pin INT1 in
+a "no interrupt" state. On top of that, CRU bit 2 is used to
+mask out any interrupt coming from either controller when it is '0'.</p>
+<h4><br>
+<a name="reg 03"></a>InterruptStatus register &gt;03 (32-bit)</h4>
+<p>This register signals when certain transmission conditions have
+occured.
+A '1' bit does not necessarily generate an interrupt, but can do so if
+the corresponding bit is set in the InterruptEnable register. To clear
+the interrupt, write '1' to the corresponding bit, writing '0' has no
+effect.</p>
+<pre><u>Bit value  Meaning <br></u>0000 0040  1: There was a change in the HubStatus register.<br>0000 0020  1: Frame number overflow (leftmost bit has toggled).<br>0000 0010  Always 0 (Unrecoverable error: never happens).<br>0000 0008  1: Device resuming signal detected.<br>0000 0004  1: Start-of-frame packet sent.<br>0000 0001  1: Scheduling overrun (current frame time exhausted).</pre>
+<h4><br>
+<a name="reg 04"></a>InterruptEnable register &gt;04 (32-bit)</h4>
+<p>This register enables the generation of interrupts by event signaled
+in the InterruptStatus register. To enable an interrupt, write a '1' to
+the corresponding bit, writing '0' has no effect. In addition, the
+register
+contains a "master bit" that masks all the others: this bit must
+be set to '1' for any interrupt to be generated. Upon a read, the
+current
+value of the interrupt mask is returned (a '1' bit means the interrupt
+is enabled).</p>
+<pre><u>Bit value  Meaning                                           <br></u>8000 0000  1: Enable interrupts if below bits are set to '1'.<br>0000 0040  1: Enable HubStatus change interrupt.<br>0000 0020  1: Enable frame number overflow interrupt.<br>0000 0010  1: Enable unrecoverable error interrupt.<br>0000 0008  1: Enable device resuming signal interrupt.<br>0000 0004  1: Enable start-of-frame interrupt.<br>0000 0001  1: Enable scheduling overrun interrupt.</pre>
+<h4><br>
+<a name="reg 05"></a>InterruptDisable register &gt;05 (32-bit)</h4>
+<p>This register plays the same role as the above, except that it is
+used
+to disable interrupts. Writing a '1' disable an interrupt, writing a
+'0'
+has no effect. This scheme allows you to toggle the value of individual
+bits without having to worry about maintaining all other bits
+unchanged.
+Upon a read, the current value of the interrupt mask is returned (a '1'
+bit means the interrupt is enabled just like for the InterruptEnable
+register).</p>
+<pre><u>Bit value  Meaning <br></u>8000 0000  1: Disable all interrupts below.<br>0000 0040  1: Disable HubStatus change interrupt.<br>0000 0020  1: Disable frame number overflow interrupt.<br>0000 0010  1: Disable unrecoverable error interrupt.<br>0000 0008  1: Disable device resuming signal interrupt.<br>0000 0004  1: Disable start-of-frame interrupt.<br>0000 0001  1: Disable scheduling overrun interrupt.</pre>
+<h4><br>
+<a name="reg 24"></a>MicroprocessorInterrupt register &gt;24 (16-bit)</h4>
+<p>This is the main interrupt status register, into which register
+&gt;03
+is cascaded in the form of one bit. There are five other ovents that
+can
+cause interrutps by setting a bit in this register. The interrupt will
+only occur if the corresponding bit in register &gt;25 is also set to
+'1'.
+In addition, bit 0001 in the HardwareConfiguration register must be
+set,
+and CRU bit 2 should be '1'.</p>
+<pre><u>Bit   Meaning <br></u>0040  1: Clock is ready (160-1000 usec after a wakeup).<br>0010  1: Host controller suspended.<br>0010  1: Interrupt(s) occured in register &gt;03.<br>0004  1: Data transfer completed (normal or DMA).<br>0002  1: ATL stack should be read.<br>0001  1: Start of frame occured. ITL should be read.</pre>
+<p>Before you read the ATL or the ITL, first check the BufferStatus
+register
+(see below).</p>
+<h4><br>
+<a name="reg 25"></a>MicroprocesssorInterruptEnable register &gt;25
+(16-bit)</h4>
+<p>The bits in this register correspond to those in the
+MicroprocessorInterrupt
+register. They are all initialized as '0' upon power-up and reset,
+which
+means that no interrupt will be generated, no matter what happens
+inside
+the MicroprocessorInterrupt register. You can enable a given interrupt
+by setting the corresponding bit to '1'.</p>
+<pre><u>Bit   Meaning <br></u>0040  1: Enable clock-ready interrupts.<br>0010  1: Enable host-suspended interrupts.<br>0010  1: Enable interrupt from InterruptStatus register (&gt;03).<br>0004  1: Enable transfer-completed (to/from CPU) interrupts.<br>0002  1: Enable ATL interrupts.<br>0001  1: Enable start-of-frame interrupts.</pre>
+<h3><br>
+<a name="Frame management"></a>Frame management</h3>
+<p>One of the tasks of an USB host is to send a frame packet,
+containing
+a SOF token and a frame number, to all devices every millisecond. This
+is especially usefull for real-time transmissions, for synchronization
+purposes. The interval between two frames must be very precise, so the
+host must make sure that no other packet is being transmitted when it's
+time to send a frame packet. </p>
+<p>You don't have to worry about frames, since they are taken care of
+by
+the host controller automatically. However, it is possible for you to
+snoop
+on the process, or even to influence it, if you so desire. Furthermore,
+you will need to initialize the registers that set the transmission
+thresholds,
+i.e. the point at which the controller won't start a transfer by fear
+of
+being interrupted by the next frame packet. All this is achieve via a
+set
+of four dedicated registers.</p>
+<h4><br>
+<a name="reg 0F"></a>FrameNumber register &gt;0F (32-bit)</h4>
+<p>This read-only register contains the current frame number, from
+&gt;0000
+to &gt;FFFF (the most significant word is always &gt;0000). When the
+counter
+reaches &gt;8000, or rolls over to &gt;0000, a bit is set in the
+InterruptStatus
+register. This lets you implement a roll-over counter, to count more
+than
+65536 frames.</p>
+<h4><br>
+<a name="reg 0E"></a>FrameRemaining register &gt;0E (32-bit)</h4>
+<p>This read-only register contains the remaining bit time, i.e. number
+of bits that can still be transmitted until the end of the frame. Once
+it reaches &gt;0000, a frame packet is sent on the USB bus, and the
+register
+is reloaded with the value found in the FramInterval register
+(including
+the leftmost bit). This also happens every time the controller enter
+the
+operational state. </p>
+<p>If you want to check this value, you should realize that this
+register
+is updated very often: 12 million times per second! So, for all
+practical
+purposes, the 4 rightmost bits could be safely ignored.</p>
+<p>This number is only 14 bits long, so legal values are &gt;0000
+through
+&gt;3FFF. In addition, the leftmost bit (value &gt;8000 0000) is copied
+from the FrameInterval register, which toggles at every such copy, so
+you
+can tell that a roll-over has occured.</p>
+<h4><br>
+<a name="reg 11"></a>LowSpeedThreshold register &gt;11 (32-bit)</h4>
+<p>This register contains an 11-bit value, which the contoller compares
+with the FrameRemaining register. If the remaining number of bit is
+lower
+than the LowSpeedThreshold, no more packet can be sent. This is a way
+to
+ensure that the frame packet will not have to interrupt an ongoing
+transmission.</p>
+<p>Low-speed data packets are limited to 8 bytes, so 64 bits. To which
+we must add about 27 extra bits for synchro, packet ID, CRC and
+end-mark.
+This adds up to 91 bits. Since low speed is 12 time slower than full
+speed
+(1 Mbit/sec vs 12 Mbit/sec) we should multiply this value by 12,
+yielding
+1092. And then add a few more bits to have a good safety margin... </p>
+<p>The register is initialized with the value &gt;0628 at power-up
+time,
+which coresponds to 1576. This gives us a safety margin of about 40
+low-speed
+bits. You should probably leave it so...</p>
+<h4><br>
+<a name="reg 0D"></a>FrameInterval register &gt;0D (32-bit)</h4>
+<p>This register contains two values. The lower word contains the
+maximum
+number of bits that can fit into a frame. This is the value that will
+be
+loaded into the FrameRemaining register when it reaches zero. When this
+happens, the leftmost bit (weight &gt;8000 0000) will also toggle. </p>
+<p>Given that full-speed means 12 megabits per second, and that frames
+occur every millisecond, this value should be 12,000. Accordingly, the
+register is initialised as 11,999 (i.e. &gt;2EDF) but you can modify
+this
+value a little, to improve synchronization with a recalcitrant device.</p>
+<p>The upper word (minus the lefmost bit) contains the maximum number
+of
+data bits that can be sent or received in a single full-speed
+transaction,
+without causing a scheduling error. This value provides the
+transmission
+threshold for full speed, but unfortunately it is not initialized at
+power-up
+time. Philips recomends setting it as &gt;2778.</p>
+<pre><u>Bit value  Meaning                           <br></u>8000 0000  Toggle when reloading FrameRemaining.<br>xxxx 0000  Max number of data bits per transaction (0-7FFF).<br>0000 xxxx  Max number of bits per frame (0-3FFF), loaded into FrameRemaining.</pre>
+<h3><br>
+<br>
+<a name="Misc registers"></a>Miscellaneous registers</h3>
+<p>These are mostly useful for testing purposes.</p>
+<h4><br>
+<a name="reg 28"></a>Scratch register &gt;28 (16-bit)</h4>
+<p>This register is available for you to store any value you want, for
+any purpose. For instance, I'm using it to store the return point of
+the
+routine that toggles SRAM pages (otherwise, if the the workspace is in
+the SRAM, the return point would be lost).</p>
+<h4><br>
+<a name="reg 00"></a>Revision register &gt;00 (32-bits)</h4>
+<p>This register contains the USB version number, in binary-coded
+decimal
+(BCD) format. </p>
+<p><tt>0000 0010</tt> means USB 1.0<br>
+<tt>0000 0011</tt> means USB 1.1</p>
+<h4><br>
+<a name="reg 27"></a>ChipID register &gt;27 (16-bit)</h4>
+<p>This register contains the chip ID number. The upper byte is the
+product
+number (&gt;61), the lower byte is the version number.</p>
+<p><tt>6110</tt> is the ISP1161<br>
+<tt>6113</tt> is the ISP1161A1</p>
+<p>I suppose the ISP1161A must be <tt>6111 </tt>or <tt>6112</tt>...</p>
+<h3><br>
+<a name="HC reg summary"></a>Host controller register summary</h3>
+<p>Here is a summary of the registers available in the host (and hub)
+controller.
+The first number is used to read from that register, the second number
+(with &gt;80 added) is used when writing to this register. This number
+is to be passed at address &gt;5FFA. Note that some registers are
+read-only,
+and that there is one write-only register.</p>
+<p>The third number is is register size in bits. If it's 32, you will
+need
+to perform two successive reads at &gt;5FF0 or two writes to &gt;5FF8
+to
+transfer the whole register (least significant word first). Note that
+registers
+below &gt;20 are all 32-bit, whereas &gt;20 and above are 16-bit . The
+stack ports &gt;40 and &gt;41 have no limit in size, but that of the
+stack.</p>
+<pre><u>Number   Bits Name             <br></u>00 --    32   <a
+ href="#reg%2000">Revision<br></a>01 81    32   <a href="#reg%2001">Control<br></a>02 82    32   <a
+ href="#reg%2002">CommandStatus<br></a>03 83    32   <a href="#reg%2003">InterruptStatus<br></a>04 84    32   <a
+ href="#reg%2004">InterruptEnable<br></a>05 85    32   <a
+ href="#reg%2005">InterruptDisable<br></a>0D 8D    32   <a
+ href="#reg%200D">FrameInterval<br></a>0E --    32   <a href="#reg%200E">FrameRemaining<br></a>0F --    32   <a
+ href="#reg%200F">FrameNumber<br></a>11 91    32   <a href="#reg%2011">LowSpeedThreshold<br></a>12 92    32   <a
+ href="#reg%2012">HubDescriptorA<br></a>13 93    32   <a
+ href="#reg%2013">HubDescriptorB<br></a>14 94    32   <a
+ href="#reg%2014">HubStatus<br></a>15 95    32   <a
+ href="#reg%2015%20+%2016">Port1Status<br></a>16 96    32   <a
+ href="#reg%2015%20+%2016">Port2Status<br></a>20 A0    16   <a
+ href="#reg%2020">HardwareConfiguration<br></a>21 A1    16   <a
+ href="#reg%2021">DMAconfiguration<br></a>22 A2    16   <a
+ href="#reg%2022">TransferCounter<br></a>24 A4    16   <a
+ href="#reg%2024">MicroprocessorInterrupt<br></a>25 A5    16   <a
+ href="#reg%2025">MicroprocessorInterruptEnable<br></a>27 --    16   <a
+ href="#reg%2027">ChipID<br></a>28 A8    16   <a href="#reg%2028">Scratch<br></a>-- A9    16   <a
+ href="#reg%2029">SoftwareReset<br></a>2A AA    16   <a href="#reg%202A">ITLbufferLength<br></a>2B AB    16   <a
+ href="#reg%202B">ATLbufferLength<br></a>2C --    16   <a
+ href="#reg%202C">BufferStatus<br></a>2D --    16   <a href="#reg%202D">ReadbackITL0Length<br></a>2E --    16   <a
+ href="#reg%202E">ReadbackITL1Length<br></a>40 C0    oo   <a
+ href="#reg%2040">ITLport<br></a>41 C1    oo   <a href="#reg%2041">ATLport</a></pre>
+<p>&nbsp;</p>
+<h3><a name="Device controller"></a>The device controller</h3>
+<p>Accessing the device controller works about the same way than for
+the
+host controller: you write a register number at &gt;5FFE, then you
+either
+write data at &gt;5FFC, or read it at &gt;5FF4. The difference is that
+sometimes no data is required: just writing the register number
+triggers
+an action. For this reason, you may want to think in terms of
+"functions"
+rather than "registers": you pass the function number at &gt;5FFE,
+and its parameters (if any) at &gt;5FFC/5FF4.</p>
+<p>Internally, the device controller consists in 16 endpoints. The
+first
+two are numbered "zero", one in the input direction, one is the
+output direction. The remaining ones are numbered from 1 through 14,
+and
+you can program each one either as input or as output. Each endpoint
+has
+its own FIFO stack, and you can decide how much memory to allocate to
+each,
+if any. The total available memory is 2462 bytes (don't ask me why).
+You
+should always configure all 16 endpoints when initializeing the device
+controller, even those that you don't use, even the first two (number
+zero)
+endpoints which have a fixed configuration.</p>
+<p>Endpoints programmed as inputs receive the "OUT" and "SETUP"
+packets from the host. The incoming packet is placed on the stack, the
+device controller acknowledges it (unless it's isochroneous), the
+corresponding
+status register is updated and an optional interrupt can be issued to
+warn
+you that the stack should be read. Once you've read it, you must empty
+the endpoint's stack, to make room for the next packet, otherwise the
+device
+controller will send a "not acknowledge" handshake packet to
+the host.</p>
+<p>Endpoints programmed as inputs answer the "IN" packets from
+the host. You should first place the data you want to send to the host
+on the endpoint. Then you validate the endpoint, i.e. tell the device
+controller
+that the data can be sent, as soon as an IN packet addressed to this
+endpoint
+arrives. Once the host has acknowledge reception of the data, the
+corresponding
+status register will be set, and an optional interrupt can be issued to
+tell you that the endpoint is now empty again. If an "IN" packet
+were to arrive from the host before the endpoint is filled and
+validated,
+the device controller would send a "not acknowledge" handshake
+packet to the host.</p>
+<h3><br>
+<a name="DC init"></a>Initialization</h3>
+<p>These registers are to be set at power-up time, for the device
+controller
+to work properly. In addition, the host can send a so-called "bus
+reset" by holding both data lines low for 3 msec. This will reset
+the contents of most registers in the device controller, and require
+that
+you re-initialize them. You can set the controller so that it sends an
+interrupt when such a reset occurs.</p>
+<h4><br>
+<a name="BA-BB"></a>HardwareConfiguration register &gt;BA/BB (16-bit)</h4>
+<p>This register is used to set the configuration of the ISP1161
+hardware.
+Use the number &gt;BA to write to it, but use &gt;BB to read it back.</p>
+<p>Its bit fields are the following:</p>
+<pre><u>Bit   Meaning <br></u>4000  1: External pull-up on DP. 0: Use soft-connect pull-up.<br>2000  1: Disable CLOCKOUT pin when suspended (default). 0: switch it to lazy-clock.<br>1000  1: Never stop the clock. 0: Stop clock 2 ms after "suspended" state.<br>0x00  Clock frequency = 48 / (x+1). Reset value = 3 (i.e. 12 MHz).<br>0080  1: DACK-only DMA mode. 0: Regular 8237-type DMA mode.<br>0040  1: DREQ2 active high (default). 0: DREQ2 active low.<br>0020  1: DACK2 active high. 0: DACK2 active low.<br>0010  1: EOT active high. 0: EOT active low.<br>0008  1: Wakeup when CS* pin goes low.<br>0004  1: Power off when suspended. 0: reserved, do not use.<br>0002  1: Pulse INT2 (edge-tiggered interrupts). 0: Level-triggered interrupts.<br>0001  1: INT2 active high. 0: INT2 active low.</pre>
+<p>The default values upon a reset or a power-up is &gt;2340. If you
+did
+implement the external pull-up resistor on the card, you should then
+change
+it to &gt;630C, otherwise to &gt;230C.</p>
+<h4><br>
+<a name="B8-B9"></a>DeviceMode register &gt;B8/B9 (8-bit)</h4>
+<p>Use &gt;B8 to write to this register and &gt;B9 to read from it. The
+register contains several bit fields:</p>
+<pre><u>Bit Meaning <br></u>80  1: 16-bit DMA bus.  0: 8-bit DMA bus.<br>20  1 then 0 (toggle): go suspended.<br>08  1: Enable interrupts.<br>04  1: NAK and errors genreate interrupts too. 0: ACK only generate interrupts.<br>01  1: Internal pull-up connected. 0: not connected, implicit if external pull-up used.</pre>
+<h4><br>
+<a name="20-3F"></a>EndpointConfiguration registers &gt;20-3F (8-bit)</h4>
+<p>There are 16 such registers, one for each endpoints. They are
+numbered
+&gt;20 through &gt;2F for writing purposes, but &gt;30 through &gt;3F
+for
+reading.</p>
+<p>You must configure all 16 endpoints in order at power-up time. The
+device
+controller will only be operational when all endpoints have been
+configured.
+Note that this configuration will be erased to &gt;00 after a hardware
+reset, or if a bus reset is sent by the host. In such a case, you will
+need to reconfigure all the registers.</p>
+<p>The bit fields are:</p>
+<pre><u>Bit Meaning <br></u>80  1: Endpoint active. 0: Inactive, no memory reserved.<br>40  1: Output endpoint (IN packets). 0: Input (OUT/SETUP packets).<br>20  1: Use ping-pong stacks (uses twice more memory).<br>10  1: Isochroneous endpoint (does not acknowledge packets).<br>0x  Stack size</pre>
+<p>For non-isochronous endpoints, there are four possible stack sizes:
+</p>
+<pre>0 = 16 bytes, 1 = 32 bytes, 2 = 48 bytes, 3 = 64 bytes.</pre>
+<p>For isochronous endpoints, there are sixteen possibles stack sizes:</p>
+<pre>0 = 16 bytes   1 = 32 bytes   2 = 48 bytes   3 = 64 bytes<br>4 = 96 bytes   5 = 128 bytes  6 = 160 bytes  7 = 192 bytes<br>8 = 256 bytes  9 = 320 bytes  A = 384 bytes  B = 512 bytes<br>C = 640 bytes  D = 768 bytes  E = 896 bytes  F = 1023 bytes</pre>
+<p>Obviously, if bit &gt;80 is not set, the stack size is zero, no
+matter
+what value is in the least-significant nibble.</p>
+<p>The total available memory to be distributes among the endpoints you
+are using is 2462 bytes. Be aware that selecting ping-poing stacks will
+result in using twice the amount of memory that you seleted (because
+the
+endpoint will have two stacks). This is mainly useful for isochronous
+endpoints.</p>
+<p>The first two endpoints ((number 0 IN and OUT) have fixed
+configuration
+values, but you should still pass them to the controller. Each has a
+64-byte
+stack, so their configuration values are &gt;C3 and &gt;83 respectively.</p>
+<h4><br>
+<a name="F6"></a>Reset command &gt;F6 (0-bit)</h4>
+<p>This is an example of a register to which you don't need to write
+any
+data. Merely accessing it (i.e. passing its number to address &gt;5FFE)
+will reset the device controller. All DC registers will be
+reinitialized
+to their default values. This is also what happens when you reset the
+TI-99/4A
+console.</p>
+<h4><br>
+<a name="B0"></a>UnlockDevice register &gt;B0 (16-bit)</h4>
+<p>When the device controller is suspended all registers are locked to
+prevent accidental alteration of their contents. When the controller
+wakes
+up and enters the "resume" state, these registers remain
+write-protected
+until you send the unlocking command &gt;AA73 to the write-only
+register
+number &gt;B0. </p>
+<h4><br>
+&nbsp;<a name="B6-B7"></a>DeviceAddress register &gt;B6/B7 (8-bit)</h4>
+<p>This register hold the device number. At power-up time, this number
+is 0 as each device must answer requests addressed to device 0. Later
+on,
+the host will assign a dedicated number to the device controller, which
+should be placed into this register. Use &gt;B6 to write to the address
+register, &gt;B7 if you mean to read from it.</p>
+<pre><u>Bit Meaning <br></u>80  1: Device is active. 0: Inactive.<br>xx  Device number (1-7F).</pre>
+<p>A bus reset from the host implicitely resets the device number to 0,
+but does not alter the contents of this register, so it's your job to
+maintain
+it properly. </p>
+<h3><br>
+<a name="DC data flow"></a>Data flow management</h3>
+<h4><a name="00-1F"></a>EndpointBuffer registers &gt;01-1F </h4>
+<p>Through these registers, you can access the FIFO stacks for the 16
+endpoints
+(that is, assuming that you did assign some memory to these endpoints).
+To write to an output endpoint (so it can asnwer IN packets), use
+registers
+number&nbsp; &gt;00 through &gt;0F. To read from an input endpoint
+(after
+it received an OUT or SETUP packet), use register numbers &gt;10
+through
+1F.<br>
+<br>
+Note that is is illegal to write to an endpoint programmed as input, or
+to read from an endpoint programmed as output. This could produce
+unpredictable
+results. For this reason, registers number &gt;00 and &gt;11 are not to
+be used. For the other endpoints, it all depends on the direction that
+you assigned to a given endpoint.<br>
+<br>
+Data in an endpoint should be preceded with a very simple header: a
+single
+word containing the number of&nbsp; data bytes that follow. Data bytes
+are stacked in order of transmission. However, the ISP1161 has a 16-bit
+data bus and uses the Intel convention placing the least significant
+byte
+in the leftmost byte of a word. Which, of course, is the opposite of
+the
+TI convention we are used to. So that we don't have to SWPB every data
+word, I have decided to swap the data bus bytes at hardware level. The
+drawback is that you will have to SWPB data for every other register,
+but
+I reasonned that stack access would be the speed limiting factor.</p>
+<h4><br>
+<a name="60-6F"></a>ValidateEndpoint commands &gt;61-6F (0-bit)</h4>
+<p>After you placed data into an output endpoint, you must validate it,
+i.e. tell the device controller that is can send this data to the host
+in answer to an IN packet. To this end, you just write the register
+number
+&gt;60 through &gt;6F (no need to pass any data).<br>
+<br>
+It is illegal to validate in input endpoint, so register &gt;60
+(endpoint
+0 OUT/SETUP) should never be used. Neither should any register
+corresponding
+to an enpoint that you programmed as input.</p>
+<h4><br>
+<a name="70-7F"></a>ClearEndpoint commands &gt;70-7F (0-bit)</h4>
+<p>After you have read data that has arrived into an input endpoint
+with
+an OUT or SETUP packet, you must empty its stack to make room for the
+next
+packet. This is done by passing register number &gt;70 through &gt;7F
+to
+the address port, with no data to the data port.<br>
+<br>
+It is illegal to clear an endpoint programmed as output, so register
+&gt;71
+(enpoint 0 IN) should never be used.</p>
+<h4><br>
+<a name="50-5F"></a>EnpointStatus registers &gt;50-5F (8-bit)</h4>
+<p>These read-only registers let you read the status of the
+corresponding
+endpoint: 0 OUT, 0 IN, then 1 through 14. The bit fields are:</p>
+<pre><u>Bit  Meaning <br></u>80   1: Endpoint is stalled.<br>40   1: Secondary ("pong") stack contains data.<br>20   1: Primary ("ping") stack contains data.<br>10   1: Data packet ID is DATA1. 0: packet ID is DATA0.<br>08   1: Setup packet was ovewritten by a new packet before you read it.<br>04   1: Stack contains a setup packet (this unstalls the endpoint).<br>02   1: Use secondary ("pong") stack. 0: Use primary ("ping" stack).</pre>
+<p>Accessing an endpoint status register in this way will also clear
+the
+corresponding bit in the interrupt register. If you wish to check the
+status
+of an endpoint without altering the interrupt register, you should use
+the endpoint StatusImage register.</p>
+<h4><br>
+<a name="D0-DF"></a>EndpointStatusImage registers &gt;D0-DF (8-bit)</h4>
+<p>These read-only registers let you access a copy of the
+EndpointStatus
+registers, without clearing any bit in the interrupt register. The bit
+fileds are the same as for the EndpointStatus registers.</p>
+<h4><br>
+<a name="A0-AF"></a>EndpointError registers &gt;A0-AF (8-bit)</h4>
+<p>The device controller places an error code for each endpoint in
+these
+read-only registers. The next transaction to a given endpoint will
+overwrite
+its error code with a new value, whether you read it or not. However,
+bit
+&gt;80 will be set to inform you of that fact.</p>
+<pre><u>Bit  Meaning <br></u>80   1: Previous error code was overwritten.<br>40   1: Last successful data packet ID was DATA1. 0: It was DATA0.<br>1E   Error code<br>01   1: Successful transmission. 0: Error occured.</pre>
+<p>The error codes are:</p>
+<pre>00: No error.<br>02: Packet ID encoding error.<br>04: Unknown packed ID.<br>08: Unexpected packet type (token vs data vs handshake).<br>08: CRC error in token packet.<br>0A: CRC error in data packet.<br>0C: Timeout error.<br>0E: "Babble" error (whatever that is).<br>10: Unexpected end of packet.<br>12: Not-acknowledged (NAK) packet sent or received.<br>14: Sent "stall", because a packet arrived to a stalled enpoint.<br>16: Overflow, incoming packet larger than endpoint stack.<br>18: Sent an empty isochronous packet.<br>1A: Bit stuffing error (e.g. missing the extra '0' after six '1' bits).<br>1C: Sync error.<br>1E: Wrong data ID toggle (DATA0 vs DATA1). Packet ignored.</pre>
+<h4><br>
+<a name="40-4F"></a>StallEndpoint commands &gt;40-4F (0-bit)</h4>
+<p>By writing these registers number to address &gt;5FFE (with no
+data),
+you will stall the corresponding endpoint. From there on, it will
+answer
+any request from the host with a "STALL" handshake packet. This
+will most probably cause the host to send a SETUP packet, which will
+unstall
+the endpoint. Otherwise, you can then unstall it with the
+UnstallEndpoint
+command.</p>
+<h4><br>
+<a name="80-8F"></a>UnstallEndpoint commands &gt;80-8F (0-bit)</h4>
+<p>By writing these registers number at &gt;5FFE, you will unstall the
+corresponding endpoint. This will also reset the endpoint, i.e. its
+stack
+will be emptied and its toggle bit will be reset to DATA0. The same
+thing
+occurs when a SETUP packet is received by a stalled control endpoint.</p>
+<h4><br>
+<a name="F4"></a>AckowledgeSetup command &gt;F4 (0-bit)</h4>
+<p>When a setup packet arrives to a control endpoint (i.e. endpoint 0),
+it disables the "ClearEndpoint" and "ValidateEndpoint"
+commands. To re-enable these commands, you must write register number
+&gt;F4
+to the address port, at &gt;5FFE.</p>
+<h3><br>
+<a name="DC ints"></a>Interrupts management</h3>
+<p>For interrupts to be generated, the appropriate bits must be set in
+the InterruptEnable register. In addition, bit &gt;08 must be set in
+the
+DeviceMode register to enable the INT2 pin of the ISP1161. Finally, CRU
+bit 2 should be set to '1' fonr interrupts to be passed to the TI-99/4A.</p>
+<p>You can poll the Interrupt register to see if an interrupt is
+pending,
+whether or not it reached the TI-99/4A.</p>
+<h4><br>
+<a name="C2-C3"></a>InterrupEnable register &gt;C2/C3 (32-bit)</h4>
+<p>The corresponding bit in this register must be set to '1' for a
+given
+event to generate an interrupt. Setting it afterwards, even if the
+event
+is still active, will not cause an interrupt. A bus reset does not
+affect
+this register.</p>
+<pre><u>Bit       Meaning <br></u>0080 0000 1: Enable interrupts from endpoint #14.<br>0040 0000 1: Enable interrupts from endpoint #13.<br>...<br>0000 0400 1: Enable interrupts from endpoint #1.<br>0000 0200 1: Enable interrupts from endpoint #0 IN.<br>0000 0100 1: Enable interrupts from endpoint #0 OUT.<br>0000 0040 1: Enable interrupts when short packets detected.<br>0000 0020 1: Enable interrupts when no start-of-frame detected for 1 millisecond.<br>0000 0010 1: Enable interrupts when start-of-frame detected.<br>0000 0008 1: Enable interrupts when end-of-transmission occurs.<br>0000 0004 1: Enable interrupts when entering "suspended" state.<br>0000 0002 1: Enable interrupts when entering "resume" state.<br>0000 0001 1: Enable interrupts when bus reset occurs.</pre>
+<h4><br>
+<a name="C0"></a>Interrupt register &gt;C0 (32-bit)</h4>
+<p>This read-only register identifies the cause of an interrupt and the
+endpoint that caused it. The endpoint indicator bit will be cleared
+when
+you read the corresponding EndpointStatus register.</p>
+<pre><u>Bit       Meaning <br></u>0080 0000 1: Interrupt came from endpoint #14.<br>0040 0000 1: Interrupt came from endpoint #13.<br>...<br>0000 0400 1: Interrupt came from endpoint #1.<br>0000 0200 1: Interrupt came from endpoint #0 IN.<br>0000 0100 1: Interrupt came from endpoint #0 OUT.<br>0000 0080 1: Bus is suspended. 0: Bus is awake.<br>0000 0040 1: Short packet detected.<br>0000 0020 1: No start-of-frame detected for 1 msec. After 3 msec, DC goes "suspended".<br>0000 0010 1: Start-of-frame detected.<br>0000 0008 1: End-of-transmission occured (DMA tranfer).<br>0000 0004 1: Bus went from "awake" to "suspended" state.<br>0000 0002 1: "Resume" state detected.<br>0000 0001 1: Bus reset detected.</pre>
+<h3><br>
+<a name="DC DMA"></a>DMA transfer</h3>
+<p>Direct Memory Access allow you to transfer data to/from memory much
+faster than you would with an assembly program. But it requires a
+dedicated
+piece of hardware: a DMA controller, which the TI-99/4A system does not
+have. However, I'm planning to build a DMA controller board, so I
+included
+the necessary circuitery on the USB-SM board.</p>
+<p>The device controller allows two types of DMA: the classical Intel
+8237A
+type (which is the one we want) and the Motorola DACK-only type. The
+polarity
+of all three signals, DREQ, DACK and EOT, is programmable (see
+HardwareConfiguration
+register) and so is the number of bytes per "burst". Note that
+DMA is not possible with endpoint 0, in either direction.</p>
+<p>To perform DMA, you would place the number of bytes in the
+DMAcounter
+register and the endpoint number in the DMAconfiguration register. You
+would also program the DMA controller board so that it knows where to
+put
+the data. Finally, you would trigger DMA by setting bit &gt;0008 in the
+DMAconfiguration register.</p>
+<h4><br>
+<a name="F0-F1"></a>DMAconfiguration register &gt;F0/F1 (16-bit)</h4>
+<p>Use &gt;F0 to write to this register, &gt;F1 to read from it. A bus
+reset will not affect this register. except for the &gt;0008 bit, which
+is reset, thereby disabling DMA operations.</p>
+<pre><u>Bit  Meaning <br></u>8000 1: Generates EOT when counter reaches 0.<br>4000 1: A short or empty OUT packet causes an EOT. (Must be 0 when sending IN packets).<br>0100 1: Last DMA access was a word. 0: Last DMA access was a byte.<br>00x0 Enpoint number (+1), to do DMA with.<br>0008 1: Enable DMA. 0: Disable DMA, abort transfer if needed.<br>0003 Burst length: 0 = 1 byte, 1 = 4 bytes, 2 = 8 bytes, 3 = 16 bytes.</pre>
+<p>It's not allowed to perform DMA with endpoint 0, in either
+direction.
+For the others, you should specify the number of the endpoint plus one
+in this reigster, i.e. &gt;0020 for endpoint #1, &gt;00F0 for enpoint
+#14
+(don't ask me why). The direction of the transfer is determined by the
+direction of the enpoint, as programmed in its dedicated configuration
+register.</p>
+<h4><br>
+<a name="F2-F3"></a>DMAcounter register &gt;F2/F3 (16-bit)</h4>
+<p>Use &gt;F2 to write the number of bytes to be transfered by DMA into
+this register. This value will be read by the device controller when
+DMA
+is enabled (by bit &gt;0008 of the DMAconfiguration register). Use
+&gt;F3
+to see how many bytes remain to be transfered. </p>
+<h3><br>
+<a name="DC misc"></a>Miscellaneous registers</h3>
+<h4><a name="B2-B3"></a>Scratch register &gt;B2/B3 (16-bit)</h4>
+<p>This register is available for you to store any data you&nbsp; like,
+as long as it's in the range &gt;0000-1FFF (the first 3 bits are
+reserved).&nbsp;
+For instance, you could use it to save the device status before it goes
+"suspended". Use register number &gt;B2 to write to the register,
+&gt;B3 to read back from it.</p>
+<h4><br>
+<a name="B4"></a>FrameNumber register &gt;B4 (16-bit)</h4>
+<p>This read-only register contains the number of the last frame
+received
+with a SOF packet.</p>
+<h4><br>
+<a name="B5"></a>ChipID register &gt;B5 (16-bit)</h4>
+<p>This read-only register contains the chip ID for the device
+controller
+portion of the ISP1161. The most significant byte should read &gt;61 to
+signify ISP1161. The least significant byte contains the version
+number,
+e.g. &gt;23 for version 2.3.</p>
+<h3><br>
+<a name="DC reg summary"></a>Device controller register summary</h3>
+<p>Here is a summary of the device controller registers. Note that most
+come be groups of 16, one for each endpoint. In such cases, register
+number
+&gt;x0 accesses endpoint 0 OUT (i.e. inputing packets), &gt;x1 accesses
+endpoint 0 IN (i.e. outputing data packets), &gt;x2 accesses endpoint
+number
+1, as so forth until &gt;xF which accesses register number 14.<br>
+<br>
+The number in the first column is to be passed to the address port
+&gt;5FFE
+when you intend to write to a register (or to trigger a command), the
+number
+in the second column is to be used when you intend to read from a
+register.
+The number of bits indicates the size of the data to be written to
+&gt;5FFC,
+or read from &gt;5FF4. A dash - indicates that no data transfer is
+needed:
+merely passing the register number to &gt;5FFE triggers the command.
+For
+16-bit registers, remember that data bytes are inverted; for 8-bit
+registers,
+the relevant data will be passed to/from the most significant byte. For
+the EndpointBuffer registers, the number of bytes to transfer to/from
+the
+data port depends on the size of the FIFO stack assigned to this
+breakpoint,
+and bytes are not inverted.</p>
+<pre><u>Write  Read   Bits  Name                  <br></u>00-0F  10-1F   #    <a
+ href="#00-1F">EndpointBuffer<br></a>20-2F  30-3F   8    <a
+ href="#20-3F">EndpointConfiguration<br></a>40-4F          -    <a
+ href="#40-4F">StallEndpoint<br></a>       50-5F   8    <a href="#50-5F">EndpointStatus<br></a>60-6F          -    <a
+ href="#60-6F">ValidateEndpoint<br></a>70-7F          -    <a
+ href="#70-7F">ClearEndpoint<br></a>80-8F          -    <a href="#80-8F">UnstallEndpoint<br></a>A0-AF          8    <a
+ href="#A0-AF">EndpointError<br></a>B0            16    <a href="#B0">UnlockDevice<br></a>B2     B3     16    <a
+ href="#B2-B3">Scratch<br></a>       B4     16    <a href="#B4">FrameNumber<br></a>       B5     16    <a
+ href="#B5">ChipID<br></a>B6     B7      8    <a href="#B6-B7">DeviceAddress<br></a>B8     B9      8    <a
+ href="#B8-B9">DeviceMode<br></a>BA     BB     16    <a href="#BA-BB">HardwareConfiguration<br></a>       C0     32    <a
+ href="#C0">Interrupt<br></a>C2     C3     32    <a href="#C2-C3">InterruptEnable<br></a>       D0-DF   8    <a
+ href="#D0-DF">EndpointStatusImage<br></a>F0     F1     16    <a
+ href="#F0-F1">DMAconfiguration<br></a>F2     F3     16    <a
+ href="#F2-F3">DMAcounter<br></a>F4             -    <a href="#F4">AcknowledgeSetup<br></a>F6             -    <a
+ href="#F6">ResetDevice</a></pre>
+<address>Revision 1. 6/11/03 Preliminary<br>
+Revision 2. 6/29/03 Ok to release </address>
+<address>Revision 3.8/4/03 CRU selection by A10+A11. Bit 2 to Vpen.
+Added
+74ALS175 + 74ALS04. Inverted bit3. Interrupt masking circuit
+redesigned.
+</address>
+<address>Revision 4. 8/18/03 Added Geneve compatibility. </address>
+<address>Revision 5. 9/17/03 Added DMA capability. </address>
+<address>Revision 6. 10/1/03 Added write-protection switch for EEPROM.
+Swapped bits 2 and 4. <br>
+Revision 7. 11/3/03. Split in two pages. Added chapters on USB and
+ISP1161.<br>
+Revision 8. 5/13/04. Added description of PTD structure. Added note on
+byte order.</address>
+<p><a href="usb_dsr.htm">Next page</a> (writing DSRs)<br>
+<a href="usb.htm">Previous page</a> (hardware)</p>
+<center>
+<p><a href="titechpages.htm">Back to the TI-99/4A Tech Pages</a></p>
+</center>
+</body>
+</html>

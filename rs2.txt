@@ -1,0 +1,454 @@
+A444A  LI   1,>4000           error code 2 :error in switch options
+       JMP  A4460
+A4450  LI   1,>6000           error code 3 :illegal command
+       JMP  A4460
+A4456  LI   1,>8000           error code 4 :memory full (rec too big)
+       JMP  A4460
+A445C  LI   1,>C000           error code 6 :hardware error / <clear>
+A4460  SOCB 1,@>FF6B(4)       set error flags (>834B)
+A4464  BL   @A4842            close
+       DATA >4001             =====
+       MOVB @>FF6B(4),@>FFFE(15) write status
+       BL   @A4842            |
+       DATA >4005             |write char count
+       MOVB @>FF6F(4),@>FFFE(15)
+       INCT @>FF84(4)         modify return address
+A4480  ANDI 12,>FF00          return
+       MOV  @>FF84(4),11      ======
+       SBO  2                 handshake out->1
+       SBZ  1                 pio
+       SBZ  7                 light off
+       B    *11
+ 
+*==============================================================================*
+* Subroutines used by DSRs                                                     *
+*------------------------------------------------------------------------------*
+*                             init dsr
+A4490  MOV  11,@>FF86(4)      --------
+       BL   @A4730            is opcode save or old?
+       JEQ  A44A4
+       LI   8,A4076           no -> tw=0 pa=o da=7  (10110010)
+       LI   1,>B200
+       JMP  A44AC
+A44A4  LI   8,A408A           yes -> tw=0 pa=n da=8 (10000011)
+       LI   1,>8300
+A44AC  LI   5,>012C           default speed=300
+       MOV  4,9               |
+       AI   9,>FFFA           |control reg saved in >83DA
+       MOVB 1,*9              |
+       BL   @A45F4            find delay
+       MOVB @>FF73(4),0       name size (>8353)
+       SRL  0,8
+       S    @>FF74(4),0
+       JLE  A44F6             no .
+       MOV  @>FF76(4),1       |
+       BL   @A4850            |address of name
+       SETO 6
+A44D2  MOV  0,0               end of string?
+       JEQ  A44F6
+       BL   @A4798            |find char following the .
+       DATA >2E00             |put it in r6
+       JEQ  A44F6             none
+       MOV  8,7
+       SRL  6,8
+       MOVB @>FBFE(15),6      next char
+       DEC  0
+       SWPB 6                 two chars codes
+A44EA  MOV  *7+,1             code from list
+       JEQ  A4510             end of list -> err 2
+       MOV  *7+,2             address
+       C    1,6
+       JNE  A44EA             next
+       B    *2                code found
+*
+A44F6  MOVB @>FF6A(4),1       opcode (>834A) = open
+       JEQ  A450A
+       BL   @A4730            opcode = save/old
+       JNE  A450E
+       BL   @A46B2            write number 255
+       MOV  @>FF6C(4),10      DATA buffer (>834C)
+A450A  BL   @A4822            init card + chips
+A450E  JMP  A45DC             return
+A4510  JMP  A444A             error 2
+*
+A4512  LI   1,>FF78           .EC : >8358
+       JMP  A452E
+A4518  LI   1,>FF79           .CR : >8359
+       JMP  A452E
+A451E  LI   1,>FF7A           .LF : >835A
+       JMP  A452E
+A4524  LI   1,>FF7C           .NU : >835C
+       JMP  A452E
+A452A  LI   1,>FF7B           .CH : >835B
+A452E  A    4,1
+       SOCB @A4132,*1         >FF
+       JMP  A459E             loop to A44D2
+*
+A4536  MOV  3,3               .BA=
+       JNE  A459E             pio -> skip
+       BL   @A45E2            calc delay
+       JMP  A459E             loop
+*
+A4540  MOV  3,3               .PA=
+       JNE  A459E             pio -> skip
+       BL   @A4798            |find char following =
+       DATA >3D00             |put it in r6
+       JEQ  A4510             none -> err 2
+       SZCB @A40A1,*9         clear parity flags: >30
+       SRL  6,8
+       CI   6,>004E           N -> ..00....
+       JEQ  A459E
+       CI   6,>0045           E -> ..10....
+       JEQ  A456A
+       CI   6,>004F           O -> ..11....
+       JNE  A4510             other -> err 2
+       SOCB @A40A1,*9         >30
+       JMP  A459E
+A456A  SOCB @A422C,*9         >20
+       JMP  A459E
+*
+A4570  MOV  3,3               .DA=
+       JNE  A459E             pio -> skip
+       BL   @A4798            |find char following =
+       DATA >3D00             |put it in r6
+       JEQ  A4510             none -> err 2
+       BL   @A4754            read number
+       SOCB @A4074,*9         clear length flags: >03
+       AI   5,>FFF9
+       JEQ  A4590
+       DEC  5                 8 -> ......11
+       JNE  A4510             other -> err 2
+       JMP  A4594
+A4590  SZCB @A45F9,*9         7 -> ......10  (>01)
+A4594  JMP  A459E
+*
+A4596  SZCB @A42DC,*9         .TW            (>C0)
+       SOCB @A4004,*9         01......       (>40)
+A459E  JMP  A44D2             loop
+*-------------------------------------------------------------------------------
+A45A0  MOV  11,@>FF86(4)      receive 2 bytes (in R8)
+       BL   @A463A            ---------------
+       MOV  6,8               fetch 1rst
+       BL   @A463A
+       SWPB 6                 fetch 2nd
+       SOC  6,8
+       JMP  A45DC
+*-------------------------------------------------------------------------------
+A45B4  MOV  11,@>FF86(4)      emit 2 bytes (from R9)
+       MOV  9,6               ------------
+       BL   @A47E6            emit 1rst
+       SWPB 6
+       BL   @A47E6            emit 2nd
+       JMP  A45DC
+*-------------------------------------------------------------------------------
+A45C6  MOV  11,@>FF86(4)      receive 1 BYTE (in R6)
+       BL   @A463A            --------------
+       JMP  A45D8             update crc
+*-------------------------------------------------------------------------------
+A45D0  MOV  11,@>FF86(4)      emit 1 BYTE (from R6)
+       BL   @A47E6            -----------
+A45D8  BL   @A47C0            update crc
+A45DC  MOV  @>FF86(4),11      (>8366)
+       B    *11
+*-------------------------------------------------------------------------------
+A45E2  MOV  11,@>FF88(4)      delay calculation
+       BL   @A4798            -----------------
+       DATA >3D00             find char following =
+       JEQ  A4510             none -> err 2
+       BL   @A4754            read number
+       JMP  A45F8
+A45F4  MOV  11,@>FF88(4)      (>8368)
+A45F9  EQU  $+1
+A45F8  LI   1,A40A6           find baud rate
+       CLR  2
+A45FE  MOV  *1+,11
+       JEQ  A4510             not found -> err 2
+       C    5,11
+       JEQ  A460A             found
+       INCT 2
+       JMP  A45FE             next
+A460B  EQU  $+1
+A460A  MOVB @>000C,11         clock speed
+       SRL  11,8
+       LI   1,A409C           find clock speed
+A4614  MOV  *1+,5
+       JEQ  A4666             not found -> err 6
+       C    5,11
+       JEQ  A4620             found
+       INCT 1
+       JMP  A4614             next
+A4620  A    *1,2
+       MOV  *2,1              fetch delay from table
+       JGT  A4630
+       SOCB @A4072,*9         freq = clock/4
+       ANDI 1,>7FFF
+       JMP  A4634
+A4630  SZCB @A4072,*9         freq = clock/3
+A4634  MOV  1,@>FFFE(4)       rate reg (>83DE)
+       JMP  A4680             rt
+*-------------------------------------------------------------------------------
+A463A  MOV  11,@>FF88(4)      receive 1 BYTE
+A463E  BL   @A4870            --------------
+       JEQ  A464A             test dsr pin and rec buffer or handshake in
+       BL   @A4880            no reception -> test <clear>
+       JMP  A463E             loop
+A464A  MOV  3,3
+       JNE  A466A
+       CLR  6                 RS232
+       STCR 6,8               data from recieve buffer
+       SBZ  18                reset flag, interrupt disabled
+       TB   11                overflow? (new bit arrived too fast)
+       JEQ  A4666             yes: err 6
+       TB   12                frame? (stop bits interpreted as 0)
+       JEQ  A4666             yes: err 6
+       MOVB @>FF7B(4),11      check parity?
+       JEQ  A4680             no
+       TB   10                yes: parity error?
+       JNE  A4680             no
+A4666  B    @A445C            yes: err 6
+A466A  SBO  1                 handshake in =0: set pio as input
+       SBZ  2                 handshake out = 0
+A466E  TB   2                 handshake in =1?
+       JNE  A4678
+       BL   @A4880            no: test <clear>
+       JMP  A466E
+A4678  CLR  6                 yes
+       MOVB @A5000,6          read from pio port
+       SBO  2                 handshake out = 1
+A4680  MOV  @>FF88(4),11      rt
+       B    *11
+*-------------------------------------------------------------------------------
+A4686  MOV  11,@>FF88(4)      next record
+       MOVB 7,7               -----------
+       JEQ  A46A0             last?
+       BL   @A46B4            write rec number
+       AI   7,>FF00
+       MOV  7,@>FF7E(4)       save rec number in >835E
+       LI   7,>0100           length 256 bytes
+       JMP  A46AC
+A46A0  MOV  7,7               last rec
+       JNE  A46A8
+       B    @A4464            end
+A46A8  CLR  @>FF7E(4)         rec number =0
+A46AC  MOV  7,@>FF80(4)       rec length in >8360
+       JMP  A4680
+*-------------------------------------------------------------------------------
+A46B2  SETO 7                 write decimal number
+A46B4  MOV  11,@>FF8A(4)      --------------------
+       CLR  1                 |
+       BL   @A484E            |set vdp address >0000 (to write)
+       DATA >4000             |
+       BL   @A485A            write 14 spaces
+       MOV  7,2               number to write
+       SRL  2,8
+       LI   6,100
+A46CC  CLR  1
+       DIV  6,1
+       AI   1,>0030           digit 0-9 -> ascii code
+       SLA  1,8
+       AB   @>FF72(4),1       add bias (>8352)
+       MOVB 1,@>FFFE(15)      write it
+       CLR  5
+       DIV  @A4796,5          divide divisor by 10 (100->10->1->0)
+       MOV  5,6
+       JNE  A46CC             0? -> end
+       BL   @A485A            write 14 spaces
+       JMP  A472A             rt
+*-------------------------------------------------------------------------------
+A46EE  MOV  11,@>FF8A(4)      END of record
+       MOVB @>FF79(4),11      -------------
+       JNE  A472A             .cr?
+       BL   @A47E4            |
+       DATA >0D00             |no -> send <cr>
+       JMP  A4704
+A4700  MOV  11,@>FF8A(4)
+A4704  MOVB @>FF7C(4),1       .nu?
+       JEQ  A4718
+       LI   5,>0006           |
+A470E  BL   @A47E4            |
+       DATA >0000             |yes -> send 6 >00
+       DEC  5                 |
+       JNE  A470E             |
+A4718  MOVB @>FF79(4),1        no
+       JNE  A472A             .cr
+       MOVB @>FF7A(4),1
+       JNE  A472A             .lf
+       BL   @A47E4            |neither .cr nor .lf
+       DATA >0A00             |-> send <lf>
+A472A  MOV  @>FF8A(4),11
+       B    *11
+*-------------------------------------------------------------------------------
+A4730  MOVB @>FF6A(4),1       opcode = save/old?
+       SRL  1,8               ------------------
+       AI   1,-5
+       JEQ  A473E             old  |
+       DEC  1                 save |equ set
+A473E  B    *11
+*-------------------------------------------------------------------------------
+A4740  MOVB @>FF6B(4),1       int/dis?
+       COC  @A4072,1          --------   (>08)
+       B    *11               equ set if internal
+*-------------------------------------------------------------------------------
+A474A  MOVB @>FF6B(4),1       fix/var?
+       ANDI 1,>1000           --------
+       B    *11               equ set if fixed
+*-------------------------------------------------------------------------------
+A4754  MOV  11,@>FF8A(4)      read number (put it in R5)
+       CLR  1                 -----------
+       CLR  11
+       JMP  A4764
+A475E  MOVB @>FBFE(15),6      next char
+       DEC  0
+A4764  MOV  6,7
+       SRL  7,8
+       AI   7,>FFD0           char -> digit
+       JLT  A4786             below 0
+       CI   7,>0009
+       JH   A4786             above 9
+       INC  11                count digits
+       MPY  @A4796,1          multiply number by 10
+       MOV  1,1
+       JNE  A478A             overflow (bigger than 65536)
+       A    7,2               add digit to number
+       MOV  2,1
+       MOV  0,0               end of string?
+       JNE  A475E             no -> loop
+A4786  MOV  11,11
+       JNE  A478E
+A478A  B    @A444A            no digits -> err 2
+A478E  MOV  1,5
+       MOV  @>FF8A(4),11
+       B    *11
+A4796  DATA 10
+*-------------------------------------------------------------------------------
+A4798  MOV  *11+,5            find char following sep
+       CB   5,6               -----------------------
+       JEQ  A47AC             current char = separator
+A479E  MOVB @>FBFE(15),6      next char
+       DEC  0
+       CB   5,6
+       JEQ  A47AC             char = separator
+       MOV  0,0
+       JNE  A479E             loop if not end of string
+A47AC  MOV  0,0               sep found
+       JEQ  A47BE             end of string
+       CLR  6
+       MOVB @>FBFE(15),6      read next char
+       DEC  0
+       CI   6,>2000
+       JEQ  A47AC             skip if it is a space
+A47BE  B    *11               equ set if not found
+*-------------------------------------------------------------------------------
+A47C0  MOV  6,1               update crc
+       ANDI 1,>FF00           ----------
+       XOR  1,9               new char in r6
+       MOV  9,1               crc in r9
+       SRL  1,4
+       XOR  9,1
+       ANDI 1,>FF00
+       SRL  1,4
+       XOR  1,9
+       SRC  1,7
+       XOR  1,9
+       SWPB 9
+       B    *11
+*-------------------------------------------------------------------------------
+A47DE  MOVB @>FBFE(15),6      emit 1 BYTE (from R6)
+       JMP  A47E6             -----------
+A47E4  MOV  *11+,6            idem from data
+A47E6  MOV  11,@>FF8C(4)
+A47EA  MOV  3,3
+       JNE  A4808
+       SBO  16                rs232 activate rts pin
+       TB   27
+       JNE  A47F8             test dsr pin (dtr on connector)
+       TB   22                active -> test expedition buffer
+       JEQ  A47FE
+A47F8  BL   @A4880            not empty ->test <clear> key
+       JMP  A47EA             loop
+A47FE  LDCR 6,8               buffer empty -> load it with new char
+       SBZ  16                change will be effective when buffer is empty
+A4802  MOV  @>FF8C(4),11
+       B    *11
+A4808  SBZ  1                 pio output
+       TB   2                 handshake in =1?
+       JEQ  A47F8             no -> test <clear> and loop
+       MOVB 6,@A5000
+       SBZ  2                 handshake out ->0
+A4814  TB   2                 handshake in =0?
+       JEQ  A481E
+A481A  BL   @A4880            no -> test <clear>
+       JMP  A4814             loop
+A481E  SBO  2                 handshake out ->1
+       JMP  A4802             rt
+*-------------------------------------------------------------------------------
+A4822  MOV  3,3               setup communications
+       JEQ  A482C             --------------------
+       SBO  2                 handshake out ->1
+       SBZ  1                 pio output
+       B    *11
+A482C  SBO  31                rs232 reset chip
+       LDCR @>FFFA(4),8       load control reg (>83DA)
+       SBZ  13                |
+       LDCR @>FFFE(4),12      |load rate regs  (>83DE)
+       MOVB @>FF7D(4),1       opcode = >80? (>835D)
+       JEQ  A4840
+       SBO  18                yes -> interrupts enabled
+A4840  B    *11
+*-------------------------------------------------------------------------------
+A4842  MOV  @>FF76(4),1       find beg of pab
+       S    @>FF74(4),1       ---------------
+       AI   1,>FFF6           >8356 - >8354(size) - 10
+A484E  A    *11+,1            offset in data
+A4850  MOVB @>0003(4),*15     set vdp address
+       NOP                    ---------------
+       MOVB 1,*15
+       B    *11
+*-------------------------------------------------------------------------------
+A485A  LI   1,>2020           write 14 spaces
+       AB   @>FF72(4),1       ---------------
+       LI   2,>000E           adding bias (>8352)
+A4866  MOVB 1,@>FFFE(15)
+       DEC  2
+       JNE  A4866
+       B    *11
+*-------------------------------------------------------------------------------
+A4870  MOV  3,3               check reception
+       JNE  A487C             ---------------
+A4874  TB   27                test dsr pin (dtr on connector)
+       JNE  A487A
+       TB   21                active -> test receive buffer
+A487A  B    *11               equ set if 1 byte has arrived
+A487C  TB   2                 pio
+       B    *11               test handshake in
+*-------------------------------------------------------------------------------
+A4880  MOV  12,1              test <clear> key
+       LI   12,>0024          ----------------
+       LDCR @A4073,3          >00
+       TB   -11               fctn?
+       JEQ  A4896
+       LDCR @A4074,3          >03
+       TB   -11               <4>
+       JNE  A489A
+A4896  MOV  1,12              not pressed
+       B    *11
+A489A  MOV  1,12              pressed
+       B    @A445C            error 6
+*-------------------------------------------------------------------------------
+A48A0  DATA >ABCD
+*
+A48A2  SRC  0,8               wait
+       SRC  0,8               ----
+       SRC  0,8               14 microseconds
+       SRC  0,8
+       SRC  0,8
+       SRC  0,8
+       B    *11
+*------------------------------------------------------------------------------*
+* addresses >48B0 to >4FFD contain all >FF                                     *
+*------------------------------------------------------------------------------*
+      AORG  >4FFE
+A4FFE DATA  >B3E0             end of rom
+A5000 EQU   >5000             pio port
+*
+      END

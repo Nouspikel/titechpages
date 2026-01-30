@@ -1,0 +1,399 @@
+<!doctype html public "-//w3c//dtd html 4.0 transitional//en">
+<html>
+<head>
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+   <meta name="Author" content="asdf">
+   <meta name="GENERATOR" content="Mozilla/4.79 [en] (WinNT; U) [Netscape]">
+   <title>EA6  file format</title>
+</head>
+<body>
+
+<center>
+<h1>
+<a href="http://www.nouspikel.com/ti99/titechpages.htm"><img SRC="logo.jpg" style="border: 0px solid ; height: 33px; width: 95px;" title="" height=33 width=95></a></h1></center>
+
+<h1>
+The FB6 file format</h1>
+
+<p><br>This format is meant as an extension of the Editor/Assembler option
+5 format, i.e. the files contain a "memory image" together with some information
+on where and how to load it. It's completely backward compatible with the
+EA5 format and the Gramkracker format, but adds extra options at the end
+of the file. These options are in the form of a tagged list, which will
+allow for adding new options in the future.
+<p>In case you wonder, FB6 was coined by just incrementing by one each
+character in EA5. But it could also mean "Fully Bloated".
+<p>The overall file stucture is the following:
+<pre>CONT&nbsp;&nbsp;&nbsp; BYTE&nbsp; >xx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; continuation flag
+FLAG&nbsp;&nbsp;&nbsp; BYTE&nbsp; >xx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; target id
+ADDR&nbsp;&nbsp;&nbsp; DATA&nbsp; >xxxx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; loading address
+SIZE&nbsp;&nbsp;&nbsp; DATA&nbsp; >xxxx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; number of bytes to load
+CODE&nbsp;&nbsp;&nbsp; BSS&nbsp;&nbsp; SIZE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; code to be loaded
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; EVEN
+TAGS&nbsp;&nbsp;&nbsp; BSS&nbsp;&nbsp; >xxxx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; tagged list of options</pre>
+As you can see, the 6-byte header is the same as with EA5 and GK format.
+<p><b>CONT</b> can be >00 or >FF. If it is >FF loading should proceed with
+another file. With EA5, the new file name is obtained by incrementing the
+last character in the file name. With GK format, the second file name is
+produced by appending a '1' to the first file name. This additional character
+is subsequently incremented if more files are to come.
+<p><b>FLAG</b> indicates both the format and the target. If it is >00 or
+>FF, it denotes EA5 format and the target is always CPU memory. If it is
+between >01 and >08, the target is GROM 0 through 7, respectively (GROMs
+are >2000 bytes apart). If FLAG is between >09 and >18, the target is "cartridge"
+ROM banks 0 through 15, respectively (and the address should thus be in
+the range >6000-7FFF). Other values are reserved.
+<p><b>ADDR</b> is the address where the code is to be loaded.
+<p><b>SIZE</b> is the number of bytes to load.
+<p><b>CODE</b> is the data to be loaded. It is a pure memory image, i.e.
+it must be loaded at the indicated address to work properly, and cannot
+be linked with other pieces of code at loading time. Some of the new options
+in the FB6 format allow to overcome these limitations.
+<p><b>TAGS</b> is the list of FB6 options, which I shall describe below.
+It starts on a word boundary, so if SIZE is an uneven number, a >00 byte
+will be appended to the code.
+<br>&nbsp;
+<h2>
+Option list</h2>
+This list implements the new options provided by the FB6 format. Each option
+is preceded with a identification tag and a size byte. Options can occur
+in any order, with a couple of exceptions. The general format of an option
+is:
+<pre>TAG&nbsp;&nbsp;&nbsp; BYTE >xx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; option identifier
+SIZE&nbsp;&nbsp; BYTE >xx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; size of option in words (0=size in next word)
+OPTS&nbsp;&nbsp; BSS (2*SIZE)-2&nbsp;&nbsp;&nbsp;&nbsp; data used to implement the option (if any)</pre>
+<b>TAG</b> is a one-byte identifier that describes the option. A loader
+that does not recognize an option can either skip it, issue a warning,
+or abort with an error.
+<p><b>SIZE</b> is the size of the option in words. It does include the
+tag and size bytes, so it is always at least 1. A value of zero means that
+the option&nbsp; is bigger than 255 words, and that the size is provided
+in the next word.
+<p><b>OPTS</b> depends on the options. Some will have nothing here, most
+will have data needed to implement the option.
+<p>Below is a description of the currently available options.
+<br>&nbsp;
+<h4>
+FB6 identifier</h4>
+
+<pre>TAG&nbsp;&nbsp;&nbsp; BYTE >FB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+SIZE&nbsp;&nbsp; BYTE >01</pre>
+This is one of the rare exceptions to the rule that options can occur in
+any order. This must be the first option in the list, as it allows the
+loader to determine whether the file format is indeed FB6.
+<br>&nbsp;
+<h4>
+End-of-list</h4>
+
+<pre>TAG&nbsp;&nbsp;&nbsp; BYTE >00
+SIZE&nbsp;&nbsp; BYTE >01</pre>
+And here is the other exception to the above rule: this tag marks the end
+of the option list. The loader will not consider data located after this
+tag.
+<br>&nbsp;
+<h4>
+Flags</h4>
+
+<pre>TAG&nbsp;&nbsp;&nbsp; BYTE >F1
+SIZE&nbsp;&nbsp; BYTE >02
+FLAGS&nbsp; DATA >xxxx</pre>
+This option serves as a "table of contents" for the loader. It lists various
+properties of the code to be loaded, and indicates which option is to be
+found among the list. It is optional, but if present it should be placed
+towards the top of the list, to give the loader an advanced warning of
+what is to come. There could be more than one word of flags, although only
+one is defined at the moment.
+<p>Flag values are:
+<p>>0001: must load in RAM or GRAM (no EEPROM)
+<br>>0002: must be loaded in GRAM/GROM
+<br>&nbsp;
+<h4>
+Absolute page number</h4>
+
+<pre>TAG&nbsp;&nbsp;&nbsp; BYTE >&nbsp;&nbsp;
+SIZE&nbsp;&nbsp; BYTE >02
+PAGE&nbsp;&nbsp; DATA >xxxx&nbsp;&nbsp;&nbsp;&nbsp; page number (device-specific)</pre>
+This option is used in case the target device has a paged memory (e.g.
+the IDE card SRAM, cartridge ROMs, SAMS memory card, etc) . It specifies
+which page the code is to be loaded into. The page number is device-specific.
+<p>If the code is to be loaded in GRAM/GROM, PAGE contains the GROM base
+to be used, i.e. >9800, >9804, ... ,>983C.
+<br>&nbsp;
+<h4>
+Relative page number</h4>
+
+<pre>TAG&nbsp;&nbsp;&nbsp; BYTE >&nbsp;&nbsp;
+SIZE&nbsp;&nbsp; BYTE >02
+PAGE&nbsp;&nbsp; DATA >xxxx&nbsp;&nbsp; page number (linker-specific)</pre>
+This option is similar to the above, except that the page number is arbitrary.
+The loader is free to use any page it wishes in the target device, but
+it must keep track of this page number. The purpose of this option is to
+allow linking between files loaded in different pages. Another file may
+use the REF option to find out in which page the present file was loaded.
+<p>For GRAM/GROM files, the page number will be replaced with a GROM base
+to be chosen by the loader.
+<br>&nbsp;
+<h4>
+Relocation list</h4>
+
+<pre>TAG&nbsp;&nbsp;&nbsp; BYTE >&nbsp;&nbsp;
+SIZE&nbsp;&nbsp; BYTE >xx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; size of the whole list (in words) + 1
+ADDR&nbsp;&nbsp; DATA >xxxx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; intended address
+OFFSET DATA >xxxx,>xxxx&nbsp;&nbsp; locations to be patched</pre>
+This option allows you to write code that can be loaded at any location.
+As explained below for plugin routines, assembly code only runs at the
+location is was meant for, unless special precautions are taken at the
+time of writing. An alternative solution is for the linker to provide a
+list of addresses that need to be fixed if the code is to be run at a different
+address than the intended one. If the loading address does not match the
+intended address indicated in this option, the loader will add the difference
+to every location in the offset list (the location is obtained by adding
+the actual loading address to the offset).
+<p>For instance, suppose you wrote the following program
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; AORG >A000
+A000&nbsp;&nbsp; MOV&nbsp; R11,@THERE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; >C020,>A014
+A004&nbsp;&nbsp; BL&nbsp;&nbsp; @SUB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; >0A20,>A00E
+A008&nbsp;&nbsp; MOV&nbsp; @THERE,R11&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; >C80B,>A014
+A00C&nbsp;&nbsp; B&nbsp;&nbsp;&nbsp; *R11&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; >045B
+
+SUB&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R0,THERE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; >0200,>A014
+A012&nbsp;&nbsp; B&nbsp;&nbsp;&nbsp; *R11&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; >045B
+
+THERE&nbsp; DATA 0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; >0000</pre>
+This program will only run properly when loaded at >A000, because it expects
+SUB to be located at >A00E. But assume you provide the following relocation
+list:
+<pre>TAG&nbsp;&nbsp;&nbsp; BYTE >&nbsp;&nbsp;
+SIZE&nbsp;&nbsp; BYTE >06&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; size of the option (i.e. list size + 2)
+ADDR&nbsp;&nbsp; DATA >A000&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; intended address
+OFFSET DATA >0002,>0006,>000A,>0010</pre>
+Now the code can be loaded at, say,&nbsp; >B000 and the loader will patch
+it as follows:
+<pre>B000&nbsp;&nbsp; MOV&nbsp; R11,@THERE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; >C020,>B014 &lt;-- patched
+B004&nbsp;&nbsp; BL&nbsp;&nbsp; @SUB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; >0A20,>B00E &lt;-- patched
+B008&nbsp;&nbsp; MOV&nbsp; @THERE,R11&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; >C80B,>B014 &lt;-- patched
+B00C&nbsp;&nbsp; B&nbsp;&nbsp;&nbsp; *R11&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; >045B
+
+SUB&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R0,THERE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; >0200,>B014 &lt;-- patched
+B012&nbsp;&nbsp; B&nbsp;&nbsp;&nbsp; *R11&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; >045B
+
+THERE&nbsp; DATA 0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; >0000</pre>
+The drawback of this method is that the relocation list can become fairly
+bulky. So you may want to make a compromise and use it together with the
+indexing technique described for plugins. Patch only the instructions that
+cannot be indexed, such as immediate instructions, or BLWP vectors.
+<br>&nbsp;
+<h4>
+Absolute DEF list</h4>
+
+<pre>TAG&nbsp;&nbsp;&nbsp; BYTE >&nbsp;&nbsp;
+SIZE&nbsp;&nbsp; BYTE >xx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; size of the whole list (in words) + 1
+VALUE&nbsp; DATA >xxxx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; symbol value
+NAME&nbsp;&nbsp; TEXT 'NAME&nbsp; '&nbsp;&nbsp;&nbsp; symbol name, always 6 chars</pre>
+This option is used to provide one or more symbols to the loader. It will
+allow for linking with other files containing the REF option. The example
+above shows only one symbol, but there could be more. SIZE is used to decide
+when the end of the list has been reached. The loader will build a symbol
+table containing the names and values provided, and use it at the end of
+the loading process to patch all REFs.
+<p>Reserved names:
+<p>$SEG is used to specify a segment number for the code contained in the
+current file. If no such label is provided, the loader just assigns segment
+numbers sequentially: >0001 for the first file, >0002 for the second, etc.
+<br>&nbsp;
+<h4>
+Relative DEF list</h4>
+
+<pre>TAG&nbsp;&nbsp;&nbsp; BYTE >&nbsp;&nbsp;
+SIZE&nbsp;&nbsp; BYTE >xx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; size of the whole list (in words) + 1
+OFFSET DATA >xxxx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; symbol offset
+NAME&nbsp;&nbsp; TEXT 'NAME&nbsp; '&nbsp;&nbsp;&nbsp; symbol name, always 6 chars</pre>
+This option is identical to the above one, except that symbols values are
+offsets rather than absolute values. The loader will add the loading address
+of the code to the value placed in the symbol table. This allows DEFined
+symbols corresponding to locations within a relocatable program.
+<br>&nbsp;
+<h4>
+REF chain</h4>
+
+<pre>TAG&nbsp;&nbsp;&nbsp; BYTE >&nbsp;&nbsp;
+SIZE&nbsp;&nbsp; BYTE >xx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; size of the whole list (in words) + 1
+OFFSET DATA >xxxx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; first appearance of the symbol
+NAME&nbsp;&nbsp; TEXT 'NAME&nbsp; '&nbsp;&nbsp;&nbsp; symbol name, always 6 chars</pre>
+This option is used in conjuction with the DEF one, to link together files
+that may be loaded at different places. It works pretty much like for an
+EA3 loader: the OFFSET word indicates where in the code is the first occurence
+of this symbol. That word will contain the offset of the second occurence,
+etc. The final word will contain >0000 (which means that the very first
+word in the code cannot be a REFed symbol). The loader will add the provided
+symbols to its symbol table and patch the code after loading. It will "walk
+the chain", substituting the value provided by the corresponding DEF. If
+no DEF with the same name is loaded, an error will be issued.
+<p>Reserved names:
+<p>$Sxxxx is used to get the loading address of a given segment. The segment
+number is encoded in the label name, e.g. $S0012 for segment 18 (which
+is >12 in hexadecimal notation).
+<br>$Pxxxx is used&nbsp; to get the absolute page number assigned by the
+loader to a given relative page. The relative page number is encoded in
+the label name, e.g. $P0001 for page 1.
+<br>&nbsp;
+<h4>
+REF list</h4>
+
+<pre>TAG&nbsp;&nbsp;&nbsp; BYTE >&nbsp;&nbsp;
+SIZE&nbsp;&nbsp; BYTE >xx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; size of the whole list (in words) + 1
+NAME&nbsp;&nbsp; TEXT "NAME&nbsp; "&nbsp;&nbsp;&nbsp;&nbsp; symbol name, always 6 chars
+OFFSET DATA >xxxx,>xxxx&nbsp; occurences of this symbol
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA >FFFF&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; end of list for this symbol</pre>
+This option is used pretty much like the above one, except that no chain
+exists in the code. Instead, a list of locations to be patched is provided
+(in the form of offsets, i.e. the loaded will add the loading address to
+each of these). Each list ends with a >FFFF offset. There may be more than
+one symbol, the loader use SIZE to decide if there are more.
+<p>The same names as for the REF chain option are reserved.
+<br>&nbsp;
+<h4>
+Device ID</h4>
+
+<pre>TAG&nbsp;&nbsp;&nbsp; BYTE >&nbsp;&nbsp;
+SIZE&nbsp;&nbsp; BYTE >xx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; size of the string (in words) + 1
+ID&nbsp;&nbsp;&nbsp;&nbsp; TEXT 'NAME'&nbsp;&nbsp; device identifier
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; EVEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; append a zero if ID contains an uneven number of chars</pre>
+This option is used to specify a particular target device. The loader should
+check whether the device is present in the system, and abort with an error
+if it isn't. Another option exists that provides a device-recognition routine,
+so that one can write code for devices that the loader does not know.
+<br>&nbsp;
+<h3>
+Plugin routines</h3>
+The following options provide "plugins", i.e. short assembly routines that
+allow the loader to handle devices it doesn't know of. These routines will
+be loaded "somewhere" in CPU memory and called with a BL. It ensues that
+you should write them in such a way that they can run at any address! The
+proper way to do this is to assemble them to run at >A000 and&nbsp; index
+any address located within your code with R9. Upon calling, the loader
+will place into R9 the offset between the real loading address and >A000.
+For instance:
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; AORG >A000
+WRONG&nbsp; MOV&nbsp; R11,@THERE&nbsp;&nbsp;&nbsp; this will NOT work
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BL&nbsp;&nbsp; @SUB
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MOV&nbsp; @THERE,R11
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; B&nbsp;&nbsp;&nbsp; *R11
+
+SUB&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R0,THERE
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; B&nbsp;&nbsp;&nbsp; *R11
+
+THERE&nbsp; DATA 0</pre>
+The above code will only execute properly at >A000, because it references
+SUB and THERE as absolute addresses. Since it is ulikely to be loaded there,
+it will fail miserably: when branching at SUB is will actually branch at
+>A00E, no matter where SUB was actually loaded. The proper way to code
+this is:
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; AORG >A000
+RIGHT&nbsp; MOV&nbsp; R11,@THERE(R9)&nbsp;&nbsp; this will work
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BL&nbsp;&nbsp; @SUB(R9)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MOV&nbsp; @THERE(R9),R11
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; B&nbsp;&nbsp;&nbsp; *R11
+
+SUB&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R0,THERE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; this is the wrong address
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; A&nbsp;&nbsp;&nbsp; R9,R0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; correct address in R0
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; B&nbsp;&nbsp;&nbsp; *R11
+
+THERE&nbsp; DATA 0</pre>
+By indexing every address with R9, one allows the routine to work anywhere
+in memory. Note that we had to add an extra instruction after the LI because
+immediate instructions cannot be indexed.
+<br>&nbsp;
+<h4>
+Find device plugin</h4>
+
+<pre>TAG&nbsp;&nbsp;&nbsp; BYTE >&nbsp;&nbsp;
+SIZE&nbsp;&nbsp; BYTE >xx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; size of the routine (in words) + 1
+CODE&nbsp;&nbsp; ...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; assembly routine</pre>
+This plugin provides a routine that checks for the presence of its target
+device. It is entered with the following registers:
+<p>R0: loading flags&nbsp; (first word in file header)
+<br>R1: loading address (second word)
+<br>R2: loading size (third word)
+<br>R9: offset
+<br>R11: return address
+<br>R12: >FFFF
+<p>Your routine should scan the system looking for the presence of the
+intended device. If it is found, place its CRU in R12 (if any) and return
+with B *R11. If it is not found, return with INCT R11, B *R11.What the
+loader will do in this case depends on the value in R12: if it is >FFFF
+the loader will abort with a "Device not found" error, if it is >0000 a
+warning will be issued but loading will proceed anyway, if it is >0001
+loading skips to the next file (if any).
+<br>&nbsp;
+<h4>
+Find free page plugin</h4>
+
+<pre>TAG&nbsp;&nbsp;&nbsp; BYTE >&nbsp;&nbsp;
+SIZE&nbsp;&nbsp; BYTE >xx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; size of the routine (in words) + 1
+CODE&nbsp;&nbsp; ...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; assembly routine#</pre>
+This plugin routine will be called by the loader when it encounters a "relative
+page" tag. The routine should provide in R0 the absolute number of a page
+suitable to load the code described by R1 and R2. The registers will contain:
+<p>R0: relative page number
+<br>R1: loading address
+<br>R2: loading size
+<br>R9: offset
+<br>R11: return address
+<br>R12: device CRU
+<p>If a suitable page can be found, return its number in R0. If not, return
+with INCT R11, B *R11 and an error code in R0 (see above).
+<br>&nbsp;
+<h4>
+Enable device plugin</h4>
+
+<pre>TAG&nbsp;&nbsp;&nbsp; BYTE >&nbsp;&nbsp;
+SIZE&nbsp;&nbsp; BYTE >xx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; size of the routine (in words) + 1
+CODE&nbsp;&nbsp; ...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; assembly routine#</pre>
+This plugin routine will be called before the loader begins writing to
+a device, and after it is done (with a different value in R3). It can be
+used for several purposes, such as to unprotect a write-protected device.
+It may also be called by the loaders to change the current page in the
+memory area designated by R1. The registers will contain the following
+values:
+<p>R0: loading page (>FFFF if none)
+<br>R1: loading address
+<br>R2: loading size
+<br>R3: >0000 to begin, >FFFF to end, >0001 to change pages
+<br>R9: offset
+<br>R11: return address
+<br>R12: device CRU
+<br>&nbsp;
+<h4>
+Write word plugin</h4>
+
+<pre>TAG&nbsp;&nbsp;&nbsp; BYTE >&nbsp;&nbsp;
+SIZE&nbsp;&nbsp; BYTE >xx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; size of the routine (in words) + 1
+CODE&nbsp;&nbsp; ...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; assembly routine#</pre>
+This plugin is used with devices that require a special operation to write
+a word, as is the case with an EEPROM for instance. Your routine is in
+charge of writing the word (or byte, as the case may be). Return with B
+*R11 if all went well, and with INCT R11, B *R11 if a problem occured.
+In the latter case, an error code can be placed into R0, add >8000 to the
+code to cause the loader to issue a warning rather than aborting. Upon
+calling, the registers will contain the following values:
+<p>R0: loading page (>FFFF if none)
+<br>R1: loading address
+<br>R2: >0000 write a word, >0001 write a byte
+<br>R3: word (or byte) to write. If it's a byte, it will be in the most
+significant byte if R3.
+<br>R9: offset
+<br>R11: return address
+<br>R12: device CRU
+<br>&nbsp;
+<br>&nbsp;
+<p><i>Last updated: 31/10/2007</i>
+<br>&nbsp;
+<br>&nbsp;
+<br>
+<br>
+<center>
+<p><a href="titechpages.htm">Back to the TI-99/4A Tech Pages</a></center>
+
+</body>
+</html>

@@ -1,0 +1,452 @@
+*===============================================================================
+*      ROS PATCHES to attach a version number to each file  c)1996 Th. Nouspikel
+*      -----------
+*
+* This version # is saved in the File Descriptor Record (FDR) in the
+* next to last word (part of the comment field for DISKU).
+*
+* o Version # is set to 1 when a new file is created with SAVE, OPEN or using
+*   the low level OUTPUT subroutine >15.
+*
+* o Version # is incremented when an existing file is overwriten with SAVE or
+*   OUTPUT, or when it is OPENed in output, append or update mode
+*   (whether the file is actually writen to or not).
+*
+* o Version # can be set to any value using the low level RENAME subroutine >13
+*   Just place the new # in >834A and rename the file, keeping the same name.
+*
+* o Version # is automatically retrieved and placed in >8376 when performing
+*   most file operations (except opcodes >0A, >0B and >0C).
+*
+* o When reading the directory, the version # of each file is similarly passed
+*   to data word >8376
+*
+*   NB This is slightly dangerous to do since the address >8376 it may be used
+*      by the calling program but it's not very likely.
+*      I choosed >8376 because it allows # retrieval from TI Basic with:
+*      CALL JOYST(LEN("123"),X,Y)
+*      VN=256*Y+X
+*      The keyboard type argument should not be passed as a number: JOYST(3,X,Y)
+*      since the string-number conversion routine overwrites >8376.
+*      For the same reason, always perform the call right after file access.
+*
+* This patch is designed for ROS 8.14. The program performs some checking before
+* modifying anything: if the expected data is not found the TI-99 is reset,
+* if everything went well control is returned to caller.
+*
+*-------------------------------------------------------------------------------
+* Negative numbers in the comment field indicate how many words were saved by
+* commenting out the original instructions, whereas positive numbers indicate
+* how many words are used by the new instructions.
+*
+       DEF  PATCH
+*
+CRU    EQU  >1000             Put your ramdisk CRU here
+VN     EQU  >8376             Where you want the version # to be passed
+NEWVN  EQU  >834A             Where you put the new version # for RENAME
+*
+PATCH  MOV  11,10             do all modifications
+       LI   12,CRU
+       SBO  0
+       BL   @CHECK
+       DATA DIR,STATUS,FIND
+       DATA RENAME
+       DATA OUTPUT,OUTPU2,OPEN,0
+       BL   @MODIFY
+       DATA DIR,STATUS,FIND
+       DATA RENAME
+       DATA OUTPUT,OUTPU2,OPEN,0
+       SBZ  0                 ramdisk ROS off and return
+       B    *10
+*
+CHECK  MOV  *11+,1            check ROS
+       JEQ  DONE              ---------
+       MOV  *1+,2             address
+       MOV  *1+,0             size
+       CLR  3
+LP0    A    *2+,3             build checksum
+       DECT 0
+       JNE  LP0
+       C    3,*1              check
+       JEQ  CHECK             ok
+ 
+       MOV  @-4(1),0          report address of culprit routine in r0
+       SBZ  0                 ramdisk ROS off
+       BLWP @0                reset
+*
+MODIFY MOV  *11+,1            patch ROS
+       JEQ  DONE              ---------
+       MOV  *1+,2
+       MOV  *1+,0             r2=address r0=size
+       INCT 1                 skip checksum
+LP00   MOV  *1+,*2+           modify
+       DECT 0
+       JNE  LP00
+       JMP  MODIFY
+DONE   B    *11
+*
+*==================================
+*
+*      Dir listing
+*      ------------
+DIR    DATA >4C5C             address
+       DATA END1-BEG1         size
+       DATA >3D1B             checksum
+ 
+BEG1   AI   6,>000C
+       MOV  @>00F0(6),@VN +3  pass version #
+       MOV  *6+,2         +1
+       SRC  2,12          +1
+       SLA  2,1           +1
+       JNC  SKP1          +1
+       SETO @>4372        +2
+SKP1   SRC  2,5           +1
+       SRL  2,8           +1
+       DEC  2             +1
+       JNE  SKP2          +1
+       AI   2,>0003       +2
+SKP2   INCT 2             +1
+*      MOVB *6,1          -1
+*      MOV  1,2           -1
+*      ANDI 1,>0800       -2
+*      JEQ  $+6           -1
+*      SETO @>4372        -2
+*      SZCB 1,2           -1
+*      SRL  2,8           -1
+*      INC  2             -1
+*      CI   2,>0002       -2
+*      JNE  $+6           -1
+*      AI   2,>0003       -2
+       CI   2,>0008
+       JL   SKP3
+       AI   2,>FF81
+SKP3   BL   @>5526
+       CLR  @>4372
+*      INCT 6             -1
+END1
+*
+*      Get status             called by opcodes OPEN, CLOSE, READ, WRITE, REWIND
+*      ----------             DELETE, SCRATCH and STATUS
+STATUS DATA >5070
+       DATA END2-BEG2
+       DATA >85E0
+ 
+BEG2   AI   6,>000C
+       MOV  @>00F0(6),@VN +3  get version #
+       MOVB *6,10
+       SWPB 10
+       MOVB *6,10
+       SLA  10,3
+       MOV  @>5574,8
+       JEQ  SKP5
+       MOV  @>0006(6),0   +2
+       SWPB 0             +1
+       MOV  0,2           +1  this saves 2 words
+       COC  @>4368,10
+       JNE  SKP4
+       MOV  *8,1
+       INC  1
+*      MOV  @>0006(6),0   -2
+*      SWPB 0             -1
+       C    1,0
+       JLT  SKP5
+       C    *6+,*6+
+       CB   @>0004(8),*6
+       JNE  SKP5
+       SB   *6,@>4E52
+       SWPB @>4E52
+       JMP  SKP8
+*      AI   6,>0006       -2
+*      MOV  *6,2          -1
+*      SWPB 2             -1
+SKP4   C    @>40A6,2
+       JLT  SKP5
+SKP8   BL   @>563C
+       MOV  1,1
+       JNE  $+6
+       SOCB @>436A,10
+       SOCB @>436C,10
+SKP5   MOVB 10,@>40A8
+       B    @>4D72
+END2
+*
+*      Find FDR               called by subroutines >12, >13, >14, >15
+*      --------               opcodes LOAD and SAVE call subroutine >15
+FIND   DATA >548C
+       DATA END3-BEG3
+       DATA >DB1C
+ 
+BEG3   MOV  11,0
+       LI   8,>007E
+       LI   2,>0040
+LP3    BL   @>545E
+       A    8,6
+       MOV  *6,6
+       JEQ  SKP6
+       MOV  6,@>5468
+       BL   @>546A
+       LI   1,>40AF
+       LI   4,>000A
+       MOV  6,3
+LP5    CB   *3+,*1+
+       JNE  SKP7
+       DEC  4
+       JNE  LP5
+       SRL  8,1
+       INC  8
+       MOV  8,@>4F80
+       MOV  @>00FC(6),@VN +3  pass version #
+       SETO 8
+       INCT 0
+LP4    B    *0
+SKP7   JH   SKP6
+       A    2,8
+       JMP  $+4
+SKP6   S    2,8
+       SRL  2,1           +1
+       JNC  LP3           +1
+*      MOV  2,2           -1
+*      JEQ  $+8           -1
+*      SRL  2,2           -1
+*      A    2,2           -1
+*      JMP  LP3           -1
+       B    *0
+END3
+*---------------------------------
+*      Subroutine >13  Low level RENAME
+*      --------------
+RENAME DATA >476A
+       DATA END4-BEG4
+       DATA >16FD
+ 
+BEG4   MOV  @>8350,8
+       BL   @>4694
+       BL   @>548C
+       JMP  SKP9
+       LI   10,>5468      +2  current FDR ptr
+       MOV  *10,5         +1  old FDR #
+       MOVB @>000C(6),0   +2
+       SLA  0,5           +1
+       JNC  SKP10         +1
+*      MOV  @>5468,@>533E -3
+*      AI   6,>000C       -2
+*      MOVB *6,0          -1
+*      COC  @>4366,0      -2
+*      JNE  $+8           -1
+SKP9   MOVB @>4380,0
+       JMP  $-88+4            2 word closer
+SKP10  BL   @>4690
+       BL   @>548C
+       JMP  SKP11         +1
+       C    *10,5         +1  new name exists, is it same file ?
+       JNE  SKP9          +1  no: error
+       MOV  @NEWVN,@>00FC(6)  +3  yes: modify version #
+SKP11  MOV  5,*10         +1
+*      JMP  $+4           -1
+*      JMP  $+2           -1
+*      MOV  @>533E,@>5468 -3
+END4
+*---------------------------------
+*      Subroutine >15 Low level OUTPUT (called by OPEN when creating a file)
+*      --------------
+OUTPUT DATA >485C
+       DATA END5-BEG5
+       DATA >725C
+ 
+BEG5   BL   @>548C
+       CLR  8
+       MOVB @>834D,5
+       SRL  5,8           +1
+       JEQ  SKP14             this way r5=>0000
+       ABS  8
+       JEQ  $-106-2           1 word further away
+       MOVB @>8350,10
+       SRL  10,8
+       AI   10,>8300
+*      SRL  5,8           -1
+       CLR  @>834C
+       MOV  *10+,8
+       MOV  *10,3
+       BL   @>5466
+       BL   @>5670
+       MOV  4,6
+       JEQ  $-80
+       C    6,@>4010
+       JHE  $-144
+       BL   @>546A
+       LI   0,>0100
+       BL   @>46B0
+       INC  3
+       INC  @>834C
+       DEC  5
+       JNE  $-38
+       JMP  $-110
+SKP14  ABS  8
+       JNE  $+44
+       BL   @>54DC
+       CI   11,>007F
+       JEQ  $+12
+       BL   @>563C
+       MOV  1,@>5468
+       JNE  $+10
+       MOVB @>435E,@>8350
+       JMP  $-138
+       INC  @>542E
+       SETO @>4372
+       BL   @>53AE
+       JMP  SKP24
+       BL   @>5466
+       AI   6,>000C
+       MOV  @>00F0(6),5   +2  get version #
+       MOVB *6,0
+       SLA  0,5           +1
+       JOC  BEG5-8        +1
+*      COC  @>4366,0      -2
+*      JEQ  $-146         -1
+       BL   @>56E4
+       SZCB 7,*6
+SKP24  MOV  @>5468,0
+       BL   @>5436
+       SOCB 7,*6
+       BL   @>5466
+       MOV  6,1
+       LI   2,>0080
+       CLR  *1+
+       DEC  2
+       JNE  $-4
+       LI   1,>000A
+       LI   2,>40AF
+       MOVB *2+,*6+
+       DEC  1
+       JNE  $-4
+       INC  5             +1  new version #
+       MOV  5,@>00F2(6)   +2  save it
+       MOV  5,@VN         +2  pass it
+       CLR  *6+
+       MOVB @>8350,1
+       SRL  1,8
+       AI   1,>8304
+       MOV  1,0           +1
+       DECT 0             +1
+       MOV  0,4           +1
+       MOV  *1+,*6+
+       CLR  *6+
+       MOV  *1+,*6+
+       MOV  *1+,*6
+*      MOVB @>8350,0      -2
+*      SRL  0,8           -1
+*      AI   0,>8302       -2
+       MOV  *0,9
+       JNE  $+36-8            4 words closer
+       BL   @>56E4
+       SOCB 7,*6
+       MOV  4,0           +1
+*      MOVB @>8350,0      -2  saves 4 words
+*      SRL  0,8           -1
+*      AI   0,>8302       -2
+       BL   @>5466
+       AI   6,>000E
+       MOV  *0,*6
+       B    @>483A
+END5
+OUTPU2 DATA >4992
+       DATA END52-BEG52
+       DATA >D61A
+BEG52  MOV  9,9
+       JEQ  $-92+8            4 words closer
+END52
+*
+*      OPEN opcode
+*      -----------
+OPEN   DATA >49CA
+       DATA END6-BEG6
+       DATA >FC23
+ 
+BEG6   BL   @>5020
+       ABS  @>5574
+       JNE  SKP12
+       MOVB @>40A8,1
+       MOVB @>40A1,2
+       CZC  @>435E,1
+       JEQ  SKP13
+       CZC  @>4368,2
+       JEQ  SKP13
+       COC  @>436A,2
+       JNE  SKP17
+SKP13  LI   8,>4040
+LP6    CB   @>0005(8),@>4361
+       JEQ  SKP15
+       AI   8,>0006
+       CI   8,>40A0
+       JL   LP6
+       B    @>4B5E
+SKP15  MOV  8,@>4ACA
+       MOV  1,1           +1  saves 1 word
+       JLT  SKP16         +1
+*      COC  @>435E,1      -2
+*      JEQ  $+88          -1
+       COC  @>4366,1
+       JNE  SKP18
+SKP17  B    @>4B52
+SKP18  COC  @>4364,1
+       JNE  SKP19
+       COC  @>4366,2
+       JEQ  SKP20
+SKP12  B    @>4B64
+SKP19  COC  @>4366,2
+       JEQ  SKP12
+SKP20  SLA  1,2           +1  saves 1 word
+       JNC  SKP21         +1
+*      COC  @>4360,1      -2
+*      JNE  $+14          -1
+       COC  @>4368,2
+       JNE  SKP12
+       CZC  @>436A,2
+       JNE  SKP12
+SKP21  SLA  1,4           +1  saves 1 word
+       JNC  SKP22         +1
+       SLA  2,4           +1  saves 1 word
+       JOC  SKP23         +1
+       JMP  SKP12         +1
+SKP22  SLA  2,4           +1  saves 1 word
+       JOC  SKP12         +1
+*      COC  @>4368,1      -2
+*      JNE  $+10          -1
+*      COC  @>4364,2      -2
+*      JEQ  $+10          -1
+*      JMP  $-40          -1
+*      COC  @>4364,2      -2
+*      JEQ  $-46          -1
+SKP23  BL   @>5466
+       SLA  2,2           +1  is it input ?
+       JLT  NO            +1
+       JOC  YES           +1
+NO     INC  @>00FC(6)     +2  change version # if output/update/append
+       INC  @VN           +2  pass it
+YES    BL   @>5508
+       AI   6,>0011
+       CB   *6,1
+       JNE  SKP12
+SKP16  MOVB @>40A1,3
+       BL   @>5508
+       CB   @>4370,1
+       JNE  $+8
+       COC  @>4364,3
+       JEQ  SKP12
+       COC  @>436C,3
+       JNE  $+10
+       SZCB @>4364,3
+       MOVB 3,@>40A1
+       COC  @>4368,3
+       JNE  END6
+       SRL  3,10          +1
+       JNC  END6          +1
+       SRL  3,3           +1
+       JNC  SKP12         +1
+*      COC  @>436A,3      -2
+*      JNE  $+8           -1
+*      COC  @>4364,3      -2
+*      JNE  SKP12         -1
+END6
+*
+       END

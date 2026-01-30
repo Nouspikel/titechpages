@@ -1,0 +1,458 @@
+A660C  BYTE >65               string flag
+A660D  BYTE >20               Cnd bit
+*
+*---------------------------------------
+* NUMASG assign a value to a numeric variable
+*---------------------------------------
+A660E  MOV  *13,0             get user's R0: element #
+       MOV  @>0002(13),1      get user's R1: parameter #
+       BL   @A6658
+       MOVB *3,3              get param type
+       JEQ  A66EE             error 22
+       SRL  3,8               make it a word
+       DECT 3
+       JNE  A6652             array
+       MOV  0,0               not array: element must be 0
+       JNE  A66EE             error 22
+       MOV  5,3               entry in value stack
+       INCT 3                 skip ptr to entry in symbol table
+       BL   @A693A            read 1 byte into R1 from VDP at R3
+       JNE  A66E6             must be >0000 for numeric variables
+       INCT 3
+       BL   @A68FE            read a word into R1
+       MOV  1,3               this is pointer to value
+A6638  MOV  3,4               make it destination in VDP mem
+       LI   3,>834A           source is FAC
+       LI   2,>0004           4 words
+A6642  MOV  *3,1              get 1 word
+       BL   @A691A            write it in VDP at R4
+       INCT 3                 i.e. copy FAC into symbol value
+       INCT 4
+       DEC  2
+       JGT  A6642             two more bytes to go
+       RTWP
+ 
+A6652  BL   @A667C
+       JMP  A6638
+*
+* Get parameter info R1=param number
+* ------------------ R3 will point to type byte
+*                    R5 to address in value stack
+A6658  MOV  1,1
+       JEQ  A66EE             can't be used for param 0: error 22
+       SLA  1,8               make it a byte
+       CB   @>8312,1
+       JLT  A66EE             error 22
+       SRL  1,8               make i a word
+       MOV  1,5
+       SLA  5,3               8 bytes per param
+       AI   5,>0008           plus 1 param for subprogram name
+       A    @>8310,5          value stack base
+       MOV  1,3
+       DEC  3
+       AI   3,>7002           param type bytes start at >7002
+       B    *11
+*
+* Find an element in a numeric array  R3 will point to its value
+* ----------------------------------
+A667C  MOV  11,9              save return point
+       DECT 3                 check param type
+       JNE  A66E6             error 22
+       MOV  5,3               address on value stack
+       BL   @A68FE            read a word into R1
+       MOV  1,3               ptr to entry in symbol table
+       BL   @A693A            read 1 byte into R1
+       JLT  A66E6             string flag is set: error 22
+       BL   @A669C            set array pointers
+       S    4,0               remove option base from requested element
+       SLA  0,3               each element is 8 bytes
+       A    0,3               point to the one we want
+       B    *9
+*
+* Find an element in an array R3 will be ptr to first element
+* --------------------------- R7 offset of the requested element
+A669C  MOV  11,10             save return address
+       SLA  1,5               keep only # of dimensions
+       SRL  1,13              make it a word
+       MOV  1,8               save it
+       MOVB @>8343,4          option base
+       SRL  4,8               make it a word
+       JEQ  A66B2             base 1
+       DEC  0                 base 0: compensate
+       JLT  A66F6             illegal element: error 23
+       INC  0                 restore it
+A66B2  LI   6,>0001
+       MOV  5,3               address in value stack
+       AI   3,>0004           ptr to value
+       BL   @A68FE            read 1 word into R1
+       MOV  1,3
+       DECT 3
+A66C4  INCT 3
+       BL   @A68FE            read 1 word into R1
+       INC  1                 number of elements in this dimension
+       S    4,1               substract option base
+       MPY  1,6               total number of elements
+       MOV  6,6               overflow?
+       JNE  A66F6             yes: error 23
+       MOV  7,6               current total
+       DEC  8
+       JGT  A66C4             more dimensions to come
+       DEC  6
+       A    4,6               compensate for option base
+       C    0,6               compare with requested element
+       JGT  A66F6             not in array: error 23
+A66E2  INCT 3                 ptr to first element
+       B    *10
+*
+A66E6  LI   0,>1500           error code 21
+       B    @A696C            return to GPL with code in >8322 and Cnd bit set
+A66EE  LI   0,>1600           error code 22
+       B    @A696C            return to GPL with code in >8322 and Cnd bit set
+A66F6  LI   0,>1700           error code 23
+       B    @A696C            return to GPL with code in >8322 and Cnd bit set
+*
+*---------------------------------------
+* NUMREF gets the value of a numeric variable
+*---------------------------------------
+A66FE  MOV  *13,0             get user's R0: element #
+       MOV  @>0002(13),1      get user's R1: parameter #
+       BL   @A6658            get param info pointers
+       MOVB *3,3              get param type
+       SRL  3,8
+       JNE  A672A             variable or array
+       MOV  0,0               constant: element must be 0
+       JNE  A6764             error 22
+       LI   2,>0008           8 bytes per float
+       LI   4,>834A           FAC
+       MOV  5,3               address in value stack
+A671C  BL   @A68FE            read 1 word into R1
+       MOV  1,*4+             copy it to FAC
+       INCT 3
+       DECT 2
+       JGT  A671C             more to come
+       RTWP
+ 
+A672A  DECT 3                 param type
+       JNE  A675A             array
+       MOV  0,0               not an array: element must be 0
+       JNE  A6764             else error 22
+       MOV  5,3               address in value stack
+       INCT 3
+       BL   @A693A            get second word into R1
+       JNE  A6760             this word must be >0000 for numeric variables
+       INCT 3
+       BL   @A68FE            get next word into R1
+       MOV  1,3               this is a pointer to the value
+A6744  LI   4,>834A           FAC
+       LI   2,>0004           8 bytes = 4 words
+A674C  BL   @A68FE            read 1 word into R1 from VDP at R3
+       MOV  1,*4+             copy it to FAC
+       INCT 3
+       DEC  2
+       JGT  A674C             more to come
+       RTWP
+ 
+A675A  BL   @A667C            point to element
+       JMP  A6744             copy it to FAC
+ 
+A6760  B    @A66E6            to error 21
+A6764  B    @A66EE            to error 22
+*
+*---------------------------------------
+* STRASG assigns a value to a string variable
+*---------------------------------------
+A6768  MOV  *13,0             get user's R0: element #
+       MOV  @>0002(13),1      get user's R1: param #
+       MOV  @>0004(13),9      get user's R2: string ptr
+       BL   @A6658            get param info pointers
+       MOVB *3,3              get param type
+       SRL  3,8
+       DEC  3
+       JEQ  A67CE             can't be a string constant: error 22
+       DECT 3
+       JNE  A67FE             array
+       MOV  0,0               not an array: element must be 0
+       JNE  A67CE             else error 22
+       MOV  5,3               address in value stack
+       INCT 3                 skip ptr to entry in symbol table
+       BL   @A693A            read 1 byte into R1
+       CB   1,@A660C          is it the string flag (>65)?
+       JNE  A67C6             no: error 21
+       LI   6,>0008           entry is 8 bytes
+       LI   4,>834A           place it to FAC
+       MOV  5,3               address in value stack
+A679E  BL   @A68FE            read 1 word into R1
+       MOV  1,*4+             save it to FAC
+       INCT 3
+       DECT 6
+       JGT  A679E             more to come
+       BL   @A6828            create entry in string space, copy string
+       AI   5,>0004           pointer to value
+       MOV  5,4
+       MOV  *6,1              address in string space
+       BL   @A691A            write it to value entry
+       INCT 4                 size
+       MOV  @>830C,1          string size
+       BL   @A691A            write it to value entry
+       RTWP
+ 
+A67C6  LI   0,>1500           error code 21
+       B    @A696C            return to GPL with code in >8322 and Cnd bit set
+A67CE  LI   0,>1600           error code 22
+       B    @A696C            return to GPL with code in >8322 and Cnd bit set
+*
+* Find an element in a string array R1 will be a ptr to the string
+*----------------------------------
+A67D6  MOV  11,2              save return point
+       DECT 3                 check param type
+       JNE  A67C6             error 21 if not string array
+       MOV  5,3               address in value stack
+       BL   @A68FE            read 1 word into R1
+       MOV  1,3               this is ptr in symbol table
+       BL   @A693A            read first byte into R1
+       JLT  A67EE             string flag set?
+       B    @A67C6            no: error 21
+A67EE  BL   @A669C            yes: set array pointers
+       S    4,0               compensate for option base
+       SLA  0,1               each element is 2-byte long (ptr to string)
+       A    0,3
+       BL   @A68FE            read 2 bytes into R1
+       B    *2
+ 
+A67FE  BL   @A67D6            STRASG continued, for string arrays
+       LI   6,>834A           FAC
+       MOV  3,*6+             entry in symbol table
+       MOVB @A660C,*6+        string flag (>65)
+       MOVB 4,*6+             dimensions
+       MOV  1,*6+             ptr to value
+       MOV  1,3
+       JNE  A6818             no value yet: empty string
+       CLR  *6                size = 0
+       JMP  A6822
+A6818  DEC  3                 point to size byte
+       BL   @A693A            read it into R1
+       SRL  1,8               make it a word
+       MOV  1,*6              place it on FAC
+A6822  BL   @A6828            assign string
+       RTWP
+*
+* Create an entry for a string in TI-Basic tables
+* ----------------------------
+A6828  MOV  11,2              save return point
+       LWPI >83E0             GPL workspace
+       LI   11,>1EAA          address of XML >17 (push FAC on value stack)
+       BL   *11               call XML >17
+       LWPI >70F8             back to our workspace
+       MOVB *9,6              get size byte
+       SRL  6,8               make it a word
+       MOV  6,@>830C          param for G@>0018
+       MOV  6,@>8350          place it in FAC
+       BLWP @A6018            call GPLLNK
+       DATA >0038             string space allocation routine (remove from stac)
+       LI   6,>834A           FAC: entry of string
+       LI   4,>001C           flag for string constant
+       MOV  4,*6+
+       MOVB @A660C,*6+        flag for string (>65)
+       MOVB 4,*6+             >00: for non-arrays
+       MOV  @>831C,*6         address returned by G@>0018
+       MOV  @>830C,8          string size
+       JEQ  A6876             empty string: assign it
+       MOV  *6,4              address in string space
+       MOV  9,3               address passed by user
+       INC  3                 skip size byte
+A686A  MOVB *3+,1             get 1 byte
+       BL   @A694E            write it to VDP at R4
+       INC  4                 update pointer
+       DEC  8
+       JGT  A686A             more to do
+A6876  LWPI >83E0             GPL workspace
+       LI   11,>1788          address of XML >15 main routine
+       BL   *11               call XML >15: assign variable
+       LWPI >70F8             back to our workspace
+       MOV  2,11              return point (saved upon entering A6828)
+       B    *11
+*
+*---------------------------------------
+* STRREF gets the value of a string variable
+*---------------------------------------
+A6888  MOV  *13,0             get user's R0: element #
+       MOV  @>0002(13),1      get user's R1: param #
+       BL   @A6658            get param info ptr
+       MOVB *3,3              get param type
+       SRL  3,8
+       DEC  3
+       JEQ  A689E             string constant
+       DECT 3
+       JNE  A68E4             array
+A689E  MOV  0,0               not an array: element must be 0
+       JNE  A68F2             else error 22
+       MOV  @>0004(13),0      get user's R2: buffer address
+       MOV  5,3               address in value stack
+       INCT 3                 skip ptr to entry in symbol table
+       BL   @A693A            read 1 byte into R1
+       CB   1,@A660C          is it string flag (>65)?
+       JNE  A68EE             no: error 21
+       INCT 3
+       BL   @A68FE            read next word into R1
+A68BA  MOV  1,1               pointer to value
+       JEQ  A68CC
+       MOV  1,6               save it
+       DEC  1                 point to length byte
+       MOV  1,3
+       BL   @A693A            get length byte into R1
+       CB   *0,1              is there room enough in buffer?
+       JL   A68F6             no: error 37
+A68CC  MOVB 1,*0+             copy string size into buffer
+       JEQ  A68E2             empty string: done
+       MOV  6,3               ptr to string in string space
+       SRL  1,8               make size a word
+       MOV  1,5
+A68D6  BL   @A693A            read 1 byte into R1
+       MOVB 1,*0+             copy it into buffer
+       INC  3                 update ptr
+       DEC  5
+       JGT  A68D6             more to come
+A68E2  RTWP
+ 
+A68E4  BL   @A67D6            string array: find the element
+       MOV  @>0004(13),0      get user's R2: buffer ptr
+       JMP  A68BA             copy string into buffer
+ 
+A68EE  B    @A66E6            to error 21
+A68F2  B    @A66EE            to error 22
+A68F6  LI   0,>2500           error 37
+       B    @A696C            return to GPL with code in >8322 and Cnd bit set
+*
+* Read 2 bytes from VDP into R1, address in R3
+* ---------------------
+A68FE  SWPB 3                 set VDP to read
+       MOVB 3,@>8C02
+       SWPB 3
+       MOVB 3,@>8C02
+       NOP
+       MOVB @>8800,1          get two bytes into R1
+       SWPB 1
+       MOVB @>8800,1
+       SWPB 1
+       B    *11
+*
+* Write 2 bytes to VDP from R1, address in R4
+* --------------------
+A691A  SWPB 4                 set VDP to write
+       MOVB 4,@>8C02
+       SWPB 4
+       ORI  4,>4000           set flag for 'write' command
+       MOVB 4,@>8C02
+       NOP
+       MOVB 1,@>8C00          write two bytes to VDP
+       SWPB 1
+       MOVB 1,@>8C00          write byte
+       SWPB 1
+       B    *11
+*
+* Read 1 byte from VDP into R1, address in R3
+* --------------------
+A693A  SWPB 3                 set VDP for read
+       MOVB 3,@>8C02
+       SWPB 3
+       MOVB 3,@>8C02
+       NOP
+       MOVB @>8800,1          read 1 byte
+       B    *11
+*
+* Write 1 byte to VDP from R1, address in R4
+* -------------------
+A694E  SWPB 4                 set address to write
+       MOVB 4,@>8C02
+       SWPB 4
+       ORI  4,>4000           flag for 'write' command
+       MOVB 4,@>8C02
+       NOP
+       MOVB 1,@>8C00
+       B    *11
+*
+*---------------------------------------
+* ERROR generates a TI-Basic error
+*---------------------------------------
+A6966  MOV  *13,@>8322        get error code from user's R0
+       JMP  A6970
+ 
+A696C  MOV  0,@>8322          pass error code
+A6970  LWPI >83E0             GPL workspace
+A6974  SOCB @A660D,@>837C     set Cnd bit
+       B    @>0070            to GPL interpreter
+*
+*---------------------------------------
+* Bytes >697E to >6F0D all contain >00
+*---------------------------------------
+       BSS  >0588
+A6F06  BSS  >0008
+*
+*---------------------------------------
+* Default symbol table
+*---------------------------------------
+A6F0E  TEXT 'UTLTAB'          utility table for loader
+       DATA >7020
+       TEXT 'PAD   '          scratch-pad memory
+       DATA >8300
+       TEXT 'GPLWS '          GPL workspace
+       DATA >83E0
+       TEXT 'SOUND '          soud port
+       DATA >8400
+       TEXT 'VDPRD '          VDP read-data port
+       DATA >8800
+       TEXT 'VDPSTA'          VDP status-read port
+       DATA >8802
+       TEXT 'VDPWD '          VDP write-data port
+       DATA >8C00
+       TEXT 'VDPWA '          VDP write-address port
+       DATA >8C02
+       TEXT 'SPCHRD'          speech synthesizer read-data port
+       DATA >9000
+       TEXT 'SPCHWT'          speech synthesizer write-data port
+       DATA >9400
+       TEXT 'GRMRD '          GRAM/GROM read-data port
+       DATA >9800
+       TEXT 'GRMRA '          GRAM/GROM read-address port
+       DATA >9802
+       TEXT 'GRMWD '          GRAM write-data port
+       DATA >9C00
+       TEXT 'GRMWA '          GRAM/GROM write-address port
+       DATA >9C02
+       TEXT 'SCAN  '          keyboard scanning routine in console ROM
+       DATA >000E
+ 
+       TEXT 'XMLLNK'          subroutines provided by the cartridge
+       DATA A601C
+       TEXT 'KSCAN '
+       DATA A6020
+       TEXT 'VSBW  '
+       DATA A6024
+       TEXT 'VMBW  '
+       DATA A6028
+       TEXT 'VSBR  '
+       DATA A602C
+       TEXT 'VMBR  '
+       DATA A6030
+       TEXT 'VWTR  '
+       DATA A6034
+       TEXT 'DSRLNK'
+       DATA A6038
+       TEXT 'LOADER'
+       DATA A603C
+       TEXT 'GPLLNK'
+       DATA A6018
+       TEXT 'NUMASG'
+       DATA A6040
+       TEXT 'NUMREF'
+       DATA A6044
+       TEXT 'STRASG'
+       DATA A6048
+       TEXT 'STRREF'
+       DATA A604C
+       TEXT 'ERR   '
+       DATA A6050
+ 
+A6FFE  DATA >FB4C             checksum (?)
+*
+A7000  END

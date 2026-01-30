@@ -1,0 +1,776 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+  <title>widget</title>
+  <meta http-equiv="Content-Type"
+ content="text/html; charset=iso-8859-1">
+  <meta name="Author" content="Thierry Nouspikel">
+  <meta name="GENERATOR"
+ content="Mozilla/3.04Gold (Win95; U) [Netscape]">
+</head>
+<body>
+<h1 align="center"><a
+ href="http://www.nouspikel.com/ti99/titechpages.htm"><img
+ src="logo.jpg" style="border: 0px solid ; height: 33px; width: 95px;"
+ title="Back to main index" alt=""></a></h1>
+<h1>Navarone's Widget</h1>
+<p><br>
+The little gadget known as the "Widget" is nothing more than
+an extension plug that lets you have three cartridges plugged into the
+cartridge port. A 2-position switch on the Widget lets you select which
+cartridge is visible to the TI-99/4A. A push-button lets you reset the
+TI-99/4A, since switching cartridges will not do it, as opposed to what
+happened when you physically plug in a new cartridge. </p>
+<p>NB I was told that the original spelling was "Widgit", but
+since everybody refers to it as Widget, that's how I'm going to call
+it.&nbsp;</p>
+<p>The Widget was marketed by Navarone Industries. Its advantages are
+the
+following:</p>
+<li>It's easier to flip a switch than to swap cartridges.</li>
+<li>You can select another cartridge without reseting the TI-99/4A.</li>
+<li>You get a hardware-reset button for the same price.</li>
+<p><br>
+<b><a href="#Hardware">Hardware description</a></b> <br>
+<b><a href="#Modifying">Modifying the Widget</a></b> <br>
+<a href="#Materials">_Material needed<br>
+</a><a href="#Preparing%20Widget">_Preparing the Widget<br>
+</a><a href="#Preparing%20chips">_Preparing the chips<br>
+</a><a href="#Connecting%20chips%20to%20Widget">_Connecting the chips
+to the
+Widget<br>
+</a><a href="#Testing">_Testing your work</a> </p>
+<h2><br>
+<a name="Hardware"></a>Hardware</h2>
+<p><br>
+First, here are some pictures: </p>
+<p><a href="widget1.jpg">Widget plugged into the console</a>, with no
+cartridges
+yet<br>
+<a href="widget4.jpg">Widget with three cartridges plugeed in<br>
+</a><a href="widget2.jpg">Under-the-hood picture, top side<br>
+</a><a href="widget3.jpg">Ditto, bottom side of the PCB</a></p>
+<p>Schematics: </p>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; o-------&gt; Connector #1, pin<br>-5V------------+---o o-------&gt; Connector #2, pin&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; o-------&gt; Connector #3, pin<br>Reset*---o o---'<br><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +5V----++,<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |||<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; RRR 51K<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |||<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; o--+||----&gt; Connector #1, pin<br>ROMS* ------------o o---+|----&gt; Connector #2, pin&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; o----+----&gt; Connector #3, pin<br><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ,---------&gt; Connector #1<br>Others ------------+---------&gt; Connector #2<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; '---------&gt; Connector #3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>Hardware-wise, the Widget is very simple. Three card-edge
+connectors,
+like the one in the console, are wired in parallelel on a small
+printed-circuit
+board, that can be plugged in like a cartridge. </p>
+<p>All lines go directly from the cartridge port to the three
+connectors,
+except for two lines: </p>
+<li>The -5V power supply line goes to a 3-way switch (a 2 poles, 3
+terminals
+switch). Each terminal carries the power to one of the connectors. This
+way, only one cartridge will have its GROMs powered at any time. The
+GROMs
+always receive +5V and Ground, but appearantly the lack of -5V is
+sufficient
+to disable them.</li>
+<li>The ROMS* line (cartridge ROM selection line) goes to to the other
+pole of the switch. The corresponding three terminals carry the
+selection
+signal to the ROMS* pin in each of the three connectors. Three 51K
+pull-up
+resistors to +5V are installed on these lines so that they remain high
+when the switch is positioned to another cartridge. </li>
+<p>The reset button simply connects the -5V power supply to the Reset*
+line in the console port. No debouncing circuitery is provided. <br>
+&nbsp; </p>
+<h1>
+<hr width="100%"><a name="Modifying"></a>Modifying the Widget</h1>
+<p><br>
+As you know, the TI-99/4A makes provision for several GROM bases: one
+at
+&gt;9800, one at &gt;9804, one at &gt;9808, etc. The console GROMs and
+the GROMs inside any cartridge plugged into the cartridge port, answer
+to each and every base. But theoretically, we could have upto 16
+cartridges
+plugged in, if we could design a circuitery that would install each
+cartridge
+at a different base. The Widget is a good base to implement such a
+modification,
+at the cost of only 4 TTL chips (total cost, about $6). </p>
+<p>After this modification, all three cartridges in the Widget are
+visible
+to the TI-99/4A. The first one appears on the main menu under TI-Basic.
+It is followed by an item saying "Review Module Library". Selecting
+this option will make the second cartridge appear in the menu, then the
+third, then the first one again. </p>
+<p>This modification is based on an original idea by Randy McVicar, who
+suggested it in the on-line user group for the TI-99/4A, <a
+ href="http://groups.yahoo.com/group/ti99-4a/">http://groups.yahoo.com/group/ti99-4a</a>
+It got me thinking and I came up with the following solution:</p>
+<h3>Description</h3>
+<p>In the schematics below&nbsp; I'm using ports &gt;9800 for slot #1,
+&gt;9808 for #2 and &gt;9810 for #3. You can choose other ports by
+picking
+different Yx* lines from the 74LS138, and/or by swapping around lines
+A10
+through A13. </p>
+<p>If you don't like my "ascii art", here is a <a href="widget0.jpg">jpeg
+version</a>, courtesy Andrew Deschenes.</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +5V----++,<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |||<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; RRR 4.7K each<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |||&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;          74LS125<br>&nbsp;&nbsp;&nbsp;&nbsp; #1/GR&gt;-----+||--------,   Gnd---|&gt;--------,&nbsp;<br>                         ,-=)&gt;--------'        |<br>&nbsp;&nbsp;   #2/GR&gt;------+|------|-----,  Gnd---|&gt;-----+-----&gt; Console/GR<br>&nbsp;&nbsp;&nbsp;&nbsp;              |      |   ,-=)&gt;-------'  &nbsp;&nbsp;&nbsp;|<br>&nbsp;&nbsp;&nbsp;&nbsp; #3/GR&gt;-------+------|---|-----,&nbsp;&nbsp;Gnd--|&gt;--'<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; |&nbsp;&nbsp; ,-=)&gt;------'<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +--------+&nbsp;&nbsp; |&nbsp;&nbsp; |&nbsp;&nbsp; |&nbsp;74LS32&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp; A13&gt;---|S0&nbsp;&nbsp; Y0*|---+---|---|--------------&gt;#1/GS*&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp; A12&gt;---|S1&nbsp;&nbsp; Y1*|---|---+---|--------------&gt;#2/GS*<br>&nbsp;&nbsp;&nbsp;&nbsp; A11&gt;---|S2&nbsp;&nbsp; Y2*|&nbsp;&nbsp;&nbsp;|   |   |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; Y3*|&nbsp;&nbsp; |&nbsp;&nbsp; |&nbsp;&nbsp; |&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp; A10&gt;---|G2A* Y4*|---|---|---+--------------&gt;#3/GS*&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp; +5V----|G1&nbsp;&nbsp; Y5*|&nbsp;&nbsp; |&nbsp;&nbsp; |&nbsp;&nbsp; |<br>&nbsp; GS*---+---|G2B* Y6*|&nbsp;&nbsp; |&nbsp;&nbsp; |&nbsp;&nbsp; |&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; Y7*|&nbsp;&nbsp; |&nbsp;&nbsp; |&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +5V---+--+-+-,<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; +--------+&nbsp;&nbsp; |&nbsp;&nbsp; |&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp; | | |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; 74LS138&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; |&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4.7K R&nbsp; R R R&nbsp; Three 51K &nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; |&nbsp;&nbsp; |&nbsp; +--------+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp; | | |&nbsp;&nbsp;(existing)&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; |&nbsp;&nbsp; '--|D6&nbsp;&nbsp;&nbsp; Q6|-------|--+ | |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; '------|D7&nbsp;&nbsp;&nbsp; Q7|-------|--|-+ |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; '----------|D8&nbsp;&nbsp;&nbsp; Q8|-------|--|-|-+<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |D1&nbsp;&nbsp;&nbsp; Q1|&nbsp; ,----+&nbsp; | | |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |D2&nbsp;&nbsp;&nbsp; Q2|&nbsp; |&nbsp;&nbsp;&nbsp; |&nbsp; | | |&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4.7K&nbsp;&nbsp;&nbsp;&nbsp; |D3&nbsp;&nbsp;&nbsp; Q3|&nbsp; |&nbsp;&nbsp;&nbsp; o&nbsp; '-|-|----&gt;#1/ROMS*&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Gnd---WWW--,&nbsp;&nbsp; |D4&nbsp;&nbsp;&nbsp; Q4|&nbsp; |&nbsp; o o----+-|----&gt;#2/ROMS*<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; |D5&nbsp;&nbsp;&nbsp; Q5|&nbsp; |&nbsp; | o------+----&gt;#3/ROMS*<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; A14---|&gt;---+---|Clk&nbsp; OE*|--'&nbsp; |&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +--------+&nbsp;&nbsp;&nbsp;&nbsp; '--------&lt;Console/ROMS*<br>WE*-----=)&gt;-----------------'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS374&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; o---,&nbsp; ,---&gt; #1, pin<br>-5V------------+---o-o---+--+---&gt; #2, pin&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; o---'&nbsp; '---&gt; #3, pin<br>Reset*---o o---'</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>The heart of the modification is a 74LS138 decoder. It decodes the
+four
+address lines, A10 to A13 into 8 distinct bases (out of a total of 16).
+You can choose which bases will be available by deciding which address
+line should go to the G2A* enabling input. </p>
+<pre>G2A*&nbsp;&nbsp; A10&nbsp;&nbsp;&nbsp;&nbsp; A11&nbsp;&nbsp;&nbsp;&nbsp; A12&nbsp;&nbsp;&nbsp;&nbsp; A13<br>S2&nbsp;&nbsp;&nbsp;&nbsp; A11&nbsp;&nbsp;&nbsp;&nbsp; A10&nbsp;&nbsp;&nbsp;&nbsp; A10&nbsp;&nbsp;&nbsp;&nbsp; A10  etc (12 possible permutations)<br>S1&nbsp;&nbsp;&nbsp;&nbsp; A12&nbsp;&nbsp;&nbsp;&nbsp; A12&nbsp;&nbsp;&nbsp;&nbsp; A11&nbsp;&nbsp;&nbsp;&nbsp; A11<br><u>S0&nbsp;&nbsp;&nbsp;&nbsp; A13&nbsp;&nbsp;&nbsp;&nbsp; A13&nbsp;&nbsp;&nbsp;&nbsp; A13&nbsp;&nbsp;&nbsp;&nbsp; A12&nbsp;<br></u>Y0&nbsp;&nbsp;&nbsp; &gt;9800&nbsp;&nbsp; &gt;9800&nbsp;&nbsp; &gt;9800&nbsp;&nbsp; &gt;9800<br>Y1&nbsp;&nbsp;&nbsp; &gt;9804&nbsp;&nbsp; &gt;9804&nbsp;&nbsp; &gt;9804&nbsp;&nbsp; &gt;9808<br>Y2&nbsp;&nbsp;&nbsp; &gt;9808&nbsp;&nbsp; &gt;9808&nbsp;&nbsp; &gt;9810&nbsp;&nbsp; &gt;9810<br>Y3&nbsp;&nbsp;&nbsp; &gt;980C&nbsp;&nbsp; &gt;980C&nbsp;&nbsp; &gt;9814&nbsp;&nbsp; &gt;9818<br>Y4&nbsp;&nbsp;&nbsp; &gt;9810&nbsp;&nbsp; &gt;9820&nbsp;&nbsp; &gt;9820&nbsp;&nbsp; &gt;9820<br>Y5&nbsp;&nbsp;&nbsp; &gt;9814&nbsp;&nbsp; &gt;9824&nbsp;&nbsp; &gt;9824&nbsp;&nbsp; &gt;9828<br>Y6&nbsp;&nbsp;&nbsp; &gt;9818&nbsp;&nbsp; &gt;9828&nbsp;&nbsp; &gt;9830&nbsp;&nbsp; &gt;9830<br>Y7&nbsp;&nbsp;&nbsp; &gt;981C&nbsp;&nbsp; &gt;982C&nbsp;&nbsp; &gt;9834&nbsp;&nbsp; &gt;9838</pre>
+<p>Pick a combination that contains three bases that you would like to
+use. Normally, you should always have &gt;9800 for your first slot,
+since
+some poorly written cartridges will only work from this base. Be aware
+that the routine that builds up the cartridge menu only adds the
+"Review
+module library" item if it detects a difference between adresses
+&gt;6000-601F
+at base &gt;9800 and at base &gt;9804. So it may be a good idea to pick
+&gt;9804 for the second slot. This way, as long as there is one
+cartridge
+in either of these slots, all three will be scanned. For the last slot
+I chose &gt;9810, but it's really up to you. If you have a GRAM card,
+you
+may want to select bases that do not interfer with it... </p>
+<p>The decoder does not control the -5V power line, because I could not
+figure out how to control negative voltage with TTL gates. Instead, it
+controls the GS* line, that signals GROM operations (Grom Select,
+active
+low). The -5V power supply lines are connected together, bypassing the
+switch. </p>
+<p>This raises a delicate problem with the GR line (Grom Ready). The
+GROMs
+use this line to put the TMS9900 microprocessor on hold, until they are
+done storing/retrieving data. You might expect that, when GROMs are not
+selected, this line would be inactive. Well, no: it's always
+inhibitory,
+except when the GROMs are ready! To avoid locking up the computer,
+there
+is a small circuitery in the console that intercepts this lines and
+only
+enables it during GROM operations. But now, we have three cartridges
+connected
+to this line, and only one will see GROM operations: the other two will
+send wait signals on the line, which will lock up the computer.</p>
+<p>This is the reason for the second chip, a 74LS32 quad OR gates. For
+each slot, the GR signal is combined with the GS* line provided by the
+74LS138 decoder. Which means that the output can only be low if the
+cartridge
+is actually being selected, otherwise the GROM complaints are just
+ignored.
+Note the 4.7 kOhms pull-up resistors on the GR lines: they insure that
+the line will remain high even if no cartridge is plugged in.</p>
+<p>One difficulty is that the three outputs should be connected
+together.
+However, we don't want the two "high" lines to fight the "low"
+one. The ideal solution would be open-collector OR gates, but for some
+reason there is no such TTL. The next best thing was to have a 3-state
+buffer controlled by the OR gate: a low signal will enable the buffer,
+which will issue a low output, since its input is tied to ground. A
+high
+signal from the OR gate leaves the buffer in high-impedance, i.e.
+isolated.
+The outputs of the three buffers can thus be tied together and fed to
+the
+console GR line: the one that is active will bring the line low, the
+other
+two will not affect the line.<br>
+&nbsp; </p>
+<h3>ROM cartridges</h3>
+<p>All this is nice and fine, but it only works for GROMs. Yet, many
+cartridges
+also have ROM onboard, which maps in the area &gt;6000-7FFF. Now,
+suppose
+we have three such cartridges plugged into the Widget: how are we going
+to decide which one should have its ROM appearing at &gt;6000-7FFF? </p>
+<p>This is the purpose of the 74LS374 latch: it remembers which GROM
+was
+accessed last, and enables the corresponding ROM when a ROM operation
+occurs.
+The chip can latch upto 8 lines, but for our purpose it is sufficient
+to
+latch the three outputs of the 74LS138 that are used to select
+cartridges.
+</p>
+<p>The 74LS374 latches data when its Clk pin goes from low to high.
+This
+pin is fed a combination of GS* (from the console), WE* (write enable,
+from the console) and A14 (high for GROM address operations). GS* and
+WE*
+are combined with an OR gate, whose output enables the remaining
+3-state
+buffer in the 74LS125. Its input is connected to A14 and its output to
+a 4.7K pull-down resistor. As a result, the 74LS374 see a low-to-high
+transition
+on its Clk pin when GS* and WE* are low, and A14 is high will . Which
+occurs
+each time you write a new GROM address to any base. </p>
+<p>Finally, the OE* (output enable) pin, is controlled by the ROMS*
+line.
+The three selected outputs of the 74LS374 go to the ROMS* lines in the
+three cartridge connectors. Normally, we would add pull-up resistors on
+these lines, but the Widget already contains them, which makes our life
+even easier. All we need is one resistor on the OE* pin so that it
+remains
+high when the switch is not in position #1. </p>
+<p>Finally, what about pure ROM cartriges? Here, there is no software
+solution,
+as the TI-99/4A operating system does not contain any provision for
+multiple
+ROM cartridges. We will thus need to use the Widget switch with such
+cartridges.
+We'll just modify the switch's wiring so that position #2 and #3 work
+as
+before, whereas position #1 selects our latch circuit. The only problem
+is that the routine that builds the main menu does not handle ROM
+cartridges
+properly when the switch is in position 1 (because it last writes to
+&gt;9804
+before scanning the ROMs, but writes to &gt;9800 before building the
+menu
+screen). So you cannot have a pure ROM cartridge in position #1, sorry.
+But you can have pure ROM cartridges in positions #2 and #3, if you
+select
+them with the switch.<br>
+&nbsp; </p>
+<h3><a name="Materials"></a>Materials needed</h3>
+<li>One 74LS138 decoder</li>
+<li>One 74LS32 quad OR gate</li>
+<li>One 74LS125 quad 3-state buffers</li>
+<li>One 74LS374 3-state 8-bit D flip-flop</li>
+<li>Five 4.7 kiloOhms resistors</li>
+<li>Supple single-conductor wire, gauge 30 and 26</li>
+<li>Soldering iron</li>
+<li>Solder</li>
+<li>Electrical tape</li>
+<li>Knife</li>
+<li>Philips screwdriver</li>
+<h3><br>
+<a name="Preparing Widget"></a>Preparing the Widget</h3>
+<p><br>
+Open the Widget. There are four Philips screws to be removed, then you
+can just open the cover and remove the PCB (printed circuit board).
+Store
+switches and screws in a safe place since you will need them later. </p>
+<p>Flip over the PCB and identify the connections we are going to use.
+It may be a good idea to identify them with a marker... <br>
+&nbsp; </p>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;    <font
+ color="#cc33cc">To console</font></pre>
+<pre>&nbsp; &nbsp;ROMS*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; A11 A13<br>&nbsp;   | WE*&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; A10|A12|&nbsp;&nbsp;&nbsp;&nbsp; Ground<br>&nbsp;&nbsp;&nbsp; |&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | | | |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |<br>&nbsp; X <font
+ color="#ff0000">X</font> <font color="#ff0000">X</font> X X X X X X X <font
+ color="#ff0000">X X X X</font> X X X <font color="#ff0000">X</font>&nbsp;&nbsp; <font
+ color="#ff0000">#1<br></font>&nbsp; <font color="#ff0000">X</font> X <font
+ color="#ff0000">X</font> X X X <font color="#ff0000">X</font> <font
+ color="#ff0000">X X</font> X X X X X X X X X&nbsp;<br>&nbsp; |&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| | |<br>Gnd&nbsp; GR&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A14 | +5V<br>&nbsp;&nbsp;&nbsp;ROMS*&nbsp;&nbsp;     GS*<br>    |<br>&nbsp; X <font
+ color="#3333ff">X</font> X X X X X X X X <font color="#000000">X X X X X X X X</font>&nbsp;&nbsp; <font
+ color="#3333ff">#2<br></font>&nbsp; <font color="#000000">X </font>X <font
+ color="#3333ff">X</font> X X X X <font color="#3333ff">X</font><font
+ color="#ff0000"> </font><font color="#000000">X</font> X X X X X X X X X&nbsp;<br>      |         |<br>     GR       GS*<br>   ROMS*<br>    |<br>&nbsp; <font
+ color="#000000">X </font><font color="#00cc00">X</font><font
+ color="#000000"> X X X X X X X X X X X X X X X X&nbsp;&nbsp; </font><font
+ color="#00cc00">#3<br></font><font color="#000000">&nbsp; X X </font><font
+ color="#00cc00">X</font><font color="#000000"> X X X X </font><font
+ color="#00cc00">X</font><font color="#000000"> X X X X X X X X X X&nbsp;<br></font>      |         |<br>     GR       GS*<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   To user</pre>
+<p>&nbsp; </p>
+<li>Disable the GROM part of the switch. This is easily achieved by
+soldering
+a piece of striped wire across the 4 connections. Make sure your
+solering
+will not prevent the switch from operating smoothly. The best way is to
+solder is away from the switch, even if this implies scratching away
+the
+insulating paint that covers the traces. Here is a <a
+ href="widget8.jpg">picture</a>.</li>
+<li>On the ROM side of the switch, cut the connection to slot #1 (the
+closest
+to the console). Using a sharp knife, make two thin cuts 1 mm apart,
+then
+scrape away the middle piece.</li>
+<li>For each slot, cut the GR connection on the top of the board. It's
+the third from the right, going to the bottom pin row, when looking
+from
+under the board.&nbsp; Cut it on the console side of each slot. Be
+carefull
+not to cut the adjacent traces.</li>
+<li>Similarly, cut the GS* connection for each slot, It's the 8th
+connection
+from the right, going to the bottom pin row. Here is a <a
+ href="widget5.jpg">picture</a>
+(only the cuts for slot #1 are visible).</li>
+<h3><br>
+<a name="Preparing chips"></a>Preparing the chips</h3>
+<p>Because space is limited whithin the Widget, I chose not to implant
+the chips on a PCB, but rather to wire them directly. It does not look
+as nice, but it's way easier. </p>
+<p>Let's first do the internal connections for each chip. In the
+diagrams
+below, the chips are viewed from above. The notch (or tiny dot) that
+marks
+pin #1, is at the top of the page, represented here with<tt> --<u>++</u>--
+</tt></p>
+<pre><b>74LS32 (14 pins)<br></b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   <font
+ color="#ff0000">,--------------,<br></font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;<font
+ color="#ff0000">|</font>&nbsp; +---<u>++</u>---+&nbsp; <font
+ color="#ff0000">|&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#3333ff">R</font><font
+ color="#ff0000"> </font><font color="#000000">= 4.7K resistors<br></font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  <font
+ color="#3333ff">R</font> [|1A &nbsp; Vcc|]<font color="#ff0000">-+-,<br></font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  <font
+ color="#ff0000">'-</font>[|1B&nbsp;&nbsp;  4A|] <font color="#3333ff">R</font> <font
+ color="#ff0000">|<br></font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   [|1Y&nbsp;&nbsp;&nbsp; 4B|]<font
+ color="#ff0000">-' |<br></font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   [|2A&nbsp;&nbsp;  4Y|]   <font
+ color="#3333ff">R</font>&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   [|2B&nbsp;&nbsp;  3A|]&nbsp;  <font
+ color="#ff0000">|</font> &nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [|2Y&nbsp;&nbsp;&nbsp; 3B|]<font
+ color="#ff0000">---'<br></font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [|Gnd&nbsp;&nbsp; 3Y|]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +--------+</pre>
+<li>Connect pins 1B, 3B and 4B to pin Vcc, each via a 4.7 kiloOhms
+resistor.</li>
+<pre><b>74LS125 (14 pins)<br></b> <br>             +---++---+    R = 4.7K resistor<br>            [|1G*  Vcc|]  <br>            [|1A   4G*|]  <br>          <font
+ color="#ff0000">,-</font>[|1Y    4A|]<font color="#ff0000">-,<br></font>          <font
+ color="#3333ff">R</font> [|2G*   4Y|]<font color="#00cc00">-</font><font
+ color="#ff0000">|</font><font color="#00cc00">-,<br></font>          <font
+ color="#ff0000">+-</font>[|2A   3G*|] <font color="#ff0000">| </font><font
+ color="#00cc00">|<br></font>        <font color="#00cc00">,-</font><font
+ color="#ff0000">|</font><font color="#00cc00">-</font>[|2Y    3A|]<font
+ color="#ff0000">-+ </font><font color="#00cc00">|<br></font>        <font
+ color="#00cc00">|</font> <font color="#ff0000">+-</font>[|Gnd   3Y|]<font
+ color="#00cc00">-</font><font color="#ff0000">|</font><font
+ color="#00cc00">-'</font>                    <b>     <br>        </b><font
+ color="#00cc00">|</font><b> </b><font color="#ff0000">|</font><b>  +--------+  </b><font
+ color="#ff0000">| </font><font color="#00cc00">|<br></font><font
+ color="#ff0000">        </font><font color="#00cc00">|</font><font
+ color="#ff0000"> '--------------' </font><font color="#00cc00">|<br>        '------------------'</font></pre>
+<li>Connect pins 2Y, 3Y and 4Y together.</li>
+<li>Connect pins 2A, 3A and 4A to the ground pin.</li>
+<li>Connect pin 1Y to ground via a 4.7 K resistor.</li>
+<pre><b>74LS138 (16 pins)<br></b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font
+ color="#ff0000">,--------------,<br></font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font
+ color="#ff0000">|</font>&nbsp; +---<u>++</u>---+&nbsp; <font
+ color="#ff0000">|<br></font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font
+ color="#ff0000">|</font> [|S0&nbsp;&nbsp; Vcc|]<font color="#ff0000">-'<br></font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font
+ color="#ff0000">|</font> [|S1&nbsp;&nbsp; Y0*|]<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font
+ color="#ff0000">|</font> [|S2&nbsp;&nbsp; Y1*|]&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font
+ color="#ff0000">|</font> [|G2A* Y2*|]<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font
+ color="#ff0000">|</font> [|G2B* Y3*|]<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font
+ color="#ff0000">'-</font>[|G1&nbsp;&nbsp; Y4*|]<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [|Y7*&nbsp; Y5*|]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [|Gnd&nbsp; Y6*|]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +--------+</pre>
+<li>Connect pin G1 to pin Vcc. If you are using non-LS TTLs, use a 4.7K
+resistor here also.</li>
+<pre><b>74LS374 (20 pins)<br></b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font
+ color="#ff0000">,----</font><font color="#3333ff">R</font><font
+ color="#ff0000">---------,<br></font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font
+ color="#ff0000">|</font>&nbsp; +---<u>++</u>---+&nbsp; <font
+ color="#ff0000">|<br></font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font
+ color="#ff0000">'-</font>[|OE*&nbsp; Vcc|]<font color="#ff0000">-'<br></font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [|Q1&nbsp;&nbsp;&nbsp; Q8|]<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [|D1&nbsp;&nbsp;&nbsp; D8|]&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [|D2&nbsp;&nbsp;&nbsp; D7|]<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [|Q2&nbsp;&nbsp;&nbsp; Q7|]<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [|Q3&nbsp;&nbsp;&nbsp; Q6|]<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [|D3&nbsp;&nbsp;&nbsp; D6|]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [|D4&nbsp;&nbsp;&nbsp; D5|]<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [|Q4&nbsp;&nbsp;&nbsp; Q5|]<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;    [|Gnd&nbsp;&nbsp;Clk|]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp; +--------+&nbsp; <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </pre>
+<li>Connect pin OE* to pin Vcc via a 4.7 kiloOhms resistor.</li>
+<h4><br>
+Connecting the chips together</h4>
+<p>Now arrange the 4 chips in a file, making sure they would fit inside
+the Widget box, along the right side of the PCB. My favorite
+arrangement
+was: 32-125-138-374, but feel free to choose another solution.</p>
+<p>Wire the chips together like this (viewed from the top): </p>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;      +---<u>++</u>---+&nbsp;  <font
+ color="#ff0000">&nbsp;&nbsp;&nbsp;&nbsp; <br></font>&nbsp;&nbsp;&nbsp;&nbsp;<font
+ color="#cc33cc">,-------[</font>|1A &nbsp; Vcc|<font color="#ff0000">]-,<br></font>&nbsp;&nbsp;&nbsp;&nbsp;<font
+ color="#cc33cc">|</font>&nbsp; &nbsp;    [|1B&nbsp;&nbsp;  4A|<font
+ color="#00cc00">]-</font><font color="#ff0000">|</font><font
+ color="#00cc00">-----,<br></font>&nbsp;&nbsp;&nbsp;&nbsp;<font
+ color="#cc33cc">|</font>&nbsp; &nbsp;<font color="#cc33cc">,---[</font>|1Y&nbsp;&nbsp;&nbsp; 4B|] <font
+ color="#ff0000">|     </font><font color="#00cc00">|<br></font>&nbsp;&nbsp;<font
+ color="#3333ff">,-</font><font color="#cc33cc">|</font><font
+ color="#3333ff">---</font><font color="#cc33cc">|</font><font
+ color="#3333ff">---[</font>|2A&nbsp;&nbsp;  4Y|<font color="#00cc00">]-</font><font
+ color="#ff0000">|</font><font color="#00cc00">-,</font>&nbsp;  <font
+ color="#00cc00">|<br></font>&nbsp;&nbsp;<font color="#3333ff">|</font>&nbsp;<font
+ color="#cc33cc">|</font>&nbsp; &nbsp;<font color="#cc33cc">|</font>   [|2B&nbsp;&nbsp;  3A|<font
+ color="#3333ff">]-</font><font color="#ff0000">|</font><font
+ color="#3333ff">-</font><font color="#00cc00">|</font><font
+ color="#3333ff">---</font><font color="#00cc00">|</font><font
+ color="#3333ff">-, <br></font>&nbsp;&nbsp;<font color="#3333ff">|</font>&nbsp;<font
+ color="#cc33cc">|</font>&nbsp;<font color="#00cc00">,-</font><font
+ color="#cc33cc">|</font><font color="#00cc00">---[</font>|2Y&nbsp;&nbsp;&nbsp; 3B|] <font
+ color="#ff0000">| </font><font color="#00cc00">|</font><font
+ color="#ff0000">   </font><font color="#00cc00">|</font><font
+ color="#ff0000"> </font><font color="#3333ff">|<br></font>&nbsp;&nbsp;<font
+ color="#3333ff">|</font>&nbsp;<font color="#cc33cc">|</font>&nbsp;<font
+ color="#00cc00">|</font>&nbsp;<font color="#cc33cc">|</font>&nbsp;<font
+ color="#ff0000">,-[</font>|Gnd&nbsp;&nbsp; 3Y|<font color="#3333ff">]-</font><font
+ color="#ff0000">|</font><font color="#3333ff">-</font><font
+ color="#00cc00">|</font><font color="#3333ff">-, </font><font
+ color="#00cc00">| </font><font color="#3333ff">|</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;<font
+ color="#3333ff">|</font>&nbsp;<font color="#cc33cc">|</font>&nbsp;<font
+ color="#00cc00">|</font>&nbsp;<font color="#cc33cc">|</font>&nbsp;<font
+ color="#ff0000">|</font>&nbsp; +--------+  <font color="#ff0000">| </font><font
+ color="#00cc00">|</font><font color="#ff0000"> </font><font
+ color="#3333ff">|</font><font color="#ff0000"> </font><font
+ color="#00cc00">|</font><font color="#ff0000"> </font><font
+ color="#3333ff">|<br></font><font color="#ff0000">  </font><font
+ color="#3333ff">|</font><font color="#ff0000"> </font><font
+ color="#cc33cc">| </font><font color="#00cc00">|</font><font
+ color="#ff0000"> </font><font color="#cc33cc">|</font><font
+ color="#ff0000"> |              | </font><font color="#00cc00">|</font><font
+ color="#ff0000"> </font><font color="#3333ff">|</font><font
+ color="#ff0000"> </font><font color="#00cc00">|</font><font
+ color="#ff0000"> </font><font color="#3333ff">|<br></font>  <font
+ color="#3333ff">|</font>&nbsp;<font color="#cc33cc">| </font><font
+ color="#00cc00">|</font>&nbsp;<font color="#cc33cc">|</font>&nbsp;<font
+ color="#ff0000">|</font>&nbsp; +---<u>++</u>---+&nbsp;&nbsp;<font
+ color="#ff0000">| </font><font color="#00cc00">|</font><font
+ color="#ff0000"> </font><font color="#3333ff">|</font><font
+ color="#ff0000"> </font><font color="#00cc00">|</font><font
+ color="#ff0000"> </font><font color="#3333ff">|<br></font>&nbsp; <font
+ color="#3333ff">| </font><font color="#cc33cc">| </font><font
+ color="#00cc00">'-</font><font color="#cc33cc">|</font><font
+ color="#00cc00">-</font><font color="#ff0000">|</font><font
+ color="#00cc00">-[</font>|1G*&nbsp; Vcc|<font color="#ff0000">]-+ </font><font
+ color="#00cc00">|</font><font color="#ff0000"> </font><font
+ color="#3333ff">|</font><font color="#ff0000"> </font><font
+ color="#00cc00">|</font><font color="#ff0000"> </font><font
+ color="#3333ff">|<br>  | </font><font color="#cc33cc">|</font>&nbsp;&nbsp;&nbsp;<font
+ color="#cc33cc">|</font>&nbsp;<font color="#ff0000">|</font> [|1A&nbsp;&nbsp; 4G*|<font
+ color="#00cc00">]-</font><font color="#ff0000">|</font><font
+ color="#00cc00">-'</font> <font color="#3333ff">|</font> <font
+ color="#00cc00">|</font> <font color="#3333ff">|<br></font>&nbsp;&nbsp;<font
+ color="#3333ff">| </font><font color="#cc33cc">|</font> <font
+ color="#00cc00">,-</font><font color="#cc33cc">|</font><font
+ color="#00cc00">-</font><font color="#ff0000">|</font><font
+ color="#00cc00">-[</font>|1Y&nbsp;&nbsp;&nbsp; 4A|]<font
+ color="#ff0000"> |&nbsp;&nbsp;&nbsp;</font><font color="#3333ff">|</font><font
+ color="#ff0000"> </font><font color="#00cc00">| </font><font
+ color="#3333ff">|<br></font>&nbsp;&nbsp;<font color="#3333ff">| </font><font
+ color="#cc33cc">|</font> <font color="#00cc00">|</font> <font
+ color="#cc33cc">'-</font><font color="#ff0000">|</font><font
+ color="#cc33cc">-[</font>|2G*&nbsp;&nbsp; 4Y|] <font color="#ff0000">|&nbsp;&nbsp;&nbsp;</font><font
+ color="#3333ff">|</font><font color="#ff0000"> </font><font
+ color="#00cc00">| </font><font color="#3333ff">|<br></font>&nbsp;&nbsp;<font
+ color="#3333ff">| </font><font color="#cc33cc">|</font> <font
+ color="#00cc00">|</font>  &nbsp;<font color="#ff0000">|</font> [|2A&nbsp;&nbsp; 3G*|<font
+ color="#3333ff">]-</font><font color="#ff0000">|</font><font
+ color="#3333ff">---' </font><font color="#00cc00">| </font><font
+ color="#3333ff">|<br></font>&nbsp;&nbsp;<font color="#3333ff">| </font><font
+ color="#cc33cc">|</font> <font color="#00cc00">|</font>  &nbsp;<font
+ color="#ff0000">|</font> [|2Y&nbsp;&nbsp;&nbsp; 3A|] <font
+ color="#ff0000">|&nbsp;&nbsp;  </font><font color="#3333ff"> </font><font
+ color="#00cc00">| </font><font color="#3333ff">|<br></font>&nbsp;&nbsp;<font
+ color="#3333ff">| </font><font color="#cc33cc">|</font> <font
+ color="#00cc00">|</font>   <font color="#ff0000">+-[</font>|Gnd&nbsp;&nbsp; 3Y|] <font
+ color="#ff0000">|&nbsp;&nbsp;  </font><font color="#3333ff"> </font><font
+ color="#00cc00">|</font>&nbsp;<font color="#3333ff">|</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;<font
+ color="#3333ff">| </font><font color="#cc33cc">|</font> <font
+ color="#00cc00">|</font>   <font color="#ff0000">|</font>&nbsp; +--------+&nbsp; <font
+ color="#ff0000">|&nbsp;&nbsp;  </font><font color="#3333ff"> </font><font
+ color="#00cc00">| </font><font color="#3333ff">|<br></font>&nbsp;&nbsp;<font
+ color="#3333ff">| </font><font color="#cc33cc">'-</font><font
+ color="#00cc00">|</font><font color="#cc33cc">---</font><font
+ color="#ff0000">|</font><font color="#cc33cc">--------------</font><font
+ color="#ff0000">|</font><font color="#cc33cc">-,  </font><font
+ color="#3333ff"> </font><font color="#00cc00">| </font><font
+ color="#3333ff">|<br></font>&nbsp;&nbsp;<font color="#3333ff">|</font>   <font
+ color="#00cc00">|</font>&nbsp;&nbsp; <font color="#ff0000">|</font>&nbsp; +---<u>++</u>---+&nbsp; <font
+ color="#ff0000">| </font><font color="#cc33cc">|  </font><font
+ color="#3333ff"> </font><font color="#00cc00">| </font><font
+ color="#3333ff">|<br></font>&nbsp;&nbsp;<font color="#3333ff">|  </font> <font
+ color="#00cc00">|&nbsp;</font>&nbsp; <font color="#ff0000">|</font> [|S0&nbsp;&nbsp; Vcc|<font
+ color="#ff0000">]-+ </font><font color="#cc33cc">|  </font><font
+ color="#3333ff"> </font><font color="#00cc00">| </font><font
+ color="#3333ff">|<br></font>&nbsp;&nbsp;<font color="#3333ff">|  </font> <font
+ color="#00cc00">|&nbsp;</font>&nbsp; <font color="#ff0000">|</font> [|S1&nbsp;&nbsp; Y0*|<font
+ color="#00cc00">]-</font><font color="#ff0000">|</font><font
+ color="#00cc00">-</font><font color="#cc33cc">|</font><font
+ color="#00cc00">---+ </font><font color="#3333ff">|<br></font>&nbsp;&nbsp;<font
+ color="#3333ff">|</font>   <font color="#00cc00">|&nbsp;</font>&nbsp; <font
+ color="#ff0000">|</font> [|S2&nbsp;&nbsp; Y1*|<font color="#3333ff">]-</font><font
+ color="#ff0000">|</font><font color="#3333ff">-</font><font
+ color="#cc33cc">|</font><font color="#3333ff">---</font><font
+ color="#00cc00">|</font><font color="#3333ff">-+<br></font>&nbsp;&nbsp;<font
+ color="#3333ff">|</font>   <font color="#00cc00">|&nbsp;</font>&nbsp; <font
+ color="#ff0000">|</font> [|G2A* Y2*|] <font color="#ff0000">| </font><font
+ color="#cc33cc">|  </font><font color="#3333ff"> </font><font
+ color="#00cc00">| </font><font color="#3333ff">|<br></font>&nbsp;&nbsp;<font
+ color="#3333ff">'---</font><font color="#00cc00">|</font><font
+ color="#3333ff">---</font><font color="#ff0000">|</font><font
+ color="#3333ff">-[</font>|G2B* Y3*|] <font color="#ff0000">| </font><font
+ color="#cc33cc">|  </font><font color="#3333ff"> </font><font
+ color="#00cc00">| </font><font color="#3333ff">|<br></font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font
+ color="#00cc00">|</font>&nbsp;&nbsp; <font color="#ff0000">|</font> [|G1&nbsp;&nbsp; Y4*|<font
+ color="#cc66cc">]-</font><font color="#ff0000">|</font><font
+ color="#cc66cc">-+  </font><font color="#3333ff"> </font><font
+ color="#00cc00">| </font><font color="#3333ff">|<br></font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font
+ color="#00cc00">|</font>&nbsp;&nbsp; <font color="#ff0000">|</font> [|Y7*&nbsp; Y5*|] <font
+ color="#ff0000">|</font> <font color="#cc33cc">|  </font><font
+ color="#3333ff"> </font><font color="#00cc00">|</font>&nbsp;<font
+ color="#3333ff">|</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font
+ color="#00cc00">|&nbsp;&nbsp;</font> <font color="#ff0000">+-[</font>|Gnd&nbsp; Y6*|] <font
+ color="#ff0000">|</font> <font color="#cc33cc">|  </font><font
+ color="#3333ff"> </font><font color="#00cc00">|</font>&nbsp;<font
+ color="#3333ff">|</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font
+ color="#00cc00">|</font>&nbsp;&nbsp; <font color="#ff0000">|</font>&nbsp; +--------+&nbsp; <font
+ color="#ff0000">| </font><font color="#cc33cc">|  </font><font
+ color="#3333ff"> </font><font color="#00cc00">| </font><font
+ color="#3333ff">|<br></font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font
+ color="#00cc00">|</font>&nbsp;&nbsp; <font color="#ff0000">|</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font
+ color="#ff0000">| </font><font color="#cc33cc">|  </font><font
+ color="#3333ff"> </font><font color="#00cc00">| </font><font
+ color="#3333ff">|<br></font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font
+ color="#00cc00">|</font>&nbsp;&nbsp; <font color="#ff0000">|</font>&nbsp; +---<u>++</u>---+&nbsp; <font
+ color="#ff0000">| </font><font color="#cc33cc">|  </font><font
+ color="#3333ff"> </font><font color="#00cc00">| </font><font
+ color="#3333ff">|<br></font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font
+ color="#00cc00">|</font>&nbsp;&nbsp; <font color="#ff0000">|</font> [|OE*&nbsp; Vcc|<font
+ color="#ff0000">]-' </font><font color="#cc33cc">|  </font><font
+ color="#3333ff"> </font><font color="#00cc00">| </font><font
+ color="#3333ff">|<br></font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font
+ color="#00cc00">|</font>&nbsp;&nbsp; <font color="#ff0000">|</font> [|Q1&nbsp;&nbsp;&nbsp; Q8|]&nbsp;&nbsp; <font
+ color="#cc33cc">|  </font><font color="#3333ff"> </font><font
+ color="#00cc00">| </font><font color="#3333ff">|<br></font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font
+ color="#00cc00">|</font>&nbsp;&nbsp; <font color="#ff0000">|</font> [|D1&nbsp;&nbsp;&nbsp; D8|<font
+ color="#cc33cc">]---'  </font><font color="#3333ff"> </font><font
+ color="#00cc00">|</font>&nbsp;<font color="#3333ff">|<br></font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font
+ color="#00cc00">|</font>&nbsp;&nbsp; <font color="#ff0000">|</font> [|D2&nbsp;&nbsp;&nbsp; D7|<font
+ color="#3333ff">]-------</font><font color="#00cc00">|</font><font
+ color="#3333ff">-'<br></font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font
+ color="#00cc00">|</font>&nbsp;&nbsp; <font color="#ff0000">|</font> [|Q2&nbsp;&nbsp;&nbsp; Q7|]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font
+ color="#00cc00">|<br></font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font
+ color="#00cc00">|</font>&nbsp;&nbsp; <font color="#ff0000">|</font> [|Q3&nbsp;&nbsp;&nbsp; Q6|]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font
+ color="#00cc00">|<br></font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font
+ color="#00cc00">|</font>&nbsp;&nbsp; <font color="#ff0000">|</font> [|D3&nbsp;&nbsp;&nbsp; D6|<font
+ color="#00cc00">]-------'</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font
+ color="#00cc00">|</font>&nbsp;&nbsp; <font color="#ff0000">|</font> [|D4&nbsp;&nbsp;&nbsp; D5|]<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font
+ color="#00cc00">|</font>&nbsp;&nbsp; <font color="#ff0000">|</font> [|Q4&nbsp;&nbsp;&nbsp; Q5|]<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font
+ color="#00cc00">|</font>&nbsp;&nbsp; <font color="#ff0000">'-[</font>|Gnd&nbsp;&nbsp;Clk|<font
+ color="#00cc00">]-,</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font
+ color="#00cc00">|</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +--------+&nbsp; <font
+ color="#00cc00">|<br></font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font
+ color="#00cc00">'------------------'</font></pre>
+<li><font color="#000000">Connect all 3 Vcc pins together, using gauge
+26 wire. (Drawn in </font><font color="#ff0000">red</font><font
+ color="#000000">,
+above)</font></li>
+<li><font color="#000000">Connect all 3 Gnd pins together, using gauge
+26 wire. (Drawn in </font><font color="#ff0000">red</font><font
+ color="#000000">)</font></li>
+<li><font color="#000000">Connect the 74LS32, pin 2A to the 74LS138,
+pin
+G2B* (In </font><font color="#3333ff">blue</font><font color="#000000">)</font></li>
+<li><font color="#000000">Connect the 74LS32, pin 2Y to the 74LS125,
+pin
+1G* (In </font><font color="#00cc00">green</font><font color="#000000">)</font></li>
+<li><font color="#000000">Connect the 74LS125, pin 1Y to the 74LS374,
+pin
+Clk (Also </font><font color="#00cc00">green</font><font
+ color="#000000">)</font></li>
+<li><font color="#000000">Connect the 74LS138, pin Y0* to both the
+74LS32,
+pin 4A and the 74LS374, pin D6. (</font><font color="#00cc00">Green</font><font
+ color="#000000">)</font></li>
+<li><font color="#000000">Connect the 74LS138, pin Y1* (for base
+&gt;9804),
+to the 74LS32/3A and the 74LS374/D7. (</font><font color="#3333ff">Blue</font><font
+ color="#000000">)</font></li>
+<li><font color="#000000">Connect the 74LS138, pin Y4* (for base
+&gt;9810),
+to the 74LS32/1A and the 74LS374/D8. (</font><font color="#cc33cc">Purple</font><font
+ color="#000000">)</font></li>
+<li><font color="#000000">Connect the 74LS32, pin 4Y to the 74LS125,
+pin
+4G* (</font><font color="#00cc00">Green</font><font color="#000000">)</font></li>
+<li><font color="#000000">Connect the 74LS32, pin 3Y to the 74LS125,
+pin
+3G* (</font><font color="#3333ff">Blue</font><font color="#000000">)</font></li>
+<li><font color="#000000">Connect the 74LS32, pin 1Y to the 74LS125,
+pin
+2G* (</font><font color="#cc33cc">Purple</font><font color="#000000">)</font></li>
+<h3><br>
+<a name="Connecting chips to Widget"></a>Connecting the chips to the
+Widget</h3>
+<p>It's easier to work from the bottom side of the Widget, since the
+connector
+pins are more accessible this way. Therefore, in the following diagram,
+the chips are viewed from under. When a connection bears no #, it means
+that you can use whichever of the three slot connectors is the most
+convenient.
+Otherwise, use the one I specified: #1 being the closest to the
+console,
+#3 the closest to you. The connections labelled "console" should
+be made on the console side of your cuts; convenient places are the
+"via"
+that bring the lines from the other side of the PCB.<br>
+&nbsp; </p>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Console side</pre>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; A11 A13<br>&nbsp; ROMS*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; A10|A12|&nbsp;&nbsp;&nbsp;&nbsp; Ground<br>&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | | | |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |<br>&nbsp; X <font
+ color="#ff0000">X</font> X X X X X X X X <font color="#ff0000">X X X X</font> X X X <font
+ color="#ff0000">X</font>&nbsp;&nbsp; Slot viewed <br>&nbsp; <font
+ color="#ff0000">X</font> X <font color="#ff0000">X</font> X X X X <font
+ color="#ff0000">X X</font> X X X X X X X X X&nbsp;  from under<br>&nbsp; |&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | |<br>&nbsp; |&nbsp; GR&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | +5V<br>Ground&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; GS*<br><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Your side</pre>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;    Chips viewed from UNDER<br>&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp;&nbsp;      +--------+&nbsp;  <font
+ color="#ff0000">&nbsp;&nbsp;&nbsp;&nbsp; <br></font>  &nbsp;&nbsp;&nbsp;        [|Vcc &nbsp; 1A|]<br>  &nbsp;          [|4A&nbsp;&nbsp;  1B|<font
+ color="#cc33cc">]---------#3/GR<br></font>&nbsp;<font color="#00cc00">#1/GR-------[</font>|4B&nbsp;&nbsp;&nbsp; 1Y|]<br>&nbsp;            [|4Y&nbsp;&nbsp;  2A|]<br>             [|3A&nbsp;&nbsp;  2B|<font
+ color="#000000">]---------WE*<br></font> <font color="#3333ff">#2/GR-------[</font>|3B&nbsp;&nbsp;&nbsp; 2Y|]<br>             [|3Y &nbsp; Gnd|]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>            &nbsp; +--------+ <br><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; +--------+&nbsp;&nbsp;<br>&nbsp;   <font
+ color="#000000">+5V------[</font>|Vcc&nbsp; 1G*|]<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; [|4G*&nbsp;&nbsp; 1A|<font
+ color="#000000">]---------A14<br></font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; [|4A&nbsp;&nbsp;&nbsp; 1Y|]<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp; [|4Y&nbsp;&nbsp; 2G*|]&nbsp;&nbsp;&nbsp;<br>&nbsp;            [|3G*&nbsp;&nbsp; 2A|]<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp; [|3A&nbsp;&nbsp;&nbsp; 2Y|]<br><font
+ color="#ff0000">Console/GR---[</font>|3Y&nbsp;&nbsp; Gnd|<font
+ color="#000000">]---------Ground</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +--------+</pre>
+<pre>  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +--------+&nbsp;&nbsp;<br>             [|Vcc&nbsp;&nbsp; S0|<font
+ color="#000000">]---------A13<br></font> <font color="#00cc00">#1/GS*------[</font>|Y0*&nbsp;&nbsp; S1|<font
+ color="#000000">]---------A12<br></font> <font color="#3333ff">#2/GS*------[</font>|Y1*&nbsp;&nbsp; S2|<font
+ color="#000000">]---------A11<br></font>&nbsp;            [|Y2* G2A*|<font
+ color="#000000">]---------A10<br></font>&nbsp;            [|Y3* G2B*|<font
+ color="#ff0000">]-----Console/GS*<br></font>&nbsp;<font color="#cc33cc">#3/GS*------[</font>|Y4*&nbsp;&nbsp; G1|]<br>&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [|Y5*&nbsp; Y7*|]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [|Y6*&nbsp; Gnd|]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +--------+</pre>
+<pre>&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +--------+&nbsp;&nbsp;<br>             [|Vcc&nbsp; OE*|<font
+ color="#ff0000">]-----Switch cut-off position #1<br></font><font
+ color="#cc33cc"> #3/ROMS*----[</font>|Q8&nbsp;&nbsp;&nbsp; Q1|]<br>&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [|D8&nbsp;&nbsp;&nbsp; D1|]&nbsp;&nbsp;<br>&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [|D7&nbsp;&nbsp;&nbsp; D2|]<br>&nbsp;<font
+ color="#3333ff">#2/ROMS*----[</font>|Q7&nbsp;&nbsp;&nbsp; Q2|]<br>&nbsp;<font
+ color="#00cc00">#1/ROMS*----[</font>|Q6&nbsp;&nbsp;&nbsp; Q3|]<br>&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [|D6&nbsp;&nbsp;&nbsp; D3|]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [|D5&nbsp;&nbsp;&nbsp; D4|]<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp;&nbsp; [|Q5&nbsp;&nbsp;&nbsp; Q4|]<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp;&nbsp; [|Clk&nbsp;&nbsp;Gnd|]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +--------+</pre>
+<li>Connect the +5V power supply line from any slot, to the topmost
+right
+pin of any chip.</li>
+<li>Connect the Ground line from any slot, to the bottom left pin of
+any
+chip.</li>
+<li>Connect the four selection lines of the 74LS138 (S0 through S2, and
+G2A*) to address lines A10 through A13, in whatever slot is convenient.
+The connection order may vary according to the bases you selected.</li>
+<li>Connect the GS* line from the card edge connector, on the console
+side
+of your last cut, to the 74LS138/G2B* (Drawn in <font color="#ff0000">red
+  </font>in the above diagram).</li>
+<li>For each slot, connect&nbsp; the GR lines to the inputs of the
+74LS32
+chip, pins 4B, 3B and 1B for slot <font color="#00cc00">#1</font>, <font
+ color="#3333ff">#2
+  </font>and <font color="#cc33cc">#3 </font>respectively. (Drawn in <font
+ color="#00cc00">green</font>,
+  <font color="#3333ff">blue</font>, and <font color="#cc33cc">purple </font>respectively).</li>
+<li>For each slot, connect the GS* line to one of the outputs of the
+74LS138:
+Y0*, Y1* and Y4* in my example, but you may have chosen different
+bases.
+(Again, drawn in <font color="#00cc00">green</font>, <font
+ color="#3333ff">blue</font>,
+and <font color="#cc33cc">purple</font>).</li>
+<li>The common output of the three 74LS125 buffers should be connected
+to the console GR line, downstream from the last cut you made, i.e. on
+the console side of connector #1 (Drawn in <font color="#ff0000">red</font>).</li>
+<li>The outputs of the 74LS374 should be connected ROMS* pins of each
+slot:
+Q6 to #1, Q7 to #2 and Q8 to #3. (Drawn in <font color="#00cc00">green</font>,
+  <font color="#3333ff">blue</font>, and <font color="#cc33cc">purple</font>).</li>
+<li>The cut connection coming from position #1 of the switch should go
+to the 74LS374, pin OE* (Drawn in <font color="#ff0000">red</font>).</li>
+<p><br>
+And that's it! Fasten the wires in place with some electrical tape,
+then
+install the PCB and the chips back into the Widget box. The chips
+should
+fit easily along side the PCB. You may want to tape them in place. </p>
+<p>Here is a couple of pictures of the modified Widget: <a
+ href="widget6.jpg">viewed
+from the top</a>, and <a href="widget7.jpg">from under</a>.</p>
+<p>Finally, put the switches back in place (beware that the selector
+switch
+is not symetrical: it has small bumps on one side), close the lid and
+gently
+fasten the screws. <br>
+&nbsp; </p>
+<h2><a name="Testing"></a>Testing your work</h2>
+<p><br>
+At this point, you are probably dying to test your new and improved
+Widget.
+Don't. Until now, any mistake you may have made did not have
+consequences,
+because the Widget only contains inert components. However, you are now
+about to plug it into your TI-99/4A and a miss-wiring may actually
+damage
+the console!</p>
+<p>So make up your mind that you will not test the Widget before at
+least
+one hour. Spend this hour checking all the connections you made. If you
+own a continuity tester, now is the time to put it to work. Then check
+again, and again, until you are 100% confident that you did not make
+any
+mistake (personally, I made several...).</p>
+<p>Now check for shortcuts between adjacent pins: it's easy to
+accidentally
+make a solder bridge... Finally, check for a shortcut between ground
+and
+power supply, the most dangerous type.</p>
+<p>Now you can begin your tests:</p>
+<p>First, plug in the emtpy Widget, with the switch in position 1. Turn
+on the console, with no PE-Box: it should power on normally and you
+should
+only see TI-Basic on the main menu. If the TI-99/4A does not boot,
+there
+is most probably a problem with your wiring of the 74LS125. </p>
+<p>Then power off the console, and install three GROM cartridges into
+the
+Widget. Power the console again. You should the cartridge in slot #1
+appear
+after TI-Basic on the main menu. The last item in the menu should be:
+"Review
+module library". Select it: the menu should change to display the
+cartrige in slot #2. By repeatedly selecting "Review module library"
+you can circle between the three cartridges. If the console does not
+boot,
+check for a mismatch between the GR lines going to the 74LS32 and the
+GS*
+lines going to the 73LS138. If you only see the cartridge corresponding
+to the switch position, make sure you did not forget to shorcut the -5V
+part of the main switch. </p>
+<p>You can test ROM switching with cartridges like Extended Basic, or
+Mini-memory.
+With XB make sure CALL INIT works no matter in which Widget slot the
+cartridge
+is inserted. With Minimem, enter EasyBug, type M6000 and see if it
+contains
+&gt;AA. If this does not work, check the wiring of the 74LS374. In
+particular,
+make sure each output goes to the same slot than the corresponding
+output
+in the 74LS138. </p>
+<p>To ensure that you selected the inteded bases, use the Extended
+Basic
+cartridge. Plug it into a slot and type: CALL LOAD(-31878,A,B), then
+PRINT
+A,B.&nbsp; A should be equal to 152 (&gt;98) and B to the base
+corresponding
+to that slot (0, 4 and 16 in my example). If you get unexpected values,
+check the connections of A10 through A13 to the 74LS138. </p>
+<p>If everything tests correctly, congratulations: you made it. Now
+enjoy
+your "Super-Widget" ! <br>
+&nbsp; </p>
+<address>Revision 1. 10/19/01 Preliminary. Not modified yet.</address>
+<address>Revision 2. 1/10/02 Tested. Ready to release.<br>
+Revision 3. 1/12/02 Added pictures.<br>
+Revision 4. 1/15/02 Added credits, minor corrections.<br>
+Revision 5. 12/1/03 Added jpeg schematics.</address>
+<center>
+<p><br>
+</p>
+</center>
+<center>
+<p><a href="titechpages.htm">Back to the TI-99/4A Tech Pages</a>
+</p>
+</center>
+<p><br>
+<br>
+<br>
+<br>
+</p>
+</body>
+</html>

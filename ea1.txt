@@ -1,0 +1,897 @@
+*********************************************************
+* EDITOR ASSEMBLER CARTRIDGE
+* --------------------------
+* Disassembled and commented by Thierry Nouspikel, 1991
+*
+*********************************************************
+* Part I. GPL program loaded in GROM at >6000-6FFF
+* Part II. 9900 assembly routines stored in GROM at >7000-7730
+*          but running in low memory expansion.
+*
+*********************************************************
+      AORG  >6000
+*
+G6000 DATA  >AA01                   version 1
+      DATA  >0100                   1 program
+      DATA  >0000                   power up
+      DATA  G6010                   program
+      DATA  >0000                   dsr
+      DATA  G6B3E                   subprogram
+      DATA  >0000                   interrupt
+      DATA  >0000
+*
+G6010 DATA  >0000,G6025             program header
+      STRI  'EDITOR/ASSEMBLER'
+*
+*=========================================================
+*                                   program start
+G6025 DCLR  @>2000                  =============
+G6029 CALL  G@G6525                 vdp setup
+      ST    >05,@>8374
+      SCAN
+      CZ    @>8374
+      BR    G@G603D
+      DST   >0B00,@>834A            load lower case
+      CALL  G@>004A                 chars 96->
+      BR    G@G6056
+G603D DST   >0A00,@>834A            load upper case
+      CALL  G@>0018                 chars 64->
+      DST   >0B00,@>834A
+G6048 ST    >C0,V*>834A             mark up/left corner
+      DADD  >0008,@>834A            of lower case chars
+      DCHE  >0C00,@>834A
+      BR    G@G6048
+G6056 CLR   @>8374
+      DST   >0900,@>834A            load upper case
+      CALL  G@>0018                 chars 32->
+      CLR   V@>0800
+      MOVE  >00FF,V@>0800,V@>0801   clear char 0-31
+      MOVE  >0007,G@G6B37,#>01      set vdp regs
+      CALL  G@G6FD7
+      MOVE  >0010,G@G6B27,V@>08F0   cursors pattern
+G6079 ST    >7E,@>8373
+      DCLR  @>8322                  xml error codes
+      DCLR  @>8348                  module flags
+      ALL   >20
+      FMT
+      COL   >02
+      ROW   >01
+      HTEX  '* EDITOR/ASSEMBLER * '
+      ROW+  >02
+      COL+  >0B
+      HTEX  'PRESS:'
+      ROW+  >01
+      COL+  >1B
+      HTEX  '1 TO EDIT'
+      ROW+  >01
+      COL+  >17
+      HTEX  '2    ASSEMBLE'
+      ROW+  >01
+      COL+  >13
+      HTEX  '3    LOAD AND RUN'
+      ROW+  >01
+      COL+  >0F
+      HTEX  '4    RUN'
+      COL+  >18
+      ROW+  >01
+      HTEX  '5    RUN PROGRAM FILE'
+*PA
+      ROW+  >06
+      COL+  >0B
+      HTEX  ' '   (c)
+      HTEX  '1981  TEXAS INSTRUMENTS'
+      FEND
+G6116 SCAN
+      BR    G@G6116
+      CEQ   >0F,@>8375              <back>
+      BR    G@G611F
+      EXIT
+G611F SUB   >31,@>8375
+      CHE   >05,@>8375
+      BS    G@G6116                 out of range
+      CASE  @>8375
+      BR    G@G6133                 edit
+      BR    G@G6632                 assemble
+      BR    G@G67C4                 load
+      BR    G@G6838                 run
+      BR    G@G6557                 program
+*---------------------------------------------------------
+*PA
+*                                   editor
+G6133 CALL  G@G6525                 ====== vdp setup
+      DCLR  @>8348
+      FMT
+      COL   >02
+      ROW   >02
+      HTEX  '* EDITOR *'
+      ROW+  >01
+      COL+  >16
+      HTEX  'PRESS:'
+      ROW+  >01
+      COL+  >1C
+      HTEX  '1 TO LOAD'
+      ROW+  >01
+      COL+  >17
+      HTEX  '2    EDIT'
+      ROW+  >01
+      COL+  >17
+      HTEX  '3    SAVE'
+      ROW+  >01
+      COL+  >17
+      HTEX  '4    PRINT'
+      ROW+  >01
+      COL+  >16
+      HTEX  '5    PURGE'
+      ROW+  >01
+      COL+  >16
+      FEND
+G6192 DCLR  @>8348                  module flags
+      ST    >7E,@>8373              sbr stack
+      DST   >00C2,@>8320            screen address
+G619B SCAN
+      BR    G@G619B                 none
+      CEQ   >0F,@>8375
+      BS    G@G6079                 <back> to main menu
+      SUB   >31,@>8375
+      CHE   >05,@>8375
+      BS    G@G619B                 out of range
+      ST    @>8375,@>8300           mark choice
+      MPY   >40,@>8300
+      DADD  @>8300,@>8320
+      ST    >1F,V*>8320
+      ST    @>8375,@>8304
+      CEQ   >04,@>8375
+      BR    G@G61E4
+      FMT                           purge
+      ROW+  >02                     -----
+      HTEX  'ARE YOU SURE(Y/N)? '
+      FEND
+G61D7 CALL  G@G679F                 input y/n
+      CEQ   >59,@>8375              y
+      BR    G@G61E2
+      CALL  G@G6549                 clear >FFD8-FFDD
+G61E2 BR    G@G6133                 n: to editor
+*
+*PA
+G61E4 CEQ   >03,@>8375
+      BS    G@G61FC                 to print
+      DCEQ  >55AA,@>2000
+      BS    G@G61FC                 already loaded
+      CALL  G@G65B2                 prepare pab
+      DATA  G6623
+      CALL  G@G65D4                 load prog file
+      CALL  G@G6549                 purge file
+G61FC CEQ   >01,@>8304
+      BS    G@G6265                 to edit
+      CEQ   >02,@>8304
+      BR    G@G6237
+      FMT                           save
+      COL   >02
+      ROW   >12
+      HTEX  'VAR 80 FORMAT(Y/N)? '
+      FEND
+G6221 CALL  G@G679F                 input y/n
+      CEQ   >59,@>8375              y
+      BR    G@G622C
+      OR    >02,@>8349              f/v flag
+G622C CEQ   >0F,@>8375              n
+      BS    G@G6133                 <back> to editor
+      DST   >0282,@>8320
+      BR    G@G623B
+G6237 DST   >0222,@>8320
+G623B MOVE  >000A,G@G625B,V*>8320   'file name?'
+      DADD  >0020,@>8320
+      DST   >1000,@>831C
+      CALL  G@G63A0                 prepare pab
+      CEQ   >02,@>8304
+      BS    G@G62B5                 to save
+      CEQ   >03,@>8304
+      BS    G@G62D9                 to print
+      CZ    @>8304
+      BS    G@G6272                 to load
+*     BR    G@G6649                 to err (68BE) <-i
+*                                                  |
+G625B TEXT  'FILE NAME?'            ! FI is also br instr
+*
+G6265 XML   >23                     edit
+      BS    G@G68B0                 ----
+      MOVE  >0001,G@G6271,#>01      screen mode
+      BR    G@G6133                 to editor
+G6271 BYTE  >E0
+*PA
+*                                   load
+G6272 CALL  G@G627B                 ---- open file
+      XML   >21                     loader
+      BS    G@G68B3
+      BR    G@G6133                 to editor
+*
+G627B ST    >04,V@>0001(@>1C)       input df
+      AND   >FD,@>8349              fixed flag
+G6283 DST   @>831C,@>8356
+      DADD  >0009,@>8356
+      CALL  G@>0010                 link to dsr
+      BYTE  >08
+      BS    G@G695D
+      CLOG  >E0,V@>0001(@>1C)
+      BR    G@G629C                 error flags
+      ST    >02,V*>831C             opcode = read
+      RTN
+G629C ST    V@>0001(@>1C),@>8300
+      AND   >1F,@>8300
+      CEQ   >04,@>8300
+      BR    G@G62B3                 df/dv failed
+      ST    >14,V@>0001(@>1C)       input dv
+      OR    >02,@>8349              flag = v
+      BR    G@G6283                 retry
+G62B3 BR    G@G695D                 io error
+*                                   save
+G62B5 ST    >02,V@>0001(@>1C)       ----
+      CLOG  >02,@>8349              output df
+      BS    G@G62C4
+      ST    >12,V@>0001(@>1C)       output dv
+G62C4 CALL  G@G63E9                 call dsr
+      ST    >03,V*>831C             opcode = write
+      ST    >50,V@>0005(@>1C)       80 chars
+      XML   >22
+      BS    G@G68B3
+      CALL  G@G63E5                 close
+      BR    G@G6133
+*PA
+*                                   print
+G62D9 CALL  G@G627B                 -----
+      FMT                           open file
+      COL   >02
+      ROW   >15
+      HTEX  'DEVICE NAME?'
+      FEND
+      DST   >02C2,@>8320
+      DST   >1100,@>831C
+      CALL  G@G63A0                 input text
+      ST    >50,V@>0005(@>1C)       80 chars
+      DCEQ  >5450,V*>834E           'TP'
+      BR    G@G630A
+      CLR   V@>0004(@>1C)           rec len ?
+G630A ST    >12,V@>0001(@>1C)       output dv
+      DST   >1080,V@>0002(@>1C)     buffer
+      CALL  G@G63E9                 call dsr
+      CEQ   >20,V@>0004(@>1C)
+      BR    G@G6322
+      OR    >02,@>8348              rec len = 32
+G6322 ST    >03,V*>831C             opcode = write
+      CLOG  >02,@>8348
+      BS    G@G638D
+G632B DST   >1000,@>831C            termal printer
+      CALL  G@G63D0                 clear buffer
+      CALL  G@G63E9                 call dsr
+      DST   >1100,@>831C            printer dsr
+      DST   >1080,@>8300
+      DADD  >004F,@>8300            e o buffer
+      ST    >50,@>8302
+G6344 ST    V*>8300,@>8303
+      CEQ   >20,@>8303
+      BS    G@G6361                 trailing spaces
+      CEQ   >0C,@>8303
+      BR    G@G635F
+      ST    >20,V*>8300             >0C print 4x >20
+      CALL  G@G63E9
+      CALL  G@G63E9
+      CALL  G@G63E9
+G635F BR    G@G6367
+G6361 DDEC  @>8300                  previous char
+      DEC   @>8302                  dec size
+      BR    G@G6344
+G6367 CALL  G@G63E9                 call dsr
+      SUB   >20,@>8302
+      CGT   >00,@>8302              all printed ?
+      BR    G@G6380
+      DADD  >0020,V@>0002(@>1C)     adjust buffer addr
+      ST    @>8302,V@>0005(@>1C)    new char count
+      B     G@G6367                 more
+G6380 DST   >1080,V@>0002(@>1C)     reset
+      ST    >20,V@>0005(@>1C)
+      BR    G@G632B                 next record
+G638D DST   >1000,@>831C            file dsr
+      CALL  G@G63D0                 clear buffer
+      CALL  G@G63E9                 call dsr
+      DST   >1100,@>831C            printer dsr
+      CALL  G@G63E9                 call dsr
+      BR    G@G638D                 next record
+*PA
+*
+G63A0 CALL  G@G63D0                 prepare pab
+G63A3 CALL  G@G63FE                 -----------
+      DST   @>831C,V@>0002(@>1C)
+      DADD  >0080,V@>0002(@>1C)     buffer addr
+      ST    >00,V@>0008(@>1C)       screen offset
+      DST   >5000,V@>0004(@>1C)     rec len/c count
+      CALL  G@G640A                 input text
+      DCZ   @>8350                  empty
+      BS    G@G63CF
+G63C3 MOVE  @>8350,V*>834E,V@>000A(@>1C)
+      ST    @>8351,V@>0009(@>1C)    update name length
+G63CF RTN
+*
+G63D0 DADD  >0080,@>831C            clear buffer
+      ST    >20,V*>831C             ------------
+      MOVE  >004F,V*>831C,V@>0001(@>1C)
+      DSUB  >0080,@>831C
+      RTN
+*
+G63E5 ST    >01,V*>831C             close file
+G63E9 DST   @>831C,@>8356           call dsr
+      DADD  >0009,@>8356            --------
+      CALL  G@>0010
+      BYTE  >08
+      BS    G@G695D
+      CLOG  >E0,V@>0001(@>1C)       check flags
+      BR    G@G695D                 io error
+      RTN
+*                                   clear pab
+G63FE CLR   V*>831C                 ---------
+      MOVE  >0045,V*>831C,V@>0001(@>1C)
+      RTN
+*
+G640A CALL  G@G643D                 input line
+G640D DST   @>8324,@>8320           ----------
+      ST    >3C,@>8300
+      DCLR  @>8350
+G6415 CEQ   >20,V*>8320             skip leading spaces
+      BR    G@G642B
+      DINC  @>8320
+      DEC   @>8300
+      BR    G@G6415
+G6421 DST   @>8324,@>8320           empty line
+      CLOG  >04,@>8348              allowed?
+      BR    G@G643C                 yes
+      BR    G@G640A                 no
+G642B DST   @>8320,@>834E           address
+G642E CEQ   >20,V*>8320             find last char
+      BS    G@G643C
+      DINC  @>8350                  size
+      DINC  @>8320
+      DEC   @>8300
+      BR    G@G642E
+G643C RTN
+*
+*PA
+G643D ST    >1F,@>8318              input text
+      DST   @>8320,@>8324           ----------
+      DST   @>8320,@>8326
+G6446 CLR   @>8379                  blink
+      EX    V*>8320,@>8318
+G644C SCAN
+      BS    G@G6456
+      CHE   >0F,@>8379              timer
+      BR    G@G644C
+      BR    G@G6446
+G6456 CEQ   >1F,V*>8320
+      BR    G@G6460
+      EX    V*>8320,@>8318          cursor off
+G6460 DST   @>8320,@>8300
+      DSUB  @>8324,@>8300
+      CHE   >20,@>8375
+      BR    G@G6485
+      CLOG  >01,@>8348              ins mode ?
+      BR    G@G64DD
+G6470 ST    @>8375,V*>8320          display char
+      DCH   @>8326,@>8320
+      BR    G@G647C
+      DST   @>8320,@>8326           update size
+G647C CH    >3C,@>8301
+      BS    G@G6446                 max size
+      DINC  @>8320
+      BR    G@G6446                 next char
+G6485 AND   >FE,@>8348              fctn keys
+      CEQ   >0F,@>8375              clear ins mode^
+      BR    G@G6499
+      CLOG  >20,@>8348              <back>
+      BR    G@G697F                 assem: close files
+      CLOG  >04,@>8348
+      BR    G@G6079                 load/run/prog to main
+      BR    G@G6133                 to editor
+G6499 CEQ   >09,@>8375
+      BS    G@G647C                 ->
+      CEQ   >08,@>8375
+      BR    G@G64AB
+      CZ    @>8301                  <-
+      BS    G@G6446                 first
+      DDEC  @>8320
+      BR    G@G6446
+G64AB CEQ   >0D,@>8375
+      BS    G@G6503                 <enter>
+      CEQ   >03,@>8375
+      BR    G@G64D3
+      ST    >20,V*>8320             <del>
+      DST   @>8326,@>8300
+      DSUB  @>8320,@>8300           size from current
+      CGT   >00,@>8301
+      BR    G@G6446                 =0
+      MOVE  @>8300,V@>0001(@>20),V*>8320
+      ST    >20,V*>8326             blank last
+      DDEC  @>8326
+      BR    G@G6446
+G64D3 CEQ   >04,@>8375
+      BR    G@G6501
+      OR    >01,@>8348              <insert>
+      BR    G@G6446
+G64DD DST   @>8326,@>8300           insert char
+      DSUB  @>8324,@>8300           size
+      CH    >3C,@>8301
+      BS    G@G6446                 max
+*PA
+      DST   @>8326,@>8300
+      DSUB  @>8320,@>8300           size from current
+      DINC  @>8300
+      MOVE  @>8300,V*>8320,V@>03C0
+      MOVE  @>8300,V@>03C0,V@>0001(@>20)
+      DINC  @>8326
+      BR    G@G6470
+G6501 BR    G@G6446
+G6503 RTN
+*
+G6504 ST    @>2000,@>8300           check mem expansion
+      ST    >FF,@>2000              -------------------
+      CEQ   >FF,@>2000
+      BR    G@G691D                 not present
+      CLR   @>2000
+      CZ    @>2000
+      BR    G@G691D                 not present
+      ST    @>8300,@>2000
+      RTN
+*
+G6525 ST    >D0,V@>0300             vdp setup module
+      ST    >F5,V@>0380             ----------------
+      MOVE  >001F,V@>0380,V@>0381
+      ALL   >20
+      BACK  >F5
+      RTN
+*                                   vdp setup program
+G6539 ST    >13,V@>0380             -----------------
+      MOVE  >001F,V@>0380,V@>0381
+      ALL   >20
+      BACK  >F3
+      RTN
+*                                   purge file
+G6549 CLR   @>FFD8                  ----------
+      MOVE  >0005,@>FFD8,@>FFD9
+      RTN
+*---------------------------------------------------------
+*PA
+*                                   load program
+G6557 ALL   >20                     ============
+      FMT
+      COL   >02
+      ROW   >02
+      HTEX  '* RUN PROGRAM FILE *'
+      FEND
+G6574 OR    >08,@>8349
+      DST   >0102,@>8320
+      MOVE  >000A,G@G625B,V*>8320   file name?
+      DADD  >0040,@>8320
+      OR    >04,@>8348
+      CALL  G@G640A                 input file name
+G658C DCZ   @>8350
+      BR    G@G6597
+      CALL  G@G65B2                 prepare pab
+      DATA  G662D                   util1
+      BR    G@G65A6
+G6597 CALL  G@G65BF                 default pab
+      CALL  G@G63C3                 write name
+      DCEQ  >4353,V*>834E           'CS'
+      BR    G@G65A6
+      ALL   >20
+G65A6 CALL  G@G65D4                 load program
+      CALL  G@G6539                 vdp setup
+      XML   >F0                     start
+      BS    G@G68E3
+      BR    G@G68A8
+*                                   prepare pab
+G65B2 FETC  @>8310                  -----------
+      FETC  @>8311                  fetch name
+      MOVE  >0005,G@>0000(@>10),V@>100F
+G65BF DCLR  @>8300                  default name
+      DST   >1000,@>831C
+      MOVE  >000F,G@G6614,V*>831C
+      MOVE  >0014,G@G678B,V@>0202   one moment
+      RTN
+*                                   load program
+G65D4 CALL  G@G63E9                 ------------
+      MOVE  >0006,V@>1380,@>8310
+      DCZ   @>8300
+      BR    G@G65E5
+      DST   @>8314,@>8300           start point
+G65E5 DSUB  >8300,@>8314
+      MOVE  @>8312,V@>1386,@>8300(@>14)
+      DCZ   @>8310                  continue flag
+      BS    G@G6605
+      DCLR  @>8302                  1 more file
+      ST    V@>1009,@>8303
+      DADD  >1009,@>8302
+      INC   V*>8302                 inc last char
+      BR    G@G65D4
+G6605 ST    >20,V@>0202             clear 'one moment'
+      MOVE  >0013,V@>0202,V@>0203
+G6610 CALL  G@G63FE                 clear pab
+      RTN
+*
+G6614 DATA  >0500,>1380,>0000,>2100,>000A
+G661E TEXT  'DSK2.'
+G6623 TEXT  'EDIT1'
+G6628 TEXT  'ASSM1'
+G662D TEXT  'UTIL1'
+*---------------------------------------------------------
+*PA
+*                                   assembler
+G6632 ALL   >20                     =========
+      FMT
+      COL   >02
+      ROW   >02
+      HTEX  '* ASSEMBLER *'
+      FEND
+      DCLR  @>8348                  module flags
+      ST    >7E,@>8373              sbr stack
+      OR    >20,@>8348
+      DCEQ  >AA55,@>2000
+      BS    G@G6687                 already loaded
+      FMT
+      COL+  >13
+      ROW+  >01
+      HTEX  'LOAD ASSEMBLER(Y/N)? '
+      FEND
+      CALL  G@G679F                 input y/n
+      CEQ   >0F,@>8375
+      BS    G@G6079                 <back>
+      CEQ   >4E,@>8375
+      BS    G@G6079                 n: to main menu
+      CALL  G@G65B2                 prepare pab
+      DATA  G6628                   assm1
+      CALL  G@G65D4                 load assembler
+G6687 DST   >0116,V@>1380
+      DST   >1380,@>8356
+      ST    >04,@>834C
+      CALL  G@>0010                 call files(4)
+      BYTE  >0A
+      FMT
+      COL   >02
+      ROW   >04
+      HTEX  'SOURCE FILE NAME?     '
+      FEND
+      DST   >1000,@>831C            buffer
+      DST   >00C2,@>8320            screen input
+      CALL  G@G63A3                 input name in pab
+      DST   >1080,V@>0002(@>1C)     data buffer
+      CALL  G@G627B                 open input file
+      FMT
+      COL   >02
+      ROW   >08
+      HTEX  'OBJECT FILE NAME?'
+      FEND
+      DST   >1100,@>831C
+      DST   >0142,@>8320
+      CALL  G@G63A3                 input name in pab
+      ST    >00,V@>0001(@>1C)       df update
+      DST   >1180,V@>0002(@>1C)     data buffer
+      CALL  G@G63E9                 call dsr
+      OR    >40,@>8348              flag
+      FMT
+      COL   >02
+      ROW   >0C
+      HTEX  'LIST FILE NAME?'
+      FEND
+      DST   >1200,@>831C
+      OR    >04,@>8348
+      DST   >01C2,@>8320
+      CALL  G@G63A3                 input name in pab
+      DCZ   @>8350
+      BS    G@G6736                 none
+      ST    >12,V@>0001(@>1C)       dv output
+      DST   >1280,V@>0002(@>1C)
+      CALL  G@G63E9                 call dsr
+      OR    >80,@>8348              flag
+*PA
+G6736 FMT
+      COL   >02
+      ROW   >10
+      HTEX  'OPTIONS?'
+      FEND
+      DST   >0242,@>8320
+      CALL  G@G640A                 input line of text
+      AND   >FB,@>8348              clear >04
+      DCZ   @>8350
+      BR    G@G6756
+      DST   @>8320,@>834E           none
+G6756 MOVE  >000F,V*>834E,@>20D2    option in buffer
+      CALL  G@G6549                 purge file in mem
+      ALL   >20
+      XML   >21                     execute assembler
+      BS    G@G68B3                 error
+G6767 CALL  G@G6549                 purge file in mem
+      DST   >1000,@>831C
+      CALL  G@G63E5                 close source file
+      DST   >1100,@>831C
+      CALL  G@G63E5                 close object file
+      CLOG  >80,@>8348
+      BS    G@G6784                 flag = no list file
+      DST   >1200,@>831C
+      CALL  G@G63E5                 close list file
+G6784 CLR   @>8348                  clear flag
+      CALL  G@G6A27                 'press enter...'
+      BR    G@G6079                 to main menu
+*
+G678B TEXT  'ONE MOMENT PLEASE...'
+*
+G679F ST    >1F,@>8318              input y/n
+G67A2 CLR   @>8379                  ---------
+      EX    @>837D,@>8318
+G67A7 SCAN
+      BS    G@G67B1
+      CHE   >06,@>8379              check timer
+      BR    G@G67A7
+      BR    G@G67A2                 blink
+G67B1 CEQ   >0F,@>8375
+      BS    G@G67C0                 <back>
+      CEQ   >59,@>8375
+      BS    G@G67C0                 y
+      CEQ   >4E,@>8375              n
+      BR    G@G67A2                 illegal char
+G67C0 ST    @>8375,@>837D
+      RTN
+*---------------------------------------------------------
+*PA
+*                                   load and run
+G67C4 DCLR  @>8348                  ============
+      OR    >01,@>8349
+      ALL   >20
+      FMT
+      COL   >02
+      ROW   >02
+      HTEX  '* LOAD AND RUN *'
+      COL+  >10
+      ROW+  >01
+      HTEX  'FILE NAME?'
+      FEND
+      OR    >40,@>8349              no subs flag
+G67F2 ST    >20,V@>00C2             clear input zone
+      MOVE  >003B,V@>00C0,V@>00C1
+      DST   >00C2,@>8320
+      OR    >04,@>8348              flag
+      DST   >1000,@>831C
+      CALL  G@G63A0                 input name in pab
+      DCZ   @>8350                  no name?
+      BR    G@G6816
+      CALL  G@G6B8E                 load assembly subs (check @>2000)
+      BR    G@G6848                 if no mem expansion
+      BR    G@G6821
+G6816 CLOG  >40,@>8349              test subs flag
+      BS    G@G6821                 already loaded
+      CALL  G@G6B96                 load assembly subs
+      AND   >BF,@>8349              clear >40 subs flag
+G6821 ST    >04,V@>0001(@>1C)       df input
+G6826 DST   @>831C,@>8356           call load entry
+      DADD  >0009,@>8356
+      XML   >22                     execute loader
+      BS    G@G68B3
+      CLOG  >08,@>8348
+      BR    G@G6C61                 to subs
+      BR    G@G67F2                 next file
+*---------------------------------------------------------
+*PA
+*                                   run
+G6838 ALL   >20                     ===
+      FMT
+      COL   >02
+      ROW   >02
+      HTEX  '* RUN *'
+      FEND
+G6848 ST    >7E,@>8373              sbr stack
+      FMT
+      ROW   >08
+      COL   >02
+      HTEX  'PROGRAM NAME?'
+      FEND
+      DST   >0142,@>8320
+      OR    >04,@>8348
+      CALL  G@G640A                 input line of text
+      DCZ   @>8350
+      BS    G@G6883                 none = same
+      DST   @>834E,@>8320
+      DCH   >0006,@>8350
+      BS    G@G6944                 name too long
+      ST    >20,@>834A              copy name in mem
+      MOVE  >0005,@>834A,@>834B
+      MOVE  @>8350,V*>8320,@>834A
+G6883 DCEQ  >A55A,@>2000
+      BR    G@G6916
+      CALL  G@G6539                 vdp for programs
+G688E DCLR  @>8322                  assem err flag
+      XML   >21                     execute program
+      BS    G@G68E3                 err
+      CLOG  >20,@>8349
+      BS    G@G68A3
+      INCT  @>8373                  gpllnk
+      DST   G688E,*>8373            return to prog
+      INCT  @>8373                  gpl address
+      RTN
+G68A3 CLOG  >08,@>8348
+      BR    G@G6DDE                 to subs
+G68A8 CALL  G@G6525                 vdp setup
+      CALL  G@G6A27                 wait for enter
+      BR    G@G6029                 to start
+*---------------------------------------------------------
+*PA
+*                                   error handling
+G68B0 CALL  G@G6525                 ==============
+G68B3 CALL  G@G68FC                 module programs
+      CHE   >08,@>8322              ---------------
+      BR    G@G695D                 < 8 io error
+      SUB   >08,@>8322
+G68BE CH    >05,@>8322
+      BS    G@G68D4                 > 13 return
+      CALL  G@G6993                 close all files
+      CASE  @>8322
+      BR    G@G690F                 mem full
+      BR    G@G6908                 no ctrl char
+      BR    G@G6928                 illegal tag
+      BR    G@G692F                 checksum err
+      BR    G@G6936                 duplicate def
+      BR    G@G693D                 unresolved ref
+G68D4 CLOG  >20,@>8348
+      BR    G@G6767                 to assm end
+      CLOG  >01,@>8349
+      BR    G@G67C4                 to load
+      CALL  G@G69B0                 close file
+      BR    G@G6133                 to editor
+*
+G68E3 CALL  G@G68FC                 user programs
+      CALL  G@G6525                 -------------
+      CEQ   >0F,@>8322              vdp setup^
+      BR    G@G68F5
+      CALL  G@G69D0                 error message
+      DATA  G6B15                   prog not found
+      BR    G@G6949                 clear, to run
+G68F5 CALL  G@G69D0
+      DATA  G6AAB                   error code #
+      BR    G@G6029                 to start
+*
+G68FC MOVE  >0001,G@G6271,#>01      screen mode
+      CLOG  >08,@>8348              -----------
+      BR    G@G6E88                 to subs
+      RTN
+*                                   error messages
+*                                   --------------
+G6908 CALL  G@G69C4                 warning message
+      DATA  G6AB6                   ctrl char removed
+      BR    G@G68D4                 return to menu
+G690F CALL  G@G69D0                 error message
+      DATA  G6A6E                   memory full
+      BR    G@G68D4                 to menu
+G6916 CALL  G@G69D0
+      DATA  G6B15                   program not found
+      BR    G@G6079                 to start
+G691D CLOG  >08,@>8348
+      BR    G@G6F43                 to subs
+G6922 CALL  G@G69D0
+      DATA  G6A89                   no mem expansion
+      EXIT                          abort
+G6928 CALL  G@G69D0
+      DATA  G6AD0                   illegal tag
+      BR    G@G67C4                 to load
+G692F CALL  G@G69D0
+      DATA  G6ADC                   checksum error
+      BR    G@G67C4                 to load
+G6936 CALL  G@G69D0
+      DATA  G6AEB                   duplicate def
+      BR    G@G67C4                 to load
+G693D CALL  G@G69D0
+      DATA  G6B00                   unresolved ref
+      BR    G@G67C4                 to load
+*PA
+G6944 CALL  G@G69D0
+      DATA  G6A9D                   name too long
+G6949 DCZ   @>8350
+      BS    G@G6958
+      ST    >20,V*>834E             clear zone
+G6951 MOVE  @>8350,V*>834E,V@>0001(@>4E)
+G6958 CALL  G@G6A37                 clear message
+      BR    G@G6848                 to run
+G695D ST    V@>0001(@>1C),@>834E    io errors
+      AND   >E0,@>834E
+      SRL   >05,@>834E
+      OR    >30,@>834E              error #
+      AND   >1F,V@>0001(@>1C)       clear
+      CEQ   >35,@>834E              eof error
+      BR    G@G697A
+      CALL  G@G6993                 close all files
+      BR    G@G6133                 to editor
+G697A CALL  G@G69D0
+      DATA  G6A7A                   io error code
+G697F CALL  G@G6993                 close all files
+      CLOG  >20,@>8348              assembler
+      BR    G@G6079                 to main menu
+      CLOG  >01,@>8349
+      BR    G@G67C4                 to load
+      CLOG  >08,@>8349              prog file?
+      BR    G@G6025                 to start
+      BR    G@G6133                 to editor
+*
+G6993 DST   >1000,@>831C            close all files
+      CALL  G@G69B0                 ---------------
+      DST   >1100,@>831C
+      CALL  G@G69B0
+      DST   >1200,@>831C
+      CALL  G@G69B0
+      DST   >1300,@>831C
+      CALL  G@G69B0
+      RTN
+*
+G69B0 DST   @>831C,@>8356           close 1 file
+      DADD  >0009,@>8356            ------------
+      ST    >01,V*>831C
+      CALL  G@>0010                 link to dsr
+      BYTE  >08
+      CLR   V@>0009(@>1C)           clear name size
+      RTN
+*                                   warning
+G69C4 CALL  G@G6A37                 ------- clear
+      MOVE  >000B,G@G6A63,V@>02A2
+      BR    G@G69DA
+*PA
+*                                   error
+G69D0 CALL  G@G6A37                 ----- clear
+      MOVE  >0009,G@G6A43,V@>02A2
+G69DA FETC  @>834A                  message address
+      FETC  @>834B
+      CLR   @>834C                  size
+      MOVE  >0001,G@>0000(@>4A),@>834D
+      MOVE  @>834C,G@>0001(@>4A),V@>02C2
+      DCEQ  G6A7A,@>834A            io error
+      BR    G@G69F8
+      ST    @>834E,V@>02D2          display err #
+G69F8 DCEQ  G6AAB,@>834A            assembly error
+      BR    G@G6A27
+      DSRL  >0004,@>8322
+      SRL   >04,@>8323
+      CH    >09,@>8322              1rst digit
+      BR    G@G6A12
+      CH    >0F,@>8322              correct hexa
+      BS    G@G6A27
+      ADD   >07,@>8322
+G6A12 CH    >09,@>8323              2nd digit
+      BR    G@G6A1F
+      CH    >0F,@>8323              correct hexa
+      BS    G@G6A27
+      ADD   >07,@>8323
+G6A1F DADD  >3030,@>8322
+      DST   @>8322,V@>02D0          display number
+G6A27 MOVE  >0017,G@G6A4C,V@>02E2   'press enter...'
+G6A2E SCAN
+      BR    G@G6A2E
+      CEQ   >0D,@>8375
+      BR    G@G6A2E
+      RTN
+*                                   clear message
+G6A37 ST    >20,V@>02A0             -------------
+      MOVE  >005F,V@>02A0,V@>02A1
+      RTN
+*
+G6A43 TEXT  '* ERROR *'
+G6A4C TEXT  'PRESS ENTER TO CONTINUE'
+G6A63 TEXT  '* WARNING *'
+G6A6E STRI  'MEMORY FULL'
+G6A7A STRI  'I/O ERROR CODE'
+G6A89 STRI  'NO MEMORY EXPANSION'
+G6A9D STRI  'NAME TOO LONG'
+G6AAB STRI  'ERROR CODE'
+G6AB6 STRI  'CONTROL CHARACTER REMOVED'
+G6AD0 STRI  'ILLEGAL TAG'
+G6ADC STRI  'CHECKSUM ERROR'
+G6AEB STRI  'DUPLICATE DEFINITION'
+G6B00 STRI  'UNRESOLVED REFERENCE'
+G6B15 STRI  'PROGRAM NOT FOUND'
+*
+G6B27 DATA  >7070,>7070,>7070,>7070 editor cursor
+G6B2F DATA  >007E,>4242,>4242,>7E00 module cursor
+G6B37 DATA  >E000,>0E01,>0600       registers
+      BYTE  >F5
+*
+       COPY "DSKT.EA2/T"

@@ -1,0 +1,1792 @@
+<!doctype html public "-//w3c//dtd html 4.0 transitional//en">
+<html>
+<head>
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+   <meta name="GENERATOR" content="Mozilla/4.79 [en] (WinNT; U) [Netscape]">
+</head>
+<body>
+
+<center>
+<h1>
+<a href="http://www.nouspikel.com/ti99/titechpages.htm"><img SRC="logo.jpg" ALT="" style="border: 0px solid ; height: 33px; width: 95px;" title="Back to main index" ></a></h1></center>
+
+<h1>
+TMS9901 Programmable systems interface</h1>
+<a href="#Pinout">Pinout</a>
+<br><a href="#CRU%20interface">CRU interface</a>
+<br><a href="#interrupt%20interface">Interrupts interface</a>
+<br><a href="#Timer">The internal timer</a>
+<p><b>The TMS9901 in the TI-99/4A</b>
+<br><a href="#Ti99">Functions</a>
+<br><a href="#CRU%20map">CRU map</a>
+<p><b>Operating the TMS9901</b>
+<br><a href="#Operating">In I/O mode</a>
+<br><a href="#Timer%20mode">In timer mode</a>
+<br><a href="#Fun">Fun stuff</a>
+<p><a href="#Timing%20diagrams">Timing diagrams</a>
+<br><a href="#Electrical">Electrical characteristics</a>
+<h2>
+Introduction</h2>
+As indicated by its name, this highly versatile chip is in charge of interfacing
+a CPU, in our case the TMS9900, with the outside world. It communicates
+with the CPU via 32 bits in the CRU address space, and with the outside
+world with 21 pins that can be programmed as input, output, or interrupt
+pin. It also has an internal timer that can be used to generate interrupts
+or just to measure elapsed time.
+<h2>
+<br>
+<a NAME="Pinout"></a>Pinout</h2>
+
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +----+--+----+&nbsp;
+&nbsp;RST1* |1 o&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 40| Vcc&nbsp;
+&nbsp;CRUOUT|2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 39| S0&nbsp;
+&nbsp;CRUCLK|3&nbsp;&nbsp;&nbsp; T&nbsp;&nbsp;&nbsp; 38| P0&nbsp;
+&nbsp;CRUIN |4&nbsp;&nbsp;&nbsp; M&nbsp;&nbsp;&nbsp; 37| P1&nbsp;
+&nbsp;&nbsp; CE* |5&nbsp;&nbsp;&nbsp; S&nbsp;&nbsp;&nbsp; 36| S1&nbsp;
+&nbsp;INT6* |6&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 35| S2&nbsp;
+&nbsp;INT5* |7&nbsp;&nbsp;&nbsp; 9&nbsp;&nbsp;&nbsp; 34| INT7*/P15&nbsp;
+&nbsp;INT4* |8&nbsp;&nbsp;&nbsp; 9&nbsp;&nbsp;&nbsp; 33| INT8*/P14&nbsp;
+&nbsp;INT3* |9&nbsp;&nbsp;&nbsp; 0&nbsp;&nbsp;&nbsp; 32| INT9*/P13&nbsp;
+&nbsp; PHI* |10&nbsp;&nbsp; 1&nbsp;&nbsp;&nbsp; 31| INT10*/P12&nbsp;
+INTREQ*|11&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 30| INT11*/P11&nbsp;
+&nbsp;&nbsp; IC3 |12&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 29| INT12*/P10&nbsp;
+&nbsp;&nbsp; IC2 |13&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 28| INT13*/P9&nbsp;
+&nbsp;&nbsp; IC1 |14&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 27| INT14*/P8&nbsp;
+&nbsp;&nbsp; IC0 |15&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 26| P2&nbsp;
+&nbsp;&nbsp; Vss |16&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 25| S3&nbsp;
+&nbsp;INT1* |17&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 24| S4&nbsp;
+&nbsp;INT2* |18&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 23| INT15*/P7&nbsp;
+&nbsp;&nbsp;&nbsp; P6 |19&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 22| P3&nbsp;
+&nbsp;&nbsp;&nbsp; P5 |20&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 21| P4&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +------------+</pre>
+<u>CRU interface</u>
+<br><b>S0-S4.</b> These input pins tell the TMS9901 which CRU bit the CPU
+wants to read/write. On the TI-99/4A these pins are controlled by the address
+bus, lines A10-A14.
+<p><b>CE*</b> Chip enable. This input pin decodes the remainder of the
+CRU address and becomes active (low) when the TMS9901 is the addressed
+device. Remember that the TI-99/4A only decodes part of the address bus,
+lines A3-A5!
+<p><b>CRUIN</b> This output pin carries the current CRU bit to the CPU
+each time CE* is active.
+<p><b>CRUCLK</b> This input pin receives the CRU clock pulse emmited by
+the TMS9900 for CRU ouput operations.
+<p><b>CRUOUT</b> This input bit imports the current CRU bit from the CPU
+provided CE* is active (low) and a pulse is received on CRUCLK
+<p><u>Interrupt interface</u>
+<br><b>INTREQ*</b> This output pin sends an interrupt request signal to
+the CPU by becoming active (low).
+<p><b>IC0-IC3</b> These output pins carry the interrupt number (1 through
+15) to the CPU. Note that this feature is not used on the TI-99/4A which
+considers all interrupts as level 1. These pins are thus not connected
+in the TI-99/4A console.
+<p><b>PHI*</b> This pin receives a clock signal that will be used to synchronize
+the emission of interrupts and to decrement the counter in the timer. In
+the TI-99/4A console, this pin receives the PHI3* clock signal.
+<p><u>I/O interface</u>
+<br>The TMS9901 features 21 pins that can be programmed as input, output
+or interrupt pin. An interrupt pin is a pin that generates an interrupt
+when it is low. Not every pin have the three functions though. In fact,
+I/O pins can be divided into three groups:
+<p><b>INT1*-INT6*</b> Pure input pins. These pins cannot be programmed
+as output pins. They can be used as input pins (by setting their interrupt
+mask as 0 with CRU bits 1-15, which is the default) or as interrupt pins
+(by setting their mask as 1). Pins are numbered according to the interrupt
+code they place on pins IC0-IC3. Note that there is no INT0* pin.
+<p><b>P0-P6</b> Pure I/O pins. These pin cannot generate interrupts. When
+the TMS9901 is reset they are programmed an input pins by default. They
+can be turned into output pins by writting data to them via CRU bits 16
+and higher. Once they are programmed as output they won't revert to input
+pins until the TMS9901 is reset. Caution: trying to force current into
+a pin programmed as output may damage the TMS9901!
+<p><b>INT7*/P15-INT15*/P7</b> Versatile pins. These pins have the 3 capabilities:
+by default they are input pins. They can be turned into interrupt pins
+by setting their mask as 1, or as output pins by writing to them.
+<p><b>RST1*</b> This input pin resets the TMS9901, clears any interrupts,
+disables the timer and turns all pins into input pins.
+<p><u>Power supply</u>
+<br><b>Vcc </b>+5V
+<br><b>Vss </b>Ground
+<h2>
+<br>
+<br>
+<a NAME="CRU interface"></a>CRU interface</h2>
+The TMS9901 interacts with the CPU via 32 CRU bits. So why do we need 32
+bits to control 21 pins? That's because these pins have multiple functions.
+In addition, the meaning of most these bits is very different when read
+or written.
+<p>Bit 0 is used to select the timer mode. When it equals 1, the TMS9901
+is in timer mode and bits 1-15 have a special meaning (see <a href="#CRU%20time%20mode">below</a>),
+when 0 it starts the timer (if needed) and bits 1-15 are used to control
+I/O pins, just as bits 16-31.
+<p>Bits 1-15 are used to read the status of the 15 interrupt pins (whether
+they are used as interrupt pin or as input pin). Writing to one of these
+bits does not output any data, but sets the interrupt mask for the corresponding
+pin: writing a 1 results in issuing interrupts when the pin is held low.
+The interrupt trigger is synchronized by the PHI* pin.
+<p>Bits 16-31 are used to read the status of the 15 programmable I/O pins,
+provided they are used as input (or interrupt) pins. Note that the 8 versatile
+pins INT7*/P15 through INT15*/P7 can be read either with bits 7-15 or with
+bits 23-31. Writing to CRU bits 16-31 turns the corresponding pins into
+output pins and places the bit values on the pins.
+<br>&nbsp;
+<table BORDER >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<th>Bit</th>
+
+<th>R12 address</th>
+
+<th>Meaning when read</th>
+
+<th>Effect when written</th>
+</tr>
+
+<tr>
+<td>0</td>
+
+<td>>0000</td>
+
+<td>Mode, should be 0</td>
+
+<td>1: switch to timer mode</td>
+</tr>
+
+<tr>
+<td>1</td>
+
+<td>>0002</td>
+
+<td>Value of the INT1* pin (#17)</td>
+
+<td>Set interrupt mask for pin INT1* (1:int)</td>
+</tr>
+
+<tr>
+<td>2</td>
+
+<td>>0004</td>
+
+<td>Value of the INT2* pin (#18)</td>
+
+<td>Set interrupt mask for pin INT2*</td>
+</tr>
+
+<tr>
+<td>3</td>
+
+<td>>0006</td>
+
+<td>Value of the INT3* pin (#9)</td>
+
+<td>Set interrupt mask for pin INT3*</td>
+</tr>
+
+<tr>
+<td>4</td>
+
+<td>>0008</td>
+
+<td>Value of the INT4* pin (#8)</td>
+
+<td>Set interrupt mask for pin INT4*</td>
+</tr>
+
+<tr>
+<td>5</td>
+
+<td>>000A</td>
+
+<td>Value of the INT5* pin (#7)</td>
+
+<td>Set interrupt mask for pin INT5*</td>
+</tr>
+
+<tr>
+<td>6</td>
+
+<td>>000C</td>
+
+<td>Value of the INT6* pin (#6)</td>
+
+<td>Set interrupt mask for pin INT6*</td>
+</tr>
+
+<tr>
+<td>7</td>
+
+<td>>000E</td>
+
+<td>Value of the INT7*/P15 pin (#34)</td>
+
+<td>Set interrupt mask for pin INT7*/P15</td>
+</tr>
+
+<tr>
+<td>8</td>
+
+<td>>0010</td>
+
+<td>Value of the INT8*/P14 pin (#33)</td>
+
+<td>Set interrupt mask for pin INT8*/P14</td>
+</tr>
+
+<tr>
+<td>9</td>
+
+<td>>0012</td>
+
+<td>Value of the INT9*/P13 pin (#32)</td>
+
+<td>Set interrupt mask for pin INT9*/P13</td>
+</tr>
+
+<tr>
+<td>10</td>
+
+<td>>0014</td>
+
+<td>Value of the INT10*/P12 pin (#31)</td>
+
+<td>Set interrupt mask for pin INT10*/P12</td>
+</tr>
+
+<tr>
+<td>11</td>
+
+<td>>0016</td>
+
+<td>Value of the INT11*/P11 pin (#30)</td>
+
+<td>Set interrupt mask for pin INT11*/P11</td>
+</tr>
+
+<tr>
+<td>12</td>
+
+<td>>0018</td>
+
+<td>Value of the INT12*/P10 pin (#29)</td>
+
+<td>Set interrupt mask for pin INT12*/P10</td>
+</tr>
+
+<tr>
+<td>13</td>
+
+<td>>001A</td>
+
+<td>Value of the INT13*/P9 pin (#28)</td>
+
+<td>Set interrupt mask for pin INT13*/P9</td>
+</tr>
+
+<tr>
+<td>14</td>
+
+<td>>001C</td>
+
+<td>Value of the INT14*/P8 pin (#27)</td>
+
+<td>Set interrupt mask for pin INT14*/P8</td>
+</tr>
+
+<tr>
+<td>15</td>
+
+<td>>001E</td>
+
+<td>Value of the INT15*/P7 pin (#23)</td>
+
+<td>Set interrupt mask for pin INT15*/P7</td>
+</tr>
+
+<tr>
+<td>16</td>
+
+<td>>0020</td>
+
+<td>Value of the P0 pin (#38)</td>
+
+<td>Set output value of pin P0</td>
+</tr>
+
+<tr>
+<td>17</td>
+
+<td>>0022</td>
+
+<td>Value of the P1 pin (#37)</td>
+
+<td>Set output value of pin P1</td>
+</tr>
+
+<tr>
+<td>18</td>
+
+<td>>0024</td>
+
+<td>Value of the P2 pin (#26)</td>
+
+<td>Set output value of pin P2</td>
+</tr>
+
+<tr>
+<td>19</td>
+
+<td>>0026</td>
+
+<td>Value of the P3 pin (#22)</td>
+
+<td>Set output value of pin P3</td>
+</tr>
+
+<tr>
+<td>20</td>
+
+<td>>0028</td>
+
+<td>Value of the P4 pin (#21)</td>
+
+<td>Set output value of pin P4</td>
+</tr>
+
+<tr>
+<td>21</td>
+
+<td>>002A</td>
+
+<td>Value of the P5 pin (#20)</td>
+
+<td>Set output value of pin P5</td>
+</tr>
+
+<tr>
+<td>22</td>
+
+<td>>002C</td>
+
+<td>Value of the P6 pin (#19)</td>
+
+<td>Set output value of pin P6</td>
+</tr>
+
+<tr>
+<td>23</td>
+
+<td>>002E</td>
+
+<td>Value of the INT15*/P7 pin (#23)</td>
+
+<td>Set output value of pin P7</td>
+</tr>
+
+<tr>
+<td>24</td>
+
+<td>>0030</td>
+
+<td>Value of the INT14*/P8 pin (#27)</td>
+
+<td>Set output value of pin INT14*/P8</td>
+</tr>
+
+<tr>
+<td>25</td>
+
+<td>>0032</td>
+
+<td>Value of the INT13*/P9 pin (#28)</td>
+
+<td>Set output value of pin INT13*/P9</td>
+</tr>
+
+<tr>
+<td>26</td>
+
+<td>>0034</td>
+
+<td>Value of the INT12*/P10 pin (#29)</td>
+
+<td>Set output value of pin INT12*/P10</td>
+</tr>
+
+<tr>
+<td>27</td>
+
+<td>>0036</td>
+
+<td>Value of the INT11*/P11 pin (#30)</td>
+
+<td>Set output value of pin INT11*/P11</td>
+</tr>
+
+<tr>
+<td>28</td>
+
+<td>>0038</td>
+
+<td>Value of the INT10*/P12 pin (#31)</td>
+
+<td>Set output value of pin INT10*/P12</td>
+</tr>
+
+<tr>
+<td>29</td>
+
+<td>>003A</td>
+
+<td>Value of the INT9*/P13 pin (#32)</td>
+
+<td>Set output value of pin INT9*/P13</td>
+</tr>
+
+<tr>
+<td>30</td>
+
+<td>>003C</td>
+
+<td>Value of the INT8*/P14 pin (#33)</td>
+
+<td>Set output value of pin INT8*/P14</td>
+</tr>
+
+<tr>
+<td>31</td>
+
+<td>>003E</td>
+
+<td>Value of the INT7*/P15 pin (#34)</td>
+
+<td>Set output value of pin INT7*/P15</td>
+</tr>
+</table>
+
+<h3>
+<br>
+<a NAME="CRU time mode"></a>Timer mode</h3>
+
+<table BORDER >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<th>Bit</th>
+
+<th>R12 address</th>
+
+<th>Meaning when read</th>
+
+<th>Effect when written</th>
+</tr>
+
+<tr>
+<td>0</td>
+
+<td>>0000</td>
+
+<td>Mode, should be 1</td>
+
+<td>1: switch to timer mode</td>
+</tr>
+
+<tr>
+<td>1</td>
+
+<td>>0002</td>
+
+<td>Content of Read register (LSBit)</td>
+
+<td>Data to write to Clock register (LSBit)</td>
+</tr>
+
+<tr>
+<td>2</td>
+
+<td>>0004</td>
+
+<td>Ditto</td>
+
+<td>Ditto</td>
+</tr>
+
+<tr>
+<td>3</td>
+
+<td>>0006</td>
+
+<td>Ditto</td>
+
+<td>Ditto</td>
+</tr>
+
+<tr>
+<td>4</td>
+
+<td>>0008</td>
+
+<td>Ditto</td>
+
+<td>Ditto</td>
+</tr>
+
+<tr>
+<td>5</td>
+
+<td>>000A</td>
+
+<td>Ditto</td>
+
+<td>Ditto</td>
+</tr>
+
+<tr>
+<td>6</td>
+
+<td>>000C</td>
+
+<td>Ditto</td>
+
+<td>Ditto</td>
+</tr>
+
+<tr>
+<td>7</td>
+
+<td>>000E</td>
+
+<td>Ditto</td>
+
+<td>Ditto</td>
+</tr>
+
+<tr>
+<td>8</td>
+
+<td>>0010</td>
+
+<td>Ditto</td>
+
+<td>Ditto</td>
+</tr>
+
+<tr>
+<td>9</td>
+
+<td>>0012</td>
+
+<td>Ditto</td>
+
+<td>Ditto</td>
+</tr>
+
+<tr>
+<td>10</td>
+
+<td>>0014</td>
+
+<td>Ditto</td>
+
+<td>Ditto</td>
+</tr>
+
+<tr>
+<td>11</td>
+
+<td>>0016</td>
+
+<td>Ditto</td>
+
+<td>Ditto</td>
+</tr>
+
+<tr>
+<td>12</td>
+
+<td>>0018</td>
+
+<td>Ditto</td>
+
+<td>Ditto</td>
+</tr>
+
+<tr>
+<td>13</td>
+
+<td>>001A</td>
+
+<td>Ditto</td>
+
+<td>Ditto</td>
+</tr>
+
+<tr>
+<td>14</td>
+
+<td>>001C</td>
+
+<td>Ditto (Most Significant Bit)</td>
+
+<td>Ditto (Most Significant Bit)</td>
+</tr>
+
+<tr>
+<td>15</td>
+
+<td>>001E</td>
+
+<td>Value of the INTREQ* pin (#11)</td>
+
+<td>0: Software reset (aka RST2*)</td>
+</tr>
+</table>
+
+<h2>
+<br>
+<a NAME="interrupt interface"></a>Interrupt interface</h2>
+With the TMS9901, interrupts are level-triggered, i.e. they are triggered
+by a low voltage on the interrupt pins INT1*-INT15* (as opposed to edge-triggered
+interrupts, that would react to a voltage change from high to low). The
+chip stores the status of these pins in internal latches on the falling
+edge of the clock pulse on the PHI pin, at each and every clock cycle.
+This means that the interrupt status will be forgotten at the next PHI
+pulse if the pin does not remain low.
+<p>For each pin, the latched bit is combined with a mask bit that determines
+whether the interrupt is active or ignored. These mask bits are set by
+the CPU via the CRU interface: a "1" enables the interrupt, a "0" masks
+it out.
+<p>On the rising edge of the same clock pulse, the duly masked bits are
+processed by the priority encoding logic. At the falling edge of the next
+clock pulse, the INTREQ* becomes active, and the code of the lowest active
+interrupt is placed on IC0-IC3. Provided there is an unmasked interrupt,
+of course.
+<p>The CPU can sense the status of the interrupt lines by reading the corresponding
+CRU bits. It is therefore possible to determine which line caused the interrupt.
+This is especially usefull in the TI-99/4A where the IC0-IC3 pins are not
+connected, and all interrupt are considered as level 1. Note that the CRU
+bit is not influenced by the mask bits: it accesses the INTx* pins directly.
+The CPU can also sense the status of the INTREQ* pin, by reading CRU bit
+15 while in timer mode (i.e. after writing a "1" to CRU bit 0). This way,
+one can implement a polling strategy: interrupts are disabled at the CPU
+level (with LIMI 0), and the CPU periodically checks CRU bit 15 to determine
+whether an "interrupt" is pending.
+<p>In addition, an internal timer can also generate interrupts. These are
+assigned priority level 3, and the INT3* pin becomes a pure input pin (i.e.
+a low level on it will not generate interrupts). The mask bit for the timer
+is the same as for the INT3* pin. To clear the timer interrupt condition
+you must write to CRU bit 3. It does not matter whether you are writing
+a 0 or a 1, which allows you to leave interrupt 3 active or to disable
+it, while still clearing the pending condition.
+<h2>
+<br>
+<br>
+<a NAME="Timer"></a>The internal timer</h2>
+The TMS9901 contains an internal decrementer that can be used as a timer,
+in conjunction with two registers: the Clock register and the Read register,
+which together constitute the CRU interface.
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +----------------+&nbsp;
+CRU ====>| Clock register |&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +----------------+&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ||&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \/&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +----------------+&nbsp; =0
+<u>PHI*</u> --->| Decrementer&nbsp;&nbsp;&nbsp; |-----> Interrupt 3&nbsp;
+&nbsp;64&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +----------------+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ||&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \/&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +----------------+&nbsp;
+CRU &lt;====| Read register&nbsp; |&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +----------------+</pre>
+A 14-bit long data word (i.e. >0000->3FFF, or 16384) can be loaded in the
+clock register via CRU bits 1-14, when the chip is in timer mode. CRU bit
+1 is the least significant bit, CRU bit 14 is the most significant bit.
+<p>The TMS9901 can be returned to I/O mode by writing a 0 to CRU bit 0,
+or by accessing a bit higher than 15. If at that point the Clock register
+contains a non-zero value, it will be copied in the decrementer and decremented
+at every 64th clock pulse on the PHI* pin. The new value will constantly
+be copied to the Read register.
+<p>To access the current value of the decrementer, the TMS9901 should be
+placed in timer mode again (CRU bit 0 set to 1). This will freeze the update
+of the Read register, but will not stop the decrementer. The contents of
+the Read register can be read from CRU bits 1-14 with a STCR instruction.
+<p>Placing the TMS9901 in I/O mode again will resume updating of the Read
+register. However, if any bit between 1 and 14 is written to while in timer
+mode, the decrementer will be reinitialized with the current value of the
+Clock register. This is nice because it means that it is not necessary
+to reload all 14 bits in the Clock register: since they haven't changed,
+writting one of them (such as the least significant one) is enough to reload
+the whole data word.
+<p>Once the decrementer reaches zero, it reloads itself with the value
+stored in the Clock register and continues its decrementing job. At this
+point, it also issues a level 3 interrupt. If the corresponding mask was
+set to 1 (with CRU bit 3, in I/O mode), the INTREQ* line will become active
+to signal the interrupt to the CPU. Note that while the decrementer is
+working, pin INT3 cannot generate interrupts: it can still be read, but
+even a low level will not trigger interrupts. The decrementer will not
+generate any more interrupts after that one, unless re-enabled by entering
+and exiting timer mode.
+<p>The decrementer can be stopped by simply writing a zero to the leaving
+register, and leaving timer mode.
+<p>Note that it is NOT possible to leave the chip in timer mode in order
+to store a data word in the clock register and access it later from the
+Read register without having it decremented. That's because memory operations
+are likely to place an address in the range 16-31 on lines A10-A15. Although
+this is not a CRU operation, it is seen by the TMS9901 and results in exiting
+timer mode and decrementing will begin.
+<p>In timer mode, CRU bit 15 has different meanings when read or written
+to: reading bit 15 returns the current status of the INTREQ* pin. This
+could be used to check whether an interrupt request is currently sent to
+the CRU. Writing a 0 to CRU bit 15 resets the TMS9901. This is not the
+same as activating the RST1* line though, as this type of software reset
+(aka RST2*) only resets all I/O pins as pure input pins, but does not affect
+the timer.
+<h2>
+<br>
+<br>
+<a NAME="Ti99"></a>The TMS9901 in the TI-99/4A</h2>
+In the TI-99/4A console, the TMS9901 is used for many purposes:
+<li>
+Scanning the keyboard.</li>
+
+<li>
+Signalling VDP and external interrupts to the CPU.</li>
+
+<li>
+Controlling the cassette tape recorders (motors, input and output).</li>
+
+<li>
+Placing sound data directly to the monitor's speaker.</li>
+
+<h4>
+Keyboard scanning</h4>
+The keyboard is a matrix of six columns of eight keys. Each row of keys
+is connected to an input pin on TMS9901 (pins INT3* to INT10*/P12). The
+TMS9901 uses 3 output pins (P2 to P4) to controls a 74LS138 decoder and
+select a column (column 6 and 7 select the joysticks). If a value of 0
+appears on one of the input pins, it means that a key is down at the intersection
+of this row and the currently selected column. An extra output pin controls
+the alpha-lock key to avoid the phenomenon of phantom keys (when three
+keys are pressed, that are placed at three corners of a rectangle in the
+matrix, the one on the fourth corner appears to be pressed).
+<h4>
+Interrupt handling</h4>
+Two pins are programmed as interrupt pins and receive the interrupt request
+from the VDP (pin INT2*) and peripheral cards in the PE-Box (pin INT1*).
+If we enable the corresponding mask, the interrupt will be sent to the
+CPU via the INTREQ* pin.
+<h4>
+Tape recorder control</h4>
+The TMS9901 uses two output pins to control the motors on two cassette
+tape recorders: pin P6 for cassette1 and INT15*/P7 for cassette2. The motors
+are not connected directly to the chip, mind you: there are isolated via
+opto-isolators (which means that the polarity of the plug is important!).
+Pin INT13*/P9 is used to output sound to the cassette, this will be digital
+sound of course, modulated via an electronic circuit in the console. Another
+electronic circuit takes its input from the cassette recorder and feeds
+a digital level of 0 or 1 into input pin INT11*/P11.
+<h4>
+Direct sound</h4>
+Pin INT14*/P8 is connected to the AUDIOIN pin of the TMS9919 sound chip.
+This allows to send digital sound directly to the speaker, without having
+to rely on the sound generators in the sound chip. I heared there is a
+program around that makes use of this feature to generate sophisticated
+sounds, but I can't recall which it is (any <a href="feedback.htm#Info">help
+</a>appreciated).
+<h3>
+<br>
+<br>
+<a NAME="CRU map"></a>CRU map of the TMS9901</h3>
+Here is a map of the TMS9901 in the CRU address space of the TI-99/4A.
+Column 3 indicates whether the pin should be programmed as input (I), output
+(O) or interrupt (I+)
+<br>&nbsp;
+<table BORDER >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<th>Bit</th>
+
+<th>R12 address</th>
+
+<th>I/O/I+</th>
+
+<th>Usage</th>
+</tr>
+
+<tr>
+<td>0</td>
+
+<td>>0000</td>
+
+<td>I/O</td>
+
+<td>0: I/O mode 1: timer mode&nbsp;</td>
+</tr>
+
+<tr>
+<td>1</td>
+
+<td>>0002</td>
+
+<td>I+</td>
+
+<td>Peripheral interrupt incoming line&nbsp;</td>
+</tr>
+
+<tr>
+<td>2</td>
+
+<td>>0004</td>
+
+<td>I+</td>
+
+<td>VDP interrupts incoming line&nbsp;</td>
+</tr>
+
+<tr>
+<td>3</td>
+
+<td>>0006</td>
+
+<td>I</td>
+
+<td>
+<pre>&nbsp;&nbsp; =&nbsp;&nbsp; .&nbsp;&nbsp; ,&nbsp;&nbsp; M&nbsp;&nbsp; N&nbsp;&nbsp; /&nbsp; fire1&nbsp; fire2&nbsp;</pre>
+</td>
+</tr>
+
+<tr>
+<td>4</td>
+
+<td>>0008</td>
+
+<td>I</td>
+
+<td>
+<pre>space&nbsp; L&nbsp;&nbsp; K&nbsp;&nbsp; J&nbsp;&nbsp; H&nbsp;&nbsp; ;&nbsp; left1&nbsp; left2</pre>
+</td>
+</tr>
+
+<tr>
+<td>5</td>
+
+<td>>000A</td>
+
+<td>I</td>
+
+<td>
+<pre>enter&nbsp; O&nbsp;&nbsp; I&nbsp;&nbsp; U&nbsp;&nbsp; Y&nbsp;&nbsp; P&nbsp; right1 right2</pre>
+</td>
+</tr>
+
+<tr>
+<td>6</td>
+
+<td>>000C</td>
+
+<td>I</td>
+
+<td>
+<pre>(none) 9&nbsp;&nbsp; 8&nbsp;&nbsp; 7&nbsp;&nbsp; 6&nbsp;&nbsp; 0&nbsp; down1&nbsp; down2</pre>
+</td>
+</tr>
+
+<tr>
+<td>7</td>
+
+<td>>000E</td>
+
+<td>I</td>
+
+<td>
+<pre>fctn&nbsp;&nbsp; 2&nbsp;&nbsp; 3&nbsp;&nbsp; 4&nbsp;&nbsp; 5&nbsp;&nbsp; 1&nbsp; up1&nbsp;&nbsp;&nbsp; up2&nbsp;</pre>
+</td>
+</tr>
+
+<tr>
+<td>8</td>
+
+<td>>0010</td>
+
+<td>I</td>
+
+<td>
+<pre>shift&nbsp; S&nbsp;&nbsp; D&nbsp;&nbsp; F&nbsp;&nbsp; G&nbsp;&nbsp; A&nbsp;</pre>
+</td>
+</tr>
+
+<tr>
+<td>9</td>
+
+<td>>0012</td>
+
+<td>I</td>
+
+<td>
+<pre>ctrl&nbsp;&nbsp; W&nbsp;&nbsp; E&nbsp;&nbsp; R&nbsp;&nbsp; T&nbsp;&nbsp; Q&nbsp;</pre>
+</td>
+</tr>
+
+<tr>
+<td>10</td>
+
+<td>>0014</td>
+
+<td>I</td>
+
+<td>
+<pre>(none) X&nbsp;&nbsp; C&nbsp;&nbsp; V&nbsp;&nbsp; B&nbsp;&nbsp; Z&nbsp;</pre>
+</td>
+</tr>
+
+<tr>
+<td>11</td>
+
+<td>>0016</td>
+
+<td>-</td>
+
+<td>(see bit 27)</td>
+</tr>
+
+<tr>
+<td>12</td>
+
+<td>>0018</td>
+
+<td>I/I+</td>
+
+<td>Pull up 10K to +5V</td>
+</tr>
+
+<tr>
+<td>13</td>
+
+<td>>001A</td>
+
+<td>-</td>
+
+<td>(see bit 25)&nbsp;</td>
+</tr>
+
+<tr>
+<td>14</td>
+
+<td>>001C</td>
+
+<td>-</td>
+
+<td>(see bit 24)</td>
+</tr>
+
+<tr>
+<td>15</td>
+
+<td>>001E</td>
+
+<td>-</td>
+
+<td>(see bit 23)&nbsp;</td>
+</tr>
+
+<tr>
+<td>16</td>
+
+<td>>0020</td>
+
+<td>I/O</td>
+
+<td>n.c.</td>
+</tr>
+
+<tr>
+<td>17</td>
+
+<td>>0022</td>
+
+<td>I/O</td>
+
+<td>n.c.</td>
+</tr>
+
+<tr>
+<td>18</td>
+
+<td>>0024</td>
+
+<td>O</td>
+
+<td>Select keyboard column (or joystick)&nbsp;</td>
+</tr>
+
+<tr>
+<td>19</td>
+
+<td>>0026</td>
+
+<td>O</td>
+
+<td>Ditto</td>
+</tr>
+
+<tr>
+<td>20</td>
+
+<td>>0028</td>
+
+<td>O</td>
+
+<td>Ditto</td>
+</tr>
+
+<tr>
+<td>21</td>
+
+<td>>002A</td>
+
+<td>O</td>
+
+<td>Select alpha-lock key&nbsp;</td>
+</tr>
+
+<tr>
+<td>22</td>
+
+<td>>002C</td>
+
+<td>O</td>
+
+<td>1: turn CS1 motor on</td>
+</tr>
+
+<tr>
+<td>23</td>
+
+<td>>002E</td>
+
+<td>O</td>
+
+<td>1: turn CS2 motor on</td>
+</tr>
+
+<tr>
+<td>24</td>
+
+<td>>0030</td>
+
+<td>O</td>
+
+<td>Audio gate</td>
+</tr>
+
+<tr>
+<td>25</td>
+
+<td>>0032</td>
+
+<td>O</td>
+
+<td>Output to cassette mike jack&nbsp;</td>
+</tr>
+
+<tr>
+<td>26</td>
+
+<td>>0034</td>
+
+<td>-</td>
+
+<td>(see bit 18)&nbsp;</td>
+</tr>
+
+<tr>
+<td>27</td>
+
+<td>>0036</td>
+
+<td>I</td>
+
+<td>Input from cassette headphone jack&nbsp;</td>
+</tr>
+
+<tr>
+<td>28</td>
+
+<td>>0038</td>
+
+<td>-</td>
+
+<td>(see bit 10: keyboard mirror)&nbsp;</td>
+</tr>
+
+<tr>
+<td>29</td>
+
+<td>>003A</td>
+
+<td>-</td>
+
+<td>(see bit 9)&nbsp;</td>
+</tr>
+
+<tr>
+<td>30</td>
+
+<td>>003C</td>
+
+<td>-</td>
+
+<td>(see bit 8)&nbsp;</td>
+</tr>
+
+<tr>
+<td>31</td>
+
+<td>>003E</td>
+
+<td>-</td>
+
+<td>(see bit 7)&nbsp;</td>
+</tr>
+</table>
+
+<h2>
+<br>
+<br>
+<a NAME="Operating"></a>Operating the TMS9901</h2>
+
+<h3>
+I/O mode</h3>
+To read the status of a pin, simply read the corresponding CRU bit. Note
+that you can read several bits at a time with a STCR instruction.
+<br>&nbsp;
+<table CELLSPACING=2 CELLPADDING=2 BGCOLOR="#E6E6E6" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CLR&nbsp; R12&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CRU base address of the TMS9901&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TB&nbsp;&nbsp; 29&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Read pin INT9*/P13&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; JNE&nbsp; TEST&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Do something&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R12,>000A&nbsp;&nbsp; CRU address for pin INT5*&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; STCR R1,8&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Read pins INT5* to INT12*/P10</pre>
+</td>
+</tr>
+</table>
+
+<p>To use a pin as an interrupt pin, set its mask to one. A low level on
+this pin will now trigger an interrupt on the next PHI* pulse. You will
+still be able to read the pin, which can be used by the ISR to determine
+where the interrupt came from. To clear the interrupt status, write 1 again
+to its CRU bit. To disable interrupts from this pin, write 0 to the bit.
+<br>&nbsp;
+<table CELLSPACING=2 CELLPADDING=2 BGCOLOR="#E6E6E6" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CLR&nbsp; R12&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CRU base address of the TMS9901&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SBO&nbsp; 4&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Enable interrupt (level 4) for pin INT4*&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ...&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TB&nbsp;&nbsp; 4&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Read that pin (if = 0 an interrupt has occured)&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; JEQ&nbsp; TEST&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Pin is high: no interrupt&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SBO&nbsp; 4&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Clear interrupt condition, but leave mask enabled&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ...
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SBZ&nbsp; 4&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Disable interrupt</pre>
+</td>
+</tr>
+</table>
+
+<p>To use a pin as an output pin, just write a value to it, it will appear
+on the pin (0=low, 1=high). A pin that has been used once for output cannot
+be used for input any more, until the TMS9901 is reset.
+<br>&nbsp;
+<table CELLSPACING=2 CELLPADDING=2 BGCOLOR="#E6E6E6" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CLR&nbsp; R12&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CRU base address of the TMS9901&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SBZ&nbsp; 23&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Set pin INT15*/P7 low&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R12,>0026&nbsp;&nbsp; CRU address for pin P3&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R1,>1300&nbsp;&nbsp;&nbsp; Value to write&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LDCR R1,5&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Write to pins P3 to INT15*/P7</pre>
+</td>
+</tr>
+</table>
+
+<h3>
+<br>
+<a NAME="Timer mode"></a>Timer mode</h3>
+Let's first use the decrementer to measure the time elapsed between two
+events.
+<br>&nbsp;
+<table CELLSPACING=2 CELLPADDING=2 BGCOLOR="#E6E6E6" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>EVENT1 CLR&nbsp; R12&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CRU base of the TMS9901&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SBO&nbsp; 0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Enter timer mode&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R1,>3FFF&nbsp;&nbsp;&nbsp; Maximum value
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; INCT R12&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Address of bit 1&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LDCR R1,14&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Load value&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DECT R12&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; There is a faster way (see below)&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SBZ&nbsp; 0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Exit clock mode, start decrementer&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ...&nbsp;
+EVENT2 CLR&nbsp; R12&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SBO&nbsp; 0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Enter timer mode&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; STCR R2,15&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Read current value (plus mode bit)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SRL&nbsp; R2,1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Get rid of mode bit
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LDCR R12,15&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Clear Clock register, and exit timer mode&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; S&nbsp;&nbsp;&nbsp; R2,R1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; How many cycles were done?&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>R1 now contains the number of times the decrementer was decremented.
+Since this is synchronized by PHI3* on the TI-99/4A and we know PHI3* has
+a period of 333 ns (for a 3 MHz clock), we can easily calculate the elapsed
+time. One unit on the decrementer represents 64 clock periods, thus 64*333
+= 21.3 microseconds. This is the resolution of the timer, the smallest
+time that it can measure.
+<p>The other limitation is that the maximal possible time is 16383*64*333
+ns = 349.2 milliseconds. To time longer intervals we have three possibilities:
+<ol>
+<li>
+Periodically read the timer, save the read value, and reset the timer to
+its initial value. Add up all the elapsed times calculated this way.</li>
+
+<li>
+Same as above, but let the timer reload itself. If the value read is larger
+than last time it was read, the timer has reached >3FFF and looped back
+to >0000.</li>
+
+<li>
+Set the timer to generate interrupts every 100 ms (or any suitable interval)
+and use the ISR to count those interrupts. After reading the final value,
+just add the number of time the timer has fired times 100 msec.</li>
+</ol>
+The first two method are trivial variants of the above, but method number
+3 is slightly trickier. The problem is that the ISR on the TI-99/4A is
+written in stone, I mean in ROM. When it sees that an interrupt does not
+come from the VDP, it assumes (and does not check) that it comes from a
+peripheral card. Thus, when our timer fires, the ISR will call all interrupt
+routines on peripheral cards, but NOT the ISR hook at >83C4. Now, if you
+have an Horizon Ramdisk, or any card with RAM at >4000, this is an ideal
+way to simulate peripheral interrupts and/or to use the timer.
+<p>Otherwise, the only solution we have is to set the flag bit that will
+cause the ISR to enter cassette management routines, no matter where the
+interupt came from. Unfortunately, these routines do not preserve the return
+address! The only way we can get around this problem is by enabling interrupts
+at only one location in our program, and have our ISR return to it.
+<br>&nbsp;
+<table CELLSPACING=2 CELLPADDING=2 BGCOLOR="#E6E6E6" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>* This routine hooks the timer interrupts
+* It expects a delay value in R0
+* and a branch vector in R1 (or >0000 to use a forever loop)
+TIMEON SOCB @H20,@>83FD&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Set timer interrupt flag bit
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MOV&nbsp; R12,@OLDR12&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Preserve caller's R12&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CLR&nbsp; R12&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CRU base address >0000&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SBZ&nbsp; 1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Disable peripheral interrupts&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SBZ&nbsp; 2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Disable VDP interrupts&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SBO&nbsp; 3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Enable timer interrupts
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MOV&nbsp; R1,@>83E2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Zero if we want to wait in a forever loop&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; JEQ&nbsp; EVERLP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SETO @>83E2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Flad: we intend to branch elsewhere&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MOV&nbsp; R1,@>83EC&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Set address where to go
+EVERLP SLA&nbsp; R0,1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Make room for clock bit
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; INC&nbsp; R0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Set the clock bit to put TMS9901 in clock mode&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LDCR R1,15&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Load the clock bit + the delay&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SBZ&nbsp; 0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Back to normal mode: start timer
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MOV&nbsp; @OLDR12,R12&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Restore caller's R12
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; B&nbsp;&nbsp;&nbsp; *R11</pre>
+
+<pre><tt>* This routines "unhooks" the timer interrupt
+TIMOFF </tt>SZCB @H20,@>83FD&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Clear timer interrupt flag bit&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MOV&nbsp; R12,@OLDR12&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Preserve caller's R12&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CLR&nbsp; R12&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CRU base address >0000&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SBO&nbsp; 1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Enables peripheral interrupts&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SBO&nbsp; 2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Enables VDP interrupts&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SBZ&nbsp; 3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Disables timer interrupts
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MOV&nbsp; @OLDR12,R12&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Restore caller's R12
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; B&nbsp;&nbsp;&nbsp; *R11</pre>
+
+<pre>OLDR12 DATA 0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Temporary buffer for caller's R12
+H20&nbsp;&nbsp;&nbsp; BYTE >20
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; EVEN</pre>
+
+<pre>* This is our ISR. All it does is to count the number of times it is called.
+OURISR INC&nbsp; @COUNT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Count the number of times the timer fired&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LWPI >83C0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Back to interrupt workspace (R13, R15 unchanged)&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MOV&nbsp; @RETPT,R14&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Get the return point (as R14 contains OURISR)&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; RTWP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Return to IRET</pre>
+
+<pre>COUNT&nbsp; DATA 0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The event counter
+RETPT&nbsp; DATA 0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The return point</pre>
+
+<pre>* This is the main program. It starts the timer with a delay of 1/3 second
+* and uses the value in COUNT to time a process.
+MAIN&nbsp;&nbsp; LI&nbsp;&nbsp; R0,>3D09&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; That's 333 usec
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R1,OURISR&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; That's our hook
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CLR&nbsp; @COUNT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Reset the counter
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BL&nbsp;&nbsp; @TIMEON&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Start the timer
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ...&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R11,IRET&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Desired ISR return point
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MOV&nbsp; R11,@RETPT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; From now on, timer interrupts will return at IRET&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+LOOP&nbsp;&nbsp; LIMI 2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Enable interrupts
+IRET&nbsp;&nbsp; LIMI 0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Disable interrupts (Our ISR returns here)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Perform the action to be timed
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; JNE&nbsp; LOOP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Until done
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BL&nbsp;&nbsp; @TIMOFF&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Stops the timer
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MOV&nbsp; @COUNT,R1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Divide by 3 to get the number of seconds
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ...</pre>
+</td>
+</tr>
+
+<tr>
+<td></td>
+</tr>
+</table>
+
+<p>Because we have set the cassette flag bit, the console ISR will enter
+the cassette management routine after any interrupt, without checking where
+it came from. That routine will branch at the address provided in >83EC.
+The way it branches, is by copying >83EC in R14 of the interrupt workspace
+and performing a <tt>RTWP</tt>. This will of course overwrite the return
+address (that was in R14), and enter OURISR with the user workspace and
+status.
+<p>OURISR just increments a counter and returns to the caller. Unfortunately,
+it has no way to know where to return. So it returns at IRET, i.e. the<tt>
+LIMI 0</tt> instruction. This has to be to correct return point, since
+the interrupt can only occur after a <tt>LIMI 2</tt>. The drawback is that
+there must be a frequently executed loop in the timed process, into which
+we can stuff these two instructions. Note that they could be more than
+one loop: all we have to do is to set the correct return point before each
+<tt>LIMI
+2</tt>.
+<h4>
+<br>
+An improved ISR ?</h4>
+One thought that occured to me was that OURISR could test whether the interrupt
+came from the VPD, a peripheral card or the timer and branch to the proper
+address accordingly (>0918 for peripheral cards, >094A for the VDP). Before
+doing so, it would place the return address in R14 of workspace >83C0.
+<p>I tried that and it did not work. I had a hard time to figure out why,
+but finally I got it: when the cassette ISR branches to OURISR with a <tt>RTWP
+</tt>it
+restores the status register from R15 in the >83C0 workspace. This will
+automatically restore the interrupt mask of 2 that was set by the <tt>LIMI
+2</tt> instruction. But the cassette ISR did not necessarily clear the
+interrupt condition: it clears timer interrupts, but not VDP or peripheral
+interrupts. Therefore, another interrupt will occur immediately, before
+the first instruction of OURISR can be executed. And we are trapped in
+a forever loop, whithin the console ISR!
+<h4>
+<br>
+Jeff Brown's solution</h4>
+This solution was suggested to me by Jeff Brown, the man behind the <a href="intmod.htm">interrupt
+mod</a>. His idea is very elegant: if we fail to acknowledge VDP interrupts
+any further interrupt will be considered as VDP, so we could use the "interrupt
+hook" address >83C4 to branch to our own routine after any interrupt type.
+Only problem: VDP interrupts are acknowledged by the ISR in the console
+ROMs, and this is done before it calls our routine. Fortunately, there
+is a way out: reseting the interrupt is done by reading the VDP status
+at >8802, which is coded as&nbsp;<span 
+ style="font-family: courier new;"><font size=-1>MOVB
+@>FC00(R15),@>837B</span></font> in the console ROMs. R15 in the GPL workspace
+contains the address of the VDP "read address" port >8C02. So all we need
+to do is to scramble this value, and the console ISR won't be able to clear
+interrupts any longer.
+<p>Of course, there are unwanted side-effects to this techniques:
+<ul>
+<li>
+We won't be able to detect genuine VDP interrupts. So if you need automated
+sound list processing, sprite automotion, or a functional &lt;quit> key,
+you'll have to code these within your program.</li>
+
+<li>
+Any routine that expects to find >8C02 in R15 of the GPL workspace won't
+work properly. This may include some of the routines in the console ROMs
+(such as the GPL intepreter). Again, you will need to have your own version
+of these if you need them.</li>
+</ul>
+This being said, click <a href="jeff.txt">here</a> for a complete listing
+of Jeff's solution.
+<br>&nbsp;
+<br>&nbsp;
+<h3>
+<a NAME="Fun"></a>Fun stuff</h3>
+A look at the CRU map above may have suggested you some interesting possibilities.
+For instance:
+<h4>
+Use the extra pins</h4>
+First of all, there are three unused pins on the TMS9901 that we could
+make use of: INT12*/P10 connected to a 10 KOhm pullup resistor would make
+a nice input (or interrupt) pin. Then P0 and P1 could be used either as
+input or as output pin.
+<p>What for? Well, to control any piece of hardware we could want to install
+directly inside the console, a switch to change clock speed for instance.
+Or a logic gate that would disable basic GROMs: this way, if you have a
+german GRAM-Karte, you can replace the console GROMs with your own operating
+system.
+<h4>
+Interrupt-driven keyboard</h4>
+And what it we were to enable interrupts from the pins connected to the
+keyboard? We would end up with an event-driven keyboard, just like on a
+PC, right? Well, not quite. Remember, the keyboard is scanned one column
+at a time, thus only the keys on the current column would trigger an interrupt.
+Still, this is interesting since column 0 contains all modifying keys:
+Shift, Ctrl and Fctn. Not to mention Enter and the spacebar. If your program
+follows the "menu bar" standard and is controlled by Fctn-0 to Fctn-9 and
+Ctrl-0 to Ctrl-9, then keyboard scanning could be performed by an interrupt
+service routine.
+<br>&nbsp;
+<table CELLSPACING=2 CELLPADDING=2 BGCOLOR="#E6E6E6" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R12,>0006&nbsp;&nbsp; CRU address of keyboard rows&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; 1,>FF00&nbsp;&nbsp;&nbsp;&nbsp; Interrupt mask=1 for all of them&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LDCR R1,8&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Set mask
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R12,>0024&nbsp;&nbsp; Select column 0&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LDCR R12,3</pre>
+</td>
+</tr>
+</table>
+
+<p>Now we must hook the cassette ISR as <a href="#Timer%20mode">above</a>,
+since those interrupts would equally be mistaken for peripheral interrupts.
+Once this is done, your main program can simply scan the keyboard with:
+<tt>LIMI
+2 LIMI 0.</tt> Our ISR will call the keyboard scanning routine (<tt>BL
+@>000E</tt>) and react to the key pressed by returning at various places
+in our program.
+<p>I agree, we could do the same with:
+<br>&nbsp;
+<table CELLSPACING=2 CELLPADDING=2 BGCOLOR="#E6E6E6" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R12,>0006&nbsp; CRU address of keyboard rows&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SETO R1&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; STCR R1,8&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Read 8 pins&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; INV&nbsp; R1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; A pin reads as 0 if a key is pressed&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; JNE&nbsp; KPRESS&nbsp;&nbsp;&nbsp;&nbsp; A key was pressed, find which, react.&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>But the "interrupt" way is more fun.
+<h4>
+The Evil Grail?</h4>
+Another more frightning thought: what if we were to program the keyboard
+input pins as output? The TMS9901 data manual says that trying to force
+data into an ouput pin could damage the chip. Does this mean that we have
+reached the "Evil Grail" of every hacker: write a virus that effectively
+damages the computer at the hardware level?
+<p>I don't think so, although I didn't dare to check. The input pins for
+the keyboard row are pulled up via 10K resistors, thus the maximal current
+they will sink if we set them as low output is 5V/10K= 0.5 mAmps. If we
+set them as high, their current will be drawn by the 74LS138 decoder via
+470 Ohm resistors, thus here again the current will be limited (assuming
+4 Volts for a high pin, which is a lot): 4V/470=8.5 mAmps. And that's assuming
+the decoder has no current limitation of itself. The TMS9901 data manual
+does not state what's the minimal current that would cause damage to the
+chip, but we ought to be safe with those values. Anyone willing to test?
+Just get yourself an extra console and do:
+<br>&nbsp;
+<table CELLSPACING=2 CELLPADDING=2 BGCOLOR="#E6E6E6" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R12,>0024&nbsp;&nbsp; CRU address for column selection&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R1,>0100&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LDCR R1,3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Select column 1</pre>
+
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R12,>0038&nbsp;&nbsp; Address of keyboard rows as output pins&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CLR&nbsp; 1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Try to force them low (against pullup)&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LDCR R1,4&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; As only 4 pins can be set as output&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BL&nbsp;&nbsp; @WAIT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Allow time for damage
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ...
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SETO R1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Now try to force them high&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LDCR R1,4&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Set output values to 1&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Now press a key (2,S,W or X) and hold it down</pre>
+</td>
+</tr>
+</table>
+
+<p>Next, reset the TI-99/4A and test the keyboard. Is it still ok?? (Please,
+let me know).
+<h2>
+<br>
+<br>
+<a NAME="Timing diagrams"></a>Timing diagrams</h2>
+
+<h3>
+Interrupts</h3>
+
+<pre>______&nbsp;&nbsp;&nbsp; _<u>>225</u>__&nbsp;&nbsp;&nbsp; _______| 30<u>0-2000_</u>|&nbsp;&nbsp; ______ PHI
+&nbsp;&nbsp;&nbsp;&nbsp; r\__/f&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \__/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \__/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \__/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+__&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 45-300&nbsp;&nbsp; ________________________ INTn*
+&nbsp; \<u>>60|___</u>______________/>60|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+_____________________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ___ INTREQ*
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |>110\__________________<u>|&lt;110</u>/</pre>
+
+<pre>r: 5-40 ns
+f: 10-40 ns</pre>
+
+<h3>
+<br>
+CRU interface</h3>
+
+<pre>CRU write cycle&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CRU read cycle&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+____&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _________________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; \______________/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \_________________ CE*
+&nbsp;&nbsp;&nbsp; |>100|______&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; >300&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+_________/10-185\______________________________________ CRUCLK
+&nbsp;&nbsp;&nbsp; |>100|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |>60|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+XXXX/ valid address \XXXXXXXXXXXXXXXX/&nbsp; valid address&nbsp;&nbsp; S0-S4
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; >320&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/ valid data&nbsp;&nbsp;&nbsp; INTx/Px
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | >200&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/ valid CRUIN
+&nbsp;&nbsp;&nbsp; |>100|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |>60|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+XXX/&nbsp; valid data&nbsp;&nbsp;&nbsp; \XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX CRUOUT</pre>
+
+<h2>
+<br>
+<br>
+<br>
+<a NAME="Electrical"></a>Electrical characteristics</h2>
+
+<h3>
+Absolute maximum ratings</h3>
+
+<pre>Supply voltage:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -0.3 to 10 V
+All inputs and output voltage: -0.3 to 10 V
+Continuous power dissipation:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0.85 W
+Free-air temperature:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0 to 70 `C
+Storage temperature:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -65 to 150 `C</pre>
+
+<h3>
+<br>
+Recommended operating conditions</h3>
+
+<table BORDER >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<th>Parameter</th>
+
+<th>Min</th>
+
+<th>Nom</th>
+
+<th>Max</th>
+
+<th>Unit</th>
+</tr>
+
+<tr>
+<td>Supply voltage, Vcc</td>
+
+<td>4.75</td>
+
+<td>5</td>
+
+<td>5.25</td>
+
+<td>V</td>
+</tr>
+
+<tr>
+<td>Supply voltage, Vss</td>
+
+<td>-</td>
+
+<td>0</td>
+
+<td>-</td>
+
+<td>V</td>
+</tr>
+
+<tr>
+<td>High-level input voltage</td>
+
+<td>2</td>
+
+<td>-</td>
+
+<td>Vcc</td>
+
+<td>V</td>
+</tr>
+
+<tr>
+<td>Low-level input voltage</td>
+
+<td>Vss-3</td>
+
+<td>-</td>
+
+<td>0.8</td>
+
+<td>V</td>
+</tr>
+
+<tr>
+<td>Free-air temperature</td>
+
+<td>0</td>
+
+<td>-</td>
+
+<td>70</td>
+
+<td>`C</td>
+</tr>
+</table>
+
+<h3>
+<br>
+Electrical characteristics under recommended conditions</h3>
+
+<table BORDER >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<th>Parameter</th>
+
+<th>Test conditions</th>
+
+<th>Min</th>
+
+<th>Typ</th>
+
+<th>Max</th>
+
+<th>Unit</th>
+</tr>
+
+<tr>
+<td>High-level output voltage</td>
+
+<td>I = -100 uA&nbsp;
+<br>I = -200 uA</td>
+
+<td>2.4&nbsp;
+<br>2.2</td>
+
+<td>-</td>
+
+<td>Vcc&nbsp;
+<br>Vcc</td>
+
+<td>V</td>
+</tr>
+
+<tr>
+<td>Low-level output voltage</td>
+
+<td>I = 3.2 mA</td>
+
+<td>Vss</td>
+
+<td>-</td>
+
+<td>0.4</td>
+
+<td>V</td>
+</tr>
+
+<tr>
+<td>Input current (any pin)</td>
+
+<td>V = 0 to Vcc</td>
+
+<td>-</td>
+
+<td>-</td>
+
+<td>100</td>
+
+<td>uA</td>
+</tr>
+
+<tr>
+<td>Averrage supply current</td>
+
+<td>Clock period = 330ns, T = 70 `C</td>
+
+<td>-</td>
+
+<td>-</td>
+
+<td>150</td>
+
+<td>mA</td>
+</tr>
+
+<tr>
+<td>Small signal input capacitance</td>
+
+<td>Freq = 1 MHz, any pin</td>
+
+<td>-</td>
+
+<td>-</td>
+
+<td>15</td>
+
+<td>pF</td>
+</tr>
+</table>
+
+<pre>&nbsp;</pre>
+
+<address>
+Revision 1. 2/19/99. OK for release</address>
+
+<address>
+Revision 2. 3/30/99. Polishing</address>
+
+<address>
+Revision 3. 5/30/99. Tested and debugged examples</address>
+
+<address>
+Revision 4. 9/1/99 In CRU map, VDP+peripheral ints were inverted!</address>
+
+<br>Revision 5. 1/15/06 Added Jeff Brown's hack .
+<br>Revision 6. 1/20/06 Corrected bug: flag bit is at >83FD, not >83FC.
+<br>&nbsp;
+<br>&nbsp;
+<br>
+<center>
+<p><a href="titechpages.htm">Back to the TI-99/4A Tech Pages</a></center>
+
+</body>
+</html>

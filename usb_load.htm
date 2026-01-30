@@ -1,0 +1,1858 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+  <title></title>
+  <meta name="Author" content="">
+  <meta name="GENERATOR"
+ content="Mozilla/3.04Gold (Win95; U) [Netscape]">
+</head>
+<body>
+<h1 align="center"><a
+ href="http://www.nouspikel.com/ti99/titechpages.htm"><img
+ src="logo.jpg" style="border: 0px solid ; height: 33px; width: 95px;"
+ title="Back to main index" alt=""></a></h1>
+<h1>EEPROM loader &amp; manager for the USB-SM card</h1>
+<p>This page describes ELM ("EEPROM Loader &amp; Manager"), a program
+meant to manage the EEPROM on the USB-SM card. Its main function is to
+load new DSRs into the EEPROM, but it also lets you inspect the EEPROM,
+edit it, and possibly remove old DSR.</p>
+<p>There are 3 level at wich the progem can be used:</p>
+<ol>
+  <li>As a DSR loader, to load a single DF80 file.</li>
+  <li>As an EEPROM manager, to enter commands and view their results.</li>
+  <li>Or you can feed it a script file, in DV80 format, containing a
+pre-arranged
+series of commands and/or files to be loaded.</li>
+</ol>
+<p>The distibution disk can be downloaded <a href="elm.zip">here</a>
+(zip
+file, 58K), in disk-image format, i.e. a sector dump in numerical
+order.
+To transfer it to your TI-99/4A, see my <a href="download.htm">download</a>
+page.</p>
+<p>The disk contains the following files:</p>
+<pre>ELM/1 to ELM/7     Prog   EEPROM manager and loader<br>MENU               DV80   Menu driven interface for ELM<br>MENU_B, MENU_E     DV80   Submenus called by the above<br>STDMEM/O           DF80   Standard memory access routines<br>USBHOST/O          DF80   Demo DSR, to access USB devices from Basic<br>USBHOST            DV80   Script loading the above two files<br>DIRECT             Prog   Basic demo program<br>GEDESC             Prog   Basic demo program<br>HOST               Prog   Basic demo program<br>INTS               Prog   Basic demo program<br>PORTS              Prog   Basic demo program</pre>
+<p><a href="#Simple%20load">Loading a new DSR<br>
+</a><a href="#Command%20mode">Command mode<br>
+</a><a href="#USBHOST%20demo">Demo DSR</a></p>
+<h2><a name="Simple load"></a>Loading new DSRs</h2>
+<p>This is the simplest way to use the EEPROM manager. Before you
+start,
+make sure that all switches on your USB-SM card are in the proper
+position:
+the one on the back should be all the way back with a TI-99/4A or in
+the
+middle position for a Geneve. The switch in the middle of the board
+should
+be forward with a TI-99/4A, and to the back with a Geneve. In addition,
+you should close the top switch (labelled EE) on the DIP-switch located
+to the front of the board. This will unprotect the EEPROM and allow the
+program to write DSR into it. You may want to open this switch once you
+are done: this will prevent any malicious program (e.g. a virus) to
+install
+itself permanently in your USB-SM card.</p>
+<p>Load the file ELM/1 with a EA5 loader such as Funelweb, the
+Editor/Assembler
+cartridge option 5, or the TI-writer cartridge option 3.</p>
+<p>The program automatically scans for the USB-SM card and displays its
+CRU address and the size of its EEPROM.</p>
+<p>At this point, just type in the name of the file you wish to load.
+In
+most cases, it will be a DF80 file, but it could also be a DV80 script
+file.</p>
+<p>The program then prescan the file and displays its info screen, if
+it
+contains one. Press any key to continue with loading the DSRs, or press
+Fctn-= (QUIT) if you realize this is not the file you wanted. If the
+file
+does not contain any information for the user, you don't have the
+option
+to abort loading. Neither do you when you are running a script, unless
+the author of the script chose to give you such an option.</p>
+<h4>Notes</h4>
+<p>If you have more than one USB-SM card, several CRU addresses will be
+displayed. The last one will be used by default. If that's not the one
+you want, type in "CRU 1x00", where x is the address you want.</p>
+<p>If the USB-SM card is not found, most probably the main switch was
+left
+in the "off" position (or the TI/Geneve switch is wrong). Correct
+the problem then type in "CRU" to repeat scanning. Or just restart
+the program.</p>
+<p>
+</p>
+<hr width="100%">
+<p></p>
+<h2><a name="Command mode"></a>Command mode</h2>
+<p>Load the file EEMAN1 with an EA5 loader. You then have two
+possibilities:</p>
+<p>If you prefer a menu-driven interface, type in DSK1.MENU (or
+whatever
+drive the files MENU, MENU_E, MENU_B are located in). This will launch
+a chain of scripts that let you access most (but not all) commands
+through
+a series of menus. The script files are in DF80 format and can thus be
+read with a text editor. If you need examples of how to use commands,
+you
+may want to take a look at these files.</p>
+<p>If you like a command line interface better, just type in commands,
+in upper-case. Many commands can be abbreviated by just typing their
+first
+two letters (see command summary). The following function keys are
+active:
+Fctn-3 erases the line, Fctn-S backspaces. </p>
+<p>Commands can be divided into several groups: <a
+ href="#file%20commands">file-oriented</a>
+commands, <a href="#EEPROM%20commands">EEPROM-oriented</a> commands, <a
+ href="#debug%20commands">debugging</a>
+commands, and <a href="#Script%20commands">script-file</a> commands. A
+<a href="#Command%20summary">command
+summary</a> is provided at the end of this chapter.</p>
+<p>Most commands produce screen output, so you know they are executed
+correctly,
+but there are a few silent commands. As long as you don't get an error
+message, you can assume that the command was executed properly.</p>
+<p>If an error occurs, you may have the option to ignore it and
+continue
+with the command, at your own risks. This is not possible with every
+command,
+though. If you are executing a script, you are also given the option to
+abort the script and return to command mode. Errors that report
+duplicate
+names (e.g. duplicate DEF, or duplicate DSR or call) give you the
+option
+to replace the old entry with the new one, or to keep the old one and
+just
+ignore the new one.</p>
+<p>To exit the program from the command line interface, just type EXIT</p>
+<h4>Entering numeric values</h4>
+<p>Many commands take numeric values as parameters. All numeric values
+are assumed to be in hexadecimal format, so there is no need for the
+&gt;
+mark, although it is accepted. If you wish to enter a decimal number,
+you
+must precede it with a # sign. In other words, #10 means ten, whereas
+&gt;10
+and 10 both mean sixteen. </p>
+<p>Wherever a numeric value is required, you can substitue a symbol
+name
+preceded with an @ at sign (e.g. @TEST). The value of this symbol will
+be used, if is is found in the symbol table. If the symbol is not
+found,
+the value is zero by default. Several internal variables used by the
+loader
+can be accessed in this way, see <a href="#Predefined%20symbols">table
+below</a>.
+(In some cases, you can also use labels where a text value is required,
+in wich case the label should contain a pointer to a string).</p>
+<p>You can combine numeric values and symbols in mathematical
+expressions,
+using the following operators:</p>
+<p>Unary operators, act upon the value that follows:<br>
++ ignored<br>
+- negation (-1 is FFFF)<br>
+~ bitwise inversion (~1 is FFFE)<br>
+` absolute value (this is the "accent grave": Fctn-C)</p>
+<p>Dual operators, combine two values:<br>
++ addition<br>
+- substraction<br>
+* multiplication<br>
+/ division<br>
+% modulo (remainder of division)<br>
+] the greatest of two (signed comparison)<br>
+[ the smallest of two (signed comparison)<br>
+&amp; bitwise "and"<br>
+| bitwise "or"<br>
+^ bitwise "exclusive or"</p>
+<p>Unary operations are performed first. Dual operations are performed
+in order of appearance. To alter the order of execution you can use
+parentheses
+( ) , which can be nested upto 5 levels deep. Parentheses mismatch or
+overnesting
+abort the calculations. As a general rule, any syntax error aborts
+calculations
+and returns the current value, calculated upto the point where the
+error
+occured. Note that no check is performed for carry, borrow, nor
+overflow
+during arithmetic operations.</p>
+<p>Examples:</p>
+<ul>
+  <pre>EQUATE THIS, 22 &amp; ~16       ; THIS will be &gt;0020<br>EQUATE THAT,2 * @THIS+5     ; THAT will be &gt;0045<br>EQUATE TEST, @THIS [ #31    ; TEST will be &gt;001F (i.e. 31 decimal)<br>EQ TEST, 55 ] 61 ] FFFC     ; TEST will be &gt;0061<br>EQ TEST, ~(-2)              ; unary ops cannot follow each other without parentheses</pre>
+</ul>
+<h3><br>
+<a name="file commands"></a>File loading commands</h3>
+<p>These commands are used to load DSRs from object files and "burn"
+them (i.e. write them) into the EEPROM.</p>
+<p><a href="#LOAD">LOAD<br>
+</a><a href="#BURN">BURN<br>
+</a><a href="#Reset">RESET<br>
+</a><a href="#INFO">INFO<br>
+</a><a href="#ENTRIES">ENTRIES<br>
+</a><a href="#Exported">EXPORTED<br>
+</a><a href="#EXIT">EXIT</a></p>
+<h4><a name="LOAD"></a>LOAD command</h4>
+<p>This command causes a DF80 tagged-object file to be pre-scanned. The
+loader looks for the segment structure within the file (tags M) which
+it
+uses to build the segment table, and for DEFs and REFs which it places
+into the symbol table (unless a DEF has the same name than a segment,
+in
+which case it is assumed to contain segment flags for the segment
+table).</p>
+<p>Once it is done reading the file, the loader calls its dispatcher
+routine
+and attempts to assign each segment to a page within the EEPROM.</p>
+<p>If everything goes well, you are now ready to burn segments into the
+EEPROM, or to review file contents with commands like INFO, EXPORTED,
+or
+ENTRIES.</p>
+<p>The LOAD command can also be used to trigger execution of a DV80 <a
+ href="#Script%20commands">script
+file</a>, or to chain script files if enclosed within a script (note
+that
+there is no mechanism to return to the same point in the calling file
+once
+the chained file is finished). </p>
+<p>Normally, the command should be followed with a file path, i.e. a
+drive
+name and a file name: DSK2.MYFILE. But there are several alternative
+syntaxes.
+If the file path begins with a decimal point, the default path name
+(DSK1.)
+will be substituted for the dot. If the path begins with DSK*, the
+number
+of the most recently used drive will be substituted for the star.
+Finally,
+you could use a label pointing to a string, which should contain the
+file
+path (e.g. LOAD @_PTR).</p>
+<h4><br>
+<a name="BURN"></a>BURN command</h4>
+<p>BURN </p>
+<p>This command causes the DF80 file to be read again, once for each
+segment,
+starting from the end of the file. The segments are assembled one by
+one
+into the memory expansion card, then written into the EEPROM (a.k.a.
+"burned",
+a term that dates from the time PROMs were made of tiny fuses that were
+burnt to write a '0' bit).</p>
+<p><br>
+BURN <i>segment_number<br>
+</i>BURN "<i>segment_name</i>"</p>
+<p>Alternatively, you can use the command to write only one segment
+into
+the EEPROM, by specifying either its number or its name enclosed in
+doubled
+quotes. Note that the loader will need to assemble in RAM all segments
+following the one you're burning, for proper resolution of the REF
+chains.
+So if you're planning to <tt>BURN </tt>more than one segment, it is
+best
+to burn them in reverse order of appearance in the file (i.e. start
+with
+the last one).</p>
+<h4><br>
+<a name="Reset"></a>RESET command</h4>
+<p>RESET</p>
+<p>This command wipes out the segment table, the symbol table and
+restores
+several values to their default. It is approximately similar to exiting
+the program and restarting it, except that you don't loose the CRU
+address,
+nor some of the debugging settings. </p>
+<p>If you wish to load more than one DSR unit in one session, make sure
+you insert a RESET after each unit has been burnt.</p>
+<p>There is a special syntax of this command:</p>
+<p>RESET SEGS</p>
+<p>which only resets segment-related info, but preserves the symbol
+table.</p>
+<h4><br>
+<a name="INFO"></a>INFO command</h4>
+<p>This command is used to display the information segment in the DF80
+file, if there is one. This segment will never be loaded, it is only
+meant
+to provide information about the contents of the DSRs.</p>
+<p>There are 4 records in this segment: a target identifier (which
+should
+say USB-SM), an info line, an info screen, and a custom info field.</p>
+<p>If the info segment contains a screenful of info, it is displayed
+until
+you press a key. Then the target name and the info line (if any) are
+displayed
+and the command ends.</p>
+<h4><br>
+<a name="ENTRIES"></a>ENTRIES command</h4>
+<p>This commands loads the blank (no-name) segment from the DF80 file,
+and displays how many of each entry points it contains: DSRs, CALLs,
+power-up
+and interrupt service routines. It also verifies that there is enough
+room
+in page 0 to load this segment.</p>
+<pre>ENTRIES</pre>
+<pre>DSRs: 0002    Calls: 0001<br>Pwr-up: none  ISR: none<br>Will not fit in page 0</pre>
+<p>To get detailed information on the entries about to be created, you
+can follow the command with a parameter: DSR, CALL,&nbsp;ISR, POWERUP,
+or ALL (only the first letter is scanned). The relevant entries are
+listed
+with the following format:</p>
+<pre>ENTRIES ALL</pre>
+<pre>? Name    Addr Dup<br>- ------  ---- ---<br>D NEWDSR  412E  Y<br>D OTHER   4132  <br>C CALL4   4144<br>p         4160<br>i         415E<br>Will not fit in page 0</pre>
+<ul>
+  <li>The first column displays the type of entry: "D" for DSRs,
+"C" for calls, "i" for sub-ISRs (no master ISR or power-up
+can be defined by the entry segment), and "p" for sub-powerup
+routines.</li>
+  <li>The second column displays the name of the entry, for DSRs and
+CALLs.
+It is left empty for ISRs and power-up routines which have no name.</li>
+  <li>The third column displays what will be the entry point of the
+routine
+after it is installed inn the EEPROM</li>
+  <li>The last column displays a "Y" if the name of this entry
+already exists in the EEPROM header.</li>
+</ul>
+<p>Since the entry segment is generally burned last, it is a good idea
+to call this command before calling BURN, in order to detect potential
+problems before anything is commited to the EEPROM.</p>
+<p>After execution of an ENTRIES command comprising a parameter, _ITEMS
+will contain the number of items listed. ENTRIES without parameters
+sets
+_ITEMS as zero.</p>
+<h4><br>
+<a name="Exported"></a>EXPORTED command</h4>
+<p>This command loads the EXPORT segment from the DF80 file (if any)
+and
+displays it on screen. It also checks the exports list whithin the
+EEPROM
+and makes sure there are no duplicate names.</p>
+<pre>Name   Addr Dup Segment Page<br>------ ---- --- ------- ----<br>MALLOC 46DA     STDMEM  0004<br>FREE   46DE     STDMEM  0004<br>RAMCPY 46E2     STDMEM  0004<br>BURNW  46E6     STDMEM  0004<br>TOSLOT 46EA     STDMEM  0004<br>ATSLOT 46EE     STDMEM  0004<br>VSBR   49AA  Y  STDMEM  0004<br>VSBW   49EA  Y  STDMEM  0004<br>VMBR   49B2  Y  STDMEM  0004<br>VMBW   49B6  Y  STDMEM  0004<br>VWTR   49BA  Y  STDMEM  0004<br>VIBW   49BE     STDMEM  0004</pre>
+<p>After execution, _ITEMS will contain the number of exports found in
+the EXPORT segment.</p>
+<h4><br>
+<a name="EXIT"></a>EXIT&nbsp;command</h4>
+<p>This command simply exits the program and resets the TI-99/4A.
+Whatever
+EEPROM page that was selected last will appear in the EEPROM. For your
+DSRs to work properly, this should be page 0 (or the one you
+substituted
+for it with the PAGE0 command). To force page 0 selection, just turn
+the
+console power off, then on.</p>
+<h3><br>
+<a name="EEPROM commands"></a>Analyzing the EEPROM</h3>
+<p>There are several commands dedicated to the analysis of the data
+currently
+within the EEPROM.</p>
+<p><a href="#View">VIEW<br>
+</a><a href="#PAGE">PAGE<br>
+</a><a href="#Header">HEADER<br>
+</a><a href="#Unit">UNIT<br>
+</a><a href="#Exports">EXPORTS<br>
+</a><a href="#Erase">ERASE<br>
+</a><a href="#SCRATCH">PATCH<br>
+SCRATCH</a></p>
+<h4><br>
+<a name="View"></a>VIEW command</h4>
+<p>This is the most basic command: it just displays the contents of the
+EEPROM. There are several syntaxes:</p>
+<p>VIEW <i>address:page</i></p>
+<p>This version of the command displays 128 bytes of data, arranged as
+16 lines of 8 bytes. </p>
+<pre>VIEW 4000:1</pre>
+<pre>4000 50 00 00 01 4D 41 4C 4C<br>4008 4F 43 41 80 00 03 46 52<br>4010 45 45 20 20 41 84 00 03<br>4018 52 41 4D 43 50 59 41 88<br>             etc.</pre>
+<p><br>
+<b><i>Address </i></b>is the address where the display should start.
+Normally,
+it will be in the range &gt;4000-5FFF, but this is no obligation: you
+can
+use VIEW to display any cpu memory area.</p>
+<p><b><i>Page </i></b>is the number of the EEPROM page, if address is
+within
+&gt;4000 to &gt;4FFF. Otherwise, it is assumed to be the number of the
+SRAM page (the SRAM maps at &gt;5000-5FFF). The maximum number of
+EEPROM
+pages is displayed when starting the program: it's either &gt;0800 for
+an 8 meg EEPROM, or &gt;0400 for a 4 meg EEPROM. The maximum number of
+SRAM pages is &gt;0100.</p>
+<p><br>
+VIEW <i>address:page,ASCII</i></p>
+<p>This is the same as above, but the presence of the ASCII flag (only
+letter A is checked for) turns the display into text. There will still
+be only 8 bytes per line, at the same positions as the hexadecimal
+bytes
+were, so you can figure out more easily which is which. Unprintable
+characters
+are displayed as double underscore, which lets you differentiate them
+from
+the regulr underscore character (ascii 95) which appears only once.</p>
+<pre>VIEW 4000:1,A</pre>
+<pre>4000  P  `  `  `  M  A  L  L<br>4008  O  C  A  `  `  `  F  R<br>4010  E  E        A  `  `  `<br>4018  R  A  M  C  P  Y  A  ` </pre>
+<p><br>
+<br>
+VIEW <i>address</i></p>
+<p>This displays another address from the same page, in hexadecimal or
+ascii, depending on what was the case the last time the command was
+typed
+in.</p>
+<p><br>
+VIEW</p>
+<p>This diplays the next 128 bytes, in the same format as previously</p>
+<p><br>
+VIEW -</p>
+<p>The displays the previous 128 bytes.</p>
+<p>After execution, _PAGE contains the number of the displayed page,
+and
+_PTR the starting address of the displayed memory.</p>
+<h4><br>
+<a name="PAGE"></a>PAGE command</h4>
+<p>This command lets you analyse EEPROM pages. It works best if pages
+in
+use contain the default link structure installed by the loader, in
+which
+each segment is preceded with a pointer to the next segment. However,
+it
+can also provide information about non-standard pages.</p>
+<p>There are 3 disting syntaxes, differing by the number of parameters.
+The simpler version, PAGE with no parameters, displays a summary of
+EEPROM
+pages:</p>
+<pre>PAGE</pre>
+<pre>Free: 07F8  Bytes: 7F98A6<br>Used: 0008  Segments: 000C<br>Content Page Items Free<br>------- ---- ----- ----<br>Exports 0001 000B  0FE8<br>Units   0002 0003  0F7E</pre>
+<p><b>Free </b>is the number of free pages, followed with the number
+of
+free bytes. Each free page contributes &gt;1000 bytes to the total, to
+which the program adds any free bytes remaining at the end of used
+pages.
+Note that, due to time constraints, the program does not actually
+verifies
+that all 'free' bytes contain &gt;FF, it just trusts the link structure
+installed in used pages.</p>
+<p><b>Used </b>is the number of pages in use, either fully or in part.
+<b>Segments </b>indicates how many segments are loaded into these
+pages.
+This number includes all stubs, so it may be greater that what is
+displayed
+with the UNIT command.</p>
+<p>Then the program lists all export pages and all "unit" pages,
+i.e. those containing removal information. For each page, its number is
+displayed together with the number of exports or units in the page, and
+the remaining free bytes at the end of the page.</p>
+<p>After execution, _ITEMS contains the number of free pages. _PAGE
+contains
+the number of the first units page.</p>
+<p><br>
+PAGE <i>first,last,flag</i></p>
+<p>You can get a more detailed listing by following the command with a
+range of pages.</p>
+<p><b><i>First </i></b>is the first page to be listed.<br>
+<b><i>Last </i></b>is the last page included into the listing.<br>
+<b><i>Flag </i></b>is an optional condition: if it is USED (or just
+the
+letter U) only used pages will be listed. If it is any other value
+(such
+as FREE) only free pages will be listed. If it is omitted, all pages
+will
+be listed.</p>
+<pre>PAGE 0,6</pre>
+<pre>Page  Segs  Used Blank<br>----  ----  ---- -----<br>0000: 0000  0000 Blank<br>0001: 0001  1000 0EB2<br>0002: 0001  1000 0FA8<br>0003: 0003  0C32 05C4<br>0004: 0002  06D8 0B1E<br>0005: 0000  0000 Blank<br>0006: 0000  0000 Blank</pre>
+<ul>
+  <li>The first column is the page number. </li>
+  <li>The second column is the number of segments found in this page,
+including
+the stub (if any).</li>
+  <li>The third column is the number of bytes marked as used (i.e. part
+of
+a segment) within the page.</li>
+  <li>The last column is the number of &gt;FF bytes at the end of the
+page
+(whether marked as used or not).</li>
+</ul>
+<p>After execution, _ITEMS contains the total number of pages listed,
+i.e.
+matching the flag, _PAGE contains the number of the last page listed.</p>
+<p><br>
+PAGE <i>number</i></p>
+<p>To get even more details on the contents of a page, you can use the
+PAGE command with a single argument, the page number. The following
+type
+of listing is produced:</p>
+<pre>Addr Size<br>---- ----<br>4000 017E Default stub<br>417E 055A<br>46D8 0558<br>4C30 03D0 Blank</pre>
+<ul>
+  <li>The first column is the address of the segment. </li>
+  <li>The second column is the segment size.</li>
+  <li>The third column may contain extra info on the segment</li>
+</ul>
+<p>The first segment in a page is systematically compared with the
+default
+stub used by the loader. If it is identical, this will be indicated in
+the third column. If it matches the default stub but uses more space,
+stub
+extensions were included, which is indicated by a '+' sign.</p>
+<p>After the last segment, one more line is printed with the number of
+blank bytes (i.e. containing &gt;FF) at the end of the page. If the
+last
+segment finishes with &gt;FF bytes, they will be included in the count,
+so the number of blanks may be greater than expected. If the last
+segment
+reserved the full page, the number of blank bytes at the end of the
+page
+will be indicated on the segment line.</p>
+<pre>Addr Size<br>---- ----<br>4000 1000 Blank: 0EB2</pre>
+<p>If a segment was loaded without using the default chaining mechanism
+(i.e. preceding it with a pointer to the next segment), its size cannot
+be calculated and "no link" is indicated instead. Since the next
+segment cannot be found either, the routine just displays the number of
+blank bytes at the end of the page.</p>
+<pre>Addr Size<br>---- ----<br>4000 No link  Blank: 0002</pre>
+<p>After execution, _ITEMS contains the number of segments listed. This
+includes the strub segment, but not the blank portion at the end of the
+page.</p>
+<h4><br>
+<a name="Header"></a>HEADER command</h4>
+<p>This command analyses the EEPROM header to be found in page 0. It
+expects
+byte &gt;4000 to be &gt;AA, and further checks address &gt;4010 to know
+whether the current header is the default one, installed by the loader.</p>
+<p>It then analyses the header and displays the following statistics:
+number
+of DSR names, number of subprogram (i.e. CALL) names, number of
+power-up
+and interrupt routines. If the header is the default one, power-up and
+ISRs are broken into two categories: the master routine is the one
+called
+by the console ROMs, the subroutines are called by the master.
+Normally,
+there will be only one master routine in each category, since the
+loader
+only installs subroutines.</p>
+<p>If the header is the default one, the command also displays the
+location
+of the first exports page, and that of the first "units"<br>
+page, i.e. the page containing removal informations. Finally, it also
+displays
+the number of entry segments in page 0, normally at least one since the
+default page 0 stub is counted as one.</p>
+<pre>DSRs: 0003 Calls: 0002<br>Master PwrUp: 0001 Sub: 0000<br>Master ISR:   0001 Sub: 0000<br>Exports page: 0001 Units: 0002<br>Entry segments: 0002</pre>
+<p>After execution, _ITEMS contains the number of entry segments found.
+_PTR points to the first free address in page 0.<br>
+</p>
+<p>You can further refine the analysis, by including after the command
+the category that you want to be detailed: DSRs, CALLs, ISRs,
+Power-ups.
+Only the first letter is checked, so feel free to abbreviate these as
+D,
+C, I and P.</p>
+<pre>HEADER DSR</pre>
+<pre>Name   Addr Unit (Hex name)<br>------ ---- ---- ---------<br> YDSR  4120 0001 05005944<br>MYDSR  4340 0002<br>       6000      0000</pre>
+<ul>
+  <li>The first column list DSRs (or CALLs) by name, whether printable
+or
+not. </li>
+  <li>The second column is the entry point in page 0 for this DSR.</li>
+  <li>The third column is the loading unit this DSR belongs to.</li>
+  <li>If the first character in the name is not printable, the last
+column
+displays the size and name of the DSR in hexadecimal format. Due to
+lack
+of space, no more than 3 characters can be spelled out this way.</li>
+</ul>
+<p>In the exemple above, the first DSR was scratched, by zeroing the
+first
+byte in its name. Most probably because unit 2 wanted to define a DSR
+of
+its own, with the same name. &gt;05 is the name size, &gt;00 the erased
+character, &gt;59 and &gt;44 the next two characters ("YD").</p>
+<p>There is always an extra entry at the end of the list, don't worry
+about
+it. It is a dummy name residing at &gt;4FFE, which allows the loader to
+extend the chain of names when new DSRs are loaded (&gt;4FFE can be
+transformed
+to any address by changing zeros ro ones). </p>
+<p>The listing for calls, obtained with <tt>HEADER CALL</tt>, follows
+the
+same format. </p>
+<p>However, ISRs and power-ups have no name, so their listing is a bit
+differnent.</p>
+<pre>HEADER ISR</pre>
+<pre>T Addr Unit<br>- ---- ----<br>M 4020 <br>i 4192 0001<br>i 41AC 0002</pre>
+<ul>
+  <li>The first column indicates whether it is a master ISR (or
+power-up)
+or a subroutine. A letter "M" indicates a master routine.</li>
+  <li>The second column is the entry point of the routine. </li>
+  <li>The third column is the number of the unit it belongs to.</li>
+</ul>
+<p>The listing is identical with <tt>HEADER PWRUP</tt> which lists
+power-up
+routines.</p>
+<p>After execution, _ITEMS contains the total number of items displayed.</p>
+<h4><br>
+<a name="Unit"></a>UNIT command</h4>
+<p>This command lets you inspect what DSRs where previously loaded into
+the EEPROM. Each time it installs a new DSR, the loader saves some
+information
+about it into a dedicated page(s). This information will come handy in
+case you need to remove a DSR. Each loading session contributes an
+entry
+into this page, hereafter known as a "unit".</p>
+<p>By typing the UNIT command without any parameter, you get a summary
+table of all registered units.</p>
+<pre>UNIT</pre>
+<pre>Unit  Seg  Exp  Ref  Entry<br>----  ---- ---- ---- -----<br>0001: 0001 0000 0000 Y<br>0002- 0002 000B 0000 n<br>0003: 0006 0000 0007 n</pre>
+<ul>
+  <li>The first column is the unit number. It is followed with a colon,
+unless
+the unit was deleted (with the SCRATCH command), in which case a '-'
+sign
+is used instead.</li>
+  <li>The second column indicates the number of segments loaded by this
+unit
+(not including stubs). </li>
+  <li>The third column is the number of exports defined by this unit. </li>
+  <li>The fourth column is the number of exports refered to by this
+unit.
+  </li>
+  <li>The last column indicates whether or not the unit installed an
+entry
+segment in page 0, i.e. if it defined DSRs, calls, ISRs or power-up
+routines.</li>
+</ul>
+<p>After execution, _ITEMS contains the number of units listed. _PAGE
+contains
+the number of the last page with unit information in it, and _PTR
+points
+to the last unit entry in this page.</p>
+<p><br>
+UNIT <i>number</i></p>
+<p>You can get more details about a unit by typing its number after the
+command. The command displays a series of tables, inasmuch as they are
+relevant for the unit in question:</p>
+<ul>
+  <li>Segment list</li>
+  <li>Export list</li>
+  <li>Reference (to exports) list</li>
+  <li>DSRs list</li>
+  <li>CALL list</li>
+  <li>ISR list</li>
+  <li>Power-up routine list</li>
+</ul>
+<p>If you do not wish to see all this information, you can display only
+one of these lists by typing its name (the first character is enough)
+after
+the unit number.</p>
+<pre>UNIT n,SEG</pre>
+<pre>Page Addr Size<br>---- ---- ----<br>FFFF 5040 0000<br>0000 0000 0000<br>0003 4148 0558</pre>
+<ul>
+  <li>The first column is the page in which the segment is located. </li>
+  <li>The second column is the segment address in this page. </li>
+  <li>The third column is the size of the segment. </li>
+</ul>
+<p>Note that the first two segments are always listed even if empty:
+the
+data segment (located in the SRAM, so the page # is irrelevant) and the
+"no-name" entry segment.<br>
+</p>
+<pre>UNIT n,EXPORT</pre>
+<pre>Name   Addr Page Unit<br>------ ---- ---- ----<br>MALLOC 4180 0003<br>FREE   4184 0003<br>RAMCPY 4188 0003</pre>
+<ul>
+  <li>The first column is the name of the export.</li>
+  <li>The second column is the address of the exported routine.</li>
+  <li>The third column is the page in which the exported routine
+resides.</li>
+  <li>The last column is not used here, since all exports will be in
+the
+same unit: the one you typed in.</li>
+</ul>
+<pre>UNIT n,REF</pre>
+<pre>Name   Addr Page Unit<br>------ ---- ---- ----<br>ATSLOT 4194 0003 0001<br>TOSLOT 4190 0003 0001<br>MALLOC 4180 0003 0001<br>FREE   4184 0003 0001</pre>
+<ul>
+  <li>The first column is the name of the referenced export.</li>
+  <li>The second column is the address of the exported routine, as
+found
+in the EEPROM exports list.</li>
+  <li>The third column is the page in which the exported routine
+resides.</li>
+  <li>The last column is the unit which exported this routine.</li>
+</ul>
+<pre>UNIT n,DSR</pre>
+<pre>Name   Addr Unit (Hex name)<br>------ ---- ---- ---------<br>MYDSR  4340</pre>
+<ul>
+  <li>The first column list DSRs (or CALLs) by name, whether printable
+or
+not. </li>
+  <li>The second column is the entry point in page 0 for this DSR.</li>
+  <li>The third column is the loading unit this DSR belongs to, i.e.
+the
+one you typed in.</li>
+  <li>If the first character in the name is not printable, the last
+column
+displays the size and name of the DSR in hexadecimal format. Due to
+lack
+of space, no more than 3 characters can be spelled out this way. </li>
+</ul>
+<p>The display for <tt>UNIT n,CALL</tt> is identical</p>
+<pre>UNIT n,I</pre>
+<pre>T Addr Unit<br>- ---- ----<br>i 4192 0001<br>i 41AC 0002</pre>
+<ul>
+  <li>The first column indicates whether it is a master ISR (or
+power-up)
+or a subroutine. A letter "M" would indicate a master routine,
+but since these do not belong to any unit (they are in the stub) you
+should
+never see one.</li>
+  <li>The second column is the entry point of the routine. </li>
+  <li>The third column is the number of the unit it belongs to.</li>
+</ul>
+<p>The listing is identical with <tt>UNIT n,PWRUP</tt> which lists
+power-up
+routines.</p>
+<p>After execution, _ITEMS contains the total number of items
+displayed.
+_PAGE contains the number of the information page where this unit is
+listed,
+_PTR the address of the unit entry in this page.</p>
+<h4><br>
+<a name="Exports"></a>EXPORTS command</h4>
+<p>This command displays the exported symbols stored within the EEPROM,
+if any. </p>
+<p>EXPORTS <i>first,total</i></p>
+<p><b>First </b>specifies the number of the first export to display,
+counting
+from zero. If ommited, the default is zero.<br>
+<b>Total </b>specifies the total number of exports to list. If
+ommited,
+the list is processed upto its end.</p>
+<pre>EXPORTS 0,3</pre>
+<pre>Name   Addr Page Unit<br>------ ---- ---- ----<br>MALLOC 4180 0003 0001<br>FREE   4184 0003 0001<br>RAMCPY 4188 0003 0001</pre>
+<ul>
+  <li>The first column is the name of the exported symbol.</li>
+  <li>The second column is the address of the exported routine.</li>
+  <li>The third column is the page in which the exported routine
+resides.</li>
+  <li>The last column is the unit which exported this symbol.</li>
+</ul>
+<p>After execution, _ITEMS contains the total number of exports that
+were
+displayed. _PAGE contains the number of the page in which the last
+listed
+export is located, and _PTR&nbsp;points just after this export entry.</p>
+<h4><br>
+<a name="Erase"></a>ERASE command</h4>
+<p>This command is used to erase the EEPROM, i.e. to reset all bytes to
+&gt;FF, which will allow you to load new DSRs afresh. Erasure occurs by
+blocks of 128 pages, so you have the option to erase only one block, or
+the whole chip.</p>
+<p>To erase one block, follow the command with the number of any page
+within
+this block:</p>
+<pre>ERASE 21 ; erases pages 32 to 63 (&gt;21 hex is 33 decimal)</pre>
+<p>To erase the whole chip, just type:</p>
+<pre>ERASE ALL</pre>
+<p>Be aware that a whole-chip erase takes almost a minute to complete.</p>
+<p>After the command is completed, _ITEMS contains the number of blocks
+erased.</p>
+<h4><br>
+<a name="Patch"></a>PATCH command</h4>
+<p>With this command, you can modify the content of the EEPROM. But
+remember
+that you can only change '1' bits into '0', not the opposite (for this
+you would need to erase the EEPROM).</p>
+<p>PATCH <i>address:page,byte,(byte,...,byte)</i></p>
+<p>The command is followed with an address and an EEPROM page. The
+address
+must be in the range &gt;4000-4FFF, do not use PATCH to edit any other
+memory area, it will not work. </p>
+<p>The page number is followed with one or more bytes to be written
+into
+the EEPROM. The upper limit is the maximum number of bytes that you can
+write in a single input line.</p>
+<p><tt>PATCH 4028:2,20,00 ; This writes &gt;2000 at address &gt;4028,
+in
+page 2</tt></p>
+<p>If everything goes well, you are returned to the command prompt. If
+an error occurs, it is most likely because the write-protection switch
+was left open, or because the bytes to write would turn 0s into 1s (e.g
+if &gt;4028 contains &gt;1234, you can't change the '1' into a '2').</p>
+<h4><br>
+<a name="SCRATCH"></a>SCRATCH command</h4>
+<p>This command can be used to remove an entry, an export, or a whole
+unit
+from the EEPROM. This is useful if you are planning to load a new
+version
+of a DSR, which defines the same names as the old one. Note that the
+items
+are not actually removed, but rather the first character in their name
+is zeroed.</p>
+<p>You can scratch DSRs and Calls by name, ISRs and power-up routines
+by
+entry address, and exports by name. You can also scratch a whole unit,
+which sets a flag into the unit information table and scratches all
+exports
+and entries that belong to this unit.</p>
+<p>The various syntaxes are thus:</p>
+<pre>SCRATCH DSR,THIS</pre>
+<p>Removes the DSR named "THIS", by turning the T into a &gt;00
+byte.<br>
+</p>
+<pre>SCRATCH CALL,MINE</pre>
+<p>Ditto, scratches the call named "MINE".<br>
+</p>
+<pre>SCRATCH, ISR,412E</pre>
+<p>Scratches the ISR with an entry point at &gt;412E in page 0. This is
+the address where execution begins, not the address of the entry in the
+ISR chain. The ISR&nbsp;is scratched by changing its entry word to
+&gt;0000
+(the master ISR knows to ignore such entries). The ISR subroutine
+itself
+is not altered.<br>
+</p>
+<pre>SCRATCH PWRUP,4410</pre>
+<p>Ditto, scratches the power-up routine which begins execution at
+address
+&gt;4410, by zeroing its address in the power-up subchain.<br>
+</p>
+<pre>SCRATCH UNIT,2</pre>
+<p>Scratches all entries and exports for the second unit found in the
+unit
+removal info pages. It also sets a flag in the unit's entry that marks
+it as removed.<br>
+</p>
+<p>Note that category names can be abbreviated upto a single letter: D,
+C, I, P, E and U.</p>
+<p>After scratching a DSR or a call, _PTR points to its entry (i.e. a
+"next-link"
+word, followed with the execution address, a size byte for the name,
+and
+the name itself), and _PAGE will be zero. The same thing happens after
+scratching an ISR or a power-up routine, except that these entries have
+no name. After scratching an export, _PAGE contains the number of the
+page
+where this export was found, and _PTR points at its entry (i.e. a
+6-character
+name, followed with an address and a page number). After scratching a
+unit,
+_PAGE contains the number of the unit information page, _PTR points at
+the unit's entry in this page, and _ITEMS contains the total number of
+exports, DSRs, calls, ISRs, and power-ups that were scratched. If the
+item
+to erase was not found, _PTR contains zero.</p>
+<h3><br>
+<a name="debug commands"></a>Debugging commands</h3>
+<p>The following commands are meant for people who write their own
+DSRs.
+They allow you to tweak the contents of the memory and to alter the
+behaviour
+of the loader, so you can test your DSRs better.</p>
+<p><a href="#CRU">CRU<br>
+</a><a href="#Symtab">SYMTAB<br>
+</a><a href="#Equate">EQUATE<br>
+</a><a href="#NEWBLOCK">NEWBLOCK<br>
+</a><a href="#Page0">PAGE0<br>
+</a><a href="#Segtab">SEGTAB<br>
+</a><a href="#Assign">ASSIGN<br>
+DISPATCH<br>
+</a><a href="#PG4SEG">PG4SEG</a></p>
+<h4><br>
+<a name="CRU"></a>CRU command</h4>
+<p>This command is used to change the CRU of the target card. Normally,
+the CRU is assigned automatically, as the program scans for the USB-SM
+card upon start up. However, if you have more than one card in your
+system,
+you can use this command to select one or the other. The command also
+queries
+the EEPROM and displays its size in pages.</p>
+<p>CRU &gt;1E00</p>
+<p>At any time, you can access the symbol _CRU to find out what's the
+CRU
+currently in use, and _LSTPG for the number of the last EEPROM page.
+You
+could change _CRU with an EQUATE statment, but then there would be no
+check
+for the presence of the EEPROM...</p>
+<h4><br>
+<a name="Symtab"></a>SYMTAB command</h4>
+<p>This command displays the loader's symbol table. Entries in this
+table
+come from the REF and DEF tags included within the DF80 file(s) loaded,
+and from any symbol you defined with the EQUATE command. Exports are
+not
+part of the symbol table.</p>
+<p>You can affect the listing by specifying which type of symbol you
+would
+like to see: DEF, REF, or UNDEFINED (only the first letter is checked).
+Symbols defined with EQUATE are considered as DEFs. If you do not
+specify
+any filter, all symbols will be listed.</p>
+<pre>Name   Value Seg Type<br>------ ---- ---- ----<br>MYDEF  407C 0002 D<br>MYREF1 4080 0002 U<br>MYREF2 4090 0002 R</pre>
+<p>Note that after a LOAD, all REF labels are still undefined. Only
+after
+BURN, will they appear as "R".</p>
+<p>After execution, _ITEMS contains the number of symbols that were
+effectively
+listed (i.e. matched the required type, if any), and _PTR point to the
+symbol table. Note that the table grows backwards, toward lower memory
+addresses.</p>
+<h4><br>
+<a name="Equate"></a>EQUATE command</h4>
+<p>This command lets you assign a value to a symbol, creating the
+symbol
+if it does not already exist. There are many possible syntaxes.</p>
+<p>EQUATE <i>symbol,value:segment</i></p>
+<p>This one assigns a numeric value to the specified symbol:</p>
+<pre>EQUATE MYLABEL,&gt;1234</pre>
+<p>Optionally, you can also specify the segment number, using a : sign
+as a separator:</p>
+<pre>EQUATE MYLABEL,1234:000C</pre>
+<p>Valid segment numbers are 0 (the default) through 127. Values
+greater
+than 256 have special meanings: &gt;8xxx is for unresolved refs,
+&gt;FFFF
+for solved REFs, &gt;2400 for GOTO labels, etc.</p>
+<p><br>
+EQUATE <i>symbol</i>,WORD,<i>address:page</i></p>
+<p>This version of the command will read a word from the specified
+address
+(evened out) at the specified page and assign it to the symbol. If the
+page number is not specified, the current page is used.</p>
+<p><br>
+EQUATE <i>symbol</i>,BYTE,<i>address:page</i></p>
+<p>This does the same, except that only one byte is read, so the symbol
+value will always be smaller than 256. The address may be uneven.</p>
+<p><br>
+EQUATE <i>symbol</i>,SEGMENT,"<i>segment_name</i>"</p>
+<p>The double quotes around the segment name are optional. The symbol
+will
+contain the number of the segment, if it is found in the symbol tabel.
+In addition, _PTR will point to the segment entry in the segment table
+(a 6-char name, followed with page, address, size, flags, and 1
+reserved
+word). If the segment it not found, the symbol value remains unchanged,
+and _PTR will be zero.</p>
+<p><br>
+EQUATE <i>symbol</i>,$</p>
+<p>This special syntax lets you assign the current location in a script
+file to a symbol This way you can create labels where to jump within
+the
+script file, with a GOTO statement. Obviously, this command only makes
+sense within a script. </p>
+<p>Notes:<br>
+Expressions like $+12 are ignored: anything begining with $ stands for
+the current script line (or more exactly, the address of this line in
+the
+VDP memory).<br>
+If you display the symbol table, you will notice that the "segment
+number" is set as &gt;2400 for this kind of label (&gt;24 is the ascii
+code for $).</p>
+<p>After execution, _PTR points at the symbol entry in the symbol
+table,
+which consists in the 6-character symbol name, the symbol value, and
+the
+symbol's segment number. The exception is for segment, for which _PTR
+points
+at the segment's entry in the segment table.</p>
+<p>Tip: to obtain pointers to DSRs, CALLs or EXPORTs, use an IF IN
+statement,
+and get the pointer from _PTR.</p>
+<h4><br>
+<a name="NEWBLOCK"></a>NEWBLOCK command</h4>
+<p>With this command you can cause the loader to pick a different block
+for loading a new file, rather than the block currently in use. This
+will
+allow you to erase the newly loaded DSRs, should they prove buggy,
+without
+affecting those that already were in the EEPROM. There are two possible
+syntaxes</p>
+<p>NEWBLOCK page</p>
+<p>This version of the command lets you specify a page number. From now
+on, the dispatching routine will try to fit segments into this page
+first,
+then into the following pages, but will not consider any page before
+this
+one. The only exceptions being page 0, used for the entry segment, and
+the dedicated pages used for exports and units removal info. These can
+be altered with the PAGE0 command.</p>
+<p><br>
+NEWBLOCK</p>
+<p>When used without a page number, the command will scan the EEPROM
+for
+an empty block, i.e. 32 consecutive blank pages starting on a multiple
+of 32 (but not zero). If it finds one, the first page in the block will
+be the point where subsequent loading will begin.</p>
+<p>After execution, the dedicated symbol _FSTPG will contain the number
+of the selected page, which is also displayed onscreen. The default
+upon
+starting the program is &gt;0003.</p>
+<h4><br>
+<a name="Page0"></a>PAGE0 command</h4>
+<p>With this command you can substitute another page for page 0. The
+loader
+will place the entry segment into this page, instead of page 0. If you
+so wish, you can also specify different pages for the export list and
+the
+removal information (units) list. This will allow you to test your DSRs
+without disturbing those that are already in place. It is especially
+usefull
+to select a page located within a currently unused block: once you are
+done, you can just erase the block. This can be done by typing <tt>PAGE0
+@_FSTPG</tt> just after calling the NEWBLOCK command.</p>
+<p>The syntax is very simple:</p>
+<pre>PAGE0 <i>pg0</i>,<i>expg</i>,<i>unitpg</i></pre>
+<p><b>pg0 </b>is the number of the page that you would like to
+substitute
+for page 0. The no-name entry segment ($BLANK in the segment table)
+will
+be loaded in this page, together with a special stub. If this number is
+missing, the current page 0 specified in symbol _PAGE0, will be
+selected.</p>
+<p><b>expg </b>is the number of the first page to be used by the
+export
+table, i.e. labels defined by loaded programs. This parameter is
+optional,
+as you may elect to keep using the same export table that is currently
+in use.</p>
+<p><b>unitpg </b>is the number of the first page to be used to store
+unit
+removal information, i.e. a description of each program that is loaded
+into the EEPROM. Again, it is optional and you may choose to keep the
+current
+one.</p>
+<p>These three pages must be distinct. If either <i>expg </i>or <i>unitpg
+</i>is the same as <i>pg0</i>, it will be incremented by one.
+Similarly,
+if <i>unitpg </i>and <i>expg </i>are identical, <i>unitpg </i>will
+be incremented.</p>
+<p>Be aware that the page numbers for exports and units are saved into
+the special stub installed in page 0. So, once you have loaded anything
+in the page 0 of your choice (which automatically installs the stub),
+you
+cannot alter <i>expg </i>nor <i>unitpg </i>any longer. But you can
+alwats
+pick another <i>pg0</i>, with no preassigned <i>expg </i>nor <i>unitpg
+</i>yet. The command always displays which pages are to be used for
+exports
+and units: if they don't match what you just typed, you'll know it's
+because
+their value was preset in page 0.</p>
+<p>At any time, you may access the symbols _PAGE0 to find out which is
+the current page 0, _EXPG for the first exports page, and _UNIPG for
+the
+first units page. Please do not modify them directly as no sanity check
+would be done. Be aware that, if the export list or the unit info table
+grows really big, another page may be added to the existing one. The
+number
+of this page will be written at the end of the previous one, after a
+&gt;0000
+mark.</p>
+<p>To properly test your DSR, retype the PAGE0 command (without any
+number)
+just before you exit the program. This will ensure that your "dummy"
+page 0 will be present in memory after the console has rebooted and
+while
+it's rebooting (so you can test your power-up routines). Note that if
+you
+turn the console off then on the real page 0 will be selected, which is
+a good thing in case one of your routines would lock-up the computer...</p>
+<h4><br>
+<a name="Segtab"></a>SEGTAB command</h4>
+<p>This command displays the loader's segment table. Entries in this
+table
+come from the segment structure of the DF80 file(s), at least for the
+segment
+name, its size and any possible flags. After a file is loaded, a
+displatcher
+routine scans the EEPROM and attempts to fit all segments into it. The
+resulting addresses and page number are placed into the segment table.
+If you used the LOAD&nbsp;command, nothing is actually written into the
+EEPROM until you issue the BURN command. If you typed the filename
+directly,
+an implicit "load &amp; burn" is executed, so SEGTAB shows you
+what has already happened.</p>
+<pre>Name   Page Addr Size Flags<br>------ ---- ---- ---- ----<br>$DATA  0000 5040 0140 0000<br>$BLANK 0000 0000 0000 0000<br>MYSEG  0005 4682 032E 0000<br>OTHER  0004 4102 0886 0000</pre>
+<p>Note that the data segment and the entry segment ( BLANK) are always
+displayed, even if they are not used.</p>
+<p>After this command, _ITEMS will contain the number of segments
+(including
+data and blank). _PTR will point to the beginning of the segment table.</p>
+<h4><br>
+<a name="Assign"></a>ASSIGN command</h4>
+<p>This command lets you modify the segment table after a LOAD, i.e.
+determine
+where a segment will be loaded upon execution of the BURN command.</p>
+<p>ASSIGN "<i>segment_name</i>"<i>,page,address,size,flags<br>
+</i>ASSIGN <i>segment_number,page,address,size,flags</i></p>
+<p><b>segment_name </b>can be the name of an existing segment or a new
+name, in which case a new entry will be created in the segment table.
+The
+segment name must be enclosed in double quotes. It is the only required
+parameter, all other values can be left omitted or left blank (i.e.
+using
+multiple commas) to preserve existing values, or use default ones. </p>
+<p><b>segment_number</b> provides an alternative syntax to the above,
+in
+which you provide the number of the segment, as it appears in the
+segment
+table. By definition, the data segment's number is 0, and the blank
+(entry)
+segment is number 1. You cannot create new segments with this method,
+as
+the name has to be entered one way or another.</p>
+<p><b>page </b>is the page you want the segment to be loaded in. If
+you
+change this, you should probably also change the address.</p>
+<p><b>address </b>is the address where the segment will be loaded at.
+Check
+segment size to make sure there is room enough in the page.</p>
+<p><b>size </b>is the size of the segment. Normally, there is no
+reason
+to modify this.</p>
+<p><b>flags </b>are the segment flags, used to alter the dispatching
+strategy.
+Any change to these will only take effect the next time the dispatcher
+routine is called (e.g. with the <tt>DISPATCH </tt>command). See my <a
+ href="usb_dsr.htm#Segment%20flags">USB
+DSR page</a> for legal flag values.</p>
+<p>After execution, _PTR points at the segment's entry in the segment
+table,
+or contains zero if the segment name was not found.</p>
+<p>Example:</p>
+<pre>ASSIGN SEG1,7,4F00         ; assign segment "SEG1" to adress &gt;4F00 in page 7<br>ASSING SEG2, , , ,&gt;0001    ; modify segment "SEG2" flags</pre>
+<h4><br>
+<a name="Dispatch"></a>DISPATCH command</h4>
+<p>This command causes the loader to scan the EEPROM and see if it can
+fit all current segments into it. Nothing is actually loaded, but the
+segment
+table is updated accordingly. Because a DISPATCH is automatically
+executed
+after each LOAD, there aren't many reasons why you would want to
+trigger
+it yourself. But there may be cases when you want to execute a modified
+version of the command:</p>
+<p>DISPATCH MORE</p>
+<p>Whereas the regular dispatch resets all page assignments and
+restarts
+from scratch, the MORE mofidier (only "M" is necessary) causes
+it to retain any valid page assignments. Only segments with an address
+of zero will be assigned to a new location.</p>
+<p>After execution, _ITEMS contains the number of segments that have
+been
+reassigned.</p>
+<p><br>
+DISPATCH UNIT,n</p>
+<p>This causes the dispatcher to place segments at the same page and
+address
+they were in a previously loaded unit. Since segment names are not
+saved
+in units, all segments should appear in the same order now than when
+the
+unit was first loaded. In addition, only segments with the same size as
+before will be assigned their previous locations. After execution,
+_ITEMS
+contains the number of segments that were successfully dispatched.</p>
+<p>This feature is useful when you are writing your own DSRs and made
+changes
+to only one segment: instead of erasing the EEPROM and reloading the
+whole
+file, you can just reload the segment you modified. For instance, let's
+say the previous version you loaded was unit #6, and you subsequently
+modified
+segment MYSEG. You could type (or run a script) something like:</p>
+<pre>LOAD DSK1.MYFILE<br>DISPATCH UNIT,6<br>ASSIGN MYSEG,0,0       ; this clears assignments for segment MYSEG<br>DISPATCH MORE          ; reassigns MYSEG to a new location<br>BURNW MYSEG            ; burn new version of MYSEG</pre>
+<p>Notes: The <tt>ASSIGN </tt>statement is not necessary if the
+modifications
+you made resulted in changing the size of MYSEG, since <tt>DISPATCH
+UNIT</tt>
+will only consider segments whose size in the file is the same as it
+was
+in the unit.</p>
+<p>For your program to work properly, the changes you made should not
+modify
+the entry point of any routine that is called from another segment:
+since
+these will not be reloaded, they will keep calling the old addresses. </p>
+<h4><br>
+<a name="PG4SEG"></a>PG4SEG command</h4>
+<p>This command triggers a verification mechanism for the PG4SEG label.
+When included in your program as a REF, every occurence of the PG4SEG
+label
+will be replaced with the page number for the segment in which the
+previous
+address is located. For instance:</p>
+<pre>       BLWP @SGBL<br>       DATA MYSUB,PG4SEG</pre>
+<p>will replace PG4SEG with the number of the page in which the segment
+containing MYSUB is to be loaded.</p>
+<p>The command allows for two types of verification:</p>
+<p><tt>PG4SEG 1 </tt>ensures that every PG4SEG is preceded with an
+address
+in another segment<br>
+<tt>PG4SEG 2 </tt>ensures that every address refering to another
+segment
+is followed with a PG4SEG<br>
+<tt>PG4SEG 3</tt> combines both of the above<br>
+<tt>PG4SEG 0</tt> turns verification off.</p>
+<p>Type 1 violations are announced individually. The symbol _PTR will
+contain
+the address of the "orphan" PG4SEG.<br>
+Type 2 violations are announced only once. The symbol _PTR&nbsp;will
+contain
+the address of the first offending word, i.e. one that contained a
+label
+defined in a different segment, but was not followed with a PG4SEG
+label.</p>
+<h3><br>
+<a name="Script commands"></a>Script-related commands</h3>
+<p>The following commands only make sense when included into a script
+file.
+A script file is a DV80 text file containing a list of commands, one
+per
+line. To launch a script file, just type its name on the command line:
+it will be loaded into the VDP memory and execution will begin
+immediately.
+Alternatively, you can use the LOAD command. </p>
+<p>A script can call another script file, but there is no mechanism to
+automatically return to the caller. In fact, the caller is wiped out of
+memory when the second script is loaded. Of course, the second script
+may
+contain a LOAD command returning to the first file, but script
+execution
+will always begin at the top of the file.</p>
+<p>Comments can be added at the end of each line, after a ; semicolon.
+Alternatively, you can have a whole line commented out, if it begins
+with
+a semicolon. You can also include empty lines, to make the script
+easier
+to read.</p>
+<p><a href="#Echo">ECHO<br>
+</a><a href="#GETKEY">GETKEY<br>
+</a><a href="#GetValue">GETVALUE<br>
+</a><a href="#If">IF<br>
+</a><a href="#ELSE">ELSE<br>
+</a><a href="#ENDIF">ENDIF<br>
+</a><a href="#ELSEIF">ELSEIF<br>
+</a><a href="#ANDIF">ANDIF<br>
+</a><a href="#ORIF">ORIF<br>
+</a><a href="#GOTO">GOTO<br>
+</a><a href="#STOP">STOP<br>
+</a><a href="#COMMAND">COMMAND</a></p>
+<h4><br>
+<a name="Echo"></a>ECHO command</h4>
+<p>There are two ways to use this command: the first one is to use it
+with
+an YES/NO switch (only the first letter is scanned). This determines
+whether
+the contents of the script file will be displayed on screen while it is
+processed. The default is NO.</p>
+<p>The second way is to follow ECHO with one or more quoted strings to
+be displayed onscreen. The size of each string should not exceed 28
+characters.
+Optionally, one or more / slash caracters can be added outside of the
+quote
+marks, each will cause the display to scroll up one line.</p>
+<p>You can also use echo to display the value of a given symbol from
+the
+symbol table: just use a @ sign followed with the symbol name (outside
+the quote marks). The symbol value is displayed as an hexadecimal word,
+and the segment number is not displayed.</p>
+<p>Examples:</p>
+<pre>ECHO YES<br>ECHO "Press any key to proceed"<br>ECHO "Press:" // " 1 to continue" / " 2 to end" <br>ECHO ////////// ////////// ///   ; this clears the screen<br>ECHO @_PTR  ; displays the value of this symbol</pre>
+<h4><br>
+<a name="GETKEY"></a>GETKEY command</h4>
+<p>This command scans the keyboard and waits for the user to press a
+key.
+When this happens, the ascii code for the key is placed into a symbol
+called
+_KEY.</p>
+<p>N.B. It's generally a good idea to precede GETKEY with an ECHO
+statement
+prompting the user for a key...</p>
+<h4><br>
+<a name="GetValue"></a>GETVALUE command</h4>
+<p>This command inputs a numeric value from the user and places it in
+the
+symbol table, in a symbol called _VALUE. The symbol called _PTR will
+contain
+a pointer to the string actually typed in by the user.</p>
+<p>N.B. It's generally a good idea to precede GETVALUE with an ECHO
+statement
+prompting the user for it.</p>
+<h4><br>
+<a name="If"></a>IF command </h4>
+<p>This command lets you process sections of the script file only if
+some
+condition is met. For instance, if the user presses a key, or if a
+given
+export was found, etc.</p>
+<p>If the condition is true, the script continues with the next line.
+If
+it is not true, the script will be read but not executed until an ELSE,
+ELSEIF, ORIF&nbsp;or ENDIF is met. You can nest as many IFs as you
+like,
+as long as you can keep track of them.</p>
+<p>The syntax is:</p>
+<pre>IF <i>name,operator,value</i></pre>
+<p><b>name </b>is the name of a symbol. If it does not exist, the
+command
+is ignored (i.e. true). With the IN (or NIN) operator, <i>name </i>can
+also be a segment, a DSR, a CALL, or an export. The name doesn't need
+to
+be enclosed in double quotes, although these are accepted.</p>
+<p><b>operator </b>is the type of comparison to be performed. Legal
+operators
+are:</p>
+<p>EQUAL is equal to<br>
+GREATER is arithmetically greater than (signed)<br>
+SMALLER is arithmetically smaller than (signed)<br>
+HIGHER is logically higher than (unsigned)<br>
+LOWER is logically lower than (unsigned)<br>
+IN is among</p>
+<p>All operators can be abbreviated upto one letter, as only the first
+letter is checked. In addition, each operator can be preceded with the
+letter N to invert the comparison:. NEQ means "not equal, NG means
+"not greater than" (i.e. smaller or equal), etc.</p>
+<p><b>value </b>is the value the symbol should have for the IF&nbsp;to
+be taken. As usual with numeric values, you could specify another
+symbol
+preceeded with a @ sign: <tt>IF MYSYM,EQU,@OTHER</tt></p>
+<p>The exception is the with IN (or NIN) operator: the numeric value is
+replaced with the category to search for the name. Valid categories are
+(each can be abbreviated downto one letter):</p>
+<p>LABEL searches the symbol table for DEF or EQU symbols.<br>
+REF searches the symbol table for solved REF entries.<br>
+UNRESOLVED searches it for unresolved REFs.<br>
+SEGMENT searches the segment table for a segment with this name.<br>
+DSR searches the DSRs in page 0.<br>
+CALL searches the CALLs in page 0.<br>
+EXPORTS searches the export list in the EEPROM.</p>
+<p>After a succesful IN, _PAGE will contain the number of the page the
+name was found in (zero for symbols) and _PTR will point the the name's
+entry in this page. If the name was not found, _PTR and _PAGE will be
+zero.</p>
+<p>Exemples:</p>
+<pre>IF&nbsp;MYDSR,IN,DSR    ;true if a DSR called MYDSR exists in the EEPROM<br>IF THIS,NIN,EXP    ;true if no export called THIS exists in the EEPROM<br>IF&nbsp;MYLAB,EQU,1234  ;true if symbol MYLAB has a value of &gt;1234<br></pre>
+<h4><br>
+<br>
+<a name="ELSE"></a>ELSE command</h4>
+<p>This, as you might expect, serves to reverse the conditional
+execution
+of an IF. If the IF was taken, everything included between the
+corresponding
+ELSE and the corresponding ENDIF&nbsp;will be read but not executed. If
+the IF was not true, and thus not executed, the occurence of an ELSE
+resumes
+execution of the script.</p>
+<p>Note that including an ELSE without a matching IF is allowed. Since
+execution is "on" by default, a lone ELSE will stop execution
+until a matching ENDIF is met. The same is true for ELSEIF, ANDIF and
+ORIF.</p>
+<h4><br>
+<a name="ENDIF"></a>ENDIF command</h4>
+<p>This ends a conditional section, whether defined by an IF or an
+ELSE.
+From now on, execution of the script resumes normally (unless the
+IF-ENDIF
+was nested inside another, of course).</p>
+<h4><br>
+<a name="ELSEIF"></a>ELSEIF command</h4>
+<p>This commands combines and ELSE and an IF: if execution was on, it
+will
+now stop. If execution was stopped, the expression will be evaluated
+and,
+if it's true, execution will resume. The syntax is identical to a
+regular
+IF command.</p>
+<p>One use of ELSIF is to separate multiple, mutually exclusive,
+clauses:</p>
+<pre>IF A,EQ,0<br>; do something if A=0<br>ELSEIF A,GT,0<br>; do something else if A &gt; 0<br>ENDIF   ;do nothing if A &lt; 0</pre>
+<h4><br>
+<a name="ANDIF"></a>ANDIF command</h4>
+<p>This commands lets you combine several conditional expressions. Its
+syntax is identical to that of a regular IF. If execution was stopped,
+it remains stopped. If execution was on, the new statement is evaluated
+and, if false, execution will stop. In any case, only one ENDIF&nbsp;is
+required to end conditional execution for both the IF and any
+subsequent
+ANDIF.</p>
+<pre>IF A,GT,5<br>ANDIF A,LT,9<br>;&nbsp;executed only if A equals 6, 7, or 8.<br>ENDIF</pre>
+<h4><br>
+<a name="ORIF"></a>ORIF command</h4>
+<p>This command lets you combine several conditional expressions. Its
+syntax
+is identical to that of a regular IF. If execution was on, it remains
+on.
+If execution was stopped, the new statement is evaluated and, if true,
+execution will resume. </p>
+<pre>IF A,EQ,5<br>ORIF A,EQ,8<br>; executed if A equals 5 or 8<br>ENDIF</pre>
+<p>N.B. You can also use ORIF&nbsp;instead of ELSEIF to separate
+mutually
+exclusive clauses.</p>
+<h4><br>
+<a name="GOTO"></a>GOTO command</h4>
+<p>This command is used to jump to another location within the script
+file.
+It is followed with the name of a label that must have been defined
+with
+a prior EQUATE $ statement (i.e. you can't jump forward: use an IF
+instead).</p>
+<pre>EQUATE HERE,$         ; HERE points to this line<br>...                   ; some code<br>GOTO HERE             ; loops back to HERE</pre>
+<p>Be aware that a RESET in a script wipes out the symbol table and
+thus
+forgets about any previously defined label. In such a case, consider
+using
+RESET SEGMENTS instead.</p>
+<h4><br>
+<a name="STOP"></a>STOP command</h4>
+<p>This command aborts the execution of a script and returns to command
+mode. It is not necessary to include it at the end of the script,
+although
+it won't hurt.</p>
+<h4><br>
+<a name="COMMAND"></a>COMMAND command</h4>
+<p>This command lets the user type in a command and executes it. Then
+it
+resumes script execution.</p>
+<h3><br>
+<a name="Predefined symbols"></a>Predefined symbols</h3>
+<p>The loader contains a number of predefined symbols, which fall in
+two
+categories. The first consists in routines defined within the default
+stub.
+These can be called from your DSR programs with a simple REF statment.
+Their usage is detailed in <a href="usb_dsr.htm">another page</a>.</p>
+<p><b>SGB </b>Branches to a routine in another segment.<br>
+<b>SGBL </b>Branch and link to a routine in another segment.<br>
+<b>SGRT </b>Return from such a routine.<br>
+<b>SGBLWP </b>Branch and load workspace pointer to a routine in
+another
+segment.<br>
+<b>SGRTWP </b>Return from such a routine.<br>
+<b>ATR11 </b>Get data word following a call to SGBL.<br>
+<b>ATR14 </b>Get data word following a call to SGBLWP.<br>
+<b>SGBLX </b>Branch to a routine in another segment, save return point
+and page on stack.<br>
+<b>SGRTX </b>Return from a routine called in this way.<br>
+<b>ATR11X </b>Get data word following a call to SGBLX.<br>
+<b>GETDAT </b>Get data from another segment.<br>
+<b>RAMPG </b>Select a different SRAM page.</p>
+<p>There are also three variables, whose content varies during loading:</p>
+<p><b>MYSLOT </b>Address of a reserved 4-byte slot in SRAM memory.<br>
+<b>CURPG </b>Current EEPROM page, where the current segment resides.<br>
+<b>PG4SEG </b>Page for the segment which contains the label used in
+the
+previous word. </p>
+<p>The second category consists in variables internal to the loader.
+They
+all begin with an underscore character, which is illegal in assembly,
+so
+that there is no chance they will interfere with a label defined in
+your
+program. But you can view them with the SYMTAB or ECHO @ commands,
+modify
+them with EQUATE, and use them wherever a numeric value is required.</p>
+<p><b>_VALUE</b> Result of the GETVALUE command.<br>
+<b>_KEY</b> Result of the GETKEY command.<br>
+<b>_PAGE</b> Modified by many commands, page number.<br>
+<b>_PTR</b> Modified by many command, pointer to a memory location.<br>
+<b>_ITEMS</b> Modified by many commands, number of items listed.<br>
+<b>_CRU</b> Current CRU for the USB-SM card.<br>
+<b>_FSTPG</b> First EEPROM page where to load DSRs (normally 3).<br>
+<b>_LSTPG</b> Last page in the EEPROM.<br>
+<b>_PAGE0</b> Page where to load entry points (normally 0).<br>
+<b>_EXPG</b> First page for the list of exports (normally 1).<br>
+<b>_UNIPG</b> First page for units removal info (normally 2).<br>
+<b>_MAXSZ</b> Maximum size for a segment.</p>
+<h3><br>
+<a name="Command summary"></a>Command summary</h3>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Command</th>
+      <th>aka</th>
+      <th>Result</th>
+    </tr>
+    <tr>
+      <td><a href="#LOAD">LOAD</a></td>
+      <td>LD </td>
+      <td>Prescans a DF80 tagged-object file </td>
+    </tr>
+    <tr>
+      <td><a href="#BURN">BURN</a></td>
+      <td>BU</td>
+      <td>Writes segments into the EEPROM </td>
+    </tr>
+    <tr>
+      <td><a href="#INFO">INFO</a></td>
+      <td>IN</td>
+      <td>Displays the INFO segment from file </td>
+    </tr>
+    <tr>
+      <td><a href="#ENTRIES">ENTRIES</a></td>
+      <td>EN</td>
+      <td>Displays the entry segment from file</td>
+    </tr>
+    <tr>
+      <td><a href="#Exported">EXPORTED</a></td>
+      <td>ED</td>
+      <td>Displays the EXPORT segment from file </td>
+    </tr>
+    <tr>
+      <td><a href="#Reset">RESET</a></td>
+      <td>.</td>
+      <td>Restores loader's defaults</td>
+    </tr>
+    <tr>
+      <td><a href="#Erase">ERASE</a></td>
+      <td>ER</td>
+      <td>Erases the EEPROM</td>
+    </tr>
+    <tr>
+      <td><a href="#View">VIEW</a></td>
+      <td>V</td>
+      <td>Displays memory</td>
+    </tr>
+    <tr>
+      <td><a href="#Header">HEADER</a></td>
+      <td>HE</td>
+      <td>Analyzes EEPROM header</td>
+    </tr>
+    <tr>
+      <td><a href="#PAGE">PAGE</a></td>
+      <td>PG</td>
+      <td>Analyses EEPROM pages</td>
+    </tr>
+    <tr>
+      <td><a href="#Patch">PATCH</a></td>
+      <td><br>
+      </td>
+      <td>Writes data into the EEPROM</td>
+    </tr>
+    <tr>
+      <td><a href="#SCRATCH">SCRATCH</a></td>
+      <td>.</td>
+      <td>Removes a DSR, call, export, etc.</td>
+    </tr>
+    <tr>
+      <td><a href="#Unit">UNIT</a></td>
+      <td>UN</td>
+      <td>Analyzes previously loaded units</td>
+    </tr>
+    <tr>
+      <td><a href="#Exports">EXPORTS</a></td>
+      <td>EX</td>
+      <td>Displays exports stored in EEPROM</td>
+    </tr>
+    <tr>
+      <td><a href="#Symtab">SYMTAB</a></td>
+      <td>SY</td>
+      <td>Displays the symbol table</td>
+    </tr>
+    <tr>
+      <td><a href="#Equate">EQUATE</a></td>
+      <td>EQ</td>
+      <td>Add/modify a symbol</td>
+    </tr>
+    <tr>
+      <td><a href="#Segtab">SEGTAB</a></td>
+      <td>SE</td>
+      <td>Displays the segment table</td>
+    </tr>
+    <tr>
+      <td><a href="#NEWBLOCK">NEWBLOCK</a> </td>
+      <td>.</td>
+      <td>Selects first loading page, in a blank block</td>
+    </tr>
+    <tr>
+      <td><a href="#Assign">ASSIGN</a></td>
+      <td>AS</td>
+      <td>Modifies a segment entry</td>
+    </tr>
+    <tr>
+      <td><a href="#Assign">DISPATCH</a></td>
+      <td>.</td>
+      <td>Assigns all segments to EEPROM locations </td>
+    </tr>
+    <tr>
+      <td><a href="#Page0">PAGE0</a></td>
+      <td>.</td>
+      <td>Changes page 0 number</td>
+    </tr>
+    <tr>
+      <td><a href="#PG4SEG">PG4SEG</a></td>
+      <td>.</td>
+      <td>Toggles PG4SEG verification mechanism</td>
+    </tr>
+    <tr>
+      <td><a href="#Echo">ECHO</a></td>
+      <td>.</td>
+      <td>Turns echo on/off or displays text</td>
+    </tr>
+    <tr>
+      <td><a href="#GETKEY">GETKEY</a></td>
+      <td>.</td>
+      <td>Inputs a key from user</td>
+    </tr>
+    <tr>
+      <td><a href="#GetValue">GETVALUE</a></td>
+      <td>.</td>
+      <td>Inputs a numeric value from user</td>
+    </tr>
+    <tr>
+      <td><a href="#If">IF</a></td>
+      <td>.</td>
+      <td>Conditional script execution</td>
+    </tr>
+    <tr>
+      <td><a href="#ELSE">ELSE</a></td>
+      <td>.</td>
+      <td>Reverses conditional execution</td>
+    </tr>
+    <tr>
+      <td><a href="#ENDIF">ENDIF</a></td>
+      <td>.</td>
+      <td>Ends conditional execution</td>
+    </tr>
+    <tr>
+      <td><a href="#ELSEIF">ELSEIF</a></td>
+      <td>.</td>
+      <td>Combines ELSE and IF</td>
+    </tr>
+    <tr>
+      <td><a href="#ANDIF">ANDIF</a></td>
+      <td>.</td>
+      <td>Combines two conditional statements</td>
+    </tr>
+    <tr>
+      <td><a href="#ORIF">ORIF</a></td>
+      <td>.</td>
+      <td>Combines two conditional statements</td>
+    </tr>
+    <tr>
+      <td><a href="#GOTO">GOTO</a></td>
+      <td>.</td>
+      <td>Jumps to a label in script file</td>
+    </tr>
+    <tr>
+      <td><a href="#STOP">STOP</a></td>
+      <td>.</td>
+      <td>Exits script to command mode</td>
+    </tr>
+    <tr>
+      <td><a href="#COMMAND">COMMAND</a></td>
+      <td>.</td>
+      <td>Lets user enter a command within a script</td>
+    </tr>
+    <tr>
+      <td><a href="#EXIT">EXIT</a></td>
+      <td>.</td>
+      <td>Exits the program</td>
+    </tr>
+  </tbody>
+</table>
+<h2><br>
+<hr width="100%"><a name="USBHOST demo"></a>The USBHOST demo DSR</h2>
+<p>This demo DSR is meant to let you access USB devices (via the USB
+host
+controller) from Basic or Extended Basic. </p>
+<p>To load this demo DSR, first launch the EEPROM manager as described
+above. Then type in DSK1.USBHOST. This will call a script that loads
+two
+DSR files: STDMEM/O (the standard memory management routines) and
+USBHOST/O
+(the demo DSR itself). </p>
+<p>Once done, enter Basic or Extended Basic. Everything is handled
+through
+a pseudo-file called USBHOST.</p>
+<h4>Opening the pseudo-file</h4>
+<p>First, you should specify which device you want to talk to, by
+including
+it in the filename. All devices answer to number zero, so you can
+detemine
+how many are connected, and assign a number to each. Once this is done,
+you can access each device as an independent file, by using the number
+you assigned to it.</p>
+<pre>100 OPEN #1:"USBHOST.nnn",INTERNAL,FIXED 255,UPDATE,RELATIVE</pre>
+<p>Where <b>nnn </b>is the device number, from 0 to 127. You could
+actually
+open the file with any record length, but 255 is more convenient to
+transfer
+large chunks of data.</p>
+<p>The pseudo-file consists of 5 records, each corresponding to a
+different
+operation:</p>
+<p>REC 0 sends "SETUP" packets (i.e. commands) to the device.<br>
+REC 1 sends "OUT" data packets to the device.<br>
+REC 2 sends "IN" packets, i.e. fetches data from the device.<br>
+REC&nbsp;3 controls the two downstream ports at the back of the card.<br>
+REC 4 controls interrupts.</p>
+<p>The first three records are used to talk to USB devices. Each one
+must
+be first written to, then read. No other access to USBHOST should occur
+in between the write and the read operations.</p>
+<h4><br>
+Writing to a device</h4>
+<p>Record 0 and 1 are used in the same way, the only different being
+the
+packet ID: SETUP vs OUT.</p>
+<pre>110 PRINT #1, REC 0:A$,<i>endpoint</i>,<i>maxbytes</i>,<i>speed</i>,<i>toggle1<br></i>120 INPUT #1, REC 0:<i>err</i>,<i>actbytes</i>,<i>toggle2</i></pre>
+<p><b>A$</b> is the data you want to send to the device. It may be an
+empty
+string, in which case an empty packet will be sent (usefull for
+acknolewdging
+an "IN" packet for instance).</p>
+<p><b><i>endpoint </i></b>is the endpoint number, from 0 to 15. Each
+device
+is guaranteed to have endpoint 0. For the other endpoints you must
+first
+check the device configuration (by sending the
+GetConfigurationDescriptor
+command via a SETUP packet). If this parameter is ommited or negative,
+the endpoint most recently used (with any device) will be used again.
+At
+power-up time, the default is endpoint zero.</p>
+<p><b><i>maxbytes </i></b>is the maximum number of bytes per packet.
+If
+this is less than the number of characters in A$, the host controller
+will
+split the operation into multiple packets, alternating the toggle bit
+between
+0 and 1 for each of them. If this parameter is ommited or negative, the
+value most recently used (with any device) will be reused. At power-up
+time, the default is 8.</p>
+<p><b><i>speed </i></b>is the USB transfer speed. Odd numbers select
+half-speed,
+even numbers full-speed. If this parameter is ommited or negative, the
+last speed used with this device will be reused. At power-up time, the
+default is full-speed. With device 0, the correct speed is
+automatically
+determined when opening the file, and used as a default.</p>
+<p><b><i>toggle </i></b>is the initial value of the toggle bit used
+when
+sending data packets: 0 for DATA0, 1 for DATA1 packet ID. If this
+parameter
+is ommited or negative, the most recent value used by this device will
+be inverted. At power-up time, the default is 1.</p>
+<p><b><i>actbytes </i></b>is the actual number of bytes transfered. If
+it's lower than the size of A$, an error probably occured.</p>
+<p><b><i>toggle2 </i></b>is the value of the toggle bit for the last
+packet
+that was sent.</p>
+<p><b><i>err </i></b>is the error code returned by the controller:</p>
+<pre> 0: No error<br> 1: CRC error in last data packet from endpoint<br> 2: Bit stuffing violation in last data packet from endpoint<br> 3: DATA0/DATA1 toggle mismatch<br> 4: Endpoint returned a "STALL" PID<br> 5: Device not responding<br> 6: PID check bits mismatch<br> 7: Unexpected PID (illegal value, or legal but at the wrong time)<br> 8: Data overrun, i.e. the endpoint returned more than "max bytes" in a packet, or more than "total bytes".<br> 9: Data underrun. i.e. the endpoint returned less than "total bytes", yet less than "max bytes" (i.e. no more coming).<br>12: Buffer overrun. During an IN, the host controller received data faster than it could pass them to the system.<br>13: Buffer underrun. During an OUT, the host controller could not get data from the system fast enough to send them.</pre>
+<h4><br>
+Reading from a device</h4>
+<p>USB being an host-centric system, all transmissions must be
+initiated
+by the host. Thus, to read data from a device, you must first query it.
+This is done via record 2:</p>
+<pre>130 PRINT&nbsp;#1, REC 2: <i>totbytes</i>,<i>endpoint</i>,<i>maxbytes</i>,<i>speed</i>,<i>toggle1<br></i>140 INPUT #1, REC 2: B$,<i>err</i>,<i>actbytes</i>,<i>toggle2</i></pre>
+<p><b><i>totbytes </i></b>is the total number of bytes that you are
+expecting
+to receive from the device. If this parameter is ommited or negative,
+the
+value most recently used (with any device) will be reused.</p>
+<p><b>B$</b> is a string that will contain the data sent by the device.</p>
+<p>All other parameters have been described above.</p>
+<h4><br>
+Controlling the ports</h4>
+<p>Record 3 is used to control the card ports. It can be read or
+written
+to independently. Reading returns the port status, writing controls the
+port. Let's examine reading first:</p>
+<pre>200 INPUT #1, REC 3: <i>port1</i>, <i>port2, chg1, chg2, hub</i></pre>
+<p><b><i>port1 </i></b>is the status of the bottom port.</p>
+<p><b><i>port2 </i></b>is the status of the top port.</p>
+<p>The status breaks down to the following bits:</p>
+<pre>512: low speed device connected     <br>256: port power is on   <br> 16: resetting port     <br>  8: overcurrent detected <br>  4: port is suspended   <br>  2: port is enabled         <br>  1: device connected            </pre>
+<p><b><i>chg1 </i></b>indicates changes to port1 since last time it
+was
+read.</p>
+<p><b><i>chg2 </i></b>does the same for port2.</p>
+<pre> 16: reset completed<br>  8: overcurrent bit has changed<br>  4: suspended bit has changed <br>  2: enabled bit has changed<br>  1: connected bt has changed          </pre>
+<p><b><i>hub </i></b>is the global status of the hub controller and
+breaks
+down to only two bits:</p>
+<pre>32768: remote wakeup occured<br>    2: overcurrent detected</pre>
+<p><br>
+AS mentionned above, writing to record 3 controls the ports:</p>
+<pre>220 PRINT #1, REC 3:<i>set1</i>,<i>set2</i></pre>
+<p><b><i>set1 </i></b>sets the bottom port.</p>
+<p><b><i>set2 </i></b>sets the top port.</p>
+<p>Writing a zero has no effect, which is convenient when you need to
+set
+port 2 without affecting port 1. The set word is a combination of the
+following
+values:</p>
+<pre>512: turn power off<br>256: turn power on<br> 16: reset the port<br>  8: resume suspended port<br>  4: suspend port<br>  2: enable port<br>  1: disable port            </pre>
+<h4><br>
+Using interrupts</h4>
+<p>Record 4 is used to control the interruption mechanism: upon certain
+condition, the DSRs can interrupt your program and branch automatically
+to a predefined line number. This way, you don't have to constantly
+monitor
+the USB controller to know if a device was plugged in, if data came in,
+etc. Note that the mechanism suffers from a major flaw: Basic
+statements
+that do not continue with the next line cannot be interrupted (e.g.
+GOTO,
+NEXT, IF, etc). But, hey, this is just a demo DSR...</p>
+<p>To setup the interrupt mechanism, write to record 4:</p>
+<pre>300 PRINT #1, REC 4:<i>mask</i>,<i>line</i></pre>
+<p><b><i>mask </i></b>specifies which event you want to trigger an
+interrupt.
+It is a combination of the following values:</p>
+<pre>16384: clock is ready (160-1000 usec after a wakeup).<br> 8192: host controller suspended.<br> 1024: transfer completed (to/from CPU).<br>  512: ATL should be read.<br>  256: ITL should be read.<br>   64: change in port status or hub status.<br>   32: frame number overflow.<br>   16: unrecoverable error.<br>    8: device resuming signal.<br>    4: start-of-frame occured (happens every millisecond!).<br>    1: scheduling overrun.</pre>
+<p><b><i>line </i></b>is a line number where the interrupt should
+branch.
+It must be a REM line, immediately followed with a statement accessing
+record 4. This second line number should be exactly 10 higher than the
+REM line. NB: if you resequence you program, you will need to update
+the
+value you're setting up.</p>
+<p>If <i>mask </i>is negative, special actions are taken depending on
+the
+value of <i>line</i>:</p>
+<li>If <i>line </i>is negative or missing, interrupts are disabled.
+Basic
+execution continues normally.</li>
+<li>If <i>line </i>is zero, interrupts are enabled and Basic
+execution
+continues at the point where is was interrupted.</li>
+<li>If <i>line </i>is positive, interrupts are enabled and Basic
+execution
+continues at the line immediately following <i>line</i>.<br>
+  <br>
+To check the current interrupt status, just read record 4:</li>
+<pre>1000 INPUT #1, REC 4:<i>ints</i>,<i>last</i></pre>
+<p><b><i>ints </i></b>returns the interrupt flags, i.e. lets you know
+which
+event has triggered an interrupt. It is a composite of the bit values
+described
+for <i>mask</i>.</p>
+<p><b><i>last </i></b>is the number of the last line executed before
+the
+interrupt caused the program to jump to the REM line. This may be
+usefull
+for you to know what your program was doing before it got interrupted.</p>
+<p>Reading record 4 will also clear the interrupt condition, allowing
+your
+program to continue normally. </p>
+<p><br>
+Example:</p>
+<pre>100 OPEN #1:"USBHOST.1",INTERNAL,FIXED 255,UPDATE,RELATIVE   ! open device #1<br>110 PRINT #1, REC 4:64,790          ! interrupt when port status changes<br>120 ...                             ! more code<br><br>790 REM   Interrupt service routine ! This must be a REM line<br>800 PRINT #1, REC 4:-1              ! disable interrupts<br>810 INPUT #1, REC 4:X               ! check status, clear interrupt condition<br>820 IF X&lt;&gt;64 THEN ...               ! if not our interrupt, do something<br>830 ...                             ! if it is do something else (e.g. check port status)<br>890 PRINT #1, REC 4:-1,0            ! enable interrupts, return to interrupted point</pre>
+<p><br>
+For more examples of how to use USBHOST, check out the following Basic
+programs:</p>
+<p>GETDESC demonstrates how to get a device descriptor.<br>
+PORTS plays with port status.<br>
+INTS demonstrates interrupts.<br>
+DIRECT demonstrates direct access to the host controller.</p>
+<address>Revision 1. 8/15/04 Ok to release.<br>
+Revision 2. 1/2/04 Several changes. Added demo DSR.</address>
+<address>Revision 3. 1/31/05 Added download instructions.<br>
+Revision 4. 2/6/05 Minor cosmetic changes.</address>
+<p><br>
+<a href="usb_dsr.htm">Previous page</a> (Writing DSRs)</p>
+<center>
+<p><a href="titechpages.htm">Back to the TI-99/4A Tech Pages</a></p>
+</center>
+</body>
+</html>

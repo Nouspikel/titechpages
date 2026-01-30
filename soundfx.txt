@@ -1,0 +1,1022 @@
+*
+* Sound F/X - 1991 - Barry Boone
+*
+       AORG >2000
+
+       DEF  START,ISTART
+
+NO9938 DATA 0                 -1 =3D No 9938 RAM used
+NOEXP  DATA 0                 -1 =3D No EXP VRAM used
+NOCPU  DATA 0                 -1 =3D No CPU RAM used
+NOSCRT DATA 0                 -1 =3D No SC/SS RAM used
+NOGEN  DATA 0                 -1 =3D No 9640 RAM used
+
+GENFLG DATA 0                 -1 =3D Geneve, else 99/4A
+SCFLAG DATA 0                 -1 =3D Supercart, else not
+SSFLAG DATA 0                 -1 =3D 32K Scart, else not
+VDPFLG DATA 0                 -1 =3D 9938 present, else not
+EXPFLG DATA 0                 -1 =3D 9938 Expansion VRAM present
+SSPGS  DATA 0                 # of SS pages in use/# of Geneve pages in use
+SCEND  DATA 0                 Last addr used in last page (9640 or SC)
+VDPPGS DATA 0                 # of 9938 vid pages in use
+VDPEND DATA 0                 last addr in last block of 9938 vram
+EXPPGS DATA 0                 # of 9938 exp vid pages used
+EXPEND DATA 0                 last addr in last block of exp vram
+VIDSIZ DATA 0                 buffer size of block 0 vram buffer
+MEMSIZ DATA 0                 Combined size of all buffers (in 1K increments)
+GENMEM DATA 0                 # of 9640 memory pages available
+CHNFLG DATA 0                 Chained files flag
+
+CSR    BYTE '_'
+SPC    BYTE ' '
+
+* these can be EQU'd to the 2nd word in an LI instruction, if mem gets tight
+
+D7     DATA 7
+D8     DATA 8
+D10    DATA 10
+D16    DATA 16
+D18    DATA 18
+D24    DATA 24
+D64    DATA 64
+D96    DATA 96
+D760   DATA 760
+
+SSPCDT BYTE 2,8,>20,>80
+NREGS  BYTE >00,>F0,>00,>0E,>01
+       BYTE >06,>01,>F4
+
+AMPLVL DATA 0                 Current Amplification Level
+GIFOPL DATA >0409
+CVTOPL DATA >0489
+OPNFIL DATA 0                -1 =3D file opened!
+SNDMEM DATA 0                -1 =3D Sound file in memory
+ENDADR DATA 0                On 99/4a, is end of sound in memory
+FXH    TEXT 'FX'             Header for FX files
+TSTIT  DATA 0
+H9938  DATA >9938
+
+BLKDAT DATA >9090,>9090,>9090,>9090     Volume tables
+       DATA >9090,>9090,>9090,>9090     Each entry is repeated 16 times so
+       DATA >9191,>9191,>9191,>9191     as to ignore the second nibble in
+       DATA >9191,>9191,>9191,>9191     a sound byte
+       DATA >9292,>9292,>9292,>9292
+       DATA >9292,>9292,>9292,>9292
+       DATA >9393,>9393,>9393,>9393
+       DATA >9393,>9393,>9393,>9393
+       DATA >9494,>9494,>9494,>9494
+       DATA >9494,>9494,>9494,>9494
+       DATA >9595,>9595,>9595,>9595
+       DATA >9595,>9595,>9595,>9595
+       DATA >9696,>9696,>9696,>9696
+       DATA >9696,>9696,>9696,>9696
+       DATA >9797,>9797,>9797,>9797
+       DATA >9797,>9797,>9797,>9797
+       DATA >9898,>9898,>9898,>9898
+       DATA >9898,>9898,>9898,>9898
+       DATA >9999,>9999,>9999,>9999
+       DATA >9999,>9999,>9999,>9999
+       DATA >9A9A,>9A9A,>9A9A,>9A9A
+       DATA >9A9A,>9A9A,>9A9A,>9A9A
+       DATA >9B9B,>9B9B,>9B9B,>9B9B
+       DATA >9B9B,>9B9B,>9B9B,>9B9B
+       DATA >9C9C,>9C9C,>9C9C,>9C9C
+       DATA >9C9C,>9C9C,>9C9C,>9C9C
+       DATA >9D9D,>9D9D,>9D9D,>9D9D
+       DATA >9D9D,>9D9D,>9D9D,>9D9D
+       DATA >9E9E,>9E9E,>9E9E,>9E9E
+       DATA >9E9E,>9E9E,>9E9E,>9E9E
+       DATA >9F9F,>9F9F,>9F9F,>9F9F
+       DATA >9F9F,>9F9F,>9F9F,>9F9F
+BLKDA2 DATA >B0B0,>B0B0,>B0B0,>B0B0
+       DATA >B0B0,>B0B0,>B0B0,>B0B0
+       DATA >B1B1,>B1B1,>B1B1,>B1B1
+       DATA >B1B1,>B1B1,>B1B1,>B1B1
+       DATA >B2B2,>B2B2,>B2B2,>B2B2
+       DATA >B2B2,>B2B2,>B2B2,>B2B2
+       DATA >B3B3,>B3B3,>B3B3,>B3B3
+       DATA >B3B3,>B3B3,>B3B3,>B3B3
+       DATA >B4B4,>B4B4,>B4B4,>B4B4
+       DATA >B4B4,>B4B4,>B4B4,>B4B4
+       DATA >B5B5,>B5B5,>B5B5,>B5B5
+       DATA >B5B5,>B5B5,>B5B5,>B5B5
+       DATA >B6B6,>B6B6,>B6B6,>B6B6
+       DATA >B6B6,>B6B6,>B6B6,>B6B6
+       DATA >B7B7,>B7B7,>B7B7,>B7B7
+       DATA >B7B7,>B7B7,>B7B7,>B7B7
+       DATA >B8B8,>B8B8,>B8B8,>B8B8
+       DATA >B8B8,>B8B8,>B8B8,>B8B8
+       DATA >B9B9,>B9B9,>B9B9,>B9B9
+       DATA >B9B9,>B9B9,>B9B9,>B9B9
+       DATA >BABA,>BABA,>BABA,>BABA
+       DATA >BABA,>BABA,>BABA,>BABA
+       DATA >BBBB,>BBBB,>BBBB,>BBBB
+       DATA >BBBB,>BBBB,>BBBB,>BBBB
+       DATA >BCBC,>BCBC,>BCBC,>BCBC
+       DATA >BCBC,>BCBC,>BCBC,>BCBC
+       DATA >BDBD,>BDBD,>BDBD,>BDBD
+       DATA >BDBD,>BDBD,>BDBD,>BDBD
+       DATA >BEBE,>BEBE,>BEBE,>BEBE
+       DATA >BEBE,>BEBE,>BEBE,>BEBE
+       DATA >BFBF,>BFBF,>BFBF,>BFBF
+       DATA >BFBF,>BFBF,>BFBF,>BFBF
+BLKDA3 DATA >D0D0,>D0D0,>D0D0,>D0D0
+       DATA >D0D0,>D0D0,>D0D0,>D0D0
+       DATA >D1D1,>D1D1,>D1D1,>D1D1
+       DATA >D1D1,>D1D1,>D1D1,>D1D1
+       DATA >D2D2,>D2D2,>D2D2,>D2D2
+       DATA >D2D2,>D2D2,>D2D2,>D2D2
+       DATA >D3D3,>D3D3,>D3D3,>D3D3
+       DATA >D3D3,>D3D3,>D3D3,>D3D3
+       DATA >D4D4,>D4D4,>D4D4,>D4D4
+       DATA >D4D4,>D4D4,>D4D4,>D4D4
+       DATA >D5D5,>D5D5,>D5D5,>D5D5
+       DATA >D5D5,>D5D5,>D5D5,>D5D5
+       DATA >D6D6,>D6D6,>D6D6,>D6D6
+       DATA >D6D6,>D6D6,>D6D6,>D6D6
+       DATA >D7D7,>D7D7,>D7D7,>D7D7
+       DATA >D7D7,>D7D7,>D7D7,>D7D7
+       DATA >D8D8,>D8D8,>D8D8,>D8D8
+       DATA >D8D8,>D8D8,>D8D8,>D8D8
+       DATA >D9D9,>D9D9,>D9D9,>D9D9
+       DATA >D9D9,>D9D9,>D9D9,>D9D9
+       DATA >DADA,>DADA,>DADA,>DADA
+       DATA >DADA,>DADA,>DADA,>DADA
+       DATA >DBDB,>DBDB,>DBDB,>DBDB
+       DATA >DBDB,>DBDB,>DBDB,>DBDB
+       DATA >DCBC,>DCBC,>DCBC,>DCBC
+       DATA >DCDC,>DCDC,>DCDC,>DCDC
+       DATA >DDDD,>DDDD,>DDDD,>DDDD
+       DATA >DDDD,>DDDD,>DDDD,>DDDD
+       DATA >DEDE,>DEDE,>DEDE,>DEDE
+       DATA >DEDE,>DEDE,>DEDE,>DEDE
+       DATA >DFDF,>DFDF,>DFDF,>DFDF
+       DATA >DFDF,>DFDF,>DFDF,>DFDF
+
+BLKTB1 DATA >9091,>9293,>9495,>9697     Volume tables for the second nibble 
+       DATA >9899,>9A9B,>9C9D,>9E9F
+BLKTB2 DATA >B0B1,>B2B3,>B4B5,>B6B7
+       DATA >B8B9,>BABB,>BCBD,>BEBF
+BLKTB3 DATA >D0D1,>D2D3,>D4D5,>D6D7
+       DATA >D8D9,>DADB,>DCDD,>DEDF
+
+* This routine sets the maximum frequency on all three generators
+
+SNDINI DATA >8100,>A100,>C100
+
+ISTART LI   R0,SNDINI
+       LI   R15,>8400
+SNDINL MOVB *R0+,*R15
+       CI   R0,SNDINI+6
+       JNE  SNDINL
+* Further initialisation deleted (screen, etc).
+
+*
+* Here is the F/X play module
+*
+* This part is quite complicated because it tries to access sound data in
+* every possible memory device, both for the TI-99/4A and the Geneve.
+* Basically it sets pointers and calls the sound playing routines (possibly
+* copying them in fast memory first)
+
+FXPLAY ABS  @SNDMEM           if no sound loaded, exit
+       JNE  FXPLY2
+       B    @ISTART
+
+FXPLY2 BLWP @VMBWD            Message
+       DATA 934,PLYTXT,12
+       LI   R8,>8300          Play data from CPU mem
+       LI   R9,>832A          Play data from VDP mem
+       MOV  @DELCNT,R0        if 0, use 11 KHz player
+       JEQ  FXPLY3
+       LI   R8,TIPLP          Ditto, but routines in slow memory
+       LI   R9,TIVLP
+       CI   R0,1
+       JEQ  FXPLY3
+       DEC  @DELCNT
+       LI   R8,TIPLPD         Ditto, but routines have delay
+       LI   R9,TIVLPD
+
+FXPLY3
+       LI   R12,>0800         CRU for page device
+       LI   R13,>8800         VDP read port
+       LI   R15,>8400         Sound chip port
+       LI   R0,>8300          Where to copy playing routine
+       LI   R3,TIPLP
+       LI   R4,TIPLP$-TIPLP
+LODPAD MOV  *R3+,*R0+         Copy routine to fast memory
+       DECT R4
+       JNE  LODPAD
+
+       MOV  @VIDSIZ,R2        Buffer size
+       LI   R0,>080C          Set VDP address
+       MOVB R0,@>8C02
+       SWPB R0
+       MOVB R0,@>8C02
+       MOV  @VDPPGS,R4        # of 9938 pages in use
+       LI   R5,1              Start with page 1
+       LI   R1,>A000          Sound data in high-mem expansion
+       ABS  @NO9938
+       JEQ  HITIT             TMS9938 RAM use
+       BL   *R9               Call playing routine
+       JMP  CKPCPU
+
+PLVLP  LI   R2,>4000          Page size
+       DEC  R4
+       JNE  PLVLP1
+       MOV  @VDPEND,R2
+PLVLP1 MOVB @>83AB,@>8C06     This is R5, lsbyte: set page
+       CLR  R0                Start from VDP address >0000
+       MOVB R0,@>8C02
+       INC  R5                Next page
+       MOVB R0,@>8C02
+HITIT  BL   *R9               Call playing routine
+       MOV  R4,R4
+       JNE  PLVLP             More pages to come
+
+       ABS  @NOEXP
+       JNE  VDRSET            No exp VRAM used
+       MOV  @EXPPGS,R4        This part for Geneve only (9938 VDP)
+       CLR  R5                Start from page 0
+       LI   R0,>40AD
+       MOVB R0,@>8C02
+       SWPB R0
+       MOVB R0,@>8C02
+PLELP  LI   R2,>4000          Page size
+       DEC  R4
+       JNE  PLELP1
+       MOV  @EXPEND,R2        Last page: stop here
+PLELP1 MOVB @>83AB,@>8C06     Set page (this is R5 lsb)
+       CLR  R0                Set VDP address >0000
+       MOVB R0,@>8C02
+       INC  R5                Next page
+       MOVB R0,@>8C02
+       BL   *R9               Call playing routine
+       MOV  R4,R4
+       JNE  PLELP             More pages to come
+       LI   R0,>00AD          Set VDP address as >00AD
+       MOVB R0,@>8C02
+       SWPB R0
+       MOVB R0,@>8C02
+VDRSET MOVB @BYT0,@>8C06      Reset page
+
+CKPCPU ABS  @NOCPU
+       JNE  CKP964            No CPU RAM used
+       MOV  @ENDADR,R2        Sound is in CPU RAM, get end address
+       BL   *R8               Call playing routine
+       ABS  @NOSCRT
+       JNE  SKPZIT            No SS/SC RAM used
+       MOV  @SSPGS,R4         # of SS/SC pages
+       CLR  R5                Bank 0
+SSPLLP LDCR @SSPCDT(R5),8     Select bank
+       LI   R2,>8000          Till end of bank
+       DEC  R4
+       JNE  SSPLY
+       MOV  @SCEND,R2         Last page: till there
+SSPLY  LI   R1,>6000          Sound is in >6000 bank 
+       BL   *R8               Call playing routine
+       INC  R5                Next bank
+       MOV  R4,R4
+       JNE  SSPLLP
+
+CKP964 ABS  @NOGEN
+       JNE  SKPZIT            No 9640 RAM used
+       MOV  @SSPGS,R4         For Geneve only
+       LI   R5,MEM964         List of pages
+P964LP MOVB *R5+,@>8005       Set a page
+       LI   R2,>C000          End of bank  
+       DEC  R4
+       JNE  P96PLY
+       MOV  @SCEND,R2
+P96PLY LI   R1,>A000          Beginning of bank
+       BL   *R8               Call sound playing routine
+       MOV  R4,R4
+       JNE  P964LP            More pages to come
+       MOVB @SVA000,@>8005    Reset page
+
+SKPZIT CI   R8,TIPLPD
+       JNE  SKPZT2
+       INC  @DELCNT
+SKPZT2 B    @ISTART
+
+* Sound playing routines
+
+* TI-99/4A 11 KHz routines. Currently >54 bytes long (>8300->8354) 
+* For faster execution, these routines may be copied in scratch-pad memory
+* They modulate the volume of the 3 sound generators from data used nibble-by-nibble.
+
+* This routine runs at >8300. It gets sound data from CPU memory.
+* Data ptr in R1, end pointer in R2
+TIPLP  MOVB *R1+,R3                 Get sound data
+       SRL  R3,8
+       MOVB @BLKDAT(R3),*R15        Use leftmost nibble, ignore rightmost
+       MOVB @BLKDA2(R3),*R15        (because tables have 16 identical entries)         
+       MOVB @BLKDA3(R3),*R15
+       SRC  R3,8
+       SRC  R3,8
+       ANDI R3,>F				Keep only rightmost nibble
+       MOVB @BLKTB1(R3),*R15
+       MOVB @BLKTB2(R3),*R15
+       MOVB @BLKTB3(R3),*R15
+       C    R1,R2                   Done?
+       JNE  TIPLP                   Not yet
+       RT
+
+* This one gets sound data from VDP memory
+TIVLP  MOVB *R13,R3                 >832A  
+       SRL  R3,8
+       MOVB @BLKDAT(R3),*R15
+       MOVB @BLKDA2(R3),*R15
+       MOVB @BLKDA3(R3),*R15
+       SRC  R3,8
+       SRC  R3,8
+       ANDI R3,>F
+       MOVB @BLKTB1(R3),*R15
+       MOVB @BLKTB2(R3),*R15
+       MOVB @BLKTB3(R3),*R15
+       DEC  R2
+       JNE  TIVLP
+       RT
+TIPLP$
+
+* Same as above (gets data from cpu mem), with longer delay
+TIPLPD MOV  R11,R10
+TIPLDL MOVB *R1+,R3
+       SRL  R3,8
+       MOVB @BLKDAT(R3),*R15
+       MOVB @BLKDA2(R3),*R15
+       MOVB @BLKDA3(R3),*R15
+       BL   @DELAY
+       ANDI R3,>F
+       MOVB @BLKTB1(R3),*R15
+       MOVB @BLKTB2(R3),*R15
+       MOVB @BLKTB3(R3),*R15
+       BL   @DELAY
+       C    R1,R2
+       JNE  TIPLDL
+TIPLDZ B    *R10
+
+* Same as above (get data from VDP mem) with longer delay
+TIVLPD MOV  R11,R10
+TIVLDL MOVB *R13,R3
+       SRL  R3,8
+       MOVB @BLKDAT(R3),*R15
+       MOVB @BLKDA2(R3),*R15
+       MOVB @BLKDA3(R3),*R15
+       BL   @DELAY
+       ANDI R3,>F
+       MOVB @BLKTB1(R3),*R15
+       MOVB @BLKTB2(R3),*R15
+       MOVB @BLKTB3(R3),*R15
+       BL   @DELAY
+       DEC  R2
+       JNE  TIVLDL
+       B    *R10
+
+* Delay routine - used by 99/4A and 9640 playback routines
+DELCNT DATA 0                 min. value of 1
+
+DELAY  MOV  @DELCNT,R0
+DELAYL DEC  R0
+       JNE  DELAYL
+       RT
+
+*
+* F/X Configuration
+*
+
+BTMSCR TEXT 'Press: 1 - Increase Delay'
+BTMSC2 TEXT '2 - Decrease Delay'
+BTMSC3 TEXT 'FCTN 9 - Exit To Menu'
+SPDTXT TEXT 'Delay Factor:'
+DLYNUM TEXT '####'
+
+FXCNFG BLWP @VMBFD
+       DATA 120,>2020,840
+       LI   R9,MEMTX2
+       MOV  @MEMSIZ,R7
+       LI   R2,4
+       CLR  R15
+       BL   @BINASC
+       LI   R9,MAXTX2
+       LI   R2,4
+       CLR  R15
+       MOV  @MEMSIZ,R7
+       SLA  R7,2
+       INC  R7
+       BL   @BINASC
+       BLWP @VMBWD
+       DATA 172,MEN3+4,17
+       BLWP @VMBWD
+       DATA 330,MEMTXT,18
+       BLWP @VMBWD
+       DATA 407,MAXTXT,28
+       BLWP @VMBWD
+       DATA 847,BTMSCR,25
+       BLWP @VMBWD
+       DATA 894,BTMSC2,18
+       BLWP @VMBWD
+       DATA 929,BTMSC3,21
+
+CCFGLP LI   R9,DLYNUM
+       MOV  @DELCNT,R7
+       LI   R2,4
+       CLR  R15
+       BL   @BINASC
+       BLWP @VMBWD
+       DATA 489,SPDTXT,17
+       CLR  @>8374
+       LI   R0,>03C0
+       BL   @KEYIN
+       CB   @>837C,@SPC
+       JNE  CCFGLP
+       CLR  R1
+       MOVB @>8375,R1
+       CI   R1,>3100
+       JL   CCFGLP
+       CI   R1,>3200
+       JEQ  DECDEL
+       JH   CCFGLP
+INCDEL INC  @DELCNT
+       JMP  CCFGLP
+DECDEL DEC  @DELCNT
+       JLT  INCDEL
+       JMP  CCFGLP
+
+*
+* Here is the F/X conversion module
+*
+
+VOCTX  TEXT 'Crea'
+FIRSTR DATA 0
+
+CONVRT BLWP @VMBFD
+       DATA 120,>2020,840
+       BLWP @VMBWD
+       DATA 171,MEN4A+4,18
+       CLR  @SNDMEM
+*
+*  First, get the data into memory!
+*
+CONVRG BL   @PRSFNM
+       LI   R0,242
+       LI   R1,MSGINP
+       LI   R2,15
+       BL   @GETDV
+       DATA DEVNAM
+       BL   @PRSFNM
+       BLWP @VMBWD
+       DATA >0400,DEVPAB,60  Now open the file
+       MOV  @GIFOPL,@>8356
+       BLWP @DSRLNK
+       DATA 8
+       JNE  NCVTOE
+       BL   @CLOGIF          If an error, do a CLOSE and get new =
+filename
+       JMP  CONVRG
+
+NCVTOE LI   R0,>0400         Set INPUT file for READ
+       LI   R1,>0200
+       BLWP @VSBW
+       SETO @OPNFIL
+
+CNVRGO BL   @PRSCVT
+       LI   R0,362
+       LI   R1,MSGOUT
+       LI   R2,16
+       BL   @GETDV
+       DATA CVTNAM
+       BL   @PRSCVT
+       BLWP @VMBWD
+       DATA >0480,CVTPAB,60  Now open output file
+       MOV  @CVTOPL,@>8356
+       BLWP @DSRLNK
+       DATA 8
+       JNE  NCVTIE
+       LI   R0,>0480
+       BL   @CLOCVT
+       SETO @OPNFIL
+       JMP  CNVRGO
+
+NCVTIE LI   R0,>0480          Set it for WRITE
+       LI   R1,>0300
+       BLWP @VSBW
+
+GETAMP MOV  @AMPLVL,R6        now get amp level
+       LI   R2,>A
+       MPY  R2,R6
+       LI   R9,AMPFAC
+       LI   R2,3
+       CLR  R15
+       BL   @BINASC
+       BLWP @VMBWD
+       DATA 482,AMPTXT,26
+       BLWP @VMBWD
+       DATA 522,SPCMOD,37
+       LI   R0,508
+       BL   @KEYIN
+       CI   R1,>2000
+       JNE  CKRTNK
+       INC  @AMPLVL
+       C    @AMPLVL,@D16
+       JL   GETAMP
+       CLR  @AMPLVL
+CKRTNK CI   R1,>0D00
+       JNE  GETAMP
+       LI   R1,>2000
+       BLWP @VSBW
+
+       SETO @FIRSTR
+       BLWP @VMBFD
+       DATA 522,>2020,37
+       BLWP @VMBWD
+       DATA 934,PROCTX,13
+
+TRNSET CLR  R0                Set up translation tables
+       LI   R1,>D000
+       LI   R2,>D100
+TRNST1 MOVB R0,*R1+
+       MOVB R0,*R2+
+       CI   R1,>D080
+       JL   TRNST1
+       LI   R0,>0F00
+       LI   R3,>F000
+TRNST2 MOVB R0,*R1+
+       MOVB R3,*R2+
+       CI   R1,>D100
+       JNE  TRNST2
+
+       MOV  @AMPLVL,R0
+       MPY  @D7,R0
+       AI   R1,>D010
+       MOV  R1,R2
+       AI   R2,>0100
+       LI   R3,16
+       S    @AMPLVL,R3
+       LI   R4,>0100
+       LI   R5,>1000
+TRNST4 MOV  R3,R6
+TRNST3 MOVB R4,*R1+
+       MOVB R5,*R2+
+       DEC  R6
+       JNE  TRNST3
+       AI   R4,>0100
+       AI   R5,>1000
+       CI   R4,>0F00
+       JNE  TRNST4
+
+* At this point, tables are set up
+       BL   @READRC
+       CI   R9,64
+       JEQ  CVTXIT
+       C    @VOCTX,@>A000
+       JNE  CVTRAW
+       C    @VOCTX+2,@>A002
+       JEQ  CVTVOC
+       JMP  CVTRAW
+* conversion for raw (SND-type) files
+CVTLOP BL   @READRC           8K read from file
+       CI   R9,64
+       JEQ  CVTXIT
+CVTRAW NEG  R9
+       SLA  R9,7
+       AI   R9,>C000          r9 points to end of buffer
+       LI   R0,>A000          R0 =3D INCOMING DATA
+       LI   R1,>A000          R1 =3D OUTGOING DATA
+
+CVTLP1 MOVB *R0+,R2
+       SRL  R2,8
+       MOVB @>D100(R2),*R1
+       MOVB *R0+,R2
+       SRL  R2,8
+       SOCB @>D000(R2),*R1+
+       C    R0,R9
+       JL   CVTLP1
+       CI   R9,>C000
+       JEQ  NONUKE
+       MOV  R9,R0
+CVTSET SETO *R0+
+       CI   R0,>C000
+       JNE  CVTSET
+NONUKE AI   R1,>607F
+       SRL  R1,7
+       ABS  @FIRSTR
+       JEQ  FIRSTS
+       LI   R0,>A000
+       MOV  @FXH,*R0+
+       CLR  *R0+
+       CLR  *R0+
+       CLR  *R0
+       CLR  @FIRSTR
+FIRSTS BL   @WRITRC
+       CI   R9,>C000
+       JEQ  CVTLOP
+CVTXIT BL   @CLOGIF           Close files
+       LI   R0,>0480
+       BL   @CLOCVT
+       LI   R0,CVTLEN
+       LI   R1,DEVLEN
+       LI   R2,42
+NEWDFT MOV  *R0+,*R1+
+       DECT R2
+       JNE  NEWDFT
+       BLWP @VMBWD
+       DATA 923,CCPAK,35
+       B    @DEATH
+
+* conversion for a VOC-type file
+
+CVTVOC LI   R13,>C000          r1 points to outgoing data stream
+       MOV  @FXH,*R13+         set up header
+       CLR  *R13+
+       CLR  *R13+
+       CLR  *R13+
+       LI   R14,>A01A          r0 =3D incoming data ptr
+       BL   @DOVOC
+
+CVTVC1 BL   @FETCHR
+       SRL  R15,8
+       MOVB @>D100(R15),*R13
+       DEC  @VOCLO
+       JOC  CVTVC2
+       DEC  @VOCHI
+       JOC  CVTVC2
+
+       BL   @DOVOC
+
+CVTVC2 BL   @FETCHR
+       SRL  R15,8
+       SOCB @>D000(R15),*R13+
+       DEC  @VOCLO
+       JOC  CVTVC3
+       DEC  @VOCHI
+       JOC  CVTVC3
+
+       BL   @DOVOC
+
+CVTVC3 CI   R13,>D000
+       JNE  CVTVC1
+       LI   R1,32
+       BL   @WRITVC
+       LI   R13,>C000
+       JMP  CVTVC1
+
+FETCHR MOVB *R14+,R15
+       CI   R14,>C000
+       JNE  FTCH1
+       MOV  R11,@SAVRT
+       BL   @READRC
+       MOV  @SAVRT,R11
+       LI   R14,>A000
+FTCH1  RT
+
+VOCHI  DATA 0
+VOCLO  DATA 0
+
+DOVOC  MOV  R11,@DOVOCX+2
+       BL   @FETCHR
+       ANDI R15,>FF00
+       JEQ  DOVOEF
+       BL   @FETCHR
+       MOVB R15,@VOCLO+1
+       BL   @FETCHR
+       MOVB R15,@VOCLO
+       BL   @FETCHR
+       CLR  @VOCHI
+       MOVB R15,@VOCHI+1
+       BL   @FETCHR
+       BL   @FETCHR
+       LI   R0,3
+       S    R0,@VOCLO
+       JOC  DOVOCG
+       DEC  @VOCHI
+DOVOCG MOV  @VOCLO,R0
+       JNE  DOVOCX
+       DEC  @VOCHI
+DOVOCX B    @0
+
+DOVOEF SETO R1
+       MOV  R13,R9
+DOVOE1 MOVB R1,*R13+
+       CI   R13,>D000
+       JNE  DOVOE1
+       MOV  R9,R1
+       AI   R1,>407F
+       SRL  R1,7
+       BL   @WRITVC
+       B    @CVTXIT
+
+
+DEVPAB DATA >0004
+BUFLOC DATA >0500,>8080,>0000
+DEVLEN DATA 0
+DEVNAM TEXT '                                          '
+
+CVTPAB DATA >0002
+CVTBUF DATA >0600,>8080,>0000
+CVTLEN DATA 0
+CVTNAM TEXT '                                          '
+
+HFF    DATA 255
+SAVR1  DATA 0
+FSIZE  DATA 0
+DFLAG  DATA 0
+
+CLOGIF LI   R0,>0400         Close an open FX file!
+CLOCVT LI   R1,>0100
+       BLWP @VSBW
+       AI   R0,9
+       MOV  R0,@>8356
+       BLWP @DSRLNK
+       DATA 8
+       CLR  @OPNFIL
+       RT
+
+ERRHDL BLWP @VMBWD
+       DATA 928,MSG6,24
+       B    @DEATH
+
+LOOPAC DATA 0                Accumulator for loop
+RPRT   DATA 0
+
+VDREAD LI   R1,>A000
+       LI   R9,128
+       JMP  READRS
+
+SCREAD LI   R1,>6000
+       LI   R9,64
+       JMP  READRS
+
+VRREAD LI   R1,>A000
+       LI   R9,80
+       JMP  READRS
+
+TIREAD LI   R1,>A000
+       LI   R9,192
+       JMP  READRS
+
+READRC LI   R9,64
+       LI   R1,>A000
+READRS LI   R2,>80
+READRZ LI   R0,>0500
+READRL MOV  @GIFOPL,@>8356
+       BLWP @DSRLNK          Read 64 128 byte records from file, store =
+them
+       DATA 8
+       JNE  NREDER
+       CB   R0,@HEX5
+       JNE  ERRHDL
+       ABS  @CHNFLG
+       JEQ  NCHNF
+       BLWP @VMBWD
+       DATA 883,CHAINT,36
+       BLWP @VMBWD
+       DATA 924,CHAIN2,34
+       STWP R0
+       MOV  R0,@RSTR0+2
+       MOV  R0,@RRSTR0+2
+       LWPI >8300
+       LI   R0,>03C0
+       BL   @KEYIN
+       BLWP @VMBFD
+       DATA 880,>2020,80
+       ANDI R1,>7F00
+       CI   R1,>0C00
+       JEQ  RSTR0
+       BLWP @VMBWD
+       DATA 935,LOADTX,10
+       LI   R0,>409
+       BLWP @VSBR
+       MOV  R1,R0
+       SRL  R0,8
+       DEC  R0
+       AI   R0,>040A
+       BLWP @VSBR
+       AI   R1,>0100
+       BLWP @VSBW
+       LI   R0,>400
+       CLR  R1
+       BLWP @VSBW
+       MOV  @GIFOPL,@>8356
+       BLWP @DSRLNK
+       DATA 8
+       JEQ  ERRHDL
+       LI   R0,>0400
+       LI   R1,>0200
+       BLWP @VSBW
+RRSTR0 LWPI 0
+       JMP  READRZ
+RSTR0  LWPI 0
+NCHNF  RT
+NREDER BLWP @VMBR            If an error in 1st half, flag it!
+       A    R2,R1
+       DEC  R9
+       JNE  READRL
+       RT
+
+WRITVC MOV  R1,R8
+       LI   R1,>C000
+       JMP  WRITR
+
+WRITRC MOV  R1,R8
+       LI   R1,>A000
+WRITR  LI   R0,>0600
+       LI   R2,>80
+WRITRL BLWP @VMBW
+       MOV  @CVTOPL,@>8356
+       BLWP @DSRLNK
+       DATA 8
+       JEQ  WRITER
+       A    R2,R1
+       DEC  R8
+       JNE  WRITRL
+       RT
+
+WRITER LI   R0,>0480
+       BL   @CLOCVT
+       BL   @CLOGIF
+       B    @ERRHDL
+
+PRSHDR MOV  R11,R10
+       LI   R0,>0400         Put file in READ mode
+       LI   R1,>200
+       BLWP @VSBW
+       BL   @READRC
+       B    *R10
+
+
+VWTR   DATA UTILWS,VWTR1
+VWTR1  MOV  *R13,R0
+       MOVB @UTILWS+1,@>8C02
+       ORI  R0,>8000
+       MOVB R0,@>8C02
+       RTWP
+
+KSCAN  DATA UTILWS,KSCAN1
+KSCAN1 LWPI >83E0
+       BL   @>E
+       LWPI UTILWS
+       RTWP
+
+WTAD4  LI   R1,>4000
+WTAD3  MOVB *R14+,R0
+       MOVB *R14+,@>8C02
+       SOC  R1,R0
+       MOVB R0,@>8C02
+       MOV  *R14+,R1
+       MOV  *R14+,R2
+       RT
+
+H4000  EQU  $+2
+WTAD2  LI   R1,>4000
+WTAD   MOV  *R13,R0
+       MOVB @UTILWS+1,@>8C02
+       SOC  R1,R0
+       MOVB R0,@>8C02
+       MOV  @2(R13),R1
+       MOV  @4(R13),R2
+       RT
+
+VSBW   DATA UTILWS,$+2
+       BL   @WTAD2
+       MOVB R1,@>8C00
+       RTWP
+
+VSBR   DATA UTILWS,VSBR1
+VSBR1  CLR  R1
+       BL   @WTAD
+       MOVB @>8800,@2(R13)
+       RTWP
+
+VMBRD  DATA UTILWS,$+2
+       CLR  R1
+       BL   @WTAD3
+       JMP  VMBR2
+VMBR   DATA UTILWS,$+2
+       CLR  R1
+       BL   @WTAD
+VMBR2  MOVB @>8800,*R1+
+       DEC  R2
+       JNE  VMBR2
+       RTWP
+
+VMBFD  DATA UTILWS,$+2
+       BL   @WTAD4
+VMBF2  MOVB R1,@>8C00
+       DEC  R2
+       JNE  VMBF2
+       RTWP
+
+VMBWD  DATA UTILWS,$+2
+       BL   @WTAD4
+       JMP  VMBW2
+VMBW   DATA UTILWS,$+2
+       BL   @WTAD2
+VMBW2  MOVB *R1+,@>8C00
+       DEC  R2
+       JNE  VMBW2
+       RTWP
+
+PNTR   EQU  >8356
+SCLEN  EQU  >8355
+CRULST EQU  >83D0
+SADDR  EQU  >83D2
+GPLWS  EQU  >83E0
+H20    DATA >2000
+DECMAL TEXT '.'
+HZZ    BYTE >AA
+SAVTKX DATA 0
+
+DSRLNK DATA DLNKWS,DLENTR
+
+DLENTR MOV  *R14+,R5
+       MOV  @TKX,@SAVTKX
+       SZCB @H20,R15
+       MOV  @PNTR,R0
+       MOV  R0,R9
+       AI   R9,-8
+       BLWP @VSBR
+       MOVB R1,R3
+       SRL  R3,8
+       SETO R4
+       LI   R2,NAMBUF
+LNK$LP INC  R0
+       INC  R4
+       CI   R4,7
+       JGT  LNKERR
+       C    R4,R3
+       JEQ  LNK$LN
+       BLWP @VSBR
+       MOVB R1,*R2+
+       CB   R1,@DECMAL
+       JNE  LNK$LP
+LNK$LN MOV  R4,R4
+       JEQ  LNKERR
+       CLR  @CRULST
+       MOV  R4,@SCLEN-1
+       INC  R4
+       A    R4,@PNTR
+SROM   LWPI GPLWS
+       CLR  R1
+       LI   R12,>1200
+       JMP  NOOFF2
+NOROM  SBZ  0
+NOOFF  AI   R12,>100
+       CLR  @CRULST
+       CI   R12,>1200
+       JEQ  NODSR
+       CI   R12,>2000
+       JNE  NOOFF2
+       LI   R12,>1000
+NOOFF2 MOV  R12,@CRULST
+       SBO  0
+       LI   R2,>4000
+       CB   *R2,@HZZ
+       JNE  NOROM
+       A    @TYPE,R2
+       JMP  SGO2
+SGO    MOV  @SADDR,R2
+       SBO  0
+SGO2   MOV  *R2,R2
+       JEQ  NOROM
+       MOV  R2,@SADDR
+       INCT R2
+       MOV  *R2+,R9
+       MOVB @SCLEN,R5
+       JEQ  NAME2
+       CB   R5,*R2+
+       JNE  SGO
+       SRL  R5,8
+       LI   R6,NAMBUF
+NAME1  CB   *R6+,*R2+
+       JNE  SGO
+       DEC  R5
+       JNE  NAME1
+NAME2  INC  R1
+QCKENT BL   *R9
+TKX    JMP  SGO
+       SBZ  0
+       LWPI DLNKWS
+       MOV  @SAVTKX,@TKX
+       MOV  R9,R0
+       BLWP @VSBR
+       SRL  R1,13
+       JNE  IOERRZ
+       RTWP
+
+NODSR  LWPI DLNKWS
+LNKERR CLR  R1
+IOERRZ SWPB R1
+       MOVB R1,*R13
+       SOCB @H20,R15
+       RTWP
+
+UTILWS EQU  >8380
+DLNKWS DATA 0,0,0,0,0
+TYPE   DATA 0,0,0,0,0,0,0,0,0,0,0
+NAMBUF BSS  8
+
+       END
+
+
+

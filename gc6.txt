@@ -1,0 +1,448 @@
+*===========================================================
+* subprograms for general use
+*-----------------------------------------------------------
+VSBW   DATA WREG2,SBR1   vdp write 1 byte
+VDBW   DATA WREG2,SBR2   vdp write 2 bytes
+VMBW   DATA WREG2,SBR3   vdp multiple bytes write
+VRBW   DATA WREG2,SBR4   vdp repeated byte write
+VSBR   DATA WREG2,SBR5   vdp read 1 byte
+VDBR   DATA WREG2,SBR6   vdp read 2 bytes
+VMBR   DATA WREG2,SBR7   vdp multiple bytes read
+VWTR   DATA WREG2,SBR8   vdp write to 1 register
+GPLLNK DATA WREG2,SBR9   call gpl routine
+DSRLNK DATA WREG1,SBR10  call dsr
+KSCAN  DATA WREG2,SBR11  key scan
+*-----------------------------------------------------------
+SBR5   BL   @A34CA       vdp read
+SBR1   BL   @A34D8       vdp write
+       LI   2,>0001      one byte
+       JMP  A3476
+SBR6   BL   @A34CA       vdp read
+SBR2   BL   @A34D8       vdp write
+       LI   2,>0002      2 bytes
+A3476  BL   @A34B0       set vdp address: old r0
+       MOV  13,1
+       INCT 1            destination: old r1
+       JMP  A34A0
+SBR4   BL   @A34D8       vdp write
+       LI   8,>D5C1      movb 1,*7
+       JMP  A3492
+SBR7   BL   @A34CA       vdp read
+SBR3   BL   @A34D8       vdp write
+A3492  BL   @A34B0       set vdp address: old r0
+       MOV  @>0002(13),1 old r1: dest ptr
+       MOV  @>0004(13),2 old r2: # of bytes
+       JEQ  A34A6
+A34A0  X    8            movb *1+,*7 or *7,*1+ or *7,1
+       DEC  2
+       JNE  A34A0        next byte
+A34A6  RTWP
+*
+SBR8   LI   9,>8000      vdp reg write
+       LI   11,A34A6
+A34B0  LIMI >0000        set vdp address
+       MOV  *13,0
+       ANDI 0,>3FFF      from old r0
+       SOC  9,0          read or write
+       SWPB 0
+       MOVB 0,@>8C02     write address
+       SWPB 0
+       MOVB 0,@>8C02
+       B    *11
+*
+A34CA  CLR  9            prepare vdp read
+       LI   7,>8800
+       LI   8,>DC57      movb *7,*1+
+       C    *11+,*11+    skip next bl instruction
+       B    *11
+*
+A34D8  LI   9,>4000      prepare vdp write
+       LI   7,>8C00
+       LI   8,>D5F1      movb *1+,*7
+       B    *11
+*-----------------------------------------------------------
+A34E6  DATA >AA01
+SBR10  LIMI >0000        dsr call
+       MOV  *14+,5       --------
+       SZCB @A3564+2,15  >20
+       MOV  @>8356,0     name ptr
+       MOV  0,6
+       AI   6,>FFF8      save status address
+       BLWP @VSBR        read name length
+       MOVB 1,3
+       SRL  3,8
+       CI   3,>0008
+A3508  JLE  A350E
+       LI   3,>0008      max length = 7
+A350E  SETO 4
+       LI   2,>834A
+A3514  INC  0            copy name to pad
+       INC  4
+       C    4,3
+       JEQ  A352A        up to 7 chars
+       CLR  1
+       BLWP @VSBR
+       MOVB 1,*2+
+       CI   1,>2E00      or to "."
+       JNE  A3514
+A352A  MOV  4,4
+       JEQ  A35D2        length = 0
+       CI   4,>0007
+       JGT  A35D2        length > 7
+       CLR  @>83D0
+       MOV  4,@>8354     save length
+       MOV  4,@A27E2
+       INC  4
+       A    4,@>8356     file name ptr
+       MOV  @>8356,@A27E4
+       LWPI >83E0        dsr calling routine
+       CLR  1
+       LI   12,>0F00
+A3556  MOV  12,12
+       JEQ  A355C        first card?
+       SBZ  0            no: disconnect previous
+A355C  AI   12,>0100     next card
+       CLR  @>83D0
+A3564  CI   12,>2000
+       JEQ  A35CE        last card
+       MOV  12,@>83D0    save cru
+       SBO  0            card on
+       LI   2,>4000
+       CB   *2,@A34E6    >AA
+       JNE  A3556        no header: next card
+       A    @WREG1+10,2  program type (old r5)
+       JMP  A3586
+A3580  MOV  @>83D2,2     next link
+       SBO  0
+A3586  MOV  *2,2
+       JEQ  A3556        no more link: next card
+       MOV  2,@>83D2     save link
+       INCT 2
+       MOV  *2+,9        address
+       MOVB @>8355,5     length
+       JEQ  A35AA        =0: ok
+       CB   5,*2+
+       JNE  A3580        not same length: next link
+       SRL  5,8
+       LI   6,>834A      compare names
+A35A2  CB   *6+,*2+
+       JNE  A3580        differents: next link
+       DEC  5
+       JNE  A35A2        next char
+A35AA  INC  1            match
+       MOV  1,@A27E6     save occurence of this name
+       MOV  9,@A27E0     save address
+       MOV  12,@A27DE    save cru
+       BL   *9           execute
+       JMP  A3580        not accepted: next link
+       SBZ  0            ok: card off
+       LWPI WREG1
+       MOV  6,0          get status
+       BLWP @VSBR
+       SRL  1,13
+       JNE  A35D4        errors
+       RTWP              ok: return
+A35CE  LWPI WREG1
+A35D2  CLR  1            error 0
+A35D4  SWPB 1            report error
+       MOVB 1,*13
+       SOCB @A3564+2,15  error flag
+       RTWP
+*-----------------------------------------------------------
+FIND12 CLR  0            find >12 in groms
+       MOVB 0,@>9C02     -----------------
+       NOP
+       MOVB 0,@>9C02     address 0 in base 9800
+       NOP
+A35EC  MOVB @>9800,1
+       INC  0
+       CB   1,@A3508     look for byte >12
+       JNE  A35EC
+       DEC  0
+       MOV  0,@A27EE     return address
+       B    *11
+*-----------------------------------------------------------
+*                        gpl execution
+A3600  DATA A3620-2      -------------
+SBR9   LI   9,>8380      subroutine stack
+       MOV  @A3600,*9+   return address
+       MOV  @A27EE,*9    address of byte >12
+       SWPB 9
+       MOVB 9,@>8373     set stack pointer
+       MOV  *14+,@>83E0  put data in new r0
+       LWPI >83E0
+A361C  B    @>005C       to switch grom (swgr opcode)
+A3620  LWPI WREG2        return from gpl (rtgr opcode)
+       RTWP
+*-----------------------------------------------------------
+SBR11  LIMI >0000        key scan
+       LWPI >83E0        --------
+       BL   @>000E       key scan routine
+       LWPI WREG2
+       MOVB @>837C,15    key pressed?
+       RTWP
+*-----------------------------------------------------------
+LDGPL  DATA WREG3,SBR12
+*
+A3640  DATA >6000
+SBR12  SZCB @A3564+2,15  gpl loader
+       MOV  @>8356,0     ----------
+       BLWP @DSRLNK      open file
+       DATA >0008
+       JEQ  ERR          error
+       AI   0,>FFF7
+       LI   1,>0200
+       BLWP @VSBW        write opcode 2 (=read)
+       INC  0
+       MOV  0,@A27F8     save status address
+       MOV  @A3640,7
+       MOV  @A27F2,5     base
+       CLR  12           flag: not compressed
+       BL   @NXTREC      read record
+       CI   3,>0001
+       JNE  A36B2
+       INC  12           flag: compressed
+       CLR  3
+       JMP  A36B6
+A367E  CI   3,>0046
+       JNE  A36B2
+A3684  CLR  2            |F| next record (size=0)
+CONT1  BL   @NXTCHR      next char
+       CI   3,>003A
+       JNE  A367E
+A3690  MOV  @A27F8,0     |:| end
+       DEC  0
+       LI   1,>0100
+       BLWP @VSBW        write opcode 1 (=close)
+       BL   @NXTREC      execute
+       RTWP              end
+*
+ERR    MOVB 0,*13        pass error code
+       SOCB @A3564+2,15  error flag
+       CI   0,>0800
+       JHE  A3690
+       RTWP              i/o errors
+*
+A36B2  BL   @DECODE      next char
+A36B6  SLA  3,1
+       MOV  @A37BE(3),4  tag vector table
+       MOV  8,@A27F6     save checksum
+       BL   @GETDAT      get data word
+       B    *4           to tag routine
+*
+A36C6  LI   4,>0008      |0|
+A36CA  BL   @NXTCHR
+       DEC  4
+       JNE  A36CA        skip 8 bytes
+       JMP  CONT1
+*
+A36D4  LI   0,>0A00      error 10
+       B    @ERR
+ 
+A36DC  A    0,@A27F6     |7| check checksum
+       JEQ  CONT1        ok
+       LI   0,>0B00
+       JMP  ERR          error 11
+*
+A36E8  MOVB 0,@>0402(5)  |9| new address
+       SWPB 0
+       MOVB 0,@>0402(5)
+       SWPB 0
+       JMP  CONT1
+*
+A36F6  MOVB 0,@>0400(5)  |B| write data
+       SWPB 0
+       MOVB 0,@>0400(5)
+       SWPB 0
+       JMP  CONT1
+*
+A3704  LI   9,>0006      |5||6|
+A3708  BL   @NXTCHR
+       DEC  9
+       JNE  A3708        skip 6 chars
+       JMP  CONT1
+*
+GETDAT MOV  11,10        get data word
+       CLR  0            -------------
+       MOV  12,12        put it in r0
+       JEQ  A372A
+       BL   @NXTCHR      compressed
+       MOVB @WREG3+7,0   msb
+       BL   @NXTCHR
+       A    3,0          lsb
+       B    *10
+A372A  LI   6,>0004      not compressed
+A372E  BL   @NXTCHR      get char
+       BL   @DECODE      decode it
+       SLA  0,4
+       A    3,0
+       DEC  6
+       JNE  A372E        4 digits
+       B    *10
+*
+DECODE AI   3,>FFD0      decode + check char
+       CI   3,>000A      -------------------
+       JL   A3754
+       AI   3,>FFF9      >9
+       CI   3,>0019
+       JH   A36D4        <O: error 10
+A3754  B    *11
+*
+NXTREC LWPI >83E0        next record
+       LI   0,A27DE      -----------
+       MOV  *0+,12       cru
+       MOV  *0+,9        address
+       MOV  *0+,@>8354   size
+       MOV  *0+,@>8356   name
+       MOV  *0,1         occurence
+       SBO  0            card on
+       CB   @>4000,@A34E6
+       JNE  A37B0        no header: error
+       BL   *9           execute same dsr
+       JMP  A37B0        error
+       SBZ  0            card off
+       LWPI WREG3
+       MOV  @A27F8,0     status
+       LI   1,WREG3+1    r0 lsb
+       LI   2,>0004
+       BLWP @VMBR        copy into r0 lsb, r1, r2 msb
+       SB   0,0          status
+       SRL  0,5
+       JNE  A37B8        errors
+       SRL  2,8          rec len
+       MOV  1,0          data buffer address
+       LI   1,A278E
+       BLWP @VMBR        copy rec to buffer
+       CLR  8            clear checksum
+NXTCHR DEC  2
+       JLT  NXTREC       size=0: next rec
+       MOVB *1+,3        next char
+       SRL  3,8
+       A    3,8          update checksum
+       B    *11
+*
+A37B0  SBZ  0            card off
+       LWPI WREG3
+       CLR  0            error 0
+A37B8  SWPB 0
+       B    @ERR         issue error
+*
+A37BE  DATA A36C6        0 skip 8 chars
+       DATA CONT1        1 ignore
+       DATA CONT1        2 ignore
+       DATA A36D4        3 error
+       DATA A36D4        4 error
+       DATA A3704        5 skip 6 chars
+       DATA A3704        6 skip 6 chars
+       DATA A36DC        7 check checksum
+       DATA CONT1        8 ignore
+       DATA A36E8        9 new address
+       DATA A36D4        A error
+       DATA A36F6        B write data
+       DATA A36D4        C error
+       DATA A36D4        D error
+       DATA A36D4        E error
+       DATA A3684        F end of rec
+       DATA A36D4,A36D4,A36D4,A36D4
+       DATA A36D4,A36D4,A36D4,A36D4,A36D4
+*-----------------------------------------------------------
+LD9900 DATA WREG3,SBR13
+*
+SBR13  SZCB @A3564+2,15  9900 loader
+       MOV  @>8356,0     -----------
+       BLWP @DSRLNK      open file
+       DATA >0008
+       JNE  A3808
+       B    @ERR         error
+A3808  AI   0,>FFF7
+       LI   1,>0200
+       BLWP @VSBW        write opcode 2 (=read)
+       INC  0
+       MOV  0,@A27F8     status address
+       LI   7,>6000
+       MOV  7,5          beg of bank
+       CLR  12           flag: not compressed
+       BL   @NXTREC      read record
+       CI   3,>0001
+       JNE  A3858
+       INC  12           flag: compressed
+       CLR  3
+       JMP  A385C
+A3832  CI   3,>0046
+       JNE  A3858
+A3838  CLR  2            |F| next rec (size=0)
+CONT2  BL   @NXTCHR      next char
+       CI   3,>003A
+       JNE  A3832
+       MOV  @A27F8,0     |:| end
+       DEC  0
+       LI   1,>0100
+       BLWP @VSBW        write opcode 1 (=close)
+       BL   @NXTREC      execute
+       RTWP              end
+*
+A3858  BL   @DECODE      decode char
+A385C  SLA  3,1
+       MOV  @A38C0(3),4  tag vector table
+       MOV  8,@A27F6     save checksum
+       BL   @GETDAT      get data word
+       B    *4           to tag routine
+*
+A386C  INC  0            |0|
+       ANDI 0,>FFFE      even size
+       CI   0,>2000
+       JLE  A3880
+       LI   0,>0800      too big: error 8
+       B    @ERR
+A3880  LI   4,>0008
+A3884  BL   @NXTCHR
+       DEC  4
+       JNE  A3884        skip 8 chars
+       MOV  5,7          beg of bank
+       JMP  CONT2
+*
+A3890  LI   0,>0A00      error 10
+       B    @ERR
+*
+A3898  A    0,@A27F6     |7| check checksum
+       JEQ  CONT2        ok
+       LI   0,>0B00
+       B    @ERR         error 11
+*
+A38A6  MOV  0,7          |9| new address
+       JMP  CONT2
+*
+A38AA  MOVB 0,*7+        |B| write data
+       MOVB @WREG3+1,*7+
+       JMP  CONT2
+*
+A38B2  LI   9,>0006      |5||6|
+A38B6  BL   @NXTCHR
+       DEC  9
+       JNE  A38B6        skip 6 chars
+       JMP  CONT2
+*
+A38C0  DATA A386C        0 check size. skip 8 chars
+       DATA CONT2        1 ignore
+       DATA CONT2        2 ignore
+       DATA A3890        3 error
+       DATA A3890        4 error
+       DATA A38B2        5 skip 6 chars
+       DATA A38B2        6 skip 6 chars
+       DATA A3898        7 check checksum
+       DATA CONT2        8 ignore
+       DATA A38A6        9 new address
+       DATA A3890        A error
+       DATA A38AA        B write data
+       DATA A3890        C error
+       DATA A3890        D error
+       DATA A3890        E error
+       DATA A3838        F end of rec
+       DATA A3890,A3890,A3890,A3890
+       DATA A3890,A3890,A3890,A3890,A3890
+*-----------------------------------------------------------
+       DATA >FFFF,>FFFF,>FFFF,>FFFF
+       DATA >FFFF,>FFFF,>FFFF
+*                        end of ram >38FF
+*                        end of rom >5FFF
+       END

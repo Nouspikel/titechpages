@@ -1,0 +1,212 @@
+*====================================
+* This is a demo program to test if the host and device controllers can talk to
+* each other. It also demonstrates the 3 stages of a typical USB transaction.
+*
+* Get a USB cable and connect host port #1 with the device port on your card
+* then load the program and run TEST
+*
+*------------------------------------
+       DEF  TEST
+ 
+TEST   LI   12,>1F00    <<<<  put you card's CRU here !
+       SBO  0                 card on
+       SBO  1                 registers on
+*
+* First, let's initialize the USB chip
+*-------------------------------------
+ 
+       BLWP @HCWI             reset host controller
+       DATA >0029,>00F6
+ 
+       BLWP @DCA
+       DATA >00F6             reset device controller
+ 
+* Host controller setup
+ 
+       BLWP @HCWIM            set ITL size to 0
+       DATA >002A,>0000       ITL size = 0
+       DATA >002B,>1000       ATL size = max
+       DATA >0020,>1C08       hardware cfg: internal 15K, 16-bit, EOT+DACK=H
+       DATA >0024,>00FF       clear all interrupts
+       DATA >000D,>2778,>2EDF frame interval: bits/frame, bits/transmission
+       DATA 0                 end-of-list mark for HCWIM
+ 
+* Device controller setup
+ 
+       BLWP @DCA              send command
+       DATA >00B0             unlock controller
+ 
+       BLWP @DCWIM            set DC hardware config:
+       DATA >00BB,>6328       ext pull, no lazy, 12 MHz, DREQ low, CS wakeup
+       DATA >00B8,>0080       mode reg: 16-bit DMA
+       DATA 0                 end-of-list mark for DCWIM
+ 
+       BLWP @DCEPCF           configure 16 endpoints (must do all, in order)
+       BYTE >83               EP 0s: send, 64-byte stack
+       BYTE >C3               EP 0r: receive, 64-byte stack
+       BYTE >83               EP 1: send, 64-byte stack
+       BYTE >C3               EP 2: receive, 64-byte stack
+       BYTE 0,0,0,0,0,0       remaining ones inactive
+       BYTE 0,0,0,0,0,0
+ 
+       BLWP @DCA              send command
+       DATA >00F4             acknowledge setup
+ 
+* Hub controller setup
+ 
+       BLWP @HCWIM
+       DATA >0012,>0200,>0902 hub descriptor A: 4 msec, per-port OC and power
+       DATA >0013,>0006,>0006 hub descriptor B: 1+2 = individual, non-removable
+       DATA >0014,>0001,>0000 hub status: global power on
+       DATA >0015,>0000,>0102 port 1: power + enable, clear status bits
+*      DATA >0016,>0000,>0102 port 2: ditto (optional, we're not using it)
+       DATA 0                 end-of-list mark
+ 
+L1     BLWP @HCR2
+       DATA >0015             read port 1 status
+       ANDI 2,>0100           wait till powered
+       JEQ  L1
+*                             we could also check bit >0001: device connected
+*
+* Phase 1: Send request to device
+* -------------------------------
+* DC:
+       BLWP @EPCLR
+       DATA >0020             clear endpoint 0r buffer
+* HC:
+       BLWP @HCW2I            set control = operational
+       DATA >0001,>0000,>0080
+ 
+       LI   1,GETDSC          load data into ATL
+       LI   2,>0010
+       BLWP @ATLW
+ 
+L2     BLWP @HCR              check buffer status
+       DATA >002C
+       ANDI 1,>0020           wait for 'ATL done' bit
+       JEQ  L2
+* DC:
+L4     BLWP @EPCHK            check endpoint 0r status
+       DATA >0020
+       ANDI 1,>6400           test either stack and setup bits
+       JEQ  L4
+ 
+       LI   1,DCBUF           device buffer
+       LI   2,>0010           max size
+       BLWP @EPR              read enpoint 0r
+       DATA >0020
+       MOV  2,@DCSIZ          save # of bytes
+ 
+       BLWP @DCA              acknowledge setup
+       DATA >00F4
+ 
+       BLWP @EPCLR            clear endpoint 0r
+       DATA >0020
+* HC:
+       LI   1,HCBUF           read back ATL (important)
+       LI   2,>0010
+       BLWP @ATLR
+       MOV  @HCBUF,1
+       ANDI 1,>00F0           optional: check error code
+*      JNE  error-handler
+*
+* Phase 2: Fetch data from device
+* -------------------------------
+* DC:
+       LI    1,DUMMY          data to be sent
+       LI    2,>0008          number of bytes
+       BLWP  @EPW
+       DATA  >00C0            place it into endpoint 0s
+ 
+       BLWP  @EPVAL           validate endpoint 0s
+       DATA  >00C0
+* HC:
+       LI   1,GETDAT          load an "IN" PTD into ATL
+       LI   2,>0010
+       BLWP @ATLW
+ 
+L5     BLWP @HCR              check buffer status
+       DATA >002C
+       ANDI 1,>0020
+       JEQ  L5
+ 
+       LI   1,HCBUF           host controller buffer
+       LI   2,>0010           read back ATL
+       BLWP @ATLR
+       MOV  @HCBUF,1          optional: check error code
+       ANDI 1,>00F0
+*      JNE  error-handler
+ 
+ 
+* Here you should check that DCBUF now contains the payload sent by the host
+* and that HCBUF contains the dummy data fetched from the device
+*
+* This can be done by checking memory afterwars, with a memory editor...
+ 
+ 
+* Phase 3: hosts sends an empty packet to acknoledge reception of the data
+* ------------------------------------
+* HC:
+       LI   1,GETSTA          load data into ATL
+       LI   2,>0010
+       BLWP @ATLW
+ 
+L3     BLWP @HCR              check buffer status
+       DATA >002C
+       ANDI 1,>0020           wait for 'ATL done' bit
+       JEQ  L3
+ 
+       LI   1,HCBUF           host controller buffer
+       LI   2,>0010           read back ATL (mandatory, to reset the pointer)
+       BLWP @ATLR
+       MOV  @HCBUF,1          optionally, check error code
+       ANDI 1,>00F0
+*      JNE  error-handler
+* DC:
+       BLWP @EPCLR            clear endpoint 0r
+       DATA >0020
+*
+* Done
+* ----
+EXIT   SBZ  1                 registers off
+       SBZ  0                 card off
+       B    *11
+ 
+* Data area
+* ---------
+ 
+* PTD structure containing a standard request (get device descriptor)
+ 
+GETDSC DATA >0008,>0808,>0800,>0000   SETUP token, device 0, EP 0, 8 bytes
+ 
+       BYTE >80               payload { request type = d->h, std, device
+       BYTE >06                       { request = get desciptor
+       DATA >0001                     { value = descriptor type & index
+       DATA >0000                     { index
+       DATA >0010                     { descriptor length
+ 
+ 
+* PTD structure to import data
+ 
+GETDAT DATA >000C,>0808,>0808,>0000  IN token, device 0, EP 0, 8 bytes, data1
+       DATA >0000,>0000,>0000,>0000  empty payload, placeholder on stack
+ 
+ 
+* PTD structure to aknowledge reception of data (not used in this exemple)
+ 
+GETSTA DATA >0008,>0808,>0004,>0000  OUT token, device 0,  EP 0, 0 bytes, data0
+ 
+ 
+* Dummy data sent back to host
+ 
+DUMMY  DATA >1234,>5678,>ABCD,>EF99
+ 
+ 
+* Buffers, variables, etc
+ 
+HCBUF  DATA 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0  buffer for host controller
+DCSIZ  DATA 0                 size of data in DC buffer
+DCBUF  DATA 0,0,0,0,0,0,0,0   buffer for device controller
+*
+       COPY "DSK1.ISP1161/S"
+       END

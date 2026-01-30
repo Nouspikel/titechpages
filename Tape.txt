@@ -1,0 +1,420 @@
+************************************************************
+* Cassette tape operations
+* ------------------------
+* c) Disassembled and commented by Thierry Nouspikel, 2012
+************************************************************
+
+* File structure
+* --------------
+* 768 x >00
+*   1 x >FF
+*   2 x Number or records (twice same byte)
+*
+*   8 x >00
+*   1 x >FF
+*  64 x Data bytes
+*   1 x Checksum
+*   8 x >00
+*   1 x >FF
+*  64 x Data bytes (same as above)
+*   1 x Checksum
+*
+*   Repeat for each record
+
+* Data format
+* -----------
+* Clock impulses multiplexed with data bits. The clock toggles the magnetic output at regular intervals.
+* If data bit is '1', an extra toggle occurs in the middle of the clock period. This does not happen for '0' bits.
+*
+* ------,______,---.___,------,___.---,_ etc
+*    0      0      1       0      1
+* 
+
+*=========================================================
+* GPL IO opcode
+*=========================================================
+* The CS1 and CS2 DSRs reside in console GROM 0, at >1326-1513 and are thus are written in GPL.
+* They contain upper level functions, such as prompting the user to operate the tape recorder or handling data.
+* Low-level tape access routines are written in assembly, reside in console ROMs, and are accessed via GPL opcode IO.
+* Opcode IO takes two arguments: the first is the operation number: 4 = write 5 = read 6 = check
+* The second argument points to two words of data in cpu memory: buffer size in bytes, and buffer address (in VDP memory).
+*
+* The buffer can be bigger than then data read, but should not be smaller otherwise an error occurs when reading the number of records.
+* Errors are indicated by setting the GPL Eq bit (>20) and an optional bit (>01) in byte >837C (to indicate "No data" error).
+*
+* GPL example:
+*
+*     DST  @>835C,>0100			Buffer size, 256 bytes (4 records)
+*     DST  @>835E,>2000			Buffer address in VDP memory
+*     IO   @>835C,5			Cassette read
+*     BS   G@ERROR			Eq bit set if an error occured
+*
+ 
+*=========================================================
+* Cassette write
+* --------------
+* Uses the TMS9901 timer to generate pulses of the appropriate duration.
+* Routine A13E2 waits for the timer to fire an interrupt, then toggles the output.
+* The next time the timer fires, it toggles the output if the next bit is '1', not if it's '0'.
+* The routine does all 8 bits from left to right (msb to lsb).
+*
+* The main routine A1346 just calls A13E2 to write the file header, then each record.
+*=========================================================
+A1346  CLR  R0
+       LI   R2,>0300			write 768 bytes >00
+       LI   R8,>1E19			this means SBZ 25
+       LI   R3,>0023			timer value for one bit
+       BL   @A13BA			fetch number of records into R5, buffer address into R10, set VDP, set timer from R3
+       LI   R0,A13E2			routine that outputs a byte to tape
+A135C  LIMI >0001			enable interrupts
+
+A1360  CLR  R4				value to write: >00
+       BL   *R0				write one byte
+       DEC  R2				count it
+       JNE  A1360			more to come
+
+       SETO R4				value to write: >FF
+       BL   *R0				write it once
+
+       MOV  R5,R4			value to write: # of records
+       SWPB R4
+       BL   *R0				write it
+       MOV  R5,R4
+       SWPB R4
+       BL   *R0				write it again
+
+       CLR  R9				flag: first repeat
+A137A  LI   R2,>0008			write 8 bytes
+A137E  CLR  R4				value to write: >00
+       BL   *R0				write one byte
+       DEC  R2				count it
+       JNE  A137E			more to come
+
+       SETO R4				value to write: >FF
+       BL   *R0				write it
+
+       MOVB @>83F5,*R15			VDP buffer address, for a read
+       LI   R2,>0040			64 bytes per record
+       MOVB R10,*R15
+       CLR  R7				reset checksum
+A1396  CLR  R4				data buffer
+       MOVB @>FBFE(R15),R4		get one byte
+       A    R4,R7			build checksum
+       BL   *R0				write this byte
+       DEC  R2				count it
+       JNE  A1396			more to come
+
+       MOV  R7,R4			get checksum LSB
+       BL   *R0				write it
+
+       INV  R9				test repeat flag
+       JNE  A137A			write record a second time
+       AI   R10,>0040			update VDP buffer pointer
+       DEC  R5				count record		
+       JNE  A137A			more to come		
+A13B4  JMP  A13B4			wait for interrupt
+       B    @A155E			end: return to GPL interpreter
+*
+*---------------------------------------------------------
+* Grab arguments for cassette I/O operations
+* ------------------------------------------
+* GPL interpreter decodes the I/O argument and places a pointer to these data into R1.
+*---------------------------------------------------------
+A13BA  MOV  *R1+,R5			number of bytes
+       AI   R5,>003F			round up to next multiple of 64
+       SRL  R5,6			divide by 64: number of records
+       SOC  *R1,R0			buffer address, preserving >4000 preset in R0
+       MOV  R0,R10			save it for caller
+       MOVB @>83E1,*R15			set VDP address
+       CLR  R1
+       CLR  R12				CRU address of TMS9901
+       MOVB R0,*R15
+       SOC  @>0032,R14			set cassette interrupt flag (>0020): trap all interrupts in our ISR
+       SBZ  2				disable peripheral interrupts
+       SBZ  12
+       LDCR R3,15			load preset value into timer
+       SBZ  0				start timer
+       SBZ  1				disable VDP interrupts
+       SBO  3				enable timer interrupts
+       B    *R11
+*
+*---------------------------------------------------------
+* Write a byte to tape 
+* --------------------
+* For '0' bits toggle once in 2 interrupts, for '1' bits toggle after each interrupt
+*---------------------------------------------------------
+A13E2  LI   R6,>0008			8 bits
+       INV  R4				invert the byte (by convention?)
+A13E8  JMP  A13E8			wait for next interrupt
+       X    R8				toggle tape output	
+       XOR  @A135C,R8			XOR with >0300: SBZ becomes SBO and conversely
+A13F0  JMP  A13F0			wait for interrupt
+       MOV  R4,R4			test bit to output
+       JLT  A13FC			it was '0' (now '1' because the byte was inverted)
+       X    R8				toggle tape output again
+       XOR  @A135C,R8			switch between SBO and SBZ
+A13FC  SLA  R4,1			next bit
+       DEC  R6				count bits
+       JNE  A13E8			more to come
+       B    *R11			done
+*
+*=========================================================
+* Interrupt service routine
+* -------------------------
+* When bit >0000 is set in R14, the main ISR always branches here, no matter what interrupt fired.
+* Thus, one must disable VDP and peripheral interrupts first, and enable TMS9901 timer interrupts.
+*=========================================================
+A1404  SBZ  0				clock mode
+       SBO  3				reset timer interupt
+       MOV  R1,R1			flag
+       JLT  A141A			always branch to preset address
+       LWPI >83C0			interrupt workspace
+       C    *R14,@A13F0			are we on a forever loop (HERE JMP HERE)
+       JNE  A141A			no: branch to preset address
+       INCT R14				yes: jump out of the loop
+A1418  RTWP
+
+A141A  LWPI >83C0			interrupt workspace
+       MOV  @>83EC,R14			jump to address found in GPL R6
+       JMP  A1418			RTWP
+*
+A1424  DATA >2100			constant
+
+*=========================================================
+* Cassette verify
+* ---------------
+* Same as cassette read, except it doesn't write the input to VDP buffer but compares it with it
+*=========================================================
+A1A26  SOC  @>1344,R14			set flag: cassette read (>0000) or verify (>0010)
+       CLR  R0				read from VDP
+       JMP  A1436
+*
+*=========================================================
+* Cassette read
+* -------------
+* Uses the TMS9901 timer to time a clock period, during a >00 byte. Then loads 5/8th of this value in the timer.
+* Thus, when timer fires, we are sure to be in the 2nd part of the cycle. If output did toggled, it's a '1' bit.
+* This strategy allows to make up for small differences in motor speed in the tape recorder.
+*
+* Routine A15BA checks whether the input toggled, by storing the value in R1 lsb (>xx00 or >xxFF).
+* Routine A1572 waits for the timer to fire, then calls A15BA to see if input has toggled (indicating a '1' bit).
+* Routine A15A0 calls A1572 8 times to input a byte into R4, then builds a checksum into R7.
+* Routine A152E calls A15A0 repeatedly to input a 64-byte record, then inputs and verifies the checksum.
+*
+* The main routine A142E waits to detect 12 >00 bytes, then times the duration of a clock pulse.
+* It then waits for the >FF marker.
+* It inputs the number of records (twice) and compares both copies. If they don't match, it ends with an error (GPL Eq bit set).
+* It then waits to detect 6 >00 bytes, and uses the 7th to repeating clock timing again.
+* It waits for the next >FF marker.
+* It inputs a 64-byte record, then the checksum byte and verifies it.
+* If no error occured, the second copy of the record is skipped (see A1506).
+* If an error occurs, and the second copy has not been read yet (see A14F8) the routine tries again with the second copy.
+*=========================================================
+A142E  SZC  @>1344,R14			clear flag: cassette read (>0000) or verify (>0010)
+       LI   R0,>4000			write to VDP
+A1436  LI   R3,>002B			timer value
+       BL   @A13BA			fetch # of records into R5, buffer pointer into R10, set VDP, set timer from R3
+       MOV  R10,R7			data buffer address into R7
+       CLR  R0				flag: we're in synchro part
+       MOVB @>1443,@>837C		preset GPL Eq bit (>20), in case an error occurs
+
+* Wait for 6 or 12 >00 bytes
+
+A1448  LI   R8,>7530			numer of timeout allowed before error (arbitrary???)
+       LIMI >0001			enable interrupts
+       LI   R6,A1458			address where to branch at if timeout
+A1454  LI   R3,>002B			default timer value (loaded by A1572)
+A1458  ANDI R1,>00FF			reset flag for ISR: can recognize forever loops
+A145A  EQU  $-2				constant >00FF
+       DEC  R8				counter
+       JEQ  A155E			too long: end with error
+       LI   R2,>0030			input 48 bits (6 bytes)
+       MOV  R0,R0			test flag
+       JNE  A146A			we're inputing a record, expect only 6 bytes
+       A    R2,R2			we're in synchro part: expect 12 bytes
+A146A  BL   @A1572			input one bit (will timeout to A1458 if pulse length already in timer)
+       JMP  A1472			it was a '0': count it
+       JMP  A1458			it was a '1': try again
+A1472  DEC  R2				count bits
+       JNE  A146A			more to come
+
+* Time a clock pulse
+
+       LI   R9,>7FFF			max timer delay
+       LI   R8,>0008			count 8 toggles
+       LDCR R9,15			load max timer value
+       SBZ  0				enable timer
+       SBO  3				enable interrupts
+A1484  BL   @A15BA			test tape input
+       JMP  A148C			change detected
+       JMP  A1484			no change: keep waiting
+A148C  DEC  R8				count bits
+       JNE  A1484			more to come
+
+       SBO  0				enter timer mode
+       STCR R3,15			load remaining value
+       S    R3,R9			how many cycles elapsed
+       MOV  R9,R3
+       SLA  R9,2
+       A    R9,R3			times 5
+       SRL  R3,6			divided by 64  Timer value is now 5/8th of a bit
+       ORI  R3,>0001			add timer mode bit
+       LI   R10,A14B0			set return point, as A1580 ends with *R10 
+       CI   R3,>001F			check timing
+       JLT  A1454			too fast
+       B    @A1580			wait till end of bit
+
+* Wait for a >FF byte
+
+A14B0  BL   @A1572			receive 1 bit
+       JMP  A14B0			it was a '0': keep waiting
+       LI   R2,>0007			7 more bits to come
+A14BA  BL   @A1572			receive 1 more bit
+       JMP  A1458			it was a '0': start over (wait for >00 bytes, then time clock pulse)
+       DEC  R2				it was a '1': count it
+       JNE  A14BA			next bit
+
+* Input data
+
+       LI   R6,A14F8			where to branch if timeout: test if second copy available
+       MOV  R0,R0			are we already inputing records?
+       JNE  A152E			yes: input next record
+
+* Input number of records
+
+       MOVB @>1424,@>837C		set GPL error bits (>21)
+       MOV  R7,R0			buffer address into R0, serves as a flag
+       CLR  R7				reset checksum
+       BL   @A15A0			receive number of records into R4, build checksum in R7
+       C    R5,R4			enough space?
+       JL   A155E			no: end with error
+       MOV  R4,R5			new number of records
+       INC  R5				to compensate for the DEC R5 coming up
+       NEG  R7				so that checksum adds up to zero
+       BL   @A15A0			receive size byte, 2nd time
+       JNE  A155E			checksum is not zero: end with error
+       JMP  A1526			go on with reading record
+
+A14EC  ANDI R7,>00FF			clear 1st byte
+       NEG  R7				negate checksum
+       BL   @A15A0			fetch checksum byte
+       JEQ  A1506			OK, R7 adds up to 0
+
+A14F8  MOV  R5,R5			error. How many times?
+       JLT  A155E			end with error
+       MOVB @>83E1,*R15			set VDP address from R0, back to beginning of record
+       NEG  R5				flag: don't try again
+       MOVB R0,*R15
+       JMP  A1448			retry
+
+* Skip 2nd repeat of record
+
+A1506  MOV  R5,R5			which try was this?
+       JLT  A151A			2nd try: we're done with this record
+       LI   R2,>0049			1st try:skip 2nd try (73 bytes left)
+A150E  LI   R6,A1516			where to branch if timeout
+       BL   @A15A0			input 1 byte
+A1516  DEC  R2
+       JNE  A150E			more to come
+
+A151A  AI   R0,>0040			update VDP buffer pointer
+       MOVB @>83E1,*R15			write VDP address
+       ABS  R5				reset flag, # of records is now positive
+       MOVB R0,*R15
+A1526  CLR  R7				reset checksum
+       DEC  R5				next record
+       JNE  A1448			more to come		
+       JMP  A1558			end: return to GPL with no error
+
+*---------------------------------------------------------
+* Input a record
+*---------------------------------------------------------
+A152E  LI   R2,>0040			a record is 64 bytes
+       CLR  R7				checksum
+A1534  BL   @A15A0			fetch 1 byte
+       SWPB R4
+       COC  @>1344,R14			what are we doing? (>0010)
+       JNE  A154E
+       SB   @>FBFE(R15),R4		verify
+       JEQ  A1552			ok
+       CI   R5,>0001			error: which record are we on?
+       JEQ  A1552			last record, ignore error
+       JMP  A14F8			test if 2nd try still available
+
+A154E  MOVB R4,@>FFFE(R15)		reading: save byte in VDP buffer
+A1552  DEC  R2				more bytes in record?
+       JNE  A1534			yes
+       JMP  A14EC			get checksum and test it
+*
+*---------------------------------------------------------
+* End, return to GPL
+*---------------------------------------------------------
+A1558  MOVB @>1438,@>837C		clear GPL Eq bit: no error (>00)
+A155E  SZC  @>1344,R14			reset cassette interrupt bits (>0010)
+       SZC  @>0032,R14			(>0020)
+       SBZ  3				disable timer interrupts
+       SBO  12				what the??
+       SBO  1				enable periph interrupts
+       SBO  2				enable VDP interrrupts
+       B    @>0070			back to GPL interpreter
+*
+*---------------------------------------------------------
+* Input one bit. Bump up return point if bit is '1'
+*---------------------------------------------------------
+A1572  MOV  R11,R10			remember return point
+A1574  JMP  A1574			wait for next interrupt
+       BL   @A15BA			test next bit
+       INCT R10				R1 changed: we read a '1' bit
+       ORI  R1,>FF00			flag for interrupt routine: branch at *R6	
+A1580  CZC  @A145A,R1			is R1 >xx00 ?
+       JEQ  A158C			yes: bit 27 was JNE
+A1586  TB   27				no: bit 27 was JEQ, wait for it to toggle
+       JNE  A1590			bit toggled
+       JMP  A1586			keep waiting
+
+A158C  TB   27				test tape input bit
+       JNE  A158C			wait till it toggles
+
+A1590  LDCR R3,15			bit toggled: reload timer
+       SBZ  0				start it
+       SBO  3				enable interrupts
+       ANDI R1,>00FF			clear flag for interrupt routine: can recognize forever loops
+       XOR  @A145A,R1			toggle R1 LSB (XOR with >00FF)
+       B    *R10
+
+*---------------------------------------------------------
+* Input one byte into R4, build checksum in R7
+*---------------------------------------------------------
+A15A0  LI   R8,>0008			8 bits
+       CLR  R4				byte buffer
+       MOV  R11,R9			save return point
+A15A8  SLA  R4,1			next bit in byte
+       BL   @A1572			input 1 bit
+       JMP  A15B2			it was '0'
+       INC  R4				it was '1' set >0001 bit in byte
+A15B2  DEC  R8				next bit
+       JNE  A15A8			more to come
+       A    R4,R7			add byte to checksum, test it
+       B    *R9				return
+
+*---------------------------------------------------------
+* Check whether tape input toggled
+* --------------------------------
+* R1 LSB contains old/new bit value. Bump up return point if no change detected
+* JEQ R1=xx00 : R1->xxFF B *R11
+* JEQ R1=xxFF : R1->xxFF B *R11+2
+* JNE R1=xx00 : R1->xx00 B *R11+2
+* JNE R1=xxFF : R1->xx00 B *R11
+*---------------------------------------------------------
+A15BA  TB   27				tape input bit
+       JEQ  A15CA
+       CZC  @A145A,R1			compare with >00FF
+       JEQ  A15D0			was >xx00:  no change
+A15C4  XOR  @A145A,R1			toggle LSB (XOR with >00FF)
+       B    *R11			indicate change
+
+A15CA  CZC  @A145A,R1			compare with >00FF
+       JEQ  A15C4			was >xx00: changed
+A15D0  INCT R11				skip word to indicate no change
+       B    *R11
+ 

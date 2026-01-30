@@ -1,0 +1,159 @@
+***********************************************
+* RS232 card ROM patch  c)2001 Thierry Nouspikel
+***********************************************
+*
+*==============================================
+* Patch for interrupt service routine
+*==============================================
+*
+       AORG >40EE
+ 
+       B    @>48C0            branch to our patch
+       JMP  $-2               ditto if jumped here
+*
+*---------------------------------
+* Handle interrupts other than reception
+*---------------------------------
+       AORG >48C0
+ 
+       TB   31                any interrupt at all?
+       JNE  SK2               nope
+       MOV  @>FFD8,2          get pointer
+       C    2,*2+             check if ok: should contain it's own address
+       JNE  SK3               no ISR installed!
+       BLWP *2                call user-defined ISR
+SK2    B    @>4108            return to console ISR
+ 
+SK3    B    @>4106            reset chip, then return
+*
+*---------------------------------
+* Guidelines for user-defined interrupt service routine
+*---------------------------------
+* The user-defined ISR should have the following  structure:
+*HERE  DATA $                 flag: contain its own address
+*      DATA WREGS             workspace
+*      DATA MYISR             address
+*
+* A pointer to HERE should be placed in >FFD8 (XOP workspace).
+*
+* The routine should get R12 (chip CRU) with:
+*      MOV  @24(R13),R12
+* determine which interrupt occured and acknowledge it.
+* If R12 is >1x40 (first chip) remember to test the 2nd chip for interrupts.
+* NB The card base CRU can be obtained from @12(R13)
+*
+* When done, simply return with RTWP
+*
+*==============================================
+* Patch for overclocked consoles + more baud rates
+* ------------------------------------------------
+* IMPORTANT: because this patch accesses the VDP
+* the .BA=xxxx MUST be at the end of the DSR name
+*==============================================
+*
+       AORG >40B4
+       DATA 19200,38400,0     extra baud rates (overwrite 2.5MHz table)
+*
+       AORG >4610
+       B    @>4900            branch to our patch
+*
+*---------------------------------
+* Determine console speed: 2.5 to 6.0 MHz
+*---------------------------------
+       AORG >4900
+ 
+       MOVB @>83D4,1          get copy of VDP reg 1
+       ORI  1,>2000           set interrupt bit
+       MOVB 1,@>8C02          write it to VDP
+       MOV  @>83FC,5          save two words we're gonna use
+       MOVB @H81,@>8C02       we just lost the current VDP address...
+       MOVB @>83FE,2
+ 
+LP1    MOVB @>8802,11         skip current interrupt
+       JGT  LP1
+       JEQ  LP1
+ 
+       CLR  @>83FC            counter
+LP2    MOVB @>8802,11         wait for an interrupt
+       JGT  LP2
+       JEQ  LP2
+ 
+LP3    INC  @>83FC            time the next one
+       MOVB @>8802,@>83FE     no R as WS may be fast or slow mem
+       JGT  LP3
+       JEQ  LP3
+ 
+       MOV  @>83FC,1          result
+       MOVB @>83D4,@>8C02     restore VDP reg 1
+       MOV  5,@>83FC          restore words we used
+       MOVB 2,@>83FE
+       SB   2,2
+       MOVB @H81,@>8C02
+ 
+       LI   11,CUTOFF         cutoff table
+LP4    INCT 11
+       C    1,*11+            check timing result
+       JL   LP4               slower
+       MOV  *11,11            get corresp speed
+       LI   1,TABLES
+       B    @>4614            back to DSR routine
+*
+CUTOFF DATA >03D3,>0060       6.0 MHz  R1 ~ >03FE
+       DATA >037E,>0055       5.5 MHz  R1 ~ >03A9
+       DATA >0329,>0050       5.0 MHz  R1 ~ >0354
+       DATA >02D3,>0048       4.5 MHz  R1 ~ >02FE
+       DATA >027E,>0040       4.0 MHz  R1 ~ >02A9
+       DATA >0229,>0038       3.5 MHz  R1 ~ >0254
+       DATA >01D3,>0030       3.0 MHz  R1 = >01FF
+       DATA >0000,>0028       2.5 MHz  R1 ~ >01A9
+*
+*CUTOFF DATA >0497,>0060       For European VDP (50 Hz ints)
+*       DATA >0431,>0055
+*       DATA >03CB,>0050
+*       DATA >0364,>0048
+*       DATA >02FE,>0040
+*       DATA >0297,>0038
+*       DATA >0231,>0030
+*       DATA >0000,>0028
+*
+*---------------------------------
+* New speed tables
+*---------------------------------
+TABLES DATA >0028,MHZ25        speed/table-ptr table
+       DATA >0030,MHZ30
+       DATA >0038,MHZ35
+       DATA >0040,MHZ40
+       DATA >0048,MHZ45
+       DATA >0050,MHZ50
+       DATA >0058,MHZ55
+       DATA >0060,MHZ60
+       DATA >0000
+*                             speed tables
+MHZ25  DATA >8563,>8482,>8209,>015B
+       DATA >8082,>8041,>002B
+       DATA >8010,>8008       extra speeds
+ 
+MHZ30  DATA >85AA,>849C,>8271,>01A1,>809C
+       DATA >804E,>8027,>001A,>000D
+ 
+MHZ35  DATA >85F1,>84F3,>82D9,>01E6,>00F3
+       DATA >805B,>003D,>001E,>000F
+ 
+MHZ40  DATA >8638,>84D0,>8341,>81A1,>841A
+       DATA >840D,>8034,>801A,>800D
+ 
+MHZ45  DATA >867F,>84EA,>8475,>0271,>80EA
+       DATA >8075,>004E,>0027,>800F
+ 
+MHZ50  DATA >86C6,>055B,>8482,>8209,>015B
+       DATA >8082,>8041,>002B,>8010
+ 
+MHZ55  DATA >870D,>057E,>04BF,>823C,>017E
+       DATA >00BF,>8048,>8024,>8012
+ 
+MHZ60  DATA >8754,>05A1,>849C,>8271,>01A1
+       DATA >809C,>804E,>8027,>001A
+ 
+H81    DATA >8100             constant
+*
+       END

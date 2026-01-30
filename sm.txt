@@ -1,0 +1,183 @@
+*=================================
+* SmartMedia access routines     c)2004 Th. Nouspikel
+* --------------------------
+*
+* For most of these, R0 = address pointer
+* R1 = buffer pointer in cpu memory
+* R2 = number of bytes (not checked)
+*
+* An address is 3 words in size:
+*      DATA >xxxx,>xxxx  sector number
+*      DATA >xxxx        byte offset
+*
+* Normally, five bytes are passed to the smartmedia card.
+* If the card takes only 4-byte addresses,
+* make address >FFxx,>xxxx
+* If it takes only 3-byte addresses,
+* make address >FFFF,>xxxx
+*
+* Byte offset is >0000 to >00FF for 256 bytes/sector cards
+* and >0000 to >01FF for 512 bytes/sector cards.
+* Use >FFxx to simulate 256-byte sectors on 512-byte cards
+* (this will divide sector number by two).
+*
+*---------------------------------
+WREGS  EQU  >5FD0        <<<< You may change this and use your own workspace
+ 
+SMR    DATA WREGS,SMR1        SmartMedia Read
+SMW    DATA WREGS,SMW1        SmartMedia Write
+SMV    DATA WREGS,SMV1        SmartMedia Verify
+SMVB   DATA WREGS,SMVB1       SmartMedia Verify Byte
+SME    DATA WREGS,SME1        SmartMedia Erase
+SMRX   DATA WREGS,SMRX1       SmartMedia Read eXtra
+SMWX   DATA WREGS,SMWX1       SmartMedia Write eXtra
+SMID   DATA WREGS,SMID1       SmardMedia read IDs
+*
+*---------------------------------
+* Read extra bytes  R0=address R1=buffer R2=byte #
+*---------------------------------
+SMRX1  LI   0,>5050           read extra command
+       BL   @SETAD1           set address
+       JMP  SK87
+*
+*---------------------------------
+* Read               R0=address R1=buffer R2=byte #
+*---------------------------------
+SMR1   BL   @SETAD            set address
+SK87   MOV  @2(13),1          get buffer pointer
+       MOV  @4(13),2          get number of bytes
+LP80   MOVB @>4FF0,*1+        read bytes
+       DEC  2                 more ?
+       JNE  LP80              yes
+       RTWP
+*
+*---------------------------------
+* Verify              R0=address R1=buffer R2=byte #   JNE if error (ptr in R1)
+*---------------------------------
+SMV1   BL   @SETAD            set address
+       MOV  @2(13),1          get buffer pointer
+       MOV  @4(13),2          get number of bytes
+LP83   CB   @>4FF0,*1+        compare byte
+       JNE  SK85              mismatch
+       DEC  2                 more ?
+       JNE  LP83              yes
+       RTWP
+ 
+SK85   DEC  1                 failure
+       MOV  1,@2(13)          point to culprit
+       JMP  SK86              reset Eq bit and return
+*
+*---------------------------------
+* Verify Byte         R0=address R1h=value R2=byte #   JNE if error (R2=offset)
+*---------------------------------
+SMV1   BL   @SETAD            set address
+       MOV  @2(13),1          get value
+       MOV  @4(13),2          get number of bytes
+LP84   CB   @>4FF0,1          compare byte
+       JNE  SK8C              mismatch
+       DEC  2                 more ?
+       JNE  LP84              yes
+       RTWP
+ 
+SK8C   S    2,@4(13)          pass offset of faulty byte
+       JMP  SK86              reset Eq bit and return
+*
+*---------------------------------
+* Write extra bytes    R0=address R1=buffer R2=byte #   JNE if error
+*---------------------------------
+SMWX1  LI   0,>5050           read extra command
+       BL   @SETAD1           set address (to read)
+       JMP  SK88
+*
+*---------------------------------
+* Write                 R0=address R1=buffer R2=byte #   JNE if error
+*---------------------------------
+SMW1   BL   @SETAD            set address (to read)
+SK88   LI   0,>8010           write command
+       BL   @SETAD2           send command + address
+       MOV  @2(13),1          get buffer pointer
+       MOV  @4(13),2          get number of bytes
+LP81   MOVB *1+,@>4FF8        send byte to buffer
+       DEC  2                 more ?
+       JNE  LP81              yes
+SK8A   SWPB 0
+       MOVB 0,@>4FFC          send termination command
+ 
+LP82   TB   5                 ready ?
+       JNE  LP82              not yet
+       LI   0,>7070           status command
+       MOVB 0,@>4FFC          send status command
+       MOVB @>4FF0,0          read status
+       SLA  0,2               check 'ready' bit
+       JNC  LP82              not ready
+       SLA  0,6               test result bit
+       JNC  SK84              ok
+SK86   ANDI 15,>DFFF          reset Eq bit
+SK84   RTWP
+*
+*---------------------------------
+* Read ID into R1, extended ID into R2   R0=address (should be 0)
+*---------------------------------
+SMID1  LI   0,>9090           read ID command
+       BL   @SETAD1           send it
+       MOVB @>4FF0,@2(13)     read manufacturer code
+       MOVB @>4FF0,@3(13)     read chip ID (into R1)
+ 
+       LI   0,>9191           extended ID command
+       BL   @SETAD2           send it
+       MOVB @>4FF0,@4(13)     read extended ID (into R2)
+       RTWP
+*
+*---------------------------------
+* Erase block           R0=address
+*---------------------------------
+SME1   LI   0,>60D0           erase command
+       BL   @SETAD1           set address
+       JMP  SK8A              confirm and check status
+*
+*---------------------------------
+* Send command and set the address
+*---------------------------------
+SETAD  LI   0,>0001           read commands
+SETAD1 ORI  15,>2000          set Eq bit
+       MOV  @24(13),12        get card CRU
+       SBO  1                 enable device mapping
+       SBO  3                 enable smartmedia
+       MOV  *13,3             get R0 (address pointer)
+       MOV  *3+,1             get sector address
+       MOV  *3+,2
+       MOV  *3+,3             get byte offset
+       CI   3,>FF00           is it >FFxx ?
+       JL   SK81              no
+ 
+       SB   3,3               mimic 256-bytes sectors: remove flag
+       SRA  2,1               divide sector # by 2
+       JNC  SK82              even
+       ORI  3,>0100           odd: use 2nd half of sector
+SK82   CI   1,>FFFF           3-byte address ?
+       JEQ  SK81              yes
+       SRA  1,1               keep dividing
+       JNC  SK8B              no carry
+       AI   2,>8000           add carry
+SK8B   CI   1,>FF00           was it 4-byte flag ?
+       JL  SK81               no
+       ANDI 1,>FF7F           clear bit shifted from flag
+ 
+SK81   MOVB 3,3               check byte offset
+       JEQ  SETAD2            first 256 bytes
+       SWPB 0                 2nd half: use read2 command
+ 
+SETAD2 MOVB 0,@>4FFC          pass command
+       CI   0,>60D0           is it erase ?
+       JEQ  SK89              yes: skip byte offset
+       MOVB @WREGS+7,@>4FFA   send byte offset (R3 lsb)
+SK89   MOVB @WREGS+5,@>4FFA   send sector address (R2 lsb)
+       MOVB 2,@>4FFA          second byte
+       CI   1,>FFFF           3-byte address ?
+       JEQ  SK83              yes: done
+       MOVB @WREGS+3,@>4FFA   no: send 4th byte (R1 lsb)
+       CI   1,>FF00           4-byte address ?
+       JHE  SK83              yes: done
+       MOVB 1,@>4FFA          no: send 5th byte
+SK83   B    *11
+*

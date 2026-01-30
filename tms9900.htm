@@ -1,0 +1,1812 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+  <title>tms9900.htm</title>
+  <meta http-equiv="Content-Type"
+ content="text/html; charset=iso-8859-1">
+  <meta name="GENERATOR"
+ content="Mozilla/3.04Gold (Win95; U) [Netscape]">
+</head>
+<body>
+<h1 align="center"><a
+ href="http://www.nouspikel.com/ti99/titechpages.htm"><img
+ src="logo.jpg" style="border: 0px solid ; height: 33px; width: 95px;"
+ title="Back to main index" alt=""></a></h1>
+<h1>TMS9900 Central Processing Unit</h1>
+<p><a href="#Pinout">Pinout</a> </p>
+<p><b>Execution speed</b> <br>
+<a href="#Speed">Calculations</a> <br>
+<a href="#Calculations">Examples</a> <br>
+<a href="#Optimizing">Optimizing for speed</a> <br>
+<a href="#Speed%20test">Speed test program</a> </p>
+<p><b>Instruction issues</b> <br>
+<a href="#External">External instructions</a> <br>
+<a href="#XOP">XOP</a> <br>
+<a href="#X">X</a> <br>
+<a href="#C">C</a> <br>
+<br>
+<a href="#Timing">Timing diagrams</a> <br>
+<a href="#Electrical">Electrical characteristics</a> </p>
+<h2>Introduction</h2>
+<p>The TMS9900 is the CPU, i.e. the brain of the TI-99/4A. This
+microprocessor
+executes a machine language program located in memory and controls all
+the other chips in the computer. It's a real 16 bits microprocessor,
+which
+means it has 16 data lines and an address space of 2^^16 bytes, i.e.
+64K.
+To accomodate all these lines, TI had to create an extra-large 64-pins
+chip, that was quite a novelty by that time. They could even afford the
+luxury of having 5 non-connected pins! </p>
+<h2><a name="Pinout"></a>Pinout</h2>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +----+-----+----+&nbsp;<br>&nbsp;&nbsp;&nbsp; Vbb |1 o&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 64| HOLD*&nbsp;<br>&nbsp;&nbsp;&nbsp; Vcc |2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 63| MEMEN*&nbsp;<br>&nbsp;&nbsp; WAIT |3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; T&nbsp;&nbsp;&nbsp;&nbsp; 62| READY&nbsp;<br>&nbsp; LOAD* |4&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; M&nbsp;&nbsp;&nbsp;&nbsp; 61| WE*&nbsp;<br>&nbsp; HOLDA |5&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; S&nbsp;&nbsp;&nbsp;&nbsp; 60| CRUCLK&nbsp;<br>&nbsp;RESET* |6&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 59| Vcc&nbsp;<br>&nbsp;&nbsp;&nbsp; IAQ |7&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 9&nbsp;&nbsp;&nbsp;&nbsp; 58| nc&nbsp;<br>&nbsp;&nbsp; PHI1 |8&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 9&nbsp;&nbsp;&nbsp;&nbsp; 57| nc&nbsp;<br>&nbsp;&nbsp; PHI2 |9&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0&nbsp;&nbsp;&nbsp;&nbsp; 56| D15&nbsp;<br>&nbsp;&nbsp;&nbsp; A14 |10&nbsp;&nbsp;&nbsp;&nbsp; 0&nbsp;&nbsp;&nbsp;&nbsp; 55| D14&nbsp;<br>&nbsp;&nbsp;&nbsp; A13 |11&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 54| D13&nbsp;<br>&nbsp;&nbsp;&nbsp; A12 |12&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 53| D12&nbsp;<br>&nbsp;&nbsp;&nbsp; A11 |13&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 52| D11&nbsp;<br>&nbsp;&nbsp;&nbsp; A10 |14&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 51| D10<br>&nbsp;&nbsp;&nbsp;&nbsp; A9 |15&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 50| D9&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp; A8 |16&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 49| D8&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp; A7 |17&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 48| D7&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp; A6 |18&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 47| D6&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp; A5 |19&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 46| D5&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp; A4 |20&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 45| D4&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp; A3 |21&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 44| D3&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp; A2 |22&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 43| D2&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp; A1 |23&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 42| D1&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp; A0 |24&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 41| D0&nbsp;<br>&nbsp;&nbsp; PHI4 |25&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 40| Vss&nbsp;<br>&nbsp;&nbsp;&nbsp; Vss |26&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 39| nc&nbsp;<br>&nbsp;&nbsp;&nbsp; Vdd |27&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 38| nc&nbsp;<br>&nbsp;&nbsp; PHI3 |28&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 37| nc&nbsp;<br>&nbsp;&nbsp; DBIN |29&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 36| IC0&nbsp;<br>&nbsp;CRUOUT |30&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 35| IC1&nbsp;<br>&nbsp; CRUIN |31&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 34| IC2&nbsp;<br>INTREQ* |32&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 33| IC3&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +---------------+</pre>
+<p><u>Power supply</u> <br>
+<b>Vbb</b>: -5V Vcc: +5V Both pins (2 and 59) must be connected. <br>
+<b>Vdd</b>: +12V Vss: Ground. Both pins (26 and 40) must be connected.
+</p>
+<p><u>Clock</u> <br>
+<b>Phi1-Phi3</b> are 4 input pins that receive the same signal from the
+TMS9904 clock generator, with one exception: each signal is shifted by
+1/4 of a phase with respect the the previous one. </p>
+<p><u>Data bus</u> <br>
+<b>D0-D15:</b> These 16 pins are used to read or write data. Note that
+contrarily to almost anybody else, TI made D0 the most significant bit
+(weight &gt;8000) and D15 the least significant bit (weight &gt;0001).
+</p>
+<p><u>Address bus</u> <br>
+<b>A0-A14:</b> These 15 output pins are used the specify the address of
+32Kwords in memory. Each word is two bytes long (since we have 16 data
+lines), thus we are effectively addressing 64Kbytes. On the TI-99/4A,
+the
+data bus is multiplexed as 2 x 8 bits for almost every purpose except
+accessing
+the console ROMs and the scratch-pad RAM. The multiplexing circuitery
+controls
+a pseudo-address line A15 that indicated whether the 8-bit data bus
+contains
+the most significant byte of the 16-bit bus (A15=0) ot the least
+significant
+byte (A15=1). </p>
+<p><u>Bus control</u> <br>
+<b>MEMEN*</b> Memory enable. When active low, this pin indicated that
+the
+TMS9900 wants to access memory and has placed a valid address on the
+address
+bus. </p>
+<p><b>DBIN</b> Data bus in. When active (high) this pin indicates that
+the TMS9900 is ready to accept data. </p>
+<p><b>WE*</b> Write enable. When active (low) this pin indicates that
+the
+TMS9900 has placed valid data on the bus. </p>
+<p><u>CRU control</u> <br>
+<b>CRUCLK </b>CRU clock. When active (high) this pin indicates the the
+TMS9900 is performing a CRU operation (or an external instruction). </p>
+<p><b>CRUOUT </b>This output pin contains the data that the TMS9900
+sends
+out during CRU operations. </p>
+<p><b>CRUIN </b>This pin is used by the TMS9900 to input data during
+CRU
+operations. </p>
+<p><u>Interrupt control</u> <br>
+<b>INTREQ*</b> When active (low) this input pin signals the TMS9900
+that
+an interrupt is pending. If it accepts the interrupt, the TMS9900 will
+perform <tt>BLWP @&gt;0000</tt> through <tt>BLWP @&gt;003C</tt>
+depending
+on the interrupt level. </p>
+<p><b>IC0-IC3</b> These 4 input pins indicate the level of the
+interrupt
+(0-15). The LIMI instruction can be used to define the "cutoff"
+level, above which the TMS9900 will ignore interrupts. On the TI-99/4A
+those pins are hardwired as low,low,low,high which means all interrupts
+are level 1. </p>
+<p><b>LOAD*</b> Non-maskable interrupt. When active low, this pin
+forces
+the TMS9900 to perform a <tt>BLWP @&gt;FFFC</tt> interrupt. If it
+remains
+low, interrupts continue to be issued, thus is should not remain low
+for
+more than one instruction. </p>
+<p><b>IAQ </b>Instruction acquisition. This output pin indicates that
+the
+TMS9900 is acquiring an instruction. It can be used to detect illegal
+opcodes
+or to prevent LOAD* to last longer than one instruction. On the
+TI-99/4A,
+IAQ and HOLDA are combined via an OR gate and presented to the
+peripheral
+port. However, the flex cable connector does not carry that signal to
+the
+PE-Box. </p>
+<p><b>RESET*</b> When active (low) this input pin resets the TMS9900
+and
+inhibits WE* and CRUCLK. RESET* must remain low for at least 3 clock
+cycles.
+As soon as it becomes high again, the TMS9900 performs a BLWP @&gt;0000
+(note that it is the same vector as interrupt level 0). </p>
+<p><u>Memory control</u> <br>
+<b>HOLD*</b> When active (low) this pins tells the TMS9900 that a DMA
+controller
+wants to perform Direct Memory Access. The TMS9900 set D0-D15, A0-A14,
+MEMEN*, DBIN and WE* in high impedance state (isolated) then activate
+HOLDA
+and waits until HOLD* becomes high again. On the TI-99/4A this pin is
+hardwired
+high, which means we cannot perform DMA operations. </p>
+<p><b>HOLDA </b>Hold acknowledge. This output pin is used to tell the
+DMA
+controller that the it can perform direct memory access. </p>
+<p><b>READY </b>When active (high) this input pin tells the TMS9900
+that
+the memory is ready to read or write data. If it's low, the TMS9900
+enters
+a wait state and suspends all operations until READY becomes high
+again.
+On the TI-99/4A this line is used to multiplex the data bus, i.e.
+handle
+it as two 8-bit bytes, instead of one 16-but word. WAIT When active
+(high)
+this output pin indicates that the TMS9900 is now in wait state. </p>
+<h2><br>
+<a name="Speed"></a>Execution speed</h2>
+<p>To execute an instruction, the TMS9900 must first fetch it from
+memory,
+which takes a few clock cycles (depending on the memory), then is must
+execute the instruction wich takes more clock cycles (depending on the
+instruction) and may require fetching one or two arguments from the
+memory
+(again, more clock cycles according to the addressing mode and memory
+type).
+</p>
+<p>On the TI-99/4A, there are two kinds of memory: 16-bit and 8-bit.
+Console
+ROMs (address &gt;0000-1FFF) and the RAM scratch-pad (address
+&gt;8300-83FF)
+are the only 16-bit memories. All the rest, including peripheral cards,
+and memory-mapped devices (GROM, VDP, sound and speech chips) are
+accessed
+in a byte-wise manner. This requires multiplexing the 16-bit data bus
+in
+two 8-bits chunks. An electronic circuitery in the console takes care
+ot
+that burden and uses the READY line to halt the TMS9900 until the
+peripheral
+has received/sent the second data byte. Therefore, accessing such a
+memory
+results in 4 wait states for each memory access. </p>
+<p>The table below can be used to calculate how long an instruction
+takes
+to be executed. </p>
+<li>The first column lists the instructions in alphabetical order. </li>
+<li>The second column indicates how many clock cycles are required to
+execute
+that instruction in its most primitive form (generally: using workspace
+registers). </li>
+<li>The third column indicates how many memory access operations are
+required
+to fetch the instruction from the program memory and the operands from
+their memory. In most cases, only one memory access is needed to
+retrieve
+the instruction, except for immeidiate instructions that need a second
+cycle to retrieve the immediate value embedded in the program. If the
+program
+is in slow memory, it will take 4 more clock cycles for each of these.
+All other memory accesses are used to read and write the arguments. If
+the memory in question is not the console ROMs nor the scratch-pad RAM,
+add 4 clock cycles per access operation. </li>
+<li>The last two columns indicate whether the instruction required
+fetching
+arguments. Some don't, some only need a source arguments, some need two
+arguments (source and destination). </li>
+<li>In case the arguments are not register, the instruction may require
+more clock cycles and/or memory access than what's listed in column 2
+and
+3. Table 2 allows to calculate the number of extra clock cycles
+required
+to access arguments. <br>
+&nbsp; </li>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Instruction&nbsp;</th>
+      <th>Clock cycles</th>
+      <th>Memory <br>
+access</th>
+      <th>Source</th>
+      <th>Destination</th>
+    </tr>
+    <tr>
+      <td>A</td>
+      <td>14</td>
+      <td>4</td>
+      <td>Y</td>
+      <td>Y</td>
+    </tr>
+    <tr>
+      <td>AB</td>
+      <td>14</td>
+      <td>4</td>
+      <td>Y</td>
+      <td>Y</td>
+    </tr>
+    <tr>
+      <td rowspan="2">ABS(pos) <br>
+(neg)</td>
+      <td>12</td>
+      <td>2</td>
+      <td>Y</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>14</td>
+      <td>3</td>
+      <td>Y</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>AI</td>
+      <td>14</td>
+      <td>4</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>ANDI</td>
+      <td>14</td>
+      <td>4</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>B</td>
+      <td>8</td>
+      <td>2</td>
+      <td>Y</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>BL</td>
+      <td>12</td>
+      <td>3</td>
+      <td>Y</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>BLWP</td>
+      <td>26</td>
+      <td>6</td>
+      <td>Y</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>C</td>
+      <td>14</td>
+      <td>3</td>
+      <td>Y</td>
+      <td>Y</td>
+    </tr>
+    <tr>
+      <td>CB</td>
+      <td>14</td>
+      <td>3</td>
+      <td>Y</td>
+      <td>Y</td>
+    </tr>
+    <tr>
+      <td>CI</td>
+      <td>14</td>
+      <td>3</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>CKOF</td>
+      <td>12</td>
+      <td>1</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>CKON</td>
+      <td>12</td>
+      <td>1</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>CLR</td>
+      <td>10</td>
+      <td>3</td>
+      <td>Y</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>COC</td>
+      <td>14</td>
+      <td>3</td>
+      <td>Y</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>CZC</td>
+      <td>14</td>
+      <td>3</td>
+      <td>Y</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>DEC</td>
+      <td>10</td>
+      <td>3</td>
+      <td>Y</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>DECT</td>
+      <td>10</td>
+      <td>3</td>
+      <td>Y</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td rowspan="2">DIV (ovf) <br>
+(no ovf)</td>
+      <td>16</td>
+      <td>3</td>
+      <td>Y</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>92-124 (1)</td>
+      <td>6</td>
+      <td>Y</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>IDLE</td>
+      <td>12</td>
+      <td>1</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>INC</td>
+      <td>10</td>
+      <td>3</td>
+      <td>Y</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>INCT</td>
+      <td>10</td>
+      <td>3</td>
+      <td>Y</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>INV</td>
+      <td>10</td>
+      <td>3</td>
+      <td>Y</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td rowspan="2">Jump (taken)
+      <p>(not taken)</p>
+      </td>
+      <td>10</td>
+      <td>1</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>8</td>
+      <td>1</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>LDCR</td>
+      <td>20 +2*bits</td>
+      <td>3</td>
+      <td>Y</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>LI</td>
+      <td>12</td>
+      <td>3</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>LIMI</td>
+      <td>16</td>
+      <td>2</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>LREX</td>
+      <td>12</td>
+      <td>1</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>LWPI</td>
+      <td>10</td>
+      <td>2</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>MOV</td>
+      <td>14</td>
+      <td>4</td>
+      <td>Y</td>
+      <td>Y</td>
+    </tr>
+    <tr>
+      <td>MOVB</td>
+      <td>14</td>
+      <td>4</td>
+      <td>Y</td>
+      <td>Y</td>
+    </tr>
+    <tr>
+      <td>MPY</td>
+      <td>52</td>
+      <td>5</td>
+      <td>Y</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>NEG</td>
+      <td>12</td>
+      <td>3</td>
+      <td>Y</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>ORI</td>
+      <td>14</td>
+      <td>4</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>RSET</td>
+      <td>12</td>
+      <td>1</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>RTWP</td>
+      <td>14</td>
+      <td>4</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>S</td>
+      <td>14</td>
+      <td>4</td>
+      <td>Y</td>
+      <td>Y</td>
+    </tr>
+    <tr>
+      <td>SB</td>
+      <td>14</td>
+      <td>4</td>
+      <td>Y</td>
+      <td>Y</td>
+    </tr>
+    <tr>
+      <td>SBO</td>
+      <td>12</td>
+      <td>2</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>SBZ</td>
+      <td>12</td>
+      <td>2</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>SETO</td>
+      <td>10</td>
+      <td>3</td>
+      <td>Y</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td rowspan="2">Shift
+      <p>(disp in R0)</p>
+      </td>
+      <td>12 +2*disp</td>
+      <td>3</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>20 +2*disp</td>
+      <td>4</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>SOC</td>
+      <td>14</td>
+      <td>4</td>
+      <td>Y</td>
+      <td>Y</td>
+    </tr>
+    <tr>
+      <td>SOCB</td>
+      <td>14</td>
+      <td>4</td>
+      <td>Y</td>
+      <td>Y</td>
+    </tr>
+    <tr>
+      <td rowspan="4">STCR (1-7)
+      <p>(8 bits) </p>
+      <p>(9-15 bits) </p>
+      <p>(16 bits)</p>
+      </td>
+      <td>42</td>
+      <td>4</td>
+      <td>Y</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>44</td>
+      <td>4</td>
+      <td>Y</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>58</td>
+      <td>4</td>
+      <td>Y</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>60</td>
+      <td>4</td>
+      <td>Y</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>STST</td>
+      <td>8</td>
+      <td>2</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>STWP</td>
+      <td>8</td>
+      <td>2</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>SWPB</td>
+      <td>10</td>
+      <td>3</td>
+      <td>Y</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>SZC</td>
+      <td>14</td>
+      <td>4</td>
+      <td>Y</td>
+      <td>Y</td>
+    </tr>
+    <tr>
+      <td>SZCB</td>
+      <td>14</td>
+      <td>4</td>
+      <td>Y</td>
+      <td>Y</td>
+    </tr>
+    <tr>
+      <td>TB</td>
+      <td>12</td>
+      <td>2</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>X (note 2)</td>
+      <td>8</td>
+      <td>2</td>
+      <td>Y</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>XOP</td>
+      <td>36</td>
+      <td>8</td>
+      <td>Y</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>XOR</td>
+      <td>14</td>
+      <td>4</td>
+      <td>Y</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>Illegal</td>
+      <td>6</td>
+      <td>1</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>Interrupts</td>
+      <td>22</td>
+      <td>5</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>Reset</td>
+      <td>26</td>
+      <td>5</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+  </tbody>
+</table>
+<p><u>Notes</u> <br>
+1) DIV execution time, when no overflow occurs, depends on the partial
+quotient after each clock cycle during execution. <br>
+2) For X, add this time to the execution time of the instruction found
+at the source address, minus 4 clock cycles and 1 memory access. </p>
+<p>For each source and destination arguments (if any) add the
+following:
+<br>
+&nbsp; </p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Address mode</th>
+      <th>Clock&nbsp; <br>
+cycles</th>
+      <th>Memory&nbsp; <br>
+access</th>
+    </tr>
+    <tr>
+      <td>Rx&nbsp;</td>
+      <td>0&nbsp;</td>
+      <td>0&nbsp;</td>
+    </tr>
+    <tr>
+      <td>*Rx</td>
+      <td>4</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <td rowspan="2">*Rx+ (byte)
+      <p>(word)</p>
+      </td>
+      <td>6</td>
+      <td>2</td>
+    </tr>
+    <tr>
+      <td>8</td>
+      <td>2</td>
+    </tr>
+    <tr>
+      <td>@&gt;xxxx</td>
+      <td>8</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <td>@&gt;xxxx(Rx)</td>
+      <td>8</td>
+      <td>2</td>
+    </tr>
+  </tbody>
+</table>
+<p><u>Note</u> <br>
+For the *Rx+ addressing mode, the number of clock cycles depends on
+whether
+the register must be incremented by 1 or by 2. The byte-oriented
+operations
+increment it by 1 and use 6 clock cycles, these are: AB, CB, MOVB, SB,
+SOCB and SZCB. In addition, the LDCR and STCR are considered as byte
+operations
+if they transfer 1 to 8 bits (with 9 to 16 bits they are word
+operations
+and use 8 clock cycles). </p>
+<h3><br>
+<a name="Calculations"></a>Examples of calculations</h3>
+<p><b>LIMI 2</b> <br>
+The LIMI instruction uses 16 clock cycles and 2 memory access
+operations:
+one to fetch the LIMI instruction, one to fetch the immediate value 2.
+</p>
+<pre>Execution: 16 cycles<br>1 mem access to read LIMI } <br>1 mem access to read 2    } add 8 cycles if program is in slow mem.</pre>
+<p>This adds up to:<br>
+16 cycles if the instruction is in the ROMs or the scratch-pad,<br>
+16+2*4=24 clock cycles otherwise (remember, there are 4 wait states per
+memory access). </p>
+<p>With a 3 MHz clock that cycles every 333 nanoseconds, this boils
+down
+to 16*333 ns = 5.33 microseconds or 24*333 ns = 8 microseconds,
+depending
+on which memory the instruction is in. Tip: divide the number of clock
+cycles by 3 to find the execution time in microseconds (with a 3 MHz
+clock).</p>
+<p><b>CLR R2</b> <br>
+The CLR instruction uses 10 clock cycles and 3 memory access
+operations.
+Depending on which memory it is in, it may require from 10 to 22 clock
+cycles. But CLR also takes an argument that we must consider. In this
+case,
+the argument is a register and the clock cycles needed for its access
+can
+be found in table 1.</p>
+<pre>Execution: 10 cycles<br>1 mem access to read CLR: add 4 cycles if program is in slow mem.<br>1 mem access to read R2   }<br>1 mem access to write R2  } Add 8 cycles if workspace is in slow mem</pre>
+<p><br>
+<b>CLR @TEST</b> <br>
+The CLR instruction itself still uses 10 or 22 clock cycles to execute,
+but now dealing with the argument requires 8 extra clock cycles and 1
+extra
+memory access operations (to read the address of TEST from the word
+following
+CLR in the program).</p>
+<pre>Execution: 10 cycles<br>Argument @xxx: 8 cycles<br>1 mem access to read CLR   }<br>1 mem access to read TEST  } Add 8 cycles if program is in slow mem<br>1 mem access to read the contents of @TEST }<br>1 mem access to write to @TEST             } Add 8 cycles if TEST is in slow mem</pre>
+<p>If the address TEST is not in the ROMs nor in the scratch-pad, it
+will
+add 8+2*4=16 clock cycles to the execution time. Otherwise it just adds
+8 cycles. We thus have: </p>
+<pre>10+8   = 18 cycles if program and TEST are both in fast memory.<br>10+8+8 = 26 cycles if program in slow memory, but TEST is in fast memory. <br>10+8+8 = 26 cycles if program is in fast memory, but TEST is in slow memory. <br>10+8+8+8 = 34 cycles if both program and TEST are in slow memory. <br></pre>
+<p><b>CLR *R2</b> <br>
+Fetching the source argument from the address found in register R2
+requires
+4 clock cycles and 1 memory access operation. Depending whether the
+workspace
+is in the scratch-pad or not (no workspace should ever be in ROM!),
+this
+may require 4 additional clock cycles. Depending whether the target
+address
+found in R2 (i.e. *R2) is in slow or fast memory, we may have to add 4
+more cycles.</p>
+<pre>Execution: 10 cycles<br>Argument *Rx: 4 cycles<br>1 mem access to read CLR: Add 4 cycles if program is in slow mem<br>1 mem access to read R2: Add 4 cycles if workspace is in slow mem<br>1 mem access to read the contents of *R2 }<br>1 mem access to write to *R2             } Add 8 cycles if R2 points to slow mem</pre>
+<p>So the total could be:</p>
+<pre>10+4 = 14 cycles if CLR, workspace and *R2 are all in fast memory.<br>10+4+4 = 18 if either CLR or the workspace is in slow memory.<br>10+4+4+4 = 22 if both CLR and workspace are in slow memory<br>10+4+8   = 22 if R2 points to slow memory<br>10+4+8+4 = 26 if R2 points to slow memory and either CLR or WS is in slow memory<br>10+4+8+4+4 = 30 if everything is in slow memory. </pre>
+<p><br>
+<b>LDCR R1,7</b> <br>
+The LDCR instruction itself requires 20 clock cycles. There may be
+additonal
+cycles require to retrieve the instruction, or the register. Writing
+the
+CRU definitely implies 2 additional clock cycles per bit transfered: in
+this case we are transfering 7 bits, thus we'll eat 2*7=14 cycles. </p>
+<pre>Execution: 20 cycles<br>1 mem access to read LDCR: Add 4 cycles if program is in slow mem<br>1 mem access to read R1: Add 4 cycles if workspace is in slow mem<br>1 cru write operation: Add 2 cycles per bit transfered (here: 2*7=14)</pre>
+<p><b>LDCR *R1+,7</b> <br>
+Now this one gets tricky: the LDCR instruction requires 20+2*7=14 clock
+cycles plus whatever may be needed for the memory access operations,
+just
+as above. But now we must allocate time to increment R1 after
+execution.
+Since we are transfering only one byte (that is, less than one byte:
+only
+7 bits), R1 will be incremented by 1, which requires 6 clock cycles and
+2 memory accesses. Depending on where the workspace is, this could add
+up to 6+2*4=14 cycles. </p>
+<pre>Execution: 20 cycles<br>1 mem access to read LDCR: Add 4 cycles if program is in slow mem<br>1 mem access to read R1: Add 4 cycles if workspace is in slow mem<br>1 mem access to read *R1: Add 4 cycles if source is in slow mem<br>Incrementing R1: 6 cycles (byte operation)<br>1 mem access to write back R1: Add 4 cycles if workspace is in slow mem<br>1 cru write operation: Add 2 cycles per bit transfered (here: 7*2=14)</pre>
+<p><br>
+<b>LDCR *R1+,14</b> <br>
+Here, we are transfering 14 bits, thus the LCDR instruction takes
+20+2*14=48
+cycles, plus what's needed for the memory access. In addition, since we
+are transfering more that 1 byte, R1 will be incremented by two, which
+requires 8 clock cycles instead of the 6 mentionned above. </p>
+<pre>Execution: 20 cycles<br>1 mem access to read LDCR: Add 4 cycles if program is in slow mem<br>1 mem access to read R1: Add 4 cycles if workspace is in slow mem<br>1 mem access to read *R1: Add 4 cycles if source is in slow mem<br>Incrementing R1 by two: 8 cycles (word operation)<br>1 mem access to write R1: Add 4 cycles if workspace is in slow mem<br>1 cru write operation: Add 2 cycles per bit transfered (here: 14*2=28 cycles)<br></pre>
+<p><b>SRL R2,4</b> <br>
+The SRL shift operation requires 12 clock cycles, plus 2 cycles for
+each
+position shifted. Since the displacement is 4 in this example, it will
+require 12+2*4=20 cycles. Plus the number of cycles required for 3
+memory
+access operations: 0 to12 depending on the position of the program and
+the workspace. </p>
+<pre>Execution: 12 cycles<br>Shifting: 2 cycles per position<br>1 mem access to read SRL: Add 4 cycles if program is in slow mem<br>1 mem access to read R2   }<br>1 mem access to write R2  } Add 8 cycles if workspace is in slow mem<br></pre>
+<p><b>SRL R2,0</b> <br>
+Here, we are fetching the displacement from R0 (let's say it contains
+5).
+This indirect shift operation requires 20+2*5=30 cycles, and 4 memory
+access
+operations instead of 3, as we must now fetch R0. </p>
+<pre>Execution: 12 cycles<br>Shifting: 2 cycles per position<br>1 mem access to read SRL: Add 4 cycles if program is in slow mem<br>1 mem access to read R2  } <br>1 mem access to read R0  } Add 12 cycles if workspace is in slow mem<br>1 mem access to write R2 }<br></pre>
+<p><a name="question"></a>These calculations are a pain to perform,
+aren't
+they? I'm playing with the idea to write an optimisation helper, i.e. a
+program that would read an assembly source file, and produce a
+corresponding
+output file with the execution times listed as comments. But I don't
+know
+when I will have time for that. <a href="feedback.htm#questions">Anyone
+</a>aware of such a program around here? </p>
+<h3><br>
+<a name="Optimizing"></a>Optimizing for speed</h3>
+<p>Now we can see what are the cycle-hungry operations: <tt>DIV, MPY,
+LDCR,
+STCR, XOP</tt> and <tt>BLWP</tt>. </p>
+<p>That's why it is often wise to perform a multiplication using shifts
+and additions rather than <tt>MPY</tt>:</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre><tt>       MPY  R0,R8</tt> </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>Requires 72 cycles to execute (52 in 16-bits memory). And that's the
+fastest <tt>MPY</tt>. </p>
+<p>Now if R0 contains 8, we could have written: </p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre><tt>       SLL  R8,3</tt> </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>Which does the same, but only uses 30 cycles (18 in fast memory). </p>
+<p>To multiply by ten, we could do: </p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre><tt>       SLL  R8,1               Multiply by two</tt> <br><tt>       MOV  R8,R9</tt>  <br><tt>       SLL  R8,2               And then by 4 (which makes 8)</tt> <br><tt>       A    R9,R8              Add it up: 2+8=10.</tt> </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>This requires 58 cycles in fast memory and 114 in slow memory. True,
+this is slower than the initial MPY, but we may have a use for the
+intermediary
+result in R9 (that is, R8 times two). </p>
+<p>For the same reason, many programers avoid calling subroutines with
+<tt>BLWP-RTWP</tt> and favor <tt>BL-B *R11</tt>, at least in critical
+regions
+of their programs. </p>
+<p>We can't do much about <tt>LDCR </tt>and <tt>STCR</tt>, but this
+is
+less of a problem: these instructions are rarely used anyhow, and the
+limiting
+factor may well be the hardware they are addressing (although not very
+likely: TTLs are fast). <br>
+</p>
+<h3><br>
+<a name="Speed test"></a>Test program</h3>
+<p>All this theory is impressive, but we'd like to verify whether it is
+true in the real word. Let's write a little test program and time its
+execution
+with a stop watch (you may want to time it automatically, with the
+TMS9901
+<a href="tms9901.htm#Timer%20mode">timer</a>, but that's another
+story).
+</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>START&nbsp; LWPI &gt;A800&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;    Load our workspace&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ** 1 **&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI   R1,DELAY&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  The subroutine we want to time&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI   R2,&gt;B000&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  Where it will run&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ** 2 **<br>       MOV  R2,R3&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI   R0,EOPG-DELAY&nbsp;&nbsp;  Subroutine size&nbsp;<br>LP0&nbsp;&nbsp;&nbsp; MOV  *R1+,*R2+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   Copy subroutine in target memory&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DECT R0&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; JNE  LP0<br>*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; B    @RET&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; To return immediately&nbsp;&nbsp; ** 3 **&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; B    *R3   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Call subroutine</pre>
+      <pre>DELAY&nbsp; LI   R1,100&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  You can change this value&nbsp;<br>LP1&nbsp;&nbsp;&nbsp; CLR  R0&nbsp;<br>LP2&nbsp;&nbsp;&nbsp; DEC  R0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   Inside loop, executes 65536 times&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; JNE  LP2&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DEC  R1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   Outside loop&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; JNE  LP1</pre>
+      <pre>RET&nbsp;&nbsp;&nbsp; LWPI &gt;20BA&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;    Assuming editor/assembler workspace&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; B   *R11&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  Done, return to editor/assembler module&nbsp;<br>EOPG&nbsp;&nbsp; END</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>The test program first copies the timed routine in memory. This
+could
+be the scratch pad memory or the memory expansion. Then it executes the
+delay loop. Once it is done, it returns to the caller. I have assumed
+that
+this is the Editor/Assembler cartridge (oe Funnelweb). If it's not,
+modify
+the return instrucutions accordingly. </p>
+<p>Now let's do some measurements. First of all, assemble the program
+with
+the <tt>B @RET</tt> in line ** 3 **. The delay loops will be skipped
+and
+the program will return immediately. This allows us to account for the
+time it takes the Editor/Assembler module to enter our program, and to
+display the &lt;press any key&gt; message when returning from it. As
+you'll
+see, this is so fast that we cannot time it.. </p>
+<p>Then let's comment out line ** 3 ** and time our program in four
+different
+situations: Modify line ** 1 ** to use a workspace in the memory
+expansion
+(&gt;A800) or in the scratch-pad (&gt;83E0). For each of those, modify
+line ** 2 ** to copy the delay loop in the memory expansion (&gt;B000)
+or in the scratch-pad (&gt;8300). Write the resulting times in this
+table:
+<br>
+&nbsp; </p>
+<table border="1">
+  <tbody>
+    <tr>
+      <td><u><b>Program</b> ______</u> <br>
+Worskpace</td>
+      <td><b>Memory expansion</b></td>
+      <td><b>Scratch-pad</b></td>
+    </tr>
+    <tr>
+      <td>Memory expansion</td>
+      <td>89 sec (100%)</td>
+      <td>62 sec (70%) </td>
+    </tr>
+    <tr>
+      <td>Scratch-pad</td>
+      <td>62 sec (70%)</td>
+      <td>44 sec (49%)</td>
+    </tr>
+  </tbody>
+</table>
+<p>Of course, the faster way is to have both the program and the
+workspace
+in the scratch-pad: in our case, it's twice as fast as the slowest
+solution.
+Unfortunately, this is not practical as the scratch-pad is only 256
+bytes
+long. And many of those bytes have special meanings. Most of the time
+however,
+it is possible for you to place your workspace in the scratch-pad: <tt>LWPI
+&gt;8300</tt> for instance. This will substantially speed up your
+program
+(in our case, by 30%), especially if you are carefull to reserve your
+registers
+for frequently used variables. </p>
+<p>Now, if there are some speed-critical routines in your program (such
+a scrolling the screen left/right in an arcade game), and if they are
+small
+enough, you could copy them in the scratch-pad as we did above and
+execute
+them there. Say at &gt;8320, not to overwrite your own workspace. </p>
+<p>But anyhow, there is more to gain with the workspace than with the
+program.
+Consider the instruction <tt>A R1,R2</tt> for instance: it requires
+one
+memory operation to ftech the instruction from the program memory, and
+three accesses to the workspace (to read R1, to read R2 and to write
+back
+R2). So by placing the workspace in fast memory you gain three times
+more
+than by plancing the instruction itself in fast memory.</p>
+<p>To speed up the program itself, you could optimize your code to
+avoid
+using those instructions that require a lot of time to execute, as
+discussed
+above. And often an improved algorithm will do better than nay
+optimization
+trick!</p>
+<h2><br>
+<a name="Instructions"></a>Instructions issues</h2>
+<p>It is not the purpose of these pages to teach assembly language.
+Thus
+I won't discuss in detail the meanings of each and every instructions
+(see
+my <a href="assembly.htm">assembly language primer</a>). However,
+there
+are a few that are worth noticing. </p>
+<h3><a name="External"></a>External instructions</h3>
+<p>There are five so-called external instructions: <b><tt>LREX </tt></b>(Load
+and Restart EXecution), <b><tt>CKOF </tt></b>(clock off), <b><tt>CKON
+</tt></b>(clock
+on), <b><tt>RSET </tt></b>(reset) and <b><tt>IDLE</tt></b>. The
+first four
+were used in the 990 microcomputer and have no special meaning on the
+TMS9900.
+They just place a special code on address lines A0-A2 and send a pulse
+on the CRUCLK pin. <tt>RSET </tt>also set the interrupt mask to zero,
+just
+like a <tt>LIMI 0</tt>. </p>
+<p><tt>IDLE </tt>puts the TMS9900 in an idle state in which it remains
+until an interrupt, a RESET* or a LOAD* signal occurs. During that
+time,
+the processor repeatedly places the special code for <tt>IDLE </tt>on
+lines
+A0-A2 and pluses the CRUCLK pin. </p>
+<p>The special codes are the following: <br>
+&nbsp; </p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Instruction&nbsp;</th>
+      <th>A0&nbsp;</th>
+      <th>A1&nbsp;</th>
+      <th>A2&nbsp;</th>
+      <th>A3-A14</th>
+    </tr>
+    <tr>
+      <td>LREX&nbsp;</td>
+      <td>H</td>
+      <td>H</td>
+      <td>H</td>
+      <td>n/a</td>
+    </tr>
+    <tr>
+      <td>CKOF&nbsp;</td>
+      <td>H</td>
+      <td>H</td>
+      <td>L</td>
+      <td>n/a</td>
+    </tr>
+    <tr>
+      <td>CKON&nbsp;</td>
+      <td>H</td>
+      <td>L</td>
+      <td>H</td>
+      <td>n/a</td>
+    </tr>
+    <tr>
+      <td>RSET&nbsp;</td>
+      <td>L</td>
+      <td>H</td>
+      <td>H</td>
+      <td>n/a</td>
+    </tr>
+    <tr>
+      <td>IDLE&nbsp;</td>
+      <td>L</td>
+      <td>H</td>
+      <td>L</td>
+      <td>n/a</td>
+    </tr>
+    <tr>
+      <td>CRU operations</td>
+      <td>L</td>
+      <td>L</td>
+      <td>L</td>
+      <td>From R12</td>
+    </tr>
+  </tbody>
+</table>
+<p>These instructions should not be used on the TI-99/4A because
+neither
+the console nor any peripheral card I know of bothers with decoding
+lines
+A0-A2 to distinguish a CRU operations from an external instructions. In
+other words, the external instructions would be mistaken for CRU
+operations
+and could cause havoc. </p>
+<p>We could however make use of them if we were to make a slight
+modification
+to the console: use a 74LS138 decoder to intercept the CRUCLK line and
+let the signal through only if the CRU code is present on lines A0-A2.
+The same decoder would activate five different lines, one for each
+external
+instruction, that would allow us to trigger five external devices. </p>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +---------+&nbsp;<br>A0-------|C&nbsp;&nbsp;&nbsp;&nbsp; Y0*|-------|&gt;o---CRUCLK&nbsp;<br>A1-------|B&nbsp;&nbsp;&nbsp;&nbsp; Y1*|&nbsp;<br>A2-------|A&nbsp;&nbsp;&nbsp;&nbsp; Y2*|-----IDLE*<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Y3*|-----RSET*&nbsp;<br>CRUCLK---|G1&nbsp;&nbsp;&nbsp; Y4*|&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Y5*|-----CKON*&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +--|G2A*&nbsp; Y6*|-----CKOF*<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +--|G2B*&nbsp; Y7*|-----LREX*<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp; +---------+&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp; Gnd</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>Note that we'll also need an inverter to make CRUCLK active high
+after
+the decoder. Very conveniently, there is a 74LS04 in the console with 3
+non-connected inverters. It is located just above the TMS9900, right
+were
+we need it.!</p>
+<p>Why would we need such a circuit? <br>
+- We could use the <tt>IDLE </tt>instruction to enter an idle state
+and
+wait for an interrupt.<br>
+- We could use a line (RSET* jumps to mind) the send a reset signal the
+the TMS9904 clock driver. This will perform a hardware reset
+programmatically,
+as opposed to <tt>BLWP @&gt;0000</tt> that only performs a software
+reset
+(i.e. does not physically reset the peripheral chips). <br>
+- We could use the CKON* and CKOF* lines to switch the clock speed, by
+feeding the appropriate signals to the TMS9904. <br>
+- More generally, we could use those line to activate any kind of
+hardware
+we want.<br>
+</p>
+<p>For instance, I was told (by Anders Persson) that the "Cortex"
+computer, which was sold as a kit in the 80s, made use of these
+instructions for the following:<br>
+- RSET caused a hardware reset<br>
+- IDLE lit an external LED. The system would issues lots of IDLE when
+it had nothing to do, so you could see that.<br>
+- CKON and CKOF enabled and disabled a memory mapper system, in the
+style of the one used by the SuperAMS card.<br>
+- LREX triggered a delayed interrupt after two instructions (via a
+series of flip-flops clocked by the IAQ line). This was used by a
+debugger to execute single instructions, by setting up a pseudo-RTWP
+pointing at a given instruction, and then doing LREX RTWP. The RTWP
+would go back to the desired instruction, which was executed, and then
+the interrupt would fire and the debugger was back in control. Nifty,
+isn't it?<br>
+</p>
+<h3><br>
+<a name="XOP"></a>XOP instruction</h3>
+<p>The <tt>XOP </tt>(eXtended OPeration) instruction is kind of a
+special
+<tt>BLWP</tt>. It takes a source argument and an operation number from
+0 to 15. The <tt>XOP </tt>instructions uses that number to perform a <tt>BLWP
+</tt>to one among 16 vectors located in memory addresses &gt;0040-007F.
+In addition, it places the content of the source argument in the R11
+register
+of the new workspace. Finally, bit 6 (weight &gt;0200) is set in the
+status
+register while a <tt>XOP </tt>instruction is executed. Note that the
+TMS9900
+does not test the INTREQ* interrupt request pin after a <tt>XOP </tt>operation.<br>
+</p>
+<p>The main advantage of <tt>XOP </tt>is that it only requires one
+word.
+Therefore, we could use it to replace any word in a program and
+interrupt
+its execution. That's how my debugger RIP v.2 works: to set a
+breakpoint
+is saves the content of a memory address and replaces it with an <tt>XOP
+1</tt>. Execution of this <tt>XOP </tt>results in activating RIP that
+can
+then execute the saved instruction and/or ask the used what to do.
+True,
+<tt>BLWP *Rx</tt> is only one word long, and so is <tt>BLWP Rx</tt>,
+but
+both expect special values in the registers. The first one want a
+pointer
+to the WR and PC vectors in Rx, the second want the WR vector in Rx and
+the PC vector in the next register. <tt>XOP </tt>is much more
+convenient.
+</p>
+<p>The drag is that all vectors for XOPs are in ROM memory, and only
+three
+of them (two with some consoles) have usefull values. That's because
+the
+GPL interpreter code begins right there. However, there are some eight
+empty words at the end of the console ROM, TI could just have shifted
+up
+the whole stuff and provide us with 4 more XOPs. Oh well, we can do
+with
+the first three. Not to mention that some of the following vectors
+happen
+to contain usefull values. <br>
+&nbsp; </p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Address&nbsp;</th>
+      <th>XOP&nbsp;</th>
+      <th>WR&nbsp;</th>
+      <th>PC&nbsp;</th>
+      <th>Comments&nbsp;</th>
+    </tr>
+    <tr>
+      <td>&gt;0040</td>
+      <td>0</td>
+      <td>&gt;280A</td>
+      <td>&gt;0C1C</td>
+      <td>Enters the extended GPL card</td>
+    </tr>
+    <tr>
+      <td>&gt;0044</td>
+      <td>1</td>
+      <td>&gt;FFD8</td>
+      <td>&gt;FFF8</td>
+      <td>Very usefull for us</td>
+    </tr>
+    <tr>
+      <td>&gt;0048</td>
+      <td>2</td>
+      <td>&gt;83A0</td>
+      <td>&gt;8300&nbsp;</td>
+      <td>Very usefull for us, but not always present</td>
+    </tr>
+    <tr>
+      <td>&gt;004C</td>
+      <td>3</td>
+      <td>&gt;1100</td>
+      <td>&gt;06A0</td>
+      <td><br>
+      </td>
+    </tr>
+    <tr>
+      <td>&gt;0050</td>
+      <td>4</td>
+      <td>&gt;0864</td>
+      <td>&gt;06A0</td>
+      <td><br>
+      </td>
+    </tr>
+    <tr>
+      <td>&gt;0054</td>
+      <td>5</td>
+      <td>&gt;0864&nbsp;</td>
+      <td>&gt;C90D</td>
+      <td><br>
+      </td>
+    </tr>
+    <tr>
+      <td>&gt;0058</td>
+      <td>6</td>
+      <td>&gt;8300</td>
+      <td>&gt;C342</td>
+      <td>Could be used, although not meant to be so</td>
+    </tr>
+    <tr>
+      <td>&gt;005C</td>
+      <td>7</td>
+      <td>&gt;D11D</td>
+      <td>&gt;C180</td>
+      <td>Dangerous (odd WR)</td>
+    </tr>
+    <tr>
+      <td>&gt;0060</td>
+      <td>8</td>
+      <td>&gt;DB46</td>
+      <td>&gt;0402</td>
+      <td>Pops inside the keyscan routine with wrong WS</td>
+    </tr>
+    <tr>
+      <td>&gt;0064</td>
+      <td>9</td>
+      <td>&gt;0B60</td>
+      <td>&gt;83ED</td>
+      <td><br>
+      </td>
+    </tr>
+    <tr>
+      <td>&gt;0068</td>
+      <td>10</td>
+      <td>&gt;0402&nbsp;</td>
+      <td>&gt;5802</td>
+      <td><br>
+      </td>
+    </tr>
+    <tr>
+      <td>&gt;006C</td>
+      <td>11</td>
+      <td>&gt;011B</td>
+      <td>&gt;837C</td>
+      <td><br>
+      </td>
+    </tr>
+    <tr>
+      <td>&gt;0070</td>
+      <td>12</td>
+      <td>&gt;0300</td>
+      <td>&gt;0002</td>
+      <td><br>
+      </td>
+    </tr>
+    <tr>
+      <td>&gt;0074</td>
+      <td>13</td>
+      <td>&gt;0300</td>
+      <td>&gt;0000</td>
+      <td><br>
+      </td>
+    </tr>
+    <tr>
+      <td>&gt;0078</td>
+      <td>14</td>
+      <td>&gt;D25D</td>
+      <td>&gt;1105</td>
+      <td>Pops inside XML &gt;0E with wrong WS</td>
+    </tr>
+    <tr>
+      <td>&gt;007c</td>
+      <td>15</td>
+      <td>&gt;D109</td>
+      <td>&gt;09C4</td>
+      <td>Pops intp the ISR (sprite motion) with wrong WS</td>
+    </tr>
+  </tbody>
+</table>
+<p>Now, any WR value that maps to the console ROM (below &gt;2000) is
+useless
+as it will result in loosing the return address. I suspect that odd
+workspace
+addresses may also cause havoc. The same is true for PC values: we
+don't
+want to branch to ROM routines. Odd PC values have less importance
+since
+the TMS9900 will ignore the least significant bit anyway. </p>
+<p><b>XOP 0</b> is hardwired to switch on a peripheral card whose CRU
+base
+address should be &gt;1B00, then enters its ROM at address &gt;4028,
+after
+having changed the worskpace to &gt;2800. My guess is that this card
+was
+meant to implement extra GPL opcodes, but I don't think it has ever
+been
+released. Note that XOP 0 will not check whether the card is here or
+not
+before branching. If there is no such card, the TI-99/4A will crash.
+Now
+this is the ideal instruction to use to implement a debugger board... </p>
+<p><b>XOP 1</b> is extremely usefull for us. All we need to do is to
+place
+a <tt>B @MYPROG</tt> at location &gt;FFF8 and XOP 1 will enter our
+program.
+Note that this will preserve the LOAD interrupt vectors at locations
+&gt;FFFC-FFFF.
+</p>
+<p><b>XOP2</b> Be carefull about XOP 2: some consoles do not support
+it...
+If you decide to use it, you should probably place a <tt>B @WHERE</tt>
+instruction right at &gt;8300 or soon after, since scratch-pad RAM is a
+precious resource. Also, having our workspace at &gt;83A0 may disturb
+the
+data stack of the GPL interpreter... </p>
+<p><b>XOP 6 </b>The vectors are not guarantied to have these values on
+each and every console... </p>
+<p><b>XOP 8, XOP 14, XOP 15</b> land in the middle of various routines
+in the console ROMs. These routines expect a workspace of &gt;83E0
+which
+won't be the case. What happens then depends on the contents of the
+workspace
+in use, of the &gt;83E0 workspace and possibly of other bytes in the
+scratch-pad.
+It is not unconceivable that you can come up with a valid combination
+that
+would do something usefull, but why bother? <br>
+&nbsp; </p>
+<p>Another (admitedly not so usefull) trick with the XOP instructions
+is
+to use them to build a routine that can be called either with <tt>BLWP
+</tt>or with <tt>BL</tt>. This relies on the fact that <tt>XOP </tt>opcodes
+have a value of &gt;2Cxx, which can serve as a valid workspace. See,
+like
+this: </p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>MYSUB&nbsp; XOP&nbsp; R0,1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; This is equivalent to DATA &gt;2C40 (WS vector)&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA MYSB1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; PC vector</pre>
+      <pre>MYSB1&nbsp; ...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Do something&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; RTWP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Return to caller (or to BLS)</pre>
+      <pre>*---------------------------------------------------&nbsp;<br>* This routine transforms BL calls into BLWP calls&nbsp;<br>*---------------------------------------------------&nbsp;<br>BLS&nbsp;&nbsp;&nbsp; MOV&nbsp; R13,@&gt;2C5A&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Put user's workspace pointer in future R13&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MOV&nbsp; @22(R13),@&gt;2C5C&nbsp;&nbsp;&nbsp; Put return address in future R14&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MOV&nbsp; R15,@&gt;2C5E&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Put user's status in future R15&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MOV&nbsp; *R14+,@&gt;2C56&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Get address from PC vector, in future R11&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LWPI &gt;2C40&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Change workspace&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; B&nbsp;&nbsp;&nbsp; *R11&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Branch to routine</pre>
+      <pre>*---------------------------------------------------&nbsp;<br>* Set up XOP 1&nbsp;<br>*---------------------------------------------------&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; AORG &gt;FFF8&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; B&nbsp;&nbsp;&nbsp; @BLS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Entered by XOP 1</pre>
+      <pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; END</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>If the procedure is called with<tt> BLWP @MYSUB</tt> it will treat
+the
+word at MYSUB as a worskpace pointer (of value &gt;2C40) and begin
+execution
+of the subroutine at MYSB1 with a workspace of &gt;2C40. Return to the
+caller is performed by a plain vanilla <tt>RTWP </tt></p>
+<p>If it is called with <tt>BL @MYSUB</tt> it executes XOP 1 which
+immediately
+branches to BLS with workspace &gt;FFD8. BLS is a routine that converts
+<tt>BLs </tt>into <tt>BLWPs</tt>: it gets the PC vector from the data
+word
+following the XOP 1 instruction (in this case MYSB1) and puts it in R11
+of workspace &gt;2C40 (that receives the source argument R0 upon XOP
+execution).
+Then it copies the user's worskpace pointer and status (saved by XOP 1)
+into R13 and R15 of workspace &gt;2C40. It gets the return address from
+the R11 in the user's workspace and places it in R14 of workspace
+&gt;2C40.
+Finally it branches to the called subroutine, which will never be aware
+of all the above: it can just assumed it was called with <tt>BLWP</tt>,
+access parameters accordingly and return with <tt>RTWP</tt>. </p>
+<p>That's a helluva slow way to call a subroutine, but it might be
+usefull
+in cases... </p>
+<h3><br>
+<a name="X"></a>X instruction</h3>
+<p>This instruction can be used to simulate another instruction: just
+place
+the corresponding code in the source argument of the X (eXecute)
+instruction.
+</p>
+<p>Example:&nbsp;</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>&nbsp; LI&nbsp;&nbsp; R0,&gt;37C3&nbsp;&nbsp;&nbsp;&nbsp; &gt;37C3 means STCR R3,15&nbsp;<br>&nbsp; X&nbsp;&nbsp;&nbsp; R0</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>If the executed instruction has operands, they will be fetched from
+the words following <tt>X</tt>, which somewhat limitates the
+usefullness
+of <tt>X</tt>. If it were to fetch the operands from the words
+following
+the operand of the <tt>X </tt>instruction, it would be a wonderfull
+way
+to write a debugger: place a memory pointer in R1 and then do:<tt> X
+*R1+
+</tt>Ok,ok it's not that simple: we must trap the jumps and branches,
+and
+account for instructions that use R1, but you get the idea.
+Unfortunately,
+that's not the way <tt>X </tt>works... </p>
+<p>Nevertheless, <tt>X </tt>may be usefull to replace a test in a
+frequently
+executed loop. For instance: </p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MOV&nbsp; @CLEAR,R2&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MOV&nbsp; R5,R5&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Performs some test&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; JEQ&nbsp; SK1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Decide whether to clear or set to one&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MOV&nbsp; @SET,R2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Set to one</pre>
+      <pre>SK1&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R0,&gt;2000&nbsp;&nbsp;&nbsp;&nbsp; This loop is executed &gt;2000 times&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R1,BUFFER&nbsp;<br>LP1&nbsp;&nbsp;&nbsp; X&nbsp;&nbsp;&nbsp; R2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Equals CLR *R1+ if R5 was null, SETO *R1+ otherwise&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DEC&nbsp; R0&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; JNE&nbsp; LP1&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ...</pre>
+      <pre>CLEAR&nbsp; CLR&nbsp; *R1+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Simple alternative to calculating the values&nbsp;<br>SET&nbsp;&nbsp;&nbsp; SETO *R1+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; of these instructions to put them in R2</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>We could have written: </p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R0,&gt;2000&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R1,BUFFER&nbsp;<br>LP1&nbsp;&nbsp;&nbsp; MOV&nbsp; R5,R5&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Perform the test inside the loop&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; JEQ&nbsp; SK1&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SETO *R1+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Set&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; JMP&nbsp; SK2&nbsp;<br>SK1&nbsp;&nbsp;&nbsp; CLR&nbsp; *R1+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Clear&nbsp;<br>SK2&nbsp;&nbsp;&nbsp; DEC&nbsp; R0&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; JNE&nbsp; LP1&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ...</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>But the first way is much faster, since we don't have to repeat the
+test at each execution of the loop. </p>
+<h3><br>
+<a name="C"></a>C instruction</h3>
+<p>Appart for comparison, this instruction can also be used to
+increment
+a register by four: </p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>&nbsp; C&nbsp;&nbsp; *Rx+,*Rx+</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>This uses only one word of memory as opposed to the equivalent :</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>&nbsp; INCT Rx<br>&nbsp; INCT Rx</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>Note that the corresponding CB instruction would increment the
+register
+by two, but there is no advantage over a plain vanilla <tt>INCT </tt>in
+this case. </p>
+<h2><br>
+<br>
+<a name="Timing"></a>Timing diagrams</h2>
+<h3>Clock signals</h3>
+<p>The TMS9900 is meant to be fed a 3 MHz clock signal (that's right, 3
+not 30) by the TMS9904 clock generator. This signal comes on 4
+different
+lines, each one being shifted by a quarter of a phase with respect to
+the
+previous one. A graphical representation of these signals looks like
+this:
+</p>
+<pre>&nbsp;<br>&nbsp;&nbsp; <u>|</u>____&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 333 ns&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <u>|</u>____&nbsp;<br>__/ 45&nbsp; \___________________/&nbsp;&nbsp;&nbsp;&nbsp; \______ Phi 1&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _____&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _____&nbsp;<br>________/&nbsp;&nbsp;&nbsp;&nbsp; \____________________/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Phi 2<br>&nbsp;&nbsp; | 83&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _____&nbsp;<br>_______________/&nbsp;&nbsp;&nbsp;&nbsp; \___________________ Phi 3<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 12&nbsp;&nbsp;&nbsp;&nbsp; 12_____&nbsp;<br>______________________/&nbsp;&nbsp;&nbsp;&nbsp; \____________ Phi 4<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 5</pre>
+<p>The period of the clock, i.e the time between two pulses in a given
+phase is 333 nanoseconds for a 3 Megaherz clock (a nanosecond is a
+billionth
+of a second). Each pulse is high for about 45nanoseconds, with a rising
+time of 12 ns and a falling time of 12 ns (note that my graph is not
+drawn
+to scale). </p>
+<p>Pulses in the next phase are 83 ns behind those in the first phase
+and
+there is a 5 ns lag time between the end of one pulse and the start of
+the corresponding pulse on the next phase. At least, that's what the
+data
+manual says, but if you add up durations: 12+45+12+5 you get 74 ns, not
+83 ns! So were are the missing 9 nanoseconds? Your guess is mine... </p>
+<p>Note that it is possible to crank up clock speed, upto 4 Mhz at
+least,
+without risking to fry the TMS9900. Such modifications the the TI-99/4A
+have been described (including in those pages), and are known to work.
+Of course any process that relies on execution speed to time an
+external
+device (such as disk access) will be messed up... </p>
+<h3><br>
+Internal memory bus timing</h3>
+<p>Below are some timing diagrams for the memory bus of the TMS9900.
+Note
+that these will be different in the PE-Box, due to the multiplexing of
+the data bus. </p>
+<h4>Read cycle (no wait state)</h4>
+<pre>&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;<br>_| |_____| |_____| |_____| |_____| |_____| |_____| |_____ Phi 1<br>&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;<br>___| |_____|a|_____| |_____| |_____| |_____| |_____| |___ Phi 2&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;<br>_____| |_____| |_____| |_____| |_____| |_____| |_____| |_ Phi 3&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;<br>_______| |_____| |_____| |_____| |_____| |_____| |_____|&nbsp; Phi 4&nbsp;<br>____________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ____________________________<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \_______________/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MEMEN*<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _______________&nbsp;<br>____________/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \____________________________ DBIN<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; d&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; d&nbsp;<br>_________________________________________________________ WE*&nbsp;<br><br>XXXXXXXXXXXX/ Valid address \XXXXXXXXXXXXXXXXXXXXXXXXXXXX A0-A14&nbsp;<br><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ______&nbsp;<br>XXXXXXXXXXXXXXX/ ^b&nbsp;&nbsp; \XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX READY<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; e&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; e<br>_________________________________________________________ WAIT<br>&nbsp;<br>CPU driven&nbsp; | Input mode |r| Input ^c&nbsp; | CPU driven&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; D0-D15&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ________________&nbsp;<br>____________/ if instruction \___________________________ IAQ</pre>
+<p><u>Notes</u> <br>
+a) The cycle begins and ends on the rising edge of Phi 2 pulses. <br>
+b) Inputs should be ready at least 30 ns before the rising edge of the
+next Phi 1 pulse. <br>
+c) Inputs should remain valid for at least 10 ns after the falling edge
+of the Phi 1 pulse. <br>
+d) Propagation delays are at most 30 ns for MEMEN*, DBIN, WE* and WAIT.
+<br>
+e) Propagation delays for all other outputs are at most 40 ns. <br>
+r) Read data </p>
+<h4><br>
+Write cycle (1 wait state)</h4>
+<pre>&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;<br>_| |_____| |_____| |_____| |_____| |_____| |_____| |_____ Phi 1&nbsp;<br>&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;<br>___| |_____|a|_____| |_____| |_____| |_____| |_____| |___ Phi 2&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;<br>_____| |_____| |_____| |_____| |_____| |_____| |_____| |_ Phi 3&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;<br>_______| |_____| |_____| |_____| |_____| |_____| |_____|&nbsp; Phi 4&nbsp;<br>____________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ____________________&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \_______________________/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MEMEN*<br>&nbsp;<br>_________________________________________________________ DBIN&nbsp;<br>___________________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ________________________&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \____________/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; WE*<br>&nbsp;<br>XXXXXXXXXXXXXX/&nbsp; Valid&nbsp; address&nbsp;&nbsp;&nbsp;&nbsp; \XXXXXXXXXXXXXXXXXXXX A0-A14&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ___&nbsp;<br>XXXXXXXXXXXXXXXXX\<u>^b</u>___/ d^\XXXXXXXXXXXXXXXXXXXXXXXXXXXXX READY&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _______&nbsp;<br>______________________/c&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \__________________________ WAIT<br>&nbsp;<br>CPU driven | CPU write data | CPU driven D0-D15&nbsp;<br>_________________________________________________________ IAQ</pre>
+<p><u>Notes</u> <br>
+a) The cycle begins with the rising edge of Phi2. <br>
+b) The READY line is tested on the rising edge of the next Phi 1. It
+should
+be high at least 40 ns before that time.. <br>
+c) If it's low, the TMS9900 enters a wait state and <br>
+d) retest the READY line at each Phi 1 pulse, until it is high again. </p>
+<h4><br>
+<br>
+CRU output (2 bits)</h4>
+<pre>&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;<br>_| |_____| |_____| |_____| |_____| |_____| |_____| |_____ Phi 1<br>&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;<br>___| |_____|a|_____| |_____| |_____| |_____| |_____| |___ Phi 2&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;<br>_____| |_____| |_____| |_____| |_____| |_____| |_____| |_ Phi 3&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;<br>_______| |_____| |_____| |_____| |_____| |_____| |_____|&nbsp; Phi 4<br><br>XXXXXXXXXXXX/ Bit 1 address | Bit 2 address \XXXXXXXXXXXX A0-A14&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ___&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ___&nbsp;<br>___________________|b&nbsp; |___________|c&nbsp; |_________________ CRUCLK<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; d&nbsp;&nbsp; d&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; d&nbsp;&nbsp; d<br>XXXXXXXXXXXX/ Bit 1 value&nbsp;&nbsp; | Bit 2 value&nbsp;&nbsp; \XXXXXXXXXXXX CRUOUT<br>&nbsp;<br>XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX CRUIN</pre>
+<p><u>Notes</u> <br>
+a) The cycle begins on the rising edge of a Phi 2 pulse. <br>
+b) A CRUCLK pulse is issued at the next Phi 2 pulse, until the end of
+the
+Phi 3 pulse. <br>
+c) A similar CRUCLK pulses is issued for each following bit. <br>
+d) Propagation delays are at most 30 ns for CRUCLK (40 ns for other
+outputs).
+</p>
+<h4><br>
+CRU input (2 bits)</h4>
+<pre>&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;<br>_| |_____| |_____| |_____| |_____| |_____| |_____| |_____ Phi 1&nbsp;<br>&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;<br>___| |_____|a|_____| |_____| |_____| |_____| |_____| |___ Phi 2&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;<br>_____| |_____| |_____| |_____| |_____| |_____| |_____| |_ Phi 3&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;<br>_______| |_____| |_____| |_____| |_____| |_____| |_____|&nbsp; Phi 4</pre>
+<pre>XXXXXXXXXXXX/ Bit 1 address | Bit 2 address \XXXXXXXXXXXX A0-A14<br>&nbsp;<br>_________________________________________________________ CRUCLK<br>&nbsp;<br>XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX CRUOUT&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ____&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ____<br>XXXXXXXXXXXXXXXXXXXXXXX/ ^b \XXXXXXXXXX/ ^c \XXXXXXXXXXXX CRUIN</pre>
+<p><u>Notes</u> <br>
+a) The cycle begins on the rising edge of a Phi 2 pulse. <br>
+b) The CRUIN line is sampled at the rising edge of the second Phi 1
+pulse
+following the Phi 2 pulse. <br>
+c) Following bits are sampled on the rising edge of every second Phi 1
+pulse. <br>
+d) No CRUCLK is generated during CRU input. </p>
+<h2><br>
+<a name="Electrical"></a>Electrical characteristics</h2>
+<h3>Recommended operating conditions</h3>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Parameter&nbsp;</th>
+      <th>Min&nbsp;</th>
+      <th>Nom&nbsp;</th>
+      <th>Max&nbsp;</th>
+      <th>Unit</th>
+    </tr>
+    <tr>
+      <td>Vbb&nbsp;</td>
+      <td>5.25</td>
+      <td>-5</td>
+      <td>-4.75</td>
+      <td>Volts&nbsp;</td>
+    </tr>
+    <tr>
+      <td>Vcc&nbsp;</td>
+      <td>4.75</td>
+      <td>5</td>
+      <td>5.25</td>
+      <td>Volts&nbsp;</td>
+    </tr>
+    <tr>
+      <td>Vdd&nbsp;</td>
+      <td>11.4</td>
+      <td>12&nbsp;</td>
+      <td>12.6</td>
+      <td>Volts&nbsp;</td>
+    </tr>
+    <tr>
+      <td>Vss&nbsp;</td>
+      <td>-</td>
+      <td>0&nbsp;</td>
+      <td>-</td>
+      <td>Volts&nbsp;</td>
+    </tr>
+    <tr>
+      <td>High level input</td>
+      <td>2.2</td>
+      <td>2.4</td>
+      <td>Vcc+1</td>
+      <td>Volts&nbsp;</td>
+    </tr>
+    <tr>
+      <td>Ditto for clock</td>
+      <td>Vdd-2&nbsp;</td>
+      <td>-</td>
+      <td>Vdd</td>
+      <td>Volts&nbsp;</td>
+    </tr>
+    <tr>
+      <td>Low level input</td>
+      <td>-1.0</td>
+      <td>0.4</td>
+      <td>0.8&nbsp;</td>
+      <td>Volts&nbsp;</td>
+    </tr>
+    <tr>
+      <td>Ditto for clocks&nbsp;</td>
+      <td>-0.3</td>
+      <td>0.3</td>
+      <td>0.6</td>
+      <td>Volts&nbsp;</td>
+    </tr>
+    <tr>
+      <td>Free-air temperature</td>
+      <td>0&nbsp;</td>
+      <td>25&nbsp;</td>
+      <td>70&nbsp;</td>
+      <td>`C</td>
+    </tr>
+  </tbody>
+</table>
+<h3>Electrical characteristics under recommended conditions</h3>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Parameter&nbsp;</th>
+      <th>Test conditions</th>
+      <th>Min&nbsp;</th>
+      <th>Nom&nbsp;</th>
+      <th>Max&nbsp;</th>
+      <th>Unit&nbsp;</th>
+    </tr>
+    <tr>
+      <td>Data bus input current&nbsp;</td>
+      <td>Vss to Vcc</td>
+      <td>-</td>
+      <td>50&nbsp;</td>
+      <td>100&nbsp;</td>
+      <td>uAmp&nbsp;</td>
+    </tr>
+    <tr>
+      <td>Clock input current&nbsp;</td>
+      <td>-0.3V to 12.6V</td>
+      <td>-</td>
+      <td>25&nbsp;</td>
+      <td>75&nbsp;</td>
+      <td>uAmp&nbsp;</td>
+    </tr>
+    <tr>
+      <td>Other pins input current&nbsp;</td>
+      <td>Vss to Vcc</td>
+      <td>-</td>
+      <td>1</td>
+      <td>10&nbsp;</td>
+      <td>uAmp&nbsp;</td>
+    </tr>
+    <tr>
+      <td>High level output voltage&nbsp;</td>
+      <td>-0.4 mAmp</td>
+      <td>2.4&nbsp;</td>
+      <td>-</td>
+      <td>Vcc&nbsp;</td>
+      <td>Volts&nbsp;</td>
+    </tr>
+    <tr>
+      <td rowspan="2">Low level output voltage&nbsp;</td>
+      <td>3.2 mAmp</td>
+      <td>-</td>
+      <td>-</td>
+      <td>0.65&nbsp;</td>
+      <td>Volts&nbsp;</td>
+    </tr>
+    <tr>
+      <td>2.0 mAmp</td>
+      <td>-</td>
+      <td>-</td>
+      <td>0.50</td>
+      <td>Volts</td>
+    </tr>
+    <tr>
+      <td>Supply current from Vbb</td>
+      <td>-</td>
+      <td>-</td>
+      <td>0.1</td>
+      <td>1&nbsp;</td>
+      <td>mAmp&nbsp;</td>
+    </tr>
+    <tr>
+      <td>Supply current from Vcc&nbsp;</td>
+      <td>-</td>
+      <td>-</td>
+      <td>50&nbsp;</td>
+      <td>75&nbsp;</td>
+      <td>mAmp&nbsp;</td>
+    </tr>
+    <tr>
+      <td>Supply current from Vdd&nbsp;</td>
+      <td>-</td>
+      <td>-</td>
+      <td>25&nbsp;</td>
+      <td>45&nbsp;</td>
+      <td>mAmp&nbsp;</td>
+    </tr>
+    <tr>
+      <td>Data bus capacitance&nbsp;</td>
+      <td>Vbb=-5 f=1Mhz&nbsp;</td>
+      <td>-</td>
+      <td>15&nbsp;</td>
+      <td>25&nbsp;</td>
+      <td>pF&nbsp;</td>
+    </tr>
+    <tr>
+      <td>Clock 1 capacitance&nbsp;</td>
+      <td>Vbb=5 f=1Mhz&nbsp;</td>
+      <td>-</td>
+      <td>100&nbsp;</td>
+      <td>150&nbsp;</td>
+      <td>pF&nbsp;</td>
+    </tr>
+    <tr>
+      <td>Clock 2 capacitance&nbsp;</td>
+      <td>Vbb=5 f=1Mhz&nbsp;</td>
+      <td>-</td>
+      <td>150&nbsp;</td>
+      <td>200&nbsp;</td>
+      <td>pF&nbsp;</td>
+    </tr>
+    <tr>
+      <td>Clock 3 capacitance&nbsp;</td>
+      <td>Vbb=5 f=1Mhz&nbsp;</td>
+      <td>-</td>
+      <td>100&nbsp;</td>
+      <td>150&nbsp;</td>
+      <td>pF&nbsp;</td>
+    </tr>
+    <tr>
+      <td>Clock 4 capacitance&nbsp;</td>
+      <td>Vbb=5 f=1Mhz&nbsp;</td>
+      <td>-</td>
+      <td>100&nbsp;</td>
+      <td>150&nbsp;</td>
+      <td>pF&nbsp;</td>
+    </tr>
+    <tr>
+      <td>Other input capacitance&nbsp;</td>
+      <td>Vbb=5 f=1 MHz&nbsp;</td>
+      <td>-</td>
+      <td>10&nbsp;</td>
+      <td>15&nbsp;</td>
+      <td>pF</td>
+    </tr>
+  </tbody>
+</table>
+<address><br>
+<br>
+Revision 1. 3/25/99 Preliminary, but ok to release<br>
+Revision 2. 5/31/99 Tested &amp; debugged examples<br>
+Revision 3. 1/4/02 Modified speed calculation examples<br>
+Revision 4. 1/15/06 Added example of external instruction use (Cortex
+computer)<br>
+</address>
+<center>
+<p><br>
+<a href="titechpages.htm">Back to the TI-99/4A Tech Pages</a></p>
+</center>
+</body>
+</html>

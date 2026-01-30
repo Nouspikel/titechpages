@@ -1,0 +1,153 @@
+*==============================================================================*
+*                                                                              *
+*                        GRAM-CARD ROM ROUTINES                                *
+*                                                                              *
+* Disassembled and commented by Thierry Nouspikel. Geneva, September 1991      *
+*==============================================================================*
+ 
+The 128K Gram-Card contains assembly language and gpl routines stored in rom
+memory at addresses >4000 to >5FFF. These routines appear when cru bit 0 is set.
+ 
+Memory structure
+----------------
+ 
+>4000 +----------+
+      |pwr-up    |       Power-up routine. Copies programs to gram.
+      |editmem   |       Memory editor. Executed in this memory.
+      |modul     |       Basic program -> module. Executed in this memory.
+>4B00 +----------+
+      |gpl modul |       Gpl program to start basic "module". Copied to gram.
+>4C00 +----------+
+      |gpl gram  |       Gpl program: gram card menu. Copied to gram.
+>4E00 +----------+
+      |loader    |       Loader menu and related routines. Copied to low memory
+      |          |       expansion either directly or via gram.
+>5FFF +----------+
+ 
+ 
+ 
+Here is a summary of the different operations:
+ 
+Power up
+--------
+Each time you reset the computer, this routine is executed. This occurs after
+creating the title screen (home computer...) but before checking for key pressed
+ 
+ 
+       cpu
+>4000 +----+             >6000 +----+
+      |run |                   |xxxx|
+      |    |             >6200 +----+         ^
+>4B00 +----+       +---------> |XXXX|         |
+      |    |       |(1)        |XXXX|        (2)
+>4C00 +----+       |     >7400 +----+
+      |xxxx|       |           | 00 |
+>4E00 +----+       |     >7FFF +----+
+      |XXXX| ------+
+      |XXXX|
+>5FFF +----+
+ 
+1) Copies gram header (gramcard >98xx) and assembly routines to gram memory.
+   Clears remainding space up to >8000.
+   This only happens if there is no module pluged in, neither in the gram card.
+2) Exits.
+ 
+ 
+Gram-card menu
+--------------
+Here is what happens when you select "gramcard >98xx" from the program menu.
+ 
+ 
+       cpu                      gram
+>2000 +----+             >6000 +----+
+      |    |                   |run |
+>2700 +----+       (1)   >6200 +----+
+      |XXXX| <---------------- |XXXX|
+      |XXXX|  (2)              |XXXX|
+>3900 +----+             >7400 +----+
+      |    |                   | 00 |
+>3FFF +----+             >7FFF +----+
+ 
+1) Gpl program displays first menu (loader, dsk1.xb, etc) and alternative menu
+   (loader, dsk1.aa, etc). After you selected a valid key, it copies assembly
+   language routines to low memory expansion and
+2) Branches either to "load file" subroutine (at >27FA) or to loader menu
+   subroutine (at >2808).
+ 
+ 
+Call editmem
+------------
+This program is executed inside the card rom.
+It uses the scratch pab (cpu mem >8300 to >83FF) to store variables and data.
+ 
+ 
+       cpu
+>4000 +----+
+      |    |
+      |run |
+>4B00 +----+
+      |    |
+>4C00 +----+
+      |    |
+>4E00 +----+
+      |    |
+      |    |
+>5FFF +----+
+ 
+ 
+Call modul
+----------
+This program is also executed inside the card rom.
+ 
+ 
+       cpu                      gram                    vdp
+>4000 +----+             >6000 +----+            >0000 +----+
+      |    |      +----------> |xxxx|                  |    |
+      |run |      |      >6200 +----+                  |    |
+>4B00 +----+      |(2)         |    |                  |    |
+      |xxxx| -----+            |    |                  |    |
+>4C00 +----+             >7400 +----+                  |    |
+      |    |                   |    |                  |    |
+>4E00 +----+             >8000 +----+                  |    |
+      |    |                   |    |                  |    |
+      |    |                   |    |      (1)   +---- |llll|
+>5FFF +----+                   |llll| <----------|     |    |
+                               |bbbb|            +---- |bbbb|
+                         >9FFF +----+            >3FFF +----+
+ 
+1) Copies basic line number table and basic program to gram, from vdp mem.
+2) Copies the gpl program that will start module, when selected from program
+   menu, and display "press enter to reset" once module execution is over.
+ 
+ 
+Call gram
+---------
+ 
+ 
+       cpu
+>2000 +----+
+      |    |
+>2700 +----+
+      |XXXX| <-----+
+      |XXXX| (2)   |
+>3900 +----+       |
+      |    |       |
+>3FFF +----+       |
+                   |
+                   | (1)
+       cpu         |
+>4000 +----+       |
+      |    |       |
+      |run |       |
+>4B00 +----+       |
+      |    |       |
+>4C00 +----+       |
+      |    |       |
+>4E00 +----+       |
+      |XXXX| ------+
+      |XXXX|
+>5FFF +----+
+ 
+1) Copies assembly language routines to low memory expansion and
+2) Executes loader menu subroutine (different entry point: >27FE).
+ 

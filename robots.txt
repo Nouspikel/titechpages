@@ -1,0 +1,5 @@
+# robots.txt file for http://www.nouspikel.com
+
+#No robots allowed on this site!
+User-agent: *
+Disallow: /

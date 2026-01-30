@@ -1,0 +1,347 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+  <title></title>
+  <meta name="Author" content="">
+  <meta name="GENERATOR"
+ content="Mozilla/3.04Gold (Win95; U) [Netscape]">
+</head>
+<body>
+<h1 align="center"><a
+ href="http://www.nouspikel.com/ti99/titechpages.htm"><img
+ src="logo.jpg" style="border: 0px solid ; height: 33px; width: 95px;"
+ title="Back to main index" alt=""></a></h1>
+<h1>PE-box surgery</h1>
+<p>The purpose of this page is to show you how to take apart the
+peripheral
+expansion box. There may be several reasons why you would want to do so:</p>
+<li>Cleaning the contacts.</li>
+<li>Switching to another wall-socket voltage (old-style PE-boxes don't
+have a selector).</li>
+<li>Fixing the power supply.</li>
+<li>Changing the transformer's fuse (i.e. not the main fuse).</li>
+<p><a href="#Symptoms">Malfunction symptoms<br>
+</a><a href="#better%20diagnostic">_Finer diagnostic</a></p>
+<p><a href="#opening">Opening the PE-box<br>
+</a><a href="#connection%20card">_Cable connection card<br>
+</a><a href="#drive">_Disk drive<br>
+</a><a href="#connector%20plate">Cleaning the bottom connectors<br>
+</a><a href="#change%20voltage">Changing the mains voltage<br>
+</a><a href="#fix%20power%20board">Fixing the power supply board<br>
+</a><a href="#transformer">Fixing the transformer</a></p>
+<p><a href="#putting%20it%20back">Putting it back together</a><br>
+</p>
+<h2><br>
+<a name="Symptoms"></a>Malfunction symtoms</h2>
+<p>No power at all</p>
+<li>The main fuse may be blown. No need to take apart the PE-box: it is
+accessible from the rear.</li>
+<li>A connection to the mains switch may be broken, or the switch
+itself
+is defective. Open the box, fix the connection or change the switch
+(almost
+any kind of mains switch will do).</li>
+<p><br>
+The fan doesn't work, but everything else is ok.</p>
+<li>The fan may be dead: good occasion to replace it with a less noisy
+one... Be aware that it's a high voltage (115 V) fan though, not a 12
+volts
+fan like in PCs.</li>
+<li>One of the fan wires may be broken: solder it back.<br>
+</li>
+<p>The fan works but nothing else does: no lights appear on any of the
+cards, the disk drive doesn't spin at power up.</p>
+<li>It is likely that the transformer is faulty (most probably, its
+fuse
+has blown). </li>
+<li>It may also be the power-supply board, but in this is less likely.
+In this case you should still measure one or two of the three voltages
+present on the PE-box bus (see <a href="#better%20diagnostic">below</a>).</li>
+<p><br>
+The card lights go on, but the disk drive does not spin / its red light
+does not lit upon disk access.</p>
+<li>A voltage regulator on the power board may be dead. There is one
+for
++5V and one for +12V, so if only one of these voltages is missing in
+the
+drive power cable you can be pretty sure that the problem is there. </li>
+<li>Alternatively, the corresponding wire might be broken.<br>
+</li>
+<p>Random malfuntion of several cards</p>
+<li>Contacts may be dirty inside the bottom connectors.</li>
+<li>Ditto for the cable connector, to the side of the console.</li>
+<h4><br>
+<a name="better diagnostic"></a>For a better diagnostic</h4>
+<p>Get a voltmeter and measure voltage accros the silver part of the
+bottom
+plate and slot connections number 1 (the first at the rear), 57 and 59.
+(the last two at the front). Either side of the slot is ok, since power
+always comes through two opposite pins (i.e. 1+2, 57+58, 59+60). </p>
+<p>You should get:</p>
+<li>More than +5 volts on pin 1</li>
+<li>Less than -12 volts on pin 57</li>
+<li>More than +12 volts on pin 59</li>
+<pre>2 ------------------------------ 60 Front<br>1 ------------------------------ 59 <br>  |                           ||<br> +5                        -12 +12</pre>
+<p>All voltages will be lower if cards are still present inside the box
+(approx +8, -16, +16V) than in a bare PE-box (+13, -25, +25V). This is
+normal.</p>
+<li>If one of the voltages is missing, there may be a problem with the
+power board, or the corresponding wire may be broken. </li>
+<li>If all are missing, the problem is likely with the transformer (in
+which case the drive won't have power either).</li>
+<p><br>
+After removing the disk drive (see <a href="#drive">below</a>), check
+the
+voltage on the "molex" connector, between any of the center connections
+and the side ones. You should read +5 volts on one side and +12 volts
+on
+the other.</p>
+<pre> _________<br>|<u> O O O O </u>|<br>  \/  \/<br> +5  +12</pre>
+<li>If one of the voltages is missing, the problem is either with that
+wire or with the corresponding regulator on the power board.</li>
+<li>If both are missing, the problem may be with the transformer (in
+which
+case the PE-box slots won't have power either) or both regulators/wires
+are defective. E.g. if you yanked on the power cord when pulling out
+the
+drive...</li>
+<h2><br>
+<a name="opening"></a>Taking apart the PE-box</h2>
+<p>First of all, unplug the power cord and store it away in a locked
+drawer.
+We're talking at least 100 volts upstream of the mains switch and this
+is not something to take lightly: it could easily kill you. So take no
+risk and <b><font color="#ff0000">make sure the PE-box is not
+connected
+to the wall power until it's fully reassembled</font></b>. You have
+been
+warned. If you kill yourself, don't come and complain to me!</p>
+<h4><br>
+<a name="connection card"></a>Remove/clean the connection card</h4>
+<p>To remove the cable connection card, you will need to unfastened the
+brace that fixes it to the back of the PE-box (one screw). </p>
+<p>If you want to clean this card, remove the two handles (pull them
+apart)
+and the four screws that lock the metal case. The label can stay and
+will
+serve as a hinge. Take the card out and clean the connections at the
+place
+they fit into the slot at the bottom of the PE-box. A toothbrush dipped
+in baking soda (sodium bicarbonate) will do. You might also use a
+"scrotch-brite"
+scratchy sponge, or even very fine sandpaper. In any case, make sure
+not
+to touch the contacts with bare fingers after you are done, as skin
+oils
+will promote oxidation.</p>
+<p>If you determine that there is a problem with this card, or with the
+'firehose' connection cable, refer to my <a
+ href="pebox.htm#Fixing%20firehose">PE-Box
+page</a> for instructions on how to fix it.</p>
+<h4><br>
+<a name="drive"></a>Remove the drive, then its card</h4>
+<p>To remove the disk controller card, it is best to first pull out the
+drive. There are two screws, in slotted holes, under the PE-box (cyan
+arrows
+in <a href="pesurg3.jpg">this picture</a>), and two more on top of the
+drive under the PE-box lid (see <a href="pesurg1.jpg">this picture</a>).
+Remove them and gently pull out the drive, without putting too much
+strain
+on the cables. </p>
+<p>Now reach inside the hole and disconnect the flat cable from the
+card
+connector, at the very bottom of the drive compartment. Here's a <a
+ href="pesurg2.jpg">picture</a>.
+Then disconnect the drive power cord and store the drive in a safe
+place.
+</p>
+<p>Now you can remove the controller card and clean it as described
+above.</p>
+<h4><br>
+<a name="open the box"></a>Open the box</h4>
+<p>Grab your screwdriver and start removing the screws that hold the
+box
+closed. There are plenty: 7 at the bottom (<a href="pesurg3.jpg">picture</a>),
+6 at the back, and one on each side (<a href="pesurg4.jpg">picture</a>).</p>
+<p>Pull out the mains push-button from the front panel (if so equiped).
+Then gently slide out (foward) the front-and-side part of the box from
+the bottom-and-back. See <a href="pesurg5.jpg">this picture</a>.</p>
+<h3><br>
+<a name="connector plate"></a>To clean/fix the connector plate</h3>
+<p>Remove the screws that hold the 8-slot bottom plate in place (<a
+ href="pesurg6.jpg">picture</a>).
+Together with it will comes the metal guide that insures each card
+slides
+properly in place.</p>
+<p>The connector plate is a very simplistic PCB: it just connects every
+line between eight 60-pin card edge connectors. Four power supply lines
+are attached to it, that go to the power supply board. This is
+unregulated
+power, to be used by voltage regulators installed on cards. See this <a
+ href="pesurg11.jpg">picture</a>.</p>
+<p>You can clean the connectors with an old toothbrush diped in a
+solution
+of baking soda (sodium bicarbonate). Rince with distilled water, shake
+the water out and dry thouroughly (e.g. overnight) before attempting to
+use.</p>
+<p>If you suspect one trace is broken, locate it and bridge the gap
+with
+solder.</p>
+<p>Now is a good time to dust off the rest of the box, particularly the
+fan, and the transparent plastic things that lead the light from the
+card
+LEDs to the front panel...</p>
+<h3><br>
+<a name="change voltage"></a>To change the wall-power voltage</h3>
+<p>The "new" PE-boxes, those with a rocking mains switch, have
+a rotatory selector that lets you pick up the desired voltage. The
+older
+models, those with a mains push-button, don't have such a selector even
+though the transformer can often accept the same range of voltage.</p>
+<p>If you look at the transformer, you will see that its primary (at
+the
+base of the transformer) has five power wires, plus two for the fan.
+One
+is common to all voltages (white, soldered to the mains switch), one is
+connected to the mains switch (red for US power), the other three are
+parked
+on an isulating pad (brown, orange, and black). See this <a
+ href="pesurg12.jpg">picture</a>.</p>
+<p>To use your PE-box with another voltage, simply exchange the red
+wire
+for the one corresponding to your local wall-power voltage.
+Unfortunately,
+I don't know for sure which color corresponds to which voltage (if you
+figure it out, let me know). From the order the wires come out of the
+transformer,
+and by measuring the AC voltage on the three spare wires when the
+tranfromer
+is powered by the red one, I was able to make the following guess:
+Black
+= 100 VAC, Red = 115 VAC, Brown = 220 VAC, Orange = 240 VAC. But
+remember
+this is only a guess...</p>
+<h3><br>
+<a name="fix power board"></a>To clean/fix the power supply board</h3>
+<p>The power-supply board is mounted on a plastic brace that holds it
+vertical,
+along the left side of the PE-box. To remove this brace, unfasten the
+two
+screws that fix it to the base of the box (see <a href="pesurg7.jpg">this
+picture</a>: follow the screwdrivers), then slide it off towards the
+left
+side.</p>
+<p>Disconnect the three sets of wires. All connectors are built on the
+same model, with self-locking clamps that fit into holes in the board
+(see
+<a href="pesurg8.jpg">picture</a>). To remove them, flip the board
+over,
+spread the two clamps to release them, and push them into their holes.
+The plug should now be tilted up (see <a href="pesurg9.jpg">picture</a>),
+and it's a simple matter to pull it out. To put it back, install it at
+the same angle, them push the clamps down into the holes.</p>
+<p>It's easier to work on the board if you remove the plastic brace,
+not
+to mention that there are two components under the board, hidden by the
+brace (purple arrows in <a href="pesurg10.jpg">this picture</a>). So
+remove
+the 4 screws that hold it in place. As the board is perfectly square,
+make
+sure to mark which side goes where on the brace (if you forgot, refer
+to
+the above picture).</p>
+<h4><br>
+To change the voltage regulators for the drive</h4>
+<p>The +5 volts regulator is the flat 3-legs thing labeled 7805. The
++12
+volts regulator is the big silver eye-like thing in the middle, they
+are
+labelled in cyan in the above picture.</p>
+<p>Desolder and replace them with a similar part. Or possibly with one
+that gives out more current so you can power both a hard-drive and a
+floppy
+(I haven't tried that).</p>
+<h3><br>
+<a name="transformer"></a>To change/fix the transformer</h3>
+<p>The transformer is bolted to the bottom of the box with 4 bolts that
+are welded in place (two of which are visible in <a href="pesurg12.jpg">this
+picture</a>). Use a wrench (or pliers) to remove the 4 nuts, then
+gently
+lift up the transformer. It will remain attached to the mains switch by
+at least the white wire, but that's ok. Here's a <a href="pesurg13.jpg">picture</a>
+with the transformer removed, in which you can see the 4 bolts
+protruding
+from the bottom of the PE-box.</p>
+<h4><br>
+To change the fuse</h4>
+<p>The fuse is hidden inside the transformer's white plastic case. As
+it
+is hopelessly glued together with resin, the best way to access this
+fuse
+is to break a hole inside the plastic, at the bottom of the
+transformer,
+opposite the wires. See <a href="pesurg14.jpg">this picture</a>.</p>
+<p>There is no fuse holder, as a matter of fact it may be that the fuse
+is just a thicker portion of wire. Thus, if you want to install a new
+fuse,
+you will have to solder one in place. In this respect, buying fuses
+that
+have axial leads will help.</p>
+<p>I don't know for sure what's the rating of this fuse. The writing
+was
+hard to read on mine, and all I could decipher was 12A / 250V. Which
+seems
+like an awfull lot (3 kilowatts???). So maybe it's 1.2A ? In doubt, I
+put
+in a 7A fuse and it worked. Of course, maybe the transformer is gonna
+fry
+next time I accidentally short +12V with -12V, as I've been known to
+do...</p>
+<h4><br>
+To replace the transformer</h4>
+<p>To install a new transformer, you will need to desolder the white
+wire
+from the mains switch, then solder back the new transformer. Make sure
+you insulate your work with electrical tape, real well: we don't want
+to
+shortcut these two terminals!</p>
+<p>Then connect all the wires, including the "unused" ones that
+should be parked on the dedicated terminal.</p>
+<h2><br>
+<a name="putting it back"></a>Putting it back together</h2>
+<li>Screw the power board back on its plastic brace.</li>
+<li>Reconnect the power board with the transformer, the drive's power
+lines
+and the bottom plate's power lines.</li>
+<li>Slide the plastic brace in place, and fasten the two screws at the
+bottom.</li>
+<li>Reinstall the bottom plate (the one with the 8 connector slots)
+with
+the metal guides on top of it. </li>
+<li>Slide the bottom+back part of the box into the front+side part.
+Make
+sure not to trap any wire. Put all the screws back (except the ones for
+the drive: those that have slotted holes). Push the mains push-button
+in.</li>
+<p>Go get the power cord and plug it in. Turn power on and check if all
+the required voltages are present where expected (see <a
+ href="#better%20diagnostic">above</a>).
+If so, turn power off and proceed.</p>
+<li>Put in the floppy-disk controller card. </li>
+<li>Reconnect the drive flat cable and power supply. </li>
+<li>Put the drive back into its hole and fasten the four screws (two on
+top, two at the bottom).</li>
+<li>Put in the cable connection card. You may dispense with fastening
+it
+in.</li>
+<p>Test your system. If it works fine, install the remaining cards and
+enjoy. If not, start over... or buy another PE-box.</p>
+<address>Preliminary 7/3/02 Not for release</address>
+<address>Revision 1 8/27/02 Added pictures. OK to release<br>
+<br>
+&nbsp; </address>
+<center>
+<p><a href="titechpages.htm">Back to the TI-99/4A Tech Pages</a></p>
+</center>
+</body>
+</html>

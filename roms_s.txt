@@ -1,0 +1,130 @@
+***************************************
+* EEPROM LOADER  c) 2001 Thierry Nouspikel
+* -------------
+* This program is loaded as an EA5 together with
+* the data to write into the EEPROM.
+***************************************
+       DEF  START
+
+       AORG >E000
+START  LIMI 0                 no interrupts
+       MOV  11,10
+       BL   @DISP             display prompts
+       DATA P0,>0240
+       BL   @DISP
+       DATA P1,>6240
+       BL   @DISP
+       DATA P4,>E242
+
+LP6    BL   @GETKEY           wait for key
+       CI   1,>FDFF
+       JNE  LP6
+       BL   @DISP             display "please wait"
+       DATA P3,>C240
+       LI   1,>A000           copy >A000-BFFF
+       BL   @WRITE
+                                    
+       BL   @DISP             display prompt
+       DATA P2,>4241
+LP3    BL   @GETKEY           wait for a key
+       CI   1,>FEFF           <=>
+       JEQ  EXIT
+       CI   1,>FBFF           <enter>
+       JNE  SK1
+       CLR  12
+       SBO  17                toggle bit 17 to switch pages
+       JMP  SK2
+SK1    CI   1,>FDFF           <space> 
+       JNE  LP3               no
+
+SK2    BL   @DISP             display "please wait"
+       DATA P3,>E241                                
+       LI   1,>C000           program page 2
+       C    @-2(1),*1         extra file?
+       JNE  SK3               yes: copy >C000-DFFF
+       LI   1,>A000           no: copy same
+SK3    BL   @WRITE
+
+EXIT   CLR  12                                   
+       SBZ  17                back to first page
+       B    *10               return
+*
+*-------------------------------------
+* Program the EEPROM
+*------------------------------------
+WRITE  LI   2,>0000           write at >0000-1FFF               
+       LI   3,>2000           number of bytes
+LP4    LI   5,>000B           max trials = 10
+LP9    DEC  5
+       JEQ  ERR               error
+       MOVB *1,*2
+       LI   0,>0200           wait while byte is being programmed
+LP1    DEC  0
+       JNE  LP1
+       CB   *1,*2             check if ok
+       JNE  LP9               else try again
+       INC  1
+       INC  2
+       DEC  3                 next word
+       JNE  LP4
+       B    *11
+*                                               
+ERR    MOV  2,@>A000          save faulty address
+       BL   @DISP             announce error
+       DATA P5,>0242
+LP7    BL   @GETKEY           wait for = key
+       CI   1,>FEFF
+       JNE  LP7
+       B    *10
+*
+*-------------------------------------
+                          
+* Get key from keyboard column 0
+*-------------------------------------
+GETKEY LI   12,>0024          set column 0
+       LDCR 12,3
+       SETO 1
+       LI   12,>0006
+LP2    STCR 1,8               get key
+       CI   1,>FFFF                           
+       JEQ  LP2               none
+
+LP5    SETO 0
+       STCR 0,8               wait till released
+       INC  0
+       JNE  LP5
+       B    *11
+*
+*-------------------------------------
+* Display message on screen
+*-------------------------------------
+   
+DISP   MOV  *11+,1            get ptr from data word
+       MOVB *11+,@>8C02       get address and set it
+       NOP
+       MOVB *11+,@>8C02
+       MOV  *1+,0             get size
+LP8    MOVB *1+,@>8C00        display
+       DEC  0
+       JNE  LP8      
+       B    *11
+*
+P0     DATA 53
+       TEXT 'CONSOLE EEPROM LOADER           '
+       TEXT '---------------------'
+P1     DATA 50
+       TEXT 'Enable EEPROM for write         '
+       TEXT 'then press <space>'
+P2     DATA 78                     
+       TEXT 'Select page 2 & press <space>   '
+       TEXT 'Or <enter> to toggle bit 17     '
+       TEXT 'Or <=> to exit'
+P3     DATA 30
+       TEXT 'Writing EEPROM. Please wait...'
+P4     DATA 24
+       TEXT 'c)2001 Thierry Nouspikel'
+P5     DATA 50
+       TEXT 'Cannot write to EEPROM !        '
+       TEXT 'Press <=> to abort '
+*
+       END

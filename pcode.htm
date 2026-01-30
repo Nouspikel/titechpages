@@ -1,0 +1,760 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+  <title>Untitled Document</title>
+  <meta http-equiv="Content-Type"
+ content="text/html; charset=iso-8859-1">
+  <meta name="GENERATOR"
+ content="Mozilla/3.04Gold (Win95; U) [Netscape]">
+</head>
+<body bgcolor="#ffffff">
+<h1 align="center"><a
+ href="http://www.nouspikel.com/ti99/titechpages.htm"><img
+ src="logo.jpg" style="border: 0px solid ; height: 33px; width: 95px;"
+ title="Back to main index" alt=""></a></h1>
+<h1>The p-code card</h1>
+<h4>Introduction</h4>
+<p>The idea behind p-code is very elegant: it is an "ideal" assembly
+language to be run on a virtual microprocessor. Concretely, it means
+that
+it requires an interpreter, the p-machine emulator or PME, to emulate
+this
+virtual microprocessor. The big advantage is that you can write p-code
+"assembly" programs (or compile higher languages into p-code)
+and run them on many different machines. The language was optimized so
+as to be easy to emulate and to run smoothly on any machine. Apart from
+the TI-99/4A there were emulators written for the Z80, Z8000, 6502,
+6509,
+Motorola 6800 and 68000 (Apple computers), HP-87, PDP-11, Intel 8080
+and
+8086 (PCs) , and GA440 microprocessors (and what on earth is the
+latter?).</p>
+<p>This article is split in two pages. One that discusses the p-system
+<a href="psystem.htm">theory of operations</a> and the present one that
+describes the TI-99/4A p-code card and accompanying software.</p>
+<p><a href="#Hardware">Hardware<br>
+</a><a href="#Software">Software</a></p>
+<h2><a name="Hardware"></a>Hardware</h2>
+<p>The p-code card is basically a ROM card. It contains two ROM chips
+(4732
+and 4764) and eight GROM chips. A peculiarity of the card is that the
+GROMs
+are not accessed via the usual GROM ports at &gt;98xx. Instead, they
+map
+inside the card DSR space. This makes the GROM "private" to the
+p-code card.</p>
+<p>A switch is located at the back of the card, that can easily be
+reached
+with the card installed in the PE-Box. This switch is used to disable
+the
+card and prevent the p-system from taking over at power-up time.</p>
+<p><a href="#Power">Power supply<br>
+</a><a href="#Bus%20buffers">Bus buffering<br>
+</a><a href="#Decoding">Address decoding<br>
+</a><a href="#CRU%20logic">CRU logic<br>
+</a><a href="#ROMs">ROM memory<br>
+</a><a href="#GROMs">GROM memory</a></p>
+<h4><br>
+<a name="Power"></a>Power supply</h4>
+<p>Since the GROMs need both +5V and -5V, there are two voltage
+regulators
+on the p-code card. A 78M05 provides +5 volts to all chips, and a 79M05
+provides an additional -5 volts power to the GROMs.</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>&nbsp;<br>              &nbsp;&nbsp;&nbsp;&nbsp; 78M05&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; All chips<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +----------+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +5V&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-----+<br>+8V-----+-------|Vin&nbsp;&nbsp; Vout|---+-----+... ---+-----|Vcc&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; Ref&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; = 10    +----------+&nbsp;&nbsp; = 10  = 47 &nbsp;  = 10  |&nbsp;&nbsp;&nbsp;&nbsp; |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;nF&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;nF&nbsp;&nbsp;|&nbsp;uF&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;nF&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Gnd&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Gnd&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Gnd&nbsp;&nbsp;Gnd&nbsp;&nbsp;&nbsp;   +-----|Vss&nbsp; |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Gnd&nbsp;&nbsp;&nbsp; +-----+</pre>
+      <pre>&nbsp;<br>              &nbsp;&nbsp;&nbsp;&nbsp; 79M05&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  8 GROMs<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +----------+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -5V&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-----+<br>-8V-----+-------|Vin&nbsp;&nbsp; Vout|---+-----+... ---+-----|Vdd&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; Ref&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; = 10    +----------+&nbsp;&nbsp; = 10  = 47 &nbsp;  = 10  |&nbsp;&nbsp;&nbsp;&nbsp; |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;nF&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;nF&nbsp;&nbsp;|&nbsp;uF&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;nF&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Gnd&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Gnd&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Gnd&nbsp;&nbsp;Gnd&nbsp;&nbsp;&nbsp;   +-----|Vss&nbsp; |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Gnd&nbsp;&nbsp;&nbsp; +-----+</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h4><a name="Bus buffers"></a>Bus buffering</h4>
+<p>As recommended by Texas Instruments, all lines to/from the
+peripheral
+bus are buffered on-card. This is done with three 74LS244 for the
+16-bit
+address bus and some of the control lines: MEMEN*, CLKOUT*, CRUCLK*,
+DBIN,
+AMA, AMB, AMC (the last 3 are not used in the PE-Box and hard-wired at
++5V). For some reason, the RESET* line has an independent buffer. </p>
+<p>The data bus, of course needs a bidirectional buffer, whose
+DIRection
+is controlled by the DBIN signal from the peripheral bus, and the
+ENable
+pin by a signal generated by the card. This signal also controls the
+RDBENA*
+line that activates the bus drivers in the peripheral cable. Possibly
+because
+it must interacts with GROMs, the bus buffer is a 74SC245 instead of a
+LS.</p>
+<p>The following schematics illustrates both the bus buffering, and the
+address decoding logic described in the next section.</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;74LS244&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;      +5V---WWW---,&nbsp;&nbsp;      ,-WWW--+5V&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-----+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;    &nbsp;&nbsp;&nbsp;&nbsp;Switch  1M   |        |  1K  <br>&nbsp;&nbsp;&nbsp;&nbsp; A0&gt;---|&nbsp;&nbsp; &nbsp; |---&gt;A0&nbsp;&nbsp;&nbsp;Gnd---o o---WWW---+---|&gt;---+&nbsp;&nbsp;&nbsp;    <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; &nbsp; |    .&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;        100 Ohms|  '17   |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; &nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;.     &nbsp;&nbsp;      Gnd--||--'        |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; &nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;.&nbsp;       &nbsp;&nbsp;       10 nF         |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; &nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;.      &nbsp;&nbsp;&nbsp;  _                   |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; &nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;.&nbsp;&nbsp;&nbsp;&nbsp; A4---| )        ~~~       |<br>&nbsp;&nbsp;&nbsp;&nbsp; A7&gt;---|&nbsp;&nbsp;&nbsp;  |---&gt;A7&nbsp;&nbsp;&nbsp; A6---|  )        +---|&gt;---+<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Gnd--|EN*  |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   A7---|   )      ~~~       |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-----+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;     A8---|'30 )o-,            |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;74LS244&nbsp; &nbsp;&nbsp;     A10---|    )&nbsp; |            |       <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-----+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  A11---|   )   |            | <br>&nbsp;&nbsp;&nbsp;&nbsp; A8&gt;---|&nbsp;&nbsp; &nbsp; |---&gt;A8&nbsp;&nbsp;&nbsp;A12---|  )    |            | <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; &nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;.&nbsp; &nbsp;&nbsp;A13---|_)     | ,----------'<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; &nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;     _      | |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; &nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;.&nbsp;&nbsp;&nbsp;&nbsp; A4---| )     | |    12L6<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; &nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;.&nbsp;&nbsp;   A5---|  )_&nbsp;  | | +--------+<br>&nbsp;&nbsp;&nbsp;&nbsp; A15&gt;--|&nbsp;&nbsp;&nbsp;  |---&gt;A15&nbsp;  A6---|  )&nbsp;|  | '-|12      |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Gnd--|EN*  |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  A7---|_)  |  |   |        | <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-----+ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;      &nbsp;74LS21&nbsp;|  '---|7       |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;74LS244&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;  _        '------|5     13|---&gt;ROM2*<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-----+&nbsp;&nbsp;&nbsp;Bit0---| )&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;         |      14|---&gt;ROM1*<br>    AMA&gt;---|     |----------|  )_____________|1     16|---&gt;Gsel*<br>&nbsp;  &nbsp;AMB&gt;---|&nbsp; &nbsp;&nbsp; |----------|&nbsp;&nbsp;)   &nbsp;      &nbsp;  |        |<br>    AMA&gt;---|&nbsp; &nbsp;&nbsp; |----------|_)&nbsp;&nbsp;&nbsp;  &nbsp;    &nbsp;&nbsp;  |&nbsp;     17|---&gt;CruSel* <br>CLKOUT*&gt;---|&nbsp; &nbsp;&nbsp; |--------------CLKOUT*&nbsp;  &nbsp;  |        |<br> MEMEN*&gt;---|&nbsp; &nbsp;&nbsp; |---------------------------|11      |<br>CRUCLK*&gt;---|&nbsp; &nbsp;&nbsp; |---------------------------|8       |   &nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp; DBIN&gt;---|&nbsp; &nbsp;&nbsp; |---------+--------+--------|9       |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Gnd--|EN*  |&nbsp;&nbsp;       |&nbsp;       '--------|18      |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-----+&nbsp;&nbsp;       |&nbsp;     A0---, 32  |        |&nbsp;&nbsp;&nbsp;&nbsp;      <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;74SC245&nbsp;        |&nbsp;&nbsp; &nbsp;  A2---=)&gt;---|2       |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-----+&nbsp;&nbsp;       |&nbsp;&nbsp;   &nbsp;A1---------|3       |&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |  DIR|&lt;--------'&nbsp;&nbsp; &nbsp;  A3---------|4       |&nbsp;  <br>&nbsp;&nbsp;&nbsp; D0&lt;---&gt;|B0 A0|&lt;--&gt; D0&nbsp;        A5---------|19      |<br>&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;  |&nbsp;&nbsp;&nbsp;   .         A9---------|6     15|--,<br>&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;  |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.                    +--------+  |<br>&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp;&nbsp; | &nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;   .&nbsp;&nbsp;&nbsp;                             |   <br>&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp; &nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.&nbsp;&nbsp;&nbsp;                             |&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; &nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.&nbsp;&nbsp;&nbsp;                             |&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;  |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.&nbsp;&nbsp;&nbsp;                             |&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp; D7&lt;---&gt;|B7 A7|&lt;--&gt; D7&nbsp;&nbsp;&nbsp;                             |&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |  OE*|&lt;------+-------------------------------'&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-----+&nbsp;&nbsp;  &nbsp;&nbsp; |&nbsp;  <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>RDBENA*&lt;-----------------&lt;|---Gnd<br>                        '125</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h4><br>
+<a name="Decoding"></a>Address decoding</h4>
+<p>Most of the address decoding, both for memory and for CRU, is
+performed
+by a custom control chip. Namely, a 12L6 programable array logic (PAL).
+To save some input pins, there are also a few accessory chips: an
+8-input
+NAND gate (74LS30), a dual 4-input AND&nbsp;gates (74LS21) and a OR
+gate
+(74LS32).</p>
+<p>The input pins of the PAL receive the following.</p>
+<p>Pin #1: CRU bit 0 <i>and </i>AMA <i>and </i>AMB <i>and </i>AMC.
+Equals
+bit 0, since AMA-AMC are always high.<br>
+Pin #2: A0 <i>or</i> A2 <br>
+Pin #3: A1 Probably combined with pin #2 to form the DSR address space:
+&gt;4xxx.<br>
+Pin #4: A3 Could be used for ROM selection and GROM port (weight
+&gt;1000).<br>
+Pin #5: A4 <i>and </i>A5 <i>and </i>A6 <i>and </i>A7. Probably
+combined
+with pin #4 for CRU address: &gt;1Fxx.<br>
+Pin #6: A9 Probably combined with pin #7 for GROM port address: &gt;xBFC<br>
+Pin #7: <i>Not</i>(A4 <i>and </i>A6 <i>and </i>A7 <i>and </i>A8 <i>and
+</i>A10 <i>and </i>A11 <i>and </i>A12 <i>and </i>A13).<br>
+Pin #8: CRUCLK*<br>
+Pin #9: DBIN<br>
+Pin #11: MEMEN*<br>
+Pin #12: Main switch, via a debouncing circuit comprising two
+OC-buffers
+(74LS17), resistors and capacitor.<br>
+Pin #19: A5 Probably used for GROM read/write (weight &gt;0400).</p>
+<p>The output pins provide the following signals:</p>
+<p>Pin #13: ROM2*. Selects the 4764 ROM chip.<br>
+Pin #14: ROM1*. Selects the 4732 ROM chip.<br>
+Pin #15: BusEn*. Enables the data bus.<br>
+Pin #16: GSel*. Enables GROM access.<br>
+Pin #17: CruSel*. Enables the 74LS259 for CRU operations.<br>
+Pin#18: Loops back to DBIN. I'm not sure what's the idea here?</p>
+<p>Power pins: Pin #10 ground, Pin #20 +5V.</p>
+<p>Of course, we don't know what equations were programmed inside the
+PAL,
+but we know their results:</p>
+<li>The card answers at CRU address &gt;1F00</li>
+<li>The 4732 ROM maps at &gt;4000-4FFF</li>
+<li>The 4764 ROM maps at &gt;5000-5FFF</li>
+<li>GROMs map ONLY at adresses &gt;5BFC (read data), &gt;5BFE (read
+address),
+&gt;5FFC (write data, not used) and &gt;5FFE (write address).</li>
+<p>NB One wonders why the GROM ports were not installed closer to each
+other (e.g. &gt;5FF8, &gt;5FFA, &gt;5FFC and &gt;5FFE). It's probably
+to
+be consistent with the convention of having GROM write ports &gt;0400
+bytes
+apart from the read ports. This way, to access one or the other type of
+GROM, is suffices to toggle the port between &gt;5BFC and &gt;9800. So
+as not to waste space, only these four words map to GROMs, the rest of
+the area &gt;5C00-5FFB maps to the ROM. (The code in the ROM just jumps
+over the reserved addresses).</p>
+<h4><br>
+<a name="CRU logic"></a>CRU logic</h4>
+<p>The CRU logic is exceedingly simple. Only two bits are used: bit 0
+turns
+the card on and controls the LED, bit 4 switches pages in the 4764 ROM.
+An optional jumper allows to control the LED with cru bit 7 instead of
+bit 0. No provision is made to read back the CRU bits.</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>&nbsp;                74LS259                     LED<br>                 +------+&nbsp;&nbsp;,--&gt;Bit0        ,--|&lt;|--- +5V<br> &nbsp;               |&nbsp;     |  |             |/<br>&nbsp;&nbsp;&nbsp;       A8&gt;----|S2  Q0|--+---o-o---+---|  2N3904<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;    A13&gt;----|S1  Q7|------o o---'   |\   <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A14&gt;----|S0  Q1|                  '---WWW---Gnd <br>&nbsp;        A15&gt;----|D&nbsp;  Q2|                  100 Ohms<br>                 |    Q3|<br>     CruSel*-----|EN&nbsp; Q4|----&gt;Bit 4<br>RESET*&gt;----|&gt;----|RST&nbsp;Q5|<br>            |    |    Q6|<br>           Gnd   +------+&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>The CruSel* signal is produced by the PAL chip when the CRU address
+is &gt;1Fxx. Therefore, bit 0 answers at address &gt;1F00. Due to the
+fact
+that A8 is used instead of A12, bit 4 answers at CRU address &gt;1F80
+and
+bit 7 at &gt;1F86.</p>
+<h4><br>
+<a name="ROMs"></a>ROM memory</h4>
+<p>As mentionned above, there are two ROM chips, a 4 Kbytes 4732 and an
+8 Kbytes 4764.</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre> &nbsp;       +----------+<br>         |  4764    |<br> ROM2*---|CS*       |<br> Bit4----|A12       |<br>&nbsp;      +----------+ |<br>       |   4732   | |<br>  A4---|A11     D7| |---D0   <br>  A5---|A10     D6| |---D1<br>  A6---|A9      D5| |---D2<br>  A7---|A8      D4| |---D3<br>  A8---|A7      D3| |---D4<br>  A9---|A6      D2| |---D5<br> A10---|A5      D1| |---D6<br> A11---|A4      D0| |---D7<br> A12---|A3        | |<br> A13---|A2        | |<br> A14---|A1        | |<br> A15---|A0        | |<br>       |          |-+<br>  A3---|CS2*      |<br>ROM1*--|CS1*      |<br>       +----------+<br> </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>Address and data pins are connected to the address and data bus in a
+fairly straightforward manner. Note that, because Texas Instrument
+numbers
+its pins the wrong way around (A0 being the MSB), the numbers do not
+match.
+But this is not critical with ROMs anyhow.</p>
+<p>Each chip has its own selection line, from the PAL control chip. In
+addition, the 4732 is enabled by A3, i.e. it will map at &gt;4000-4FFF
+only. The extra address line of the 4764 is controlled by CRU bit 4,
+which
+lets us page the area &gt;5000-5FFF.</p>
+<h4><br>
+<a name="GROMs"></a>GROM memory</h4>
+<p>The p-code card contains 8 GROM chips, each 6 Kbytes, installed at
+8K
+boundaries.</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre> &nbsp;                            +----------+<br>&nbsp;                 470       +----------+ |<br>            +5V---WWW---,   |          | |<br> DBIN----------,        |   |       AD0| |---D0   <br>        ,------=)&gt;--|&gt;--+---|M      AD1| |---D1<br>       |          470       |       AD2| |---D2<br>       |    +5V---WWW---,   |       AD3| |---D3<br>       | A14---,        |   |       AD4| |---D4<br>GSel*--+-------=)&gt;--|&gt;--+---|MO     AD5| |---D5<br>       |          470       |       AD6| |---D6 <br>       |    +5V---WWW---,   |       AD7| |---D7<br>       |                |   |          | |<br> A15---=)&gt;---+----|&gt;----+---|GS*       | |<br>             |              |          | |<br>READY--------&lt;|---+---------|GREADY    | |<br>            '125  |         |          | |<br> +5V---+---WWW----'       ,-|GCLK      |-+<br>       |   5.6K           | +----------+<br>       = 10 uF            |   8 GROMs<br> &nbsp;&nbsp;&nbsp;&nbsp;  |&nbsp;&nbsp;&nbsp;               |&nbsp;  TMC0430<br>      Gnd   74LS161       |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;    &nbsp; <br>&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;  &nbsp;+--------+&nbsp;&nbsp;   &nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   <br>+5V---+---|RESET*  |      | <br>&nbsp;&nbsp;    +---|LOAD*   |      |<br>&nbsp;&nbsp;    +---|ENT&nbsp;    |      |<br>&nbsp;&nbsp;&nbsp;&nbsp;  '---|ENP&nbsp;&nbsp;&nbsp;  |      |<br>CLKOUT*---|CLK* RC0|      |<br>&nbsp;    ,----|P0&nbsp;&nbsp;  Q0|&nbsp;     |<br>     +----|P1    Q1|      |   470<br>     +----|P2   &nbsp;Q2|--|&gt;--+---WWW---+5V<br>Gnd--+----|P3&nbsp;   Q3| <br>          +--------+&nbsp;&nbsp;&nbsp; </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>All pins are common for the 8 GROM chips. This is because each chip
+recognizes its own address range and does not answer otherwise. Address
+and data are passed via the data bus, as usual with GROMs. </p>
+<p>The three control pins are masked by the GSel* signal from the
+custom
+control IC by means of three OR gates, then amplified by three
+open-collector
+buffers (74LS17 ?) with associated 470 Ohms pull-up resistors. Pin M (
+Read/Write*) receives DBIN, pin MO (Address/Data*) receives A14 just
+like
+in the console, and the selection pin GS* receives A15 so that the
+GROMs
+only answer at even addresses.</p>
+<p>The GSel* signal also enables a 74LS125 3-state buffer that lets the
+GREADY signal reach the PE-Box bus. This allows the GROMs to put the
+TMS9900
+microprocessor on hold by pulling down the READY line, until they are
+ready
+to answer. Note the pull-up resistor on the line.</p>
+<p>Finally, a 74LS161 counter is used to generate the clock signal for
+the GROMs. It is wired so as to divide by 8 the system clock CLKOUT
+(a.k.a.
+PHI3*). Assuming a 3 MHz clock, this boils down to 375 kHz, which is
+quite
+a bit slower than the 447.4 kHz used for the console GROMs. But I
+suspect
+this was done for the sake of simplicity.</p>
+<h2><br>
+<a name="Software"></a>Software</h2>
+<p><a href="#software%20intro">Introduction<br>
+</a><a href="#fctn%20keys">Function keys<br>
+</a><a href="#system%20units">System units<br>
+</a><a href="#system%20files">System files</a></p>
+<p><b>Commands<br>
+</b><a href="#I%28nit%29">_Init<br>
+</a><a href="#H%28alt%29">_Halt<br>
+</a><a href="#E%28dit%29">_Edit<br>
+</a><a href="#C%28ompile%29">_Compile<br>
+</a><a href="#A%28ssemble%29">_Assemble<br>
+</a><a href="#L%28ink%29">_Link<br>
+</a><a href="#X%28ecute%29">_Xecute<br>
+</a><a href="#R%28un%29">_Run<br>
+</a><a href="#U%28ser%29">_User-restart<br>
+</a><a href="#F%28ile%29">_File<br>
+</a><a href="#M%28onitor%29">_Monitor</a></p>
+<p><a href="#Exec%20options">Execution options<br>
+</a><a href="#Utilities">Extra utilities</a></p>
+<p><a href="#Implementation">System implementation on the TI-99/4A</a></p>
+<h4><a name="software intro"></a>Introduction</h4>
+<p>The p-code card takes control of the TI-99/4A at power-up time. It
+enters
+the p-code operating system which runs in text mode (40-column,
+monochrome)
+and presents you with a main menu in the form of a promptline. </p>
+<p>A promptline always starts with the name of the current system
+module,
+followed by a column, a list of available commands, and a version
+number
+in square brackets. You can select a command by typing its first
+letter.
+If a promptline is too long to be displayed on a single line, it ends
+with
+a ? question mark. Typing a ? causes the next set of commands to be
+displayed.
+However, it is not necessary that an command is displayed for it to be
+available: if you remember its name you can enter its first letter at
+any
+time.</p>
+<p>Available commands at the system level are: E(dit), R(un), F(ile),
+C(omp),
+L(ink), X(ecute), A(ssem), H(alt), I(nitialize), U(ser restart), and
+M(onitor).
+In addition, there is a D(ebug) command that is not available with the
+TI system. </p>
+<p>The main menu and several of its command are implemented by a p-code
+program called SYSTEM.PASCAL. This program resides in the p-code card
+GROMs,
+and is accessed via unit #14. Other functions require a dedicated
+program
+that will be loaded from disk: Editor, Compiler, Assembler, Linker, or
+Filer. Extra utilities are provided on disks, that can be launched with
+X(ecute).</p>
+<h4><br>
+<a name="fctn keys"></a>Function keys</h4>
+<p>Apart from the arrow keys (Fctn-ESDX) and the &lt;enter&gt; key,
+several
+function keys are also active:</p>
+<pre>Fctn-1 &lt;del&gt;          Deletes a char<br>Fctn-2 &lt;ins&gt;          Inserts a char<br>Fctn-3 &lt;flush&gt;        Stops writing the output to the screen<br>Fctn-4 &lt;break&gt;        Stops a program and initializes the system<br>Fctn-5 &lt;stop&gt;         Suspends a program until a key is pressed<br>Fctn-6 &lt;alpha-lock&gt;   Toggle to convert upper-case to lower-case and back again<br>Fctn-7 &lt;screen left&gt;  Scrolls the screen to the left by 20 columns<br>Fctn-8 &lt;screen right&gt; Scrolls the screen to the right by 20 columns<br>Fctn-9 &lt;line delete&gt;  Deletes the current line<br>Ctrl-C &lt;etx/eof&gt;      Indicates the end of a file (fills it with zeros in the Editor)<br>Ctrl-. &lt;esc&gt;          Tells a program to ignore the previous text<br>Ctrl-I &lt;tab&gt;          Moves the cursor to the next tab</pre>
+<h4><br>
+<a name="system units"></a>System units</h4>
+<p>The TI-99/4A implementation of the p-system defines the following
+units:</p>
+<pre>#1:  CONSOLE<br>#2:  SYSTERM<br>#4:  &lt;diskname in DSK1&gt;<br>#5:  &lt;diskname in DSK2&gt;<br>#6:  PRINTER<br>#7: &nbsp;REMIN<br>#8: &nbsp;REMOUT<br>#9:  &lt;diskname in DSK3&gt;<br>#10: &lt;diskname&gt;  (For extra drives, if any)<br>#11: &lt;diskname&gt;<br>#12: &lt;diskname&gt;<br>#13: &lt;unit loaded from tape&gt;<br>#14: OS          (Card GROMs: contain the system files)<br>#31: TAPE        (Cassette tape recorder)<br>#32: TP          (Thermal printer)</pre>
+<p>When prompted for a filename, you could either type <tt>#4:MYFILE.TEXT</tt>,
+or <tt>MYDISK:MYFILE.TEXT</tt>, where <tt>MYDISK </tt>is the name of
+the
+disk in DSK1. If you omit the unit name and number, the system will
+look
+for the file on every units. If no ambiguity is possible, you can
+dispense
+with the final <tt>.TEXT</tt> or <tt>.CODE</tt> as the system
+automatically
+appends the appropriate suffix. To prevent the system from adding a
+suffix,
+follow the filename with a dot.</p>
+<h4><a name="system files"></a>System files</h4>
+<p>Some commands expect a filename as input. Filenames can be up to 15
+characters in length and can optionally be preceded by a unit name.
+Often,
+if you are prompted for a text file or a code file, you can ommit the
+final
+.<tt>TEXT </tt>or .<tt>CODE </tt>suffix.</p>
+<p>The system provides default names for either file type: <tt>SYSTEM.WRK.TEXT</tt>
+for text files, and <tt>SYSTEM.WRK.CODE</tt> for code files. If these
+files
+are present, programs like the Editor, the Compiler and the Assembler
+will
+use them without prompting you for a filename.</p>
+<h4><br>
+p-system commands</h4>
+<p><a name="I(nit)"></a><b>I</b>(initialize)</p>
+<p>Reboots the system and executes the code file <tt>SYSTEM.STARTUP</tt>,
+if present. Note that all execution errors that are not fatal cause the
+system to automatically initialise.</p>
+<p><br>
+<a name="H(alt)"></a><b>H</b>(alt)</p>
+<p>Exits the p-system and reboots the TI. This time, the p-code card
+will
+not take over and you can use TI-Basic or whatever module is available.
+To restart the p-system, turn the power off for both the console and
+the
+PE-box during 10 seconds.</p>
+<p><br>
+<a name="E(dit)"></a><b>E</b>(dit)</p>
+<p>Launches the text editor from the code file <tt>SYSTEM.EDITOR</tt>
+and
+automatically loads the file <tt>SYSTEM.WRK.TEXT</tt> for editing, if
+it
+is found. Otherwise, you are prompted for a filename and have to option
+to create a new one by entering the editor with no file at all. </p>
+<p>The editor that comes with the TI p-system is a fairly nice one: for
+instance, it lets you define markers inside your text file and jump to
+them easily. A complete description is beyond the scope of these pages,
+but just to make your mouth water, here is a list of availble edition
+commands:</p>
+<p>A(djust), C(opy), D(elete), F(ind), I(nsert), J(ump), K(olumn),
+Q(uit),
+R(eplace), X(change), Z(ap)</p>
+<p><br>
+<a name="C(ompile)"></a><b>C</b>(ompile)</p>
+<p>Launches the default compiler from the code file <tt>SYSTEM.COMPILER</tt>
+and automatically compiles the file <tt>SYSTEM.WRK.TEXT</tt> if it can
+be found. The resulting code file will be <tt>SYSTEM.WRK.CODE</tt>. If
+the default workfile is not found, you are prompted for the names of
+the
+TEXT and CODE file you want to use. </p>
+<p>The TI p-system comes with a sophisticated UCSD-Pascal compiler. For
+instance, if a compilation error occurs, the compiler gives you the
+option
+to continue compilation, to stop it, or to enter the Editor with the
+cursor
+positionned at the point where the error occured in the source file
+(ain't
+that nice?).</p>
+<p><br>
+<a name="A(ssemble)"></a><b>A</b>(ssemble)</p>
+<p>Launches the assembler from the code file <tt>SYSTEM.ASSEMBLER</tt>
+and starts assembling the file <tt>SYSTEM.WRK.FILE</tt> if it is
+found.
+If it is not found you are prompted for a source file, a code file and
+a list file. The defaults are: <tt>SYSTEM.WRK.CODE</tt> and no list
+file.
+In case of an assembly error, you have the same options as with the
+compiler:
+continue, stop or edit the source file.</p>
+<p><br>
+<a name="L(ink)"></a><b>L</b>(ink)</p>
+<p>Launches the linker from the file <tt>SYSTEM.LINKER</tt>. The
+linker
+takes assembly programs, links them together and with compiled files
+and
+turns them into a file that can be loaded and executed. </p>
+<p><br>
+<a name="X(ecute)"></a><b>X</b>(ecute)</p>
+<p>Prompts you for the name of a code file, then loads and executes it.
+Optionally, the filename can be followed by some option switches (in
+fact,
+your input can consist uniquely in option switches).</p>
+<p>The system will complain if the file cannot be found, if it needs to
+be linked before execution, or if it does not contain a program.</p>
+<p><br>
+<a name="R(un)"></a><b>R</b>(un)</p>
+<p>This is a batch command. It tries to load and execute the workfile <tt>SYSTEM.WRK.CODE</tt>.
+If this file is not found (or if it does not contain a program) run
+calls
+the compiler and possibly the linker to try to produce a valid code
+file.
+If <tt>SYSTEM.WRK.TEXT</tt> is present it will be compiler, otherwise
+you'll
+be prompted for filenames.</p>
+<p><br>
+<a name="U(ser)"></a><b>U</b>(ser restart)</p>
+<p>Causes the last system or user-defined application to run again,
+with
+the same input parameters as before. However, U(ser restart) will not
+reenter
+the compiler nor the assembler (it will reenter the editor though).</p>
+<p><br>
+<a name="F(ile)"></a><b>F</b>(ile)</p>
+<p>Launches the filer from the file <tt>SYSTEM.FILER</tt> The filer is
+the p-system disk manager.</p>
+<p>In the p-system, files are never fractured, rather they are saved as
+a continuum of blocks. Which often results in creating gaps between
+files,
+that are too small to be reused efficiently. One of the most usefull
+functions
+of Filer is to pack the files together so as to reclaim this space.
+Then
+of course it offers standard functions like directory listing, file
+copy,
+file deletion, disk formatting, etc. </p>
+<p>One word on disk format: this is a two-level formatting, which means
+the disk should already have been formatted with the DiskManager
+cartridge
+or a similar program. What Filer does is to fill the disk with a
+single,
+huge DF128 file called "PASCAL". The p-system files are then
+part of the PASCAL file. Concretely, this means that you cannot manage
+p-code files with your standard disk manager, you need Filer...which
+was
+sold separately by Texas Intruments (so were the Editor, Compiler,
+Assembler,
+Linker, etc.).</p>
+<p>Again, a detailed description of the filer commands is beyond the
+scope
+of this document, but here is its main menu, just to give you a taste
+of
+it:</p>
+<p>B(ad-blocks), C(hange), D(ate), E(xtended-directory), G(et),
+K(runch),
+L(ist-directory), M(ake), N(ew), P(refix), Q(uit), R(emove), S(ave),
+T(ransfer),
+V(olumes), W(hat), X(amine), Z(ero).</p>
+<p><br>
+<a name="M(onitor)"></a><b>M</b>(onitor)</p>
+<p>Allows you to record your actions into a file, in the form of
+keystrokes,
+so that they can be replayed later on unsing the I= switch in the
+X(ecute)
+command. This is a nice way to implement automated tasks, and batch
+files.
+The resulting file can be a TEXT file or a data file. If it is a TEXT
+file
+it can be edited with the Editor. however it cannot contain special
+keystrokes
+such as the arrow keys.</p>
+<p>Once you select Monitor, you are presented with the following
+options:
+B(egin), E(nd), A(bort), S(uspend), R(esume)</p>
+<p><b>B</b>(egin): starts a monitoring session. You are prompted for a
+filename optionally followed by a file length in brackets. The length
+is
+in blocks of 512 bytes and generally a lentgh of (1) is more than
+enough.</p>
+<p><b>R</b>(esume): Returns to the main menu and starts recording all
+your
+input into the file. </p>
+<p><b>S</b>(uspend): Returns to the main menu and temporarily stops
+recording
+your input. To resume loging, use the R(esume) command.</p>
+<p><b>E</b>(nd): leaves monitor mode and saves the resulting file. To
+return
+to the main menu, select S(uspend).</p>
+<p><b>A</b>(borts): leaves monitor mode without saving the file. To
+return
+to the main menu, select S(uspend) or R(esume).</p>
+<h4><br>
+<a name="Exec options"></a>Execution options</h4>
+<p>The X(ecute) command also lets you enter a string of options to
+configurate
+your system. An option consists in one or two letters, optionally
+followed
+with an equal sign and a parameter. Several options can be specified,
+by
+using spaces as separators. If your input also contains the name of a
+file
+to be executed, it must precede the options, although they will be
+processed
+by the system before execution of the file.</p>
+<p><b>PI=</b> filename or PI= "string" or PI=</p>
+<p>Redirects program input. When followed with a filename, all input to
+the program will be taken from this file until an EOF is encountered.
+The
+name can also be that of a no-disk unit (such as REMIN:), in which case
+redirection continues until you explicitely cancel it. </p>
+<p>When followed with a string in double quotes, this string will be
+the
+program input. To include double quotes in the string, replace them
+with
+two single quotes. Commas are understood as &lt;enter&gt;. Note that
+you
+can enter several strings with successive PI= commands, in which case
+will
+be processed in order of appearance. You can also specify both a file
+and
+one or more strings for input, in which case the strings are processed
+first, and then the file is used. Input redirection ends when the
+program
+terminates and all unused characters are discarded.</p>
+<p>If nothing follows the = sign, the program input will be the same as
+the system input. </p>
+<p><br>
+<b>I= </b>filename or I= "string" or I=</p>
+<p>Same as PI= but affects the system input, i.e. main menu commands.
+Redirection
+terminates when an execution error is encountered or when the H(alt)
+command
+is executed. Canceling redirection results in using CONSOLE: as input.
+</p>
+<p><br>
+<b>PO=</b> filename or PO=</p>
+<p>Redirects program output to the file (or unit) specified. The file
+will
+be closed when redirection is changed. To cancel redirection, just type
+PO= this will cause the output to be the same as the system output.</p>
+<p><br>
+<b>O=</b> filename or O=</p>
+<p>Same as PO= but redirects the output from the system. O= cancels
+redirection
+and sends output to CONSOLE:.</p>
+<p>Note that redirection only applies to the standard input and output
+files. If a program uses low-level procedures like UNITREAD and
+UNITWRITE
+no redirection will occur. A program can also specify its own
+redirections
+with the procedure REDIRECT, cancel it with EXCEPTION or append a
+string
+to the input buffer with the procedure CHAIN.</p>
+<p><br>
+<b>P= </b>diskname</p>
+<p>Changes the default prefix, i.e. the unit name to be used when a
+filename
+does not specify a unit. You don't need to type the final : after the
+unit
+name. This can also be achieved from inside the Filer, with the command
+P(refix).</p>
+<p><br>
+<b>L=</b> filename</p>
+<p>Changes the default library textfile (normally <tt>USERLIB.TEXT</tt>).
+You don't need to type the final <tt>.TEXT</tt> since it is added
+automatically.
+The library textfile is a text file that contains a list of user
+libraries.
+When a program is run that calls an external unit, the system looks for
+it in the library files listed in the library textfile and then in <tt>SYSTEM.LIBRARY</tt>.</p>
+<h4><br>
+<a name="Utilities"></a>Extra utilities</h4>
+<p>The TI-99/4A p-system package includes several floppy disks. These
+contain
+the Editor, Filer, Compiler, Assembler and Linker programs to be
+launched
+directly from the main menu. In addition, there are several utilities
+that
+you can launch with the X(ecute) command:</p>
+<table cellspacing="0" cellpadding="0">
+  <tbody>
+    <tr>
+      <td>COPYDUPDIR </td>
+      <td>Rescue damaged directory with the duplicated one</td>
+    </tr>
+    <tr>
+      <td>DECODE </td>
+      <td>Analyses a code file and disassembles p-code procedures in it.</td>
+    </tr>
+    <tr>
+      <td>DFORMAT </td>
+      <td>Format a unit.</td>
+    </tr>
+    <tr>
+      <td>DSKTOCASS </td>
+      <td>Copy a disk file to the cassette tape recorder</td>
+    </tr>
+    <tr>
+      <td>LIBRARY </td>
+      <td>Manages library files.</td>
+    </tr>
+    <tr>
+      <td>MARKDUPDIR </td>
+      <td>Installs a duplicate directory on disk.</td>
+    </tr>
+    <tr>
+      <td>MODRS232 </td>
+      <td>Modifies the transmission parameters for PRINTER, REMIN and
+REMOUT
+units.</td>
+    </tr>
+    <tr>
+      <td>PATCH </td>
+      <td>Sector editor for files and whole units.</td>
+    </tr>
+    <tr>
+      <td>RECOVER </td>
+      <td>Undelete and disk doctor utility.</td>
+    </tr>
+    <tr>
+      <td>SETLTYPE </td>
+      <td>Change segment type in a code file.</td>
+    </tr>
+    <tr>
+      <td>SETUP </td>
+      <td>Selects the keyboard function keys.</td>
+    </tr>
+    <tr>
+      <td>XDISK </td>
+      <td>Cassette program creator</td>
+    </tr>
+  </tbody>
+</table>
+<p><b>DFORMAT</b></p>
+<p>Formats a floppy disk, installing the big DF128 file named PASCAL
+that
+takes up all disk space. The p-system "files" are actually records
+inside the PASCAL file.</p>
+<p><b>MARKDUPDIR and COPYDUPDIR</b></p>
+<p>As a safety measure, the p-system can maintain two copies of the
+disk
+directory on a given unit. <tt>MARKDUPDIR </tt>installs such a
+duplicate
+directory in the first blocks of a given unit. If a crash were to
+destroy
+the main directory, you could run <tt>COPYDUPDIR </tt>to copy the
+duplicate
+directory over the damaged one.</p>
+<p><b>RECOVER</b></p>
+<p>This utility analyses to content of a unit, and can look for missing
+files. It is usefull to recover accidentally deleted files, or crashed
+directories.</p>
+<p><b>DSKTOCASS</b></p>
+<p>Is used to copy a file from a floppy disk unit to the cassette tape
+recorder.</p>
+<p><b>XDISK</b></p>
+<p>Is a cassette program creator.</p>
+<p><b>LIBRARY</b></p>
+<p>This program is a library file manager. It lets you insert files
+into
+a library, decide whether you want to include the interfacet text,
+display
+a given slot, etc.</p>
+<p><b>SETUP</b></p>
+<p>Lets you select the key combinations you want to perform various
+functions
+in the text-oriented Editor. For instance: backspace, delete, insert,
+escape,
+etc. It also lets you set several flags describing your system: what's
+the byte sex of your machine, does it have a clock, what's the screen
+width
+and height. You can either modify the current parameters in the
+p-system
+memory, or save the results are saved on a file called <tt>NEW.MISCINFO</tt>.
+By renaming this file <tt>SYSTEM.MISCINFO</tt> you can cause your
+choices
+to be automatically loaded at boot time.</p>
+<p><b>MODRS232</b></p>
+<p>Lets you modify the transmission parameters of the RS232C serial
+port.
+This can affect either the unit PRINTER: or the units REMIN: and
+REMOUT:
+After you pick one of these, you just type a DSR name in the style: <tt>RS232/1.BA=9600.DA=8/PA=O.EC</tt></p>
+<p>Interestingly, the Pascal source file for this program is also
+provided.</p>
+<p><b>DECODE</b></p>
+<p>This very nice program is a p-code disassembler, coupled with a code
+file analyser. <tt>DECODE </tt>lets you view the segment directory,
+display
+a summary of the contents of a segment, disassemble a p-code procedure,
+dump the symbol table, view the segment reference list, the interface
+text,
+or the linker information. The disassembler is not very user-friendly
+though,
+in that it dumps the whole procedure, no matter what. Obviously, this
+utility
+is meant for printout purposes.</p>
+<p><b>SETLTYPE</b></p>
+<p>This tiny utility lets you change the segment type inside a code
+file,
+e.g. from p-code to assembly.</p>
+<p><b>PATCH</b></p>
+<p>This usefull program is basically a sector editor. It lets you view
+the contents of a unit, or of a file in the unit, either as hex bytes
+or
+as ascii characters. You can also dump this info into a file or print
+it
+out and set several options governing the appearance of the output.
+Finally,
+you can type in new values and save back the sector.</p>
+<h3><br>
+<a name="Implementation"></a>TI-99/4A p-system implementation</h3>
+<p>The intrinsics of the p-system are described in <a
+ href="psystem.htm">another
+page</a>. I have very few details on how the p-system is implemented on
+the TI-99/4A. Here is the little I know...</p>
+<p>The GROMs hold unit #14, a.k.a. OS: They contain three files: <tt>SYSTEM.PASCAL</tt>
+which implements the main menu and some of its functions, <tt>SYSTEM.MISCINFO</tt>
+and <tt>SYSTEM.CHARAC</tt> which hold the default system parameters.</p>
+<p>The ROMs must therefore contains the PME, the BIOS (together with
+the
+card DSRs) and possibly part of the OS. The second ROM page at
+&gt;5000-5FFF
+contains some unit BIOS: console, RS232, TP, cassette, etc. </p>
+<p>To speed up execution, part of the code used to interpret p-codes is
+copies into the 16-bit scratch-pad RAM (&gt;8300 and up), but since
+that's
+only 256 bytes in size, not much can go there. The scratch-pad also
+holds
+several workspaces used by the p-system.</p>
+<p>The heap is at the bottom of the high memory expansion, growing
+upwards.
+The stack grows downwards from the end of the high memory expansion.
+The
+internal code pool is placed in between them, but p-code programs can
+also
+be executed in several external code pools: in the VDP RAM or in GROMs
+(in the case of <tt>SYSTEM.PASCAL</tt>).</p>
+<p>The low memory expansion is reserved for system use, upto &gt;390C.
+I'm not sure whether the remainder of it could also be used as a code
+pool.
+A detailed description of its contents can be found on <a
+ href="pcode.txt">this
+file</a>, once published by Anders Persson.</p>
+<address><br>
+Revision 1. 9/22/01. Ok to release.<br>
+<br>
+</address>
+<center>
+<p><a href="titechpages.htm">Back to the TI-99/4A Tech Pages</a></p>
+</center>
+<p>&nbsp; </p>
+</body>
+</html>

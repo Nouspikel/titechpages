@@ -1,0 +1,656 @@
+*-----------------------------------------------------
+*      dsr routines           standard opcodes (0-9)
+*
+A49B6  CB   @NAMSZ,@H05       open
+       JNE  A49CA             ====
+       LI   1,>2600           no filename: dir
+       MOVB 1,@PABRLN         rec len=38
+       B    @A4B4A
+ 
+A49CA  BL   @A5020            check status
+       ABS  @OPENPT           already open
+       JNE  A4A28             no: error
+       MOVB @PABSTA,1         old status
+       MOVB @PABFTY,2         new status
+       CZC  @H8000,1          found ?
+       JEQ  A49EE             yes
+       CZC  @H0400,2
+       JEQ  A49EE
+       COC  @H0200,2          no: is it input ?
+       JNE  A4A18             error if input
+ 
+A49EE  LI   8,OPENFI          open files list
+A49F2  CB   @5(8),@H00        free slot ?
+       JEQ  A4A08             yes
+       AI   8,>0006           no: next
+       CI   8,PABOPC          eo list ?
+       JL   A49F2             no
+       B    @A4B5E            yes: memory full
+A4A08  MOV  8,@A4AC8+2        save slot ptr
+ 
+       COC  @H8000,1          found ?
+       JEQ  A4A68             no: skip type checking
+       COC  @H0800,1          yes: program type ? (>08)
+       JNE  A4A1C             no
+A4A18  B    @A4B52            error if program file
+ 
+A4A1C  COC  @H1000,1          was it int ? (>10)
+       JNE  A4A2C             no
+       COC  @H0800,2          yes: is it still int ? (>08)
+       JEQ  A4A32             ok
+A4A28  B    @A4B64            bad attribute
+A4A2C  COC  @H0800,2          was dis: is it int?
+       JEQ  A4A28             yes: error
+ 
+A4A32  COC  @H4000,1          was it protected ? (>40)
+       JNE  A4A44             no
+       COC  @H0400,2          yes: check access mode (>04)
+       JNE  A4A28             error if output/update
+       CZC  @H0200,2
+       JNE  A4A28             error if not input
+ 
+A4A44  COC  @H0400,1          was it var ? (>04)
+       JNE  A4A52             no
+       COC  @H1000,2          yes: is it still var ? (>10)
+       JEQ  A4A58             ok
+       JMP  A4A28             error
+A4A52  COC  @H1000,2          was fix: is it var ?
+       JEQ  A4A28             yes: error
+ 
+A4A58  BL   @A5466            point at file header
+       BL   @A5508            set record length
+       AI   6,>0011
+       CB   *6,1              match with new?
+       JNE  A4A28             no:error
+ 
+A4A68  MOVB @PABFTY,3         new status
+       BL   @A5508            record lenght in r1
+       CB   @HFF00,1          is it 255?
+       JNE  A4A7C             no
+       COC  @H1000,3          yes: is it var? (>10)
+       JEQ  A4A28             yes: error (max=254)
+ 
+A4A7C  COC  @H0100,3          is it relative ? (>01)
+       JNE  A4A8A             no, sequential
+       SZCB @H1000,3          yes: can't be var
+       MOVB 3,@PABFTY         change type
+ 
+A4A8A  COC  @H0400,3          if append, must be relative
+       JNE  A4A9C
+       COC  @H0200,3          is it append ?
+       JNE  A4A9C             no
+       COC  @H1000,3          is it relative ?
+       JNE  A4A28             no: error
+ 
+A4A9C  MOVB @PABSTA,1         old status
+       MOVB @PABFTY,2         new status
+       COC  @H8000,1          found ?
+       JEQ  A4AF6             no: new file
+ 
+       CZC  @H0400,2          yes
+       JNE  A4AC4
+       COC  @H0200,2          is it output ?
+       JNE  A4AC4             no
+       BL   @A56E4            yes: update bitmap
+       SZCB 7,*6                   freeing file space
+       BL   @A5466            point at file header
+       BL   @A56BC            empties the cluster list
+ 
+A4AC4  BL   @A5466            point at file header
+A4AC8  LI   8,OPENFI          may vary: point at open file list
+       SETO *8+               default value
+       MOV  @HEADER,*8+       header's sector #
+       MOV  @DRIVNB,*8        drive #
+       MOVB @PABFTY,1         new status
+       COC  @H0400,1
+       JNE  A4AF4
+       COC  @H0200,1          is it append ?
+       JNE  A4AF4             no
+       AI   6,>000E
+       MOV  *6+,1             get # of sector used
+       DEC  1                 minus header
+       MOV  1,@-4(8)          save # of sectors
+       MOVB *6,*8             and eof offset
+A4AF4  JMP  A4B4A
+ 
+A4AF6  LI   11,>8360          new file: set file parameters
+       MOV  @PABDBF,*11+      pass data buffer address
+       CLR  *11+              code 0: param passing
+       CLR  2
+       MOVB @PABFTY,1         status
+       CZC  @H0800,1          is it dis ?
+       JEQ  A4B10             yes
+       SOCB @H0200,2          no: set int flag
+ 
+A4B10  CZC  @H1000,1          is it fix ?
+       JEQ  A4B1A             yes
+       SOCB @H8000,2          no: set var flag
+ 
+A4B1A  MOVB 2,*11+            pass status
+       LI   2,>0100
+       CLR  1
+       MOVB @PABRLN,0         record length
+       SRL  0,8
+       DIV  0,1               how many per sector
+       SWPB 1
+       MOVB 1,*11+            pass record/sector
+       MOVB 0,*11+            clear eof offset
+       MOVB @PABRLN,*11+      pass  record length
+       CLR  *11+              clear # of rec alloc
+       BL   @A54F2            set scratch-pad for sbr call
+       BL   @A484A            call sbr >15: direct output
+       MOVB @>8350,0          errors detected ?
+       JNE  A4B6E             yes
+       BL   @A5020            check status
+       JMP  A4A9C             update list (as for old file)
+ 
+A4B4A  SZCB @HE0,@PABFTY      clear status
+       JMP  A4B72
+A4B52  MOVB @HE0,0            file error
+       JMP  A4B6E
+A4B58  MOVB @HA0,0            past eof
+       JMP  A4B6E
+A4B5E  MOVB @H8000,0          memory full
+       JMP  A4B6E
+A4B64  MOVB @H4000,0          bad attribute
+       JMP  A4B6E
+A4B6A  MOVB @H2000,0          write protected
+A4B6E  SOCB 0,@PABFTY         set errors byte
+A4B72  MOV  @PABPTR,8         filename ptr in vdp (pab)
+       AI   8,>FFF3           point at status (pab)
+       BL   *15               write to vdp
+       LI   1,PABFTY
+       LI   2,>0008
+A4B84  MOVB *1+,*14           update pab in vdp mem
+       DEC  2
+       JNE  A4B84
+       B    @A4550            done
+*
+*
+A4B8E  LI   11,A4B4A          close
+A4B92  MOV  11,@A4BAC+2       ===== entry point for bl
+       CB   @NAMSZ,@H05
+       JEQ  A4BAC             no filename (dir)
+       BL   @A5020            check status
+       MOV  @OPENPT,8
+       JEQ  A4B52             not found
+       CLR  @4(8)             removed from list
+A4BAC  B    @0000             return address may vary
+*
+*
+A4BB0  SETO @RWFL             read
+       CB   @NAMSZ,@H05       ====
+       JEQ  A4BC0             no filename
+       B    @A4CAC
+ 
+A4BC0  LI   8,CPUBUF          read directory
+       CLR  2                 --------------
+       MOV  @PABREC,4         rec #
+       JEQ  A4BE4
+       BL   @A54DC            count files
+       INCT 11                plus 2
+       C    4,11
+       JHE  A4B58             past eof
+       BL   @A545E            point at sector 1
+       DEC  4
+       SLA  4,1
+       A    4,6
+       MOV  *6,4              get pointer to header
+       JEQ  A4BFE             empty
+A4BE4  MOV  4,@HEADER
+       BL   @A5466            point at this header
+       MOV  6,1
+       LI   3,>000A           check filename size
+A4BF2  CB   *1+,@H2000        space?
+       JEQ  A4BFE
+       INC  2
+       DEC  3
+       JNE  A4BF2
+A4BFE  SWPB 2
+       MOVB 2,*8+             save name size
+       SWPB 2
+       MOV  2,4
+       AI   4,>001C
+       MOV  6,1
+A4C0C  DEC  2                 save filename
+       JNC  A4C14
+       MOVB *1+,*8+
+       JMP  A4C0C
+ 
+A4C14  CLR  @FLAG
+       MOV  @PABREC,1         rec #
+       JNE  A4C4A
+ 
+       CLR  2                 record 0
+       BL   @A5526            write 0
+       MOV  @>000A(6),2       total # of sectors
+       BL   @A5526            write it
+       CLR  2
+       AI   6,>0038           point at bitmap
+A4C32  MOV  *6+,7             count free sectors
+       CI   6,>5902
+       JEQ  A4CA0             done
+       LI   1,>0010
+A4C3E  SLA  7,1
+       JOC  A4C44
+       INC  2                 plus one
+A4C44  DEC  1
+       JNE  A4C3E             next bit
+       JMP  A4C32             next word
+ 
+A4C4A  CI   4,>001C           other records
+       JNE  A4C5C
+       CLR  2                 no name
+       BL   @A5526            write 3 times 0
+       BL   @A5526
+       JMP  A4CA0
+ 
+A4C5C  AI   6,>000C
+       MOVB *6,1              get file status
+       MOV  1,2
+       ANDI 1,>0800
+       JEQ  A4C6E
+       SETO @FLAG             write protected
+A4C6E  SZCB 1,2               clear protection bit
+       SRL  2,8
+       INC  2
+       CI   2,>0002           program ?
+       JNE  A4C7E             no
+       AI   2,>0003           code becomes 5
+A4C7E  CI   2,>0008           var ?
+       JL   A4C88             no
+       AI   2,>FF81           adjust code (1 to 5)
+A4C88  BL   @A5526            write it
+ 
+       CLR  @FLAG
+       INCT 6
+       MOV  *6+,2             # of sectors used
+       INC  2                 plus 1 for header
+       BL   @A5526            write it
+ 
+       INC  6
+       MOVB *6,2              eof offset
+       SRL  2,8
+A4CA0  BL   @A5526            write it
+ 
+       MOV  4,0               char count
+       LI   6,CPUBUF
+       JMP  A4CE4             write to data buffer and exit
+ 
+A4CAC  BL   @A5020            read a file
+       ABS  @OPENPT           ----------- check status
+       JEQ  A4CC4             not found: error
+       MOVB @PABFTY,1         file status
+       CZC  @H0200,1          update/input ?
+       JEQ  A4CC8             yes
+       BL   @A4B92            no: close file
+A4CC4  B    @A4B64            bad attribute error
+ 
+A4CC8  MOVB @PABSTA,1         status found in list
+       COC  @H0100,1          eof ?
+       JNE  A4CDA             no
+       BL   @A4B92            yes: close file
+       B    @A4B58            past eof error
+ 
+A4CDA  COC  @H0400,1          var ?
+       JEQ  A4CEE
+A4CE0  BL   @A557A            fix: point at record
+A4CE4  BL   @A469E            ---- to data buffer
+       INC  @PABREC           next record
+       JMP  A4D62             done
+ 
+A4CEE  BL   @A5572            var: point at open files list
+       JLT  A4D26             ---- current sector = -1: try next
+       BL   @A5466            point at file header
+       BL   @A5670            find sector in file (in r3)
+       MOV  4,6
+       JEQ  A4D66             not found: error
+       BL   @A546A            point at it
+       MOV  @OPENPT,8         open file ptr
+       MOVB @4(8),1           eof offset
+       SRL  1,8
+       A    1,6               point at last byte
+       ABS  @RWFL             r/w flag
+       JNE  A4D1E             read
+       MOVB @PABCNT,0         write: char count
+       MOVB 0,*6+             write it in last byte
+       JMP  A4D36
+ 
+A4D1E  MOVB *6+,0             get last byte
+       CB   0,@HFF00          is it >ff
+       JNE  A4D36             no
+A4D26  INC  3                 yes: next sector
+       MOV  @OPENPT,8         becomes current one
+       MOV  3,*8
+       MOVB @H00,@4(8)        clear eof offset
+       JMP  A4CEE             try again
+ 
+A4D36  SRL  0,8
+       BL   @A469E            to data buffer
+       ABS  @RWFL             r/w ?
+       JNE  A4D46             read
+       MOVB @HFF00,*6         write >ff
+A4D46  MOV  @OPENPT,8         point at current open file
+       C    *8+,*8+           eof offset ptr
+       AB   @PABCNT,*8        add char count
+       AB   @H0100,*8         plus one
+ 
+       ABS  @RWFL             r/w ?
+       JNE  A4D62             read
+       BL   @A5466            write: point at file header
+       MOVB *8,@>0010(6)      save eof offset
+A4D62  B    @A4B4A            return with no error
+ 
+A4D66  BL   @A4B92            close file
+       B    @A4B52            error
+*
+*
+A4D6E  BL   @A5020            write
+       ABS  @OPENPT           ===== check status
+       JEQ  A4D9C             not found: error
+       ABS  @WPRFL
+       JNE  A4DA0             write protected drive
+ 
+       MOVB @PABSTA,2         status found
+       COC  @H4000,2
+       JEQ  A4DA0             write protected file
+ 
+       MOVB @PABFTY,1         file status
+       CZC  @H0400,1
+       JEQ  A4DA8
+       COC  @H0200,1          input ?
+       JEQ  A4DA8             no
+       BL   @A4B92            yes: close file
+A4D9C  B    @A4B64            bad attribute error
+A4DA0  BL   @A4B92            close file
+       B    @A4B6A            write protected error
+ 
+A4DA8  CLR  @RWFL
+       COC  @H0400,2          var ?
+       JEQ  A4DF0             yes
+       COC  @H0100,2          fix: eof ?
+       JNE  A4DEC             ---  no: write and exit
+       BL   @A5466            point at file header
+       AI   6,>000D
+       MOVB *6+,0
+       SRL  0,8               rec/sector
+       MOV  *6+,3             sectors used
+       INCT 6
+       CLR  1
+       MOV  @PABREC,2         record #
+       INC  2
+       SWPB 2
+       MOV  2,*6+             save # records
+       SWPB 2
+       DIV  0,1               find sector
+       MOV  2,2
+       JEQ  A4DDE             first
+       INC  1
+A4DDE  S    3,1               sector to add
+       JEQ  A4DEC             none
+       MOV  1,5
+A4DE4  BL   @A55B2            add 1 sector
+       DEC  5                 more ?
+       JNE  A4DE4             yes
+A4DEC  B    @A4CE0            data buffer -> record, exit
+ 
+A4DF0  COC  @H0100,2          var file
+       JEQ  A4E44             --- eof
+       BL   @A56E4            update bitmap
+       SZCB 7,*6              clearing file sectors
+       BL   @A5466            point at file header
+       BL   @A5572            point at open files list
+       JLT  A4E08             no current sector
+       JMP  A4E14
+A4E08  SOCB @H0100,@PABSTA    set eof bit
+       BL   @A56BC            clear cluster list
+       JMP  A4E56             add 1 sector and exit
+ 
+A4E14  AI   6,>001C           point at cluster list
+A4E18  BL   @A569C            read cluster def
+       MOV  1,8               first sector
+       JEQ  A4D9C             0: bad attribute
+       C    3,2               in cluster ?
+       JGT  A4E18             no: next cluster
+       MOV  3,1
+       MOV  6,10
+       AI   10,-3
+       BL   @A572E            write cluster def
+       BL   @A56CA            clear cluster list (remainder)
+       BL   @A5466            point at file header
+       INC  1
+       MOV  1,@>000E(6)       # of sectors
+       BL   @A56E4            update bitmap
+       SOCB 7,*6              marking file sectors as used
+A4E44  BL   @A5572            point at open files
+       JLT  A4E56             no current sector
+       MOVB @PABCNT,1         char count
+       SRL  1,8
+A4E50  CI   1,>0000           unread bytes, set by status
+       JL   A4E6A             eof reached: end
+A4E56  BL   @A55B2            add 1 sector
+       MOV  *6+,8             # of sectors
+       INCT 6
+       SWPB 8
+       MOV  8,*6              # of var sectors (inverted bytes)
+       BL   @A5572            point at open file
+       B    @A4D26            next sector, then common end
+A4E6A  B    @A4CEE            end, common with read var
+UNREAD EQU  A4E50+2
+*
+*
+A4E6E  BL   @A5020            restore
+       MOV  @OPENPT,0         ======= check status
+       JEQ  A4F2C             not found: bad attribute
+       MOVB @PABFTY,1         file status
+       CZC  @H0200,1
+       JNE  A4F28             output/append
+       COC  @H0100,1
+       JEQ  A4E94             relative: exit
+       CLR  @PABREC           clear record #
+       SETO *0+               no current sector
+       INCT 0
+       MOVB @H00,*0           clear eof offset
+A4E94  B    @A4B4A            exit with no errors
+*
+*
+A4E98  MOV  @PABDBF,@>8360    load
+       BL   @A54F2            ==== set pad for sbr call
+       BL   @A47C6            call sbr >14 (input) for param passing
+       MOVB @>8364,1          status in file parameters
+       CZC  @H0100,1          is it program file ?
+       JEQ  A4F30             no: error
+       MOVB @>8363,@>834D     total # of sectors: to read
+       BL   @A54F6            set pad for sbr call (@>834D <> 0)
+       BL   @A47C6            call sbr >14 for input
+       JMP  A4F1E             check errors and return
+*
+*
+A4EC0  MOV  @PABDBF,@>8360    save
+       BL   @A54F2            ==== set pad for sbr call
+       MOVB @PABREC,@>8362    # of 256 bytes (msb)
+       SWPB @>8362            -> # of sectors
+       CLR  @>8366            0 -> rec len
+       MOVB @PABREC+1,@>8366  # of bytes (lsb) -> eof
+       JEQ  A4EE4
+       INC  @>8362            0=256: 1 more sector
+A4EE4  MOV  @A470E+2,@>8364   >0100 -> status + rec/sect
+       CLR  @>8368            0 -> # of fix rec / var sect
+       BL   @A484A            call sbr >15 (for create)
+       MOVB @>8350,0
+       JNE  A4F30             error occured
+ 
+       MOV  @PABDBF,@>8360    data buffer
+       MOVB @PABREC,@>834D    # of sectors (256 bytes)
+       MOVB @PABREC+1,@>8366  eof offset
+       JEQ  A4F10
+       INC  @>834C            one more sector if 256
+A4F10  BL   @A54F6            prapare pad (@>834D <> 0)
+       MOVB @A470E+2,@>8364
+       BL   @A484A            call sbr >15 again, for writing
+A4F1E  MOVB @>8350,0
+       JNE  A4F30             error occured
+       B    @A4B4A            exit with no error
+ 
+A4F28  BL   @A4B92            close file
+A4F2C  B    @A4B64            bad attribute
+A4F30  B    @A4B52            error
+A4F34  BL   @A4B92            close file
+A4F38  B    @A4B6A            write protected error
+*
+*
+A4F3C  BL   @A5020            delete check status
+       ABS  @OPENPT           ======
+       JEQ  A4F4E             not open
+       BL   @A4B92            call close sbr
+       BL   @A5020            check status
+ 
+A4F4E  ABS  @WPRFL
+       JNE  A4F38             write protected drive
+       MOVB @PABSTA,1         found status
+       COC  @H8000,1
+       JEQ  A4F30             not found
+       COC  @H4000,1
+       JEQ  A4F38             write protected file
+ 
+       MOV  @HEADER,0         get header's sector
+       BL   @A5436            find it in bitmap
+       SZCB 7,*6              make it free
+       BL   @A56E4            update bitmap
+       SZCB 7,*6              clearing file sectors
+ 
+       BL   @A54DC            count files
+       MOV  11,3
+       BL   @A545E            point at sector 1
+A4F7E  LI   1,>0000           # may vary
+       S    1,3               files after current one
+       DEC  1
+       SLA  1,1               2 bytes/pointer
+       A    6,1               in sector 1
+       MOV  1,2
+       INCT 2
+A4F8E  MOV  *2+,*1+           shift pointers backwards
+       DEC  3
+       JOC  A4F8E             next
+A4F94  B    @A4B4A            done
+RANK   EQU  A4F7E+2           file alpha rank in sector 1
+*
+*
+A4F98  BL   @A5020            scratch record
+       ABS  @OPENPT           ============== check status
+       JEQ  A4F30             not open: error
+       ABS  @WPRFL
+       JNE  A4F34             write protected drive
+       MOVB @PABSTA,1         found status
+       COC  @H4000,1
+       JEQ  A4F34             write protected file
+ 
+       MOVB @PABFTY,1         pab status
+       COC  @H0400,1
+       JEQ  A4F30
+       COC  @H0200,1          is it update ?
+       JEQ  A4F30             no
+ 
+A4FC2  BL   @A5466            point at header
+       MOV  @>0012(6),2       # of records
+       SWPB 2                 (bytes reversed)
+       DEC  2
+       C    @PABREC,2         current record
+       JLT  A4FDC             is in file
+       SWPB 2                 no (more)
+       MOV  2,@>0012(6)       return last record #
+       JMP  A4F94             done
+ 
+A4FDC  INC  @PABREC           next record
+       BL   @A557A            point at it
+       MOV  6,8               mem pointer
+       MOV  7,10              page cru
+       DEC  @PABREC           record to del
+       BL   @A557A            point at it
+       INC  @PABREC
+       C    7,10              on same ram page ?
+       JNE  A5000             no
+A4FF8  MOVB *8+,*6+           yes: copy next on current
+       DEC  0
+       JNE  A4FF8             next byte
+       JMP  A4FC2             next record
+ 
+A5000  LDCR 10,0              next record's sector
+       LI   9,CPUBUF
+       MOV  0,1
+A5008  MOVB *8+,*9+           copy to buffer
+       DEC  0
+       JNE  A5008             next byte
+ 
+       LDCR 7,0               current record's sector
+       LI   9,CPUBUF
+A5014  MOVB *9+,*6+           copy buffer to it
+       DEC  1
+       JNE  A5014             next byte
+       JMP  A4FC2             next record
+*
+*
+A501C  LI   11,A4B4A          status
+A5020  MOV  11,@A50CA+2       ====== entry from dsr
+       CLR  @OPENPT
+       MOVB @H8000,10         not found
+       MOV  @HFF00,@UNREAD
+       LI   8,OPENFI          open files list
+A5036  CB   @5(8),@DRIVNB+1   drive matches ?
+       JNE  A5060             no: next open file
+ 
+       MOV  @2(8),@HEADER     get header's sector
+       BL   @A5466            point at it
+       LI   1,FILNAM
+       LI   4,>000A
+       MOV  6,3
+A5052  CB   *3+,*1+           compare filenames
+       JNE  A5060             mismatch: next open file
+       DEC  4
+       JNE  A5052             next char
+       MOV  8,@OPENPT         found: save ptr
+       JMP  A5070
+ 
+A5060  AI   8,>0006           next open file
+       CI   8,PABOPC          are there more ?
+       JL   A5036             yes
+       BL   @A548C            no: find file
+       JMP  A50C6             not found: end with error
+ 
+A5070  AI   6,>000C
+       MOVB *6,10             get file status
+       SWPB 10                (header's type)
+       MOVB *6,10
+       SLA  10,3
+       MOV  @OPENPT,8
+       JEQ  A50C6             not open yet: end
+       COC  @H0400,10         is it var ?
+       JNE  A50A8             no
+ 
+       MOV  *8,1              var: current sector # (in files list)
+       INC  1                 plus header
+       MOV  @>0006(6),0       get # of sectors used (in this file)
+       SWPB 0                 (bytes are reversed)
+       C    1,0
+       JLT  A50C6             within file: exit
+       C    *6+,*6+           eof offset
+       CB   @4(8),*6          compare with eof offset in list
+       JNE  A50C6             different: exit
+       SB   *6,@UNREAD        unread bytes
+       SWPB @UNREAD
+       JMP  A50B6
+ 
+A50A8  AI   6,>0006           fix: get # of records (in this file)
+       MOV  *6,2
+       SWPB 2                 (bytes are reversed)
+       C    @PABREC,2         # of records (in pab)
+       JLT  A50C6             inside file
+ 
+A50B6  BL   @A563C            find a free sector
+       MOV  1,1               was there one?
+       JNE  A50C2             yes
+       SOCB @H0200,10         mem full
+A50C2  SOCB @H0100,10         past eof
+A50C6  MOVB 10,@PABSTA        file status
+A50CA  B    @0000             return address may vary
+*

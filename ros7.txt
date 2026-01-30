@@ -1,0 +1,132 @@
+*------page-0--rambo-mode---in-DSR-chip-----page-0--rambo-mode---in-DSR-chip-
+* This page is only visible when CRU bit 15 is set, otherwise ramdisk pages map here
+*
+       AORG >5800
+*
+A5800  MOV  12,@A588C         sbr >B0: bank operator
+       LWPI A5874             ======== pass r12
+       LI   0,>8002           test for unknown device
+       LI   1,>8302
+       MOV  *0,2              save
+       MOV  @A5894,*0         write test value
+       CLR  *1
+       C    *0,*1             same ?
+       JNE  A5820
+       MOV  2,*1              yes: not here, restore >8302
+       JMP  A5824
+A5820  C    *0,2              value modified ?
+       JEQ  A5828             no
+A5824  MOV  2,@A5896          yes: save previous value
+ 
+A5828  MOV  *14,1             >834C
+       JLT  A583C             mode 3
+       JNE  A5840             mode 2
+       MOV  12,1              mode 1: # of free banks
+       MOV  *7,12             P-gram? ---------------
+       JEQ  A5838             no
+       CLR  0                 yes: turn banks on
+       LDCR 0,0
+A5838  MOV  1,12
+       A    10,*13            add banks # to >834A
+A583C  CLR  *15               quit rambo with no error >8350
+       JMP  A5848             ------------------------
+ 
+A5840  C    1,10              select bank
+       JLE  A5858             ----------- available
+A5844  S    10,*14            # of overflowing pages in >834C
+       SETO *15               set error flag >8350
+A5848  MOV  8,*9              put >0001 in A401A
+       MOV  @A5896,@>8002     restore unknown device
+       LWPI >83E0
+       B    @A57F6            rambo off, return
+ 
+A5858  DEC  1                 select bank
+       SLA  1,1
+       MOV  @A5898(1),0       get cru value
+       JEQ  A5844             none: error
+       MOV  0,*9              save cru value at A401A
+       MOV  0,*14             save cru value at >834C
+       MOV  12,*13            save cru address at >834A
+       LDCR 0,0               switch page on
+       CLR  *15               clear error flag >8350
+       LWPI >83E0
+       INCT 11                skip 1 word: no more cards
+       B    *11               return
+*
+*
+A5874  DATA 0,0,0,0,0,0,0     r0 to r6
+       DATA >401C                  r7
+       DATA >0001                  r8
+       DATA >401A                  r9
+       DATA >001C                  r10: max number of banks
+       DATA >0000                  r11
+A588C  DATA >0000                  r12
+       DATA >834A                  r13
+       DATA >834C                  r14
+       DATA >8350                  r15
+A5894  DATA >BABB
+A5896  DATA >03FF
+*
+*  CRU values for all RAMBO banks on disk (192 banks for a 1.5 Megs disk), in reverse order.
+*  Set as >0000 to prevent ocpode >B0 for using this page.
+*  Or place the number usable banks in R10 (>5888), this is normally the point reached by the last drive.
+*
+*  Each bank is 4 ramdisk pages in size. CRU bits 1+2 are ignored and replaces with address lines A4+A3
+*  Because A3 and A4 are inverted, pages do not map in order within RAMBO space:
+*  >6000: Page 0 (OPA regular mode)
+*  >6800: Page 2 (Sectors 8-15)
+*  >7000: Page 1 (Sectors 0-7)
+*  >7800: Page 3 (Sectors 16-23)
+*
+A5898  DATA >85F9,>85F1,>85E9,>85E1     
+       DATA >85D9,>85D1,>85C9,>85C1
+       DATA >85B9,>85B1,>85A9,>85A1
+       DATA >8599,>8591,>8589,>8581
+       DATA >8579,>8571,>8569,>8561
+       DATA >8559,>8551,>8549,>8541
+       DATA >8539,>8531,>8529,>8521
+       DATA >8519,>8511,>8509,>8501
+       DATA >84F9,>84F1,>84E9,>84E1
+       DATA >84D9,>84D1,>84C9,>84C1
+       DATA >84B9,>84B1,>84A9,>84A1
+       DATA >8499,>8491,>8489,>8481
+       DATA >8479,>8471,>8469,>8461
+       DATA >8459,>8451,>8449,>8441
+       DATA >8439,>8431,>8429,>8421
+       DATA >8419,>8411,>8409,>8401
+       DATA >83F9,>83F1,>83E9,>83E1
+       DATA >83D9,>83D1,>83C9,>83C1
+       DATA >83B9,>83B1,>83A9,>83A1
+       DATA >8399,>8391,>8389,>8381
+       DATA >8379,>8371,>8369,>8361
+       DATA >8359,>8351,>8349,>8341
+       DATA >8339,>8331,>8329,>8321
+       DATA >8319,>8311,>8309,>8301
+       DATA >82F9,>82F1,>82E9,>82E1
+       DATA >82D9,>82D1,>82C9,>82C1
+       DATA >82B9,>82B1,>82A9,>82A1
+       DATA >8299,>8291,>8289,>8281
+       DATA >8279,>8271,>8269,>8261
+       DATA >8259,>8251,>8249,>8241
+       DATA >8239,>8231,>8229,>8221
+       DATA >8219,>8211,>8209,>8201
+       DATA >81F9,>81F1,>81E9,>81E1
+       DATA >81D9,>81D1,>81C9,>81C1
+       DATA >81B9,>81B1,>81A9,>81A1
+       DATA >8199,>8191,>8189,>8181
+       DATA >8179,>8171,>8169,>8161
+       DATA >8159,>8151,>8149,>8141
+       DATA >8139,>8131,>8129,>8121
+       DATA >8119,>8111,>8109,>8101
+       DATA >80F9,>80F1,>80E9,>80E1
+       DATA >80D9,>80D1,>80C9,>80C1
+       DATA >80B9,>80B1,>80A9,>80A1
+       DATA >8099,>8091,>8089,>8081
+       DATA >8079,>8071,>8069,>8061
+       DATA >8059,>8051,>8049,>8041
+       DATA >8039,>8031,>8029,>8021
+       DATA >8019,>8011,>8009,>8001 <-- This is page 0. 
+*
+A5A18  DATA >00FF              up to the end of the page
+*
+       END

@@ -1,0 +1,1554 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+  <title></title>
+  <meta name="Author" content="">
+  <meta name="GENERATOR"
+ content="Mozilla/3.04Gold (Win95; U) [Netscape]">
+</head>
+<body>
+<h1 align="center"><a
+ href="http://www.nouspikel.com/ti99/titechpages.htm"><img
+ src="logo.jpg" style="border: 0px solid ; height: 33px; width: 95px;"
+ title="" alt=""></a></h1>
+<h1>The Editor/Assembler module</h1>
+<p>The Editor/Assembler module is a pure GROM cartridge. It contains
+only
+one GROM, with addresses &gt;6000-7800. It answers to any GROM base
+(&gt;9800
+to &gt;983C).</p>
+<p>Strangely enough, the GROM does not contain an editor, nor an
+assembler:
+these are assembly language programs provided on a companion disk. All
+the cartridge does is to display nice menus that let you load these
+programs
+(or others of your choice). On the plus side, the cartridge contains a
+linking-loader that can process the tagged-object files produced by the
+assembler and several subroutines to be called from TI-Basic.</p>
+<p>If you wish, you can view a commented disassembly of that GROM in
+three
+parts: <a href="ea1.txt">main program</a>, <a href="ea2.txt">subprograms</a>,
+<a href="ea3.txt">assembly routines</a>.</p>
+<p><br>
+<b>Program<br>
+</b><a href="#Program%20init">Initialisation<br>
+</a><a href="#Main%20menu">Main menu<br>
+</a><a href="#editor%20menu">Editor menu<br>
+</a><a href="#assembler%20menu">Assembler menu<br>
+</a><a href="#load-and-run%20menu">Load-and-run menu<br>
+</a><a href="#run%20menu">Run menu<br>
+</a><a href="#program%20menu">Run-program-file menu</a></p>
+<p><b>Subprograms<br>
+</b><a href="#subprograms">INIT<br>
+</a><a href="#load">LOAD<br>
+</a><a href="#LINK">LINK<br>
+</a><a href="#pokev">POKEV<br>
+</a><a href="#peek">PEEK<br>
+</a><a href="#peekv">PEEKV<br>
+</a><a href="#charpat">CHARPAT</a></p>
+<p><b>Programming tricks<br>
+</b><a href="#forcing%20loading">Forced loading<br>
+</a><a href="#no%20undefined">Preventing "undefined" symbol errors<br>
+</a><a href="#illegal%20tags">Using the illegal tags<br>
+</a><a href="#loading%20bias">Biased loading<br>
+</a><a href="#Extra%20opcodes">Extra assembler opcodes</a></p>
+<p><b>File formats<br>
+</b><a href="#EA5">EA5 (program file)<br>
+</a><a href="#tagged-object">Tagged object code (DF80 file)</a></p>
+<h2><br>
+<a name="Program init"></a>Program</h2>
+<p>The GROM contains only one GPL program: EDITOR/ASSEMBLER, whose
+start
+point is &gt;6025 in GROM memory.</p>
+<h3><br>
+Initialisation</h3>
+<p>When entered, the program loads the built-in character sets from the
+console GROM:</p>
+<li>small upper-case chars 32-95 at VDP address &gt;0900-0AFF, </li>
+<li>lower-case characters 96-127 at VPD address &gt;0B00-0BF7, </li>
+<li>empty chars 0-31 at VDP address &gt;0800-08FF, except for:</li>
+<li>copyright character (10) at address &gt;0850-0857,</li>
+<li>editor cursor (a solid 8x3 pixels vertical bar) at address
+&gt;08F0-08F7
+(i.e. char 30),</li>
+<li>module cursor (an empty 6x6 square) at address &gt;08F8-08FF (i.e.
+char 31).</li>
+<p>For some reason, provision is made to load a different set of
+characters,
+possibly corresponding to another console version: the distinction is
+made
+by scanning the keyboard with keyboard type 5. If the type is not
+changed
+to 0 by the scanning routine, characters &gt;32-95 will be loaded at
+addresses
+&gt;0A00-0BFF in VDP memory, then characters 64-95 are modified by
+adding
+a small 2-pixel dash in their upper left corner. I have no idea what
+this
+is meant for, the TI-99/4 may be?</p>
+<p>The VDP registers are then set with the following values:</p>
+<p>R1=E0 Standard mode<br>
+R2=00 Screen image at &gt;0000<br>
+R3=0E Color table at &gt;0380<br>
+R4=01 Char pattern table at &gt;0800<br>
+R5=06 Sprite attribute table at &gt;0300<br>
+R6=00 Sprite pattern table at &gt;0000 (not the same as char pats!)<br>
+R7=F5 White on blue</p>
+<h3><br>
+<a name="Main menu"></a>Main menu</h3>
+<table border="2" cellspacing="2" cellpadding="2" bgcolor="#1822cd">
+  <tbody>
+    <tr>
+      <td>
+      <pre><font color="#ffffff"> <br> * EDITOR/ASSEMBLER * <br>                               <br> PRESS:<br>  1 TO EDIT<br>  2    ASSEMBLE<br>  3    LOAD AND RUN<br>  4    RUN<br>  5    RUN PROGRAM FILE<br><br><br>  c)1981  TEXAS INSTRUMENTS</font></pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>Option 1 enters the editor menu.<br>
+Option 2 calls the assembler.<br>
+Option 3 is used to load an assembly file in tagged-object code, it
+enters
+option 4 when done.<br>
+Option 4 is used to run a program loaded in memory with option 3.<br>
+Option 5 is used to load and run a memory-image file, in "program"
+format.<br>
+Fctn-9 resets the TI-99/4A.</p>
+<h3><br>
+<br>
+<a name="editor menu"></a>The editor menu</h3>
+<table border="2" cellspacing="2" cellpadding="2" bgcolor="#1822cd">
+  <tbody>
+    <tr>
+      <td>
+      <pre><font color="#ffffff"> * EDITOR *<br>                               <br> PRESS:<br>   1 TO LOAD<br>   2    EDIT<br>   3    SAVE<br>   4    PRINT<br>   5    PURGE</font>
+
+
+      </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>Option 1 causes the editor to load a DV80 or a DF80 file in memory.<br>
+Option 2 enters the editor with the file currently in memory (if any).<br>
+Option 3 causes the editor to save the file currently in memory.<br>
+Option 4 prints a file.<br>
+Option 5 purges the file currently in memory (so that option 2 can be
+used
+to edit an empty document).<br>
+Fctn-9 returns to the main menu.</p>
+<p>Options 1 to 3 first check whether the editor is already in memory.
+This is done by looking for a flag value of &gt;55AA in word &gt;2000.
+If the editor isn't in memory, it is loaded from a "program"
+file called "EDIT1". This file must be in the standard "Option
+5" format, which means that loading could continue with EDIT2 (it
+won't). The program then automatically performs the equivalent of
+option
+5 (i.e. clears 3 words at &gt;FFD8).</p>
+<p>Option 1 prompts the user for a file name and prepares a PAB for
+that
+file in VDP memory at address &gt;1000 (pointed at by word &gt;831C).
+The
+data buffer for that PAB will be located at &gt;1080. The program then
+calls subroutine &gt;0010 in GROM memory to attempt opening the file as
+a Div/Fix 80 file (the format of object files). If it fails, the
+program
+changes the file type to Div/Var 80 (the format of source files) and
+tries
+again. If it fails again an I/O error is announced, otherwise the
+editor
+is entered via an XML &gt;21 (i.e. vector in &gt;2002).</p>
+<p>Option 2 enters the editor via an XML &gt;23 (i.e. vector in
+&gt;2006).
+Upon return, VDP register 1 is put in standard mode again, the GPL Cnd
+bit in &gt;837C in checked. If it is set, the program displays an error
+message whose number is taken from byte &gt;8322, otherwise it just
+returns
+to the editor menu. </p>
+<p>Option 3 displays "<tt>VAR 80 FORMAT(Y/N)</tt>?" to know whether
+the file should be saved as a source file in DV80 format, or as an
+object
+file in DF80 format. Then it prompts the user for a filename and
+creates
+the PAB, just like option 1. Finally it calls the editor via an XML
+&gt;22
+(i.e. vector in &gt;2004).</p>
+<p>Option 4 prompts the user for a filename just as options 1 and 3.
+Then
+it asks for a printer name. If the name is "TP" (Texas Instruments
+thermal printer) the default record length is set as 32 chars, but the
+printer is given a chance to modify this value. For all other printers,
+the record length is set as 80 chars. The program creates a PAB for the
+printer in at address &gt;1100 in VDP memory. Records are then read
+from
+the file and written to the printer until an I/O error #5 occurs (i.e.
+"past eof"). The error is not announced though: instead both
+PABs are closed and the programs returned to the editor menu.</p>
+<p>A special processing occurs for the thermal printer: all trailing
+spaces
+are removed, and char 12 (form feed) is replaced with four spaces. Then
+the 80-byte long file records are split in chunks corresponding to the
+record length of the printer.</p>
+<p>Option 5 displays "<tt>ARE YOU SURE(Y/N)?</tt>" If the user
+presses "Y" the routine clears three words in the high-mmemory
+expansion: &gt;FFD8-FFDD.</p>
+<h3><br>
+<br>
+<a name="assembler menu"></a>The assembler menu</h3>
+<table border="2" cellspacing="2" cellpadding="2" bgcolor="#1822cd">
+  <tbody>
+    <tr>
+      <td>
+      <pre><font color="#ffffff">  * ASSEMBLER * <br>                               <br>  SOURCE FILE NAME?<br> </font><font
+ color="#5dbaca"> user input<br></font><font color="#ffffff">  OBJECT FILE NAME?<br>  </font><font
+ color="#5dbaca">user input<br></font><font color="#ffffff">  LIST FILE NAME?<br>  </font><font
+ color="#5dbaca">optional user input<br></font><font color="#ffffff">  OPTIONS?<br>  </font><font
+ color="#5dbaca">optional user input</font>
+      </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>The module first checks whether the assembler is already in memory.
+This is signaled by a flag value of &gt;AA55 in word &gt;2000. If this
+is not the case, the programs displays "<tt>LOAD ASSEMBLER(Y/N)?</tt>",
+the user can answer "N" to avoid overwritting a program in memory,
+in case the assembler menu was entered by mistake (in the Editor menu,
+you must press two keys before anything is loaded, therefore no
+confirmation
+is required). If the user elects to load the assembler, the module
+loads
+it as a "program" file in EA5 format, named ASSM1, loads it and
+proceeds with a file named ASSM2. It then uses the GPL routine &gt;0010
+to call subroutine &gt;16 in the disk controller (this is the assembly
+equivalent of a CALL FILES) and sets the number of available files to
+four.</p>
+<p>At this point, the user is successively prompted for:</p>
+<ul>
+  <li>A source file, whose PAB will be at &gt;1000 in VDP memory, with
+a
+buffer area at &gt;1080. This must be an existing Dis/Var 80 file.</li>
+  <li>An object file, whose PAB will be at &gt;1100 in VDP memory, with
+a
+buffer area at &gt;1180. This must be a Dis/Fix 80 file, but it may not
+exist yet.</li>
+  <li>An optional list file. If a name is entered, the PAB will be at
+&gt;1200
+in VDP memory, with a buffer area at &gt;1280. The file must be of type
+Dis/Var 80, but it may not exist yet (or it may be a printer name).</li>
+  <li>An optional string of upto 15 characters that will be passed to
+the
+assembler at address &gt;20D2 in cpu memory. Typically, this string
+contains
+assembler options: R= use Rx notation for registers, L = use a list
+file,
+C = compressed the output, etc.</li>
+</ul>
+<p>Finally, the sceen is cleared and the assembler is called via an XML
+&gt;21 (i.e. vector in &gt;2002). Upon return, the Cnd bit in the GPL
+status
+byte is checked for a possible error (whose number will be in
+&gt;8322),
+otherwise the files are closed, and the message "<tt>PRESS ENTER TO
+CONTINUE</tt>" is displayed at the bottom of the screen. This allows
+the user to read any messages issued by the assembler (generally syntax
+errors...). Once the user presses &lt;enter&gt; the program returns to
+the main menu. However, the assembler is still in memory and won't be
+reloaded
+if the user enters the assembler menu again.</p>
+<h3><br>
+<br>
+<a name="load-and-run menu"></a>The load-and-run menu</h3>
+<table border="2" cellspacing="2" cellpadding="2" bgcolor="#1822cd">
+  <tbody>
+    <tr>
+      <td>
+      <pre><font color="#ffffff">  * LOAD AND RUN *           <br>                               <br>  FILE NAME?<br> </font><font
+ color="#5dbaca"> user input (multiple)<br></font><font color="#ffffff">  PROGRAM NAME?<br>  </font><font
+ color="#5dbaca">user input<br></font><font color="#ffffff">  </font>
+
+
+
+      </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>This option prompts the user for a file name and creates a PAB for
+it
+at address &gt;1000 in VDP memory. It then checks whether a memory
+expansion
+is installed (by writing test values at &gt;2000 and reading them back)
+and issues an error message if this is not the case. Otherwise, the
+program
+downloads assembly language routines stored in GROM at &gt;7000-7730
+into
+the low memory expansion at addresses &gt;2000-2007, &gt;2022-2676 and
+&gt;3F38-3FFF. One of the routines is the linking-loader itself. The
+area
+above &gt;3F38 is the beginning of the symbol table used by the loader
+(growing downwards) and contains pre-defined values.</p>
+<p>The loader is then called via an XML &gt;22 (i.e. vector in
+&gt;2004,
+just loaded above). The loader can return with an error by setting the
+Cnd bit in the GPL status byte and placing the error code in byte
+&gt;8322.
+The module will then issue an error message and (in most cases)
+re-enter
+the load-and-run menu.</p>
+<p>If all went OK, the user is prompted for another filename, just as
+above.
+Note that the program sets a flag bit in byte &gt;8349 so that the
+assembly
+routines won't be loaded again. The loader is then called again and the
+whole process repeats until the user enters an empty filename.</p>
+<p>At this point, the module looks for a flag value of &gt;A55A in word
+&gt;2000 (indicating that the assembly routines were loaded). If the
+correct
+value is not found the assembly routines will be loaded as above. In
+any
+case, it the branches to the "RUN" menu.</p>
+<h3><br>
+<br>
+<a name="run menu"></a>The run menu</h3>
+<table border="2" cellspacing="2" cellpadding="2" bgcolor="#1822cd">
+  <tbody>
+    <tr>
+      <td>
+      <pre><font color="#ffffff">  * RUN *                 <br>                               <br><br><br>  PROGRAM NAME?<br> </font><font
+ color="#5dbaca"> user input<br><br><br><br><br></font><font
+ color="#ffffff">  </font></pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>This menu can either be entered from the main menu, which displays
+the
+" <tt>* RUN * </tt>" title, or from the "load-and-run"
+menu, after the user entered an empty filename.</p>
+<p>The user is prompted for a 6-character program name. This must
+correspond
+to an assembly label, i.e. contain only upper-case letters and digits,
+the first character cannot be a digit. This label should be present in
+the symbol table, either because it's part of the pre-defined table or
+because it was placed here by the loaded (as a result of an
+assembly-language
+DEF statement).</p>
+<p>The module checks for a flag value of &gt;A55A in word &gt;2000,
+indicating
+that the standard assembly language routines were dumped from the GROM.
+If the value is not found, a "<tt>PROGRAM NOT FOUND</tt>" error
+is issued.</p>
+<p>Then the module sets up the VDP for the program to be executed: the
+color table is filled with &gt;13 bytes (black on light green), the
+screen
+is erased, and VDP register 7 is set as &gt;F3 (white on light green).
+Finally, the linker is entered via an XML &gt;21 (i.e. vector in
+&gt;2002).
+Upon return, the Cnd bit in the GPL status byte will cause an error
+message,
+if it's set. The error code is taken from byte &gt;8322, that was
+cleared
+before calling the linker. Otherwise, the VDP setup of the module is
+restored,
+and the message ""<tt>PRESS ENTER TO CONTINUE</tt>" is displayed
+at the bottom of the screen. </p>
+<p>When the user presses &lt;enter&gt; the program returns to the main
+menu. Note however that nothing is erased in memory, so the user can
+select
+option 4 again and run another program, or the same one. To run the
+same
+program again, the user can just enter an empty program name.</p>
+<h3><br>
+<br>
+<a name="program menu"></a>The program menu</h3>
+<table border="2" cellspacing="2" cellpadding="2" bgcolor="#1822cd">
+  <tbody>
+    <tr>
+      <td>
+      <pre><font color="#ffffff">  * RUN PROGRAM FILE * <br>                               <br>  <br><br><br>  PROGRAM NAME?<br>  </font><font
+ color="#5dbaca">user input (optional)<br></font><font color="#ffffff">  </font></pre>
+      <pre>  <font color="#ffffff">ONE MOMENT PLEASE...</font></pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>The user is prompted for an optional file name. This must be an
+existing
+"program" file containing a memory dump with a six-byte header
+(a <a href="#EA5">format</a> sometimes known as EA5, for
+Editor/Assembler
+option 5). If the user enters an empty string, the filename "UTIL1"
+will be used. A PAB for the file is prepared at VDP address &gt;1000,
+with
+a data buffer area at &gt;1380 and a maximum lenght of &gt;2100 bytes.</p>
+<p>If the filename begins with "CS" the screen will be cleared
+to allow for proper display of the cassette management prompts. Then
+the
+program then displays "<tt>ONE MOMENT PLEASE...</tt>" at the
+bottom of the screen and calls the DSR that will load the file in VDP
+memory.
+It then transfers the file in CPU memory, according to the instructions
+of the 6-byte header. If the header calls for additional files, the
+last
+character of the filename in incremented by 1 (i.e. UTIL1 becomes
+UTIL2,
+etc), and the process starts again.</p>
+<p>Otherwise, the module sets up the VDP for the program to be
+executed:
+the color table is filled with &gt;13 bytes (black on light green), the
+screen is erased, and VDP register 7 is set as &gt;F3 (white on light
+green).
+Finally, the program is entered at the address where the first file was
+loaded, using an XML &gt;F0 (i.e. vector in &gt;8300).</p>
+<p>Upon return (note that many third-party programs do not return, they
+just reset the TI-99/4A), the VDP setup of the module is restored, and
+the Cnd bit is tested in the GPL status byte &gt;837C. If it is set, an
+error code taken from byte &gt;8322 is displayed in hexadecimal. In any
+case, the module displays "PRESS ENTER TO CONTINUE" at the bottom
+of the screen, and waits for the user to react. It then returns to the
+main menu.</p>
+<p>Note that it is not possible to re-enter the user program without
+reloading
+it.</p>
+<h4><br>
+Creating EA5 memory-image files</h4>
+<p>No provision is made in the cartridge to produce EA5 files. However,
+the accompanying disk comes with a small utility called SAVE. This
+utility
+REFerences three labels that should be DEFined by the program to save:
+SFIRST is the first address to save, SLAST is the last address to save,
+and SLOAD is where the program should be loaded by option 5 (generally,
+SLOAD is identical to SFIRST, but this is not an absolute requirement).
+Load your program first with option 3, then load SAVE: it will
+autostart
+upon loading and automatically save the program on a "program"
+file called DSK1.UTIL1</p>
+<p>You can do the same (and more) with my MISS utility, <a
+ href="download.htm">downloadable
+</a>from this website. Or you could use R.A. Green's RAG linker produce
+a memory-image EA5 file directly from the tagged-object DF80 files.</p>
+<h2><br>
+<br>
+<a name="subprograms"></a>Subprograms</h2>
+<h3>INIT</h3>
+<p>All this subprogram does is to load the assembly language
+subroutines
+stored in GROM at &gt;7000-7730 into the low memory expansion at
+addresses
+&gt;2000-2007, &gt;2022-2676 and &gt;3F38-3FFF. It therefore empties
+the
+symbol table and re-initializes the loading pointers.</p>
+<h3><br>
+<a name="load"></a>LOAD</h3>
+<p>This subprogram can actually perform two distincts functions: place
+numeric values at a given address in cpu memory, or call the loader and
+load a tagged-object file into memory. Which function is selected
+depends
+on the type of parameter passed to the subprogram: a (non-empty) string
+constant or string variable calls the loader, a number or a numeric
+variable
+patches the memory.</p>
+<p>When a filename is passed as an argument, e.g. CALL
+LOAD("DSK1.MYFILE"),
+the subprogram loads the standard assembly language routines then calls
+the loader with XML &gt;22. Upon return, if the Cnd bit of the status
+byte
+is set, an error will be returned. Otherwise, LOAD resumes parsing the
+parameters. This means you can load several files, or mix file loading
+and memory patching (however, once you started memory patching, you
+cannot
+load any more files).</p>
+<p>To load values into memory, you must first specify the destination
+address
+as a number from -32768 to +32767, where nagetive numbers correspond to
+addresses in the range &gt;8000-FFFF. LOAD calls XML &gt;12 to convert
+the real number into an integer. The following parameters must contain
+the bytes to place in memory, therefore the useful range is 0-255. Note
+that you can specify any value from -32768 to 32767, but only the least
+significant byte of the integer will be loaded.</p>
+<p>If you want to specify a new address in the same CALL LOAD
+statement,
+you can use an empty string constant (or variable) as a separator. The
+string must be empty so that it is not mistaken for a filename:
+non-empty
+strings issue a "bad argument" error.</p>
+<h4>Example: </h4>
+<p>CALL LOAD("DSK1.MYFILE","DSK2.HISFILE",-24576,65,66,"",-20480,0,218,)</p>
+<p>Loads a tagged-object code file called MYFILE into memory,<br>
+loads the file HISFILE into memory,<br>
+places bytes 65 and 66 (i.e. "AB") at location &gt;A000,<br>
+and places bytes 0 and 218 at location &gt;B000.</p>
+<h3><br>
+<a name="pokev"></a>POKEV</h3>
+<p>Works exactly like LOAD, except that the target is the VDP memory.
+The
+address should therefore be in the range 0-3FFF (i.e. 16383). Of
+course,
+as programs can't run in VDP memory, it is not allowed to pass a
+filename
+within a CALL POKEV.</p>
+<h3><br>
+<a name="peek"></a>PEEK</h3>
+<p>This subprogram performs the opposite of LOAD: it fetches bytes from
+VDP memory and transfers them in numeric variables.</p>
+<p>Just like LOAD, you must specify an address in the range -32768 to
++32768
+either as a number or as a numeric variable. Then you can enter as many
+numeric variables as you like: each will receive one byte corresponding
+to the content of the cpu memory, starting at the specified address.
+Values
+will be in the range 0-255.</p>
+<p>You can use an empty string as a separator to enter a new address,
+but
+non-empty strings will cause an error. </p>
+<h4>Example:</h4>
+<p>CALL PEEK (12,CLOCK,"",72,A,B,C,D)<br>
+XOP2WR=(256*A)+B<br>
+XOP2PC=(256*C)+D</p>
+<p>Gets the content of byte &gt;000C into the variable CLOCK (this is
+the
+console clock frequency: 48 for 3 MHz or 40 for 2 MHz).</p>
+<p>Then gets the vectors for extended operation 2 (which does not exist
+in all consoles). The next two statements combine the bytes into words:
+XOP2WR should be 33696 (i.e.&gt;83A0) and XOP2PC should be 33536
+(&gt;8300).</p>
+<h3><br>
+<a name="peekv"></a>PEEKV</h3>
+<p>Does the same as PEEK, but gets values from the VDP memory.
+Addresses
+should therefore be in the range 0-16383 (i.e &gt;3FFF).</p>
+<h3><br>
+<a name="LINK"></a>LINK</h3>
+<p>This subprogram is used to begin execution of a program loaded with
+CALL LOAD. The first argument should be a quoted string, or a string
+variable
+containing the program name (i.e. an assembly DEFined label). </p>
+<p>Optionally, you can specify upto 16 additional parameters that will
+be passed to the executed programs. LINK fetches each parameter from
+the
+Basic symbol table, concatenates &amp; strings if necessary, and places
+a numeric value or a string pointer on the value stack in VDP memory.
+These
+values can be retrieved be the called program via XML &gt;18.</p>
+<p>In addition, LINK places the total number of variables in byte
+&gt;8212
+and indicates the type of variable (number, string constant, numeric
+variable,
+etc) into bytes &gt;200A-2019, one byte per parameter. Note that this
+is
+different from CALL LINK in Extended Basic, that places the parameter
+types
+at &gt;8300.</p>
+<p>The parameter type values can be:<br>
+0: number<br>
+1: quoted string<br>
+2: numeric variable<br>
+3: string variable<br>
+4: numeric array element<br>
+5: string array element</p>
+<p>All this makes parameter handling much easier for programs called
+from
+Basic. It's not really a piece of cake though...</p>
+<p>Once all parameters have been processed, LINK calls the linker via
+XML
+&gt;21, with the program name in &gt;834A-834F and the name length in
+word
+&gt;8350-8351. If the name was en empty string, the linker will attempt
+to call again the previously executed program, if any.</p>
+<p>Upon return, ar error is issued if the Cnd bit is set in the GPL
+status
+byte. The error number is taken from byte &gt;8322. If no error occured
+the subprogram removes all parameters from the value stack, if that
+wasn't
+done by the called program, and checks that the Basic statement
+terminates
+correctly (i.e &gt;8342 must contain &gt;00). Then it returns to Basic.</p>
+<h3><br>
+<a name="charpat"></a>CHARPAT</h3>
+<p>This subprogram is used to retrieve the pattern of a character, in
+the
+range 32-159.</p>
+<p>The first parameter must be a number or a numeric variable: this is
+the number of the character of interest. The second parameter must be a
+string variable. Upon return, it will contain an hexadecimal
+description
+of the pattern, just like the ones used by the Basic CALL CHAR.</p>
+<h4>Example:</h4>
+<p>CALL CHARPAT(97,A$)</p>
+<p>A$ now contains the pattern for character 97, the lower case A:
+"00000038447C4444"</p>
+<h2><br>
+Programming tricks</h2>
+<p>And now, a few receipes on how to push that module a little further.
+Mostly, they deal with the loader that is part of the Editor/Assembler
+cartridge. There is no guaranty that these trick will work with a
+different
+loader...</p>
+<h3><a name="forcing loading"></a>Forcing loading at a given address</h3>
+<p>Normally, any code that was assembled as relocatable (RORG sections)
+can be loaded anywhere in memory. That's the whole purpose of the
+tagged-object
+file format. The cartridge's loader decides where to load a given file
+according to the following algorithm:</p>
+<ul>
+  <li>It first fills up the high memory expansion, from &gt;A000 to
+&gt;FFD7.
+  </li>
+  <li>If there is not enough room in there, it tries in the low memory
+expansion
+from &gt;2676 to &gt;3F38. Note that the symbol table grows backwards
+from
+&gt;3F38 and thus reduces the amount of space available in the low
+memory
+expansion by 8 bytes per DEFined label. REFerenced labels also occupy 8
+bytes until the reference is resolved by an incoming DEF.</li>
+</ul>
+<p>To achieve this task, the loader maintains four pointers in the low
+memory expansion, at a location pointed at by label UTLTAB (normally
+&gt;2022).</p>
+<pre><u>Address Initially Usage                                 <br></u>&gt;2022   &gt;0000     Previous program address<br>&gt;2024   &gt;A000     First free address in high memory: FSTHI<br>&gt;2026   &gt;FFD7     Last free address in high memory: LSTHI<br>&gt;2028   &gt;2676     First free address in low memory: FSTLOW<br>&gt;202A   &gt;3F38     Last free address in low memory (bottom of symbol table): LSTLOW<br>&gt;20DA-20F9 Linking-loader worskpace.</pre>
+<p>Each time it loads a file in the high memory expansion, the loader
+updates
+the value of FSTHI. Similarly, it updates FSTLOW when loading a file in
+the low memory expansion, and LSTLOW when adding labels to the symbol
+table
+(or removing labels, when a REF is solved by an incoming DEF).</p>
+<p>Now there may be times when we want to force loading of a
+relocatable
+file at a given address in memory. We could reassembled it, using an
+AORG
+statement that will force loading at a given address. But this is not
+very
+convenient, especially if we don't have the source for that file. A
+better
+alternative is to write a tiny file that will fool the loader by
+altering
+the loading pointers with AORG statements. For instance, the following
+file forces loading of the next relocatable file at &gt;C000 in high
+memory.</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>* This program forces the loader to load relocatables files starting at &gt;C000<br>* Load it before just before the reloc file<br>       AORG &gt;2024<br>       DATA &gt;C000      You can put any value here<br>       END</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>To force loading in the low memory expansion, we must first forbid
+loading
+in the high memory. We could bump up FSTHI, but that would loose the
+current
+value. It's therefore more clever to lower LSTHI:</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>* This program forces the loader to load relocatable files in low memory<br>       AORG &gt;2026<br>       DATA &gt;A000       No more loading in high memory<br>       DATA &gt;3000       Where to load in low memory (optional)<br>       END</pre>
+      <pre>* This program enables loading in high memory again.<br>       AORG &gt;2026<br>       DATA &gt;FFD7<br>       END</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h3><br>
+<br>
+<a name="no undefined"></a>Preventing "undefined symbol" errors</h3>
+<p>Before linking to a program, either from the RUN menu or from an
+auto-start
+file, the loader scans the symbol table for undefined labels, i.e. REFs
+that didn't get a matching DEF. In some cases, it could be an advantage
+to bypass this function. </p>
+<p>We could do this by just emptying the symbol table: it's a simple
+matter
+of reseting LSTLOW to its initial value. However, this will only work
+for
+auto-start files, as now any program name will cause a "program not
+found" error. But we could adjust LSTLOW so that it leaves the first
+label we loaded in the symbol table (or more than one if we wanted to,
+the important point is to cut off any REF).</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>* This program empties the symbol table, but for 1 label<br>* This prevents the loader from complaining about unresolved REFs<br>       AORG &gt;202A     This is LSTLOW (bottom of symbol table)<br>       DATA &gt;3F30     Top is &gt;3F38. Substract 8 bytes per label <br>       END</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h3><br>
+<br>
+<a name="illegal tags"></a>Enabling illegal tags</h3>
+<p>The linking loader found in the cartridge only recognises a small
+subset
+of the possible tags generated by the TI assembler. All others result
+in
+an "illegal tag" error. We could write a set of loader improvements
+to deal with the missing tags. Illegal tags D, E, G, and H all branch
+at
+&gt;25D8. So do tags P and above. Tags K to O have no fixed branch
+point
+since their vectors are overwritten by the first program loaded in the
+low memory expansion. We could cause them to branch anywhere in the
+loader
+between addressed &gt;23F8 and &gt;25F6, by just entering one byte per
+tag containing the offset in words from &gt;23F8. To cause them all to
+branch at &gt;25D8, we should use value &gt;F0. Then of course, we
+should
+patch address &gt;25D8 to process the tags we are interested in.</p>
+<h4><br>
+Data segment</h4>
+<p>For instance, the assembler allows for a data segment (a PC concept,
+it looks like this assembler was lifted from a PC assembler...). This
+segment
+does not have to contain only data, all it means is that it will be
+loaded
+at a different place than the rest of the program. It is often
+convenient
+to load data at a location and program at another, since data will
+generally
+be modified, whereas the program will only be read. For instance, you
+may
+want to "burn" a program into an EPROM at address &gt;4000, but
+you must obviously maintain your data in RAM. To do this, enclose all
+your
+data between a DSEG and a DEND statement.</p>
+<p>We must now deal with the following new tags at loading time:<br>
+<b>M</b>xxxx$DATA 0000 At top of file: size of the data segment = xxxx.<br>
+<b>S</b>xxxx New loading address for data segment (xxxx=offset in data
+segment).<br>
+<b>T</b>xxxx Reference to an address in the data segment from anywhere
+in the program (xxxx=offset in data segment).<br>
+<b>W</b>xxxxAAAAAA0000 DEF of a label located in the data segment
+(name=AAAAAA,
+value=xxxx).<br>
+<b>X</b>xxxxAAAAAA0001 Label REFerenced from inside the data segment
+(name=AAAAAA,
+ptr to first ref=xxxx).</p>
+<p>For the sake of simplicity, we're going to patch the tag checking
+routine
+so that any tag above F branches to our routine. We'll process the
+above
+tags or return to the loader for any other tag.</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>* This program is a loader extension that deals with data segments<br>* It processes the previously illegal tags M, S, T, W and X<br>*<br>       AORG &gt;25D2             Patch the tag checking routine<br>       DATA &gt;000F             All tags above |F| will be illegal<br>       AORG &gt;25D8<br>       B    @NEWTAG           Patch reaction to illegal tags<br> <br>       AORG &gt;2028<br>       DATA ENDPG             Patch FSTLOW since our program will be here<br> <br>       AORG &gt;2676             Load this program just after the loader<br>NEWTAG CI   R3,&gt;001C          Tag value is in R3<br>       JEQ  LDADR             Tag |S| Loading address<br>       CI   R3,&gt;001D<br>       JEQ  ADDR              Tag |T| Address reference from CSEG<br>       CI   R3,&gt;0020<br>       JEQ  DATDEF            Tag |W| DEF in data segment<br>       CI   R3,&gt;0021<br>       JEQ  DATREF            Tag |X| REF in data segment<br>       CI   R3,&gt;0016<br>       JEQ  DATSIZ            Tag |M| Size of data segment<br>       CI   R3,&gt;0019          That was the old limit for legal tags<br>       JH   ILLEG<br>       B    *R11              Let the loader deal with these<br> <br>ILLEG  LI   R0,&gt;0A00          Error code 10 ("Illegal tag") <br>       B    @&gt;2432            That's what we overwrote with our patch<br> <br>DATSIZ MOV  R8,@&gt;202C     |M| Save checksum<br>       BL   @&gt;2594            Read an integer from file<br>       INC  R0                Size of data segment<br>       ANDI R0,&gt;FFFE          Make it even<br>       A    @&gt;2028,R0         Add current FSTLOW<br>       C    R0,@&gt;202A         Compare with LSTLOW<br>       JHE  TOOBIG            Not enough room<br>       MOV  R0,@TEMP          Save for later<br>       LI   R9,6              Name is always "$DATA "<br>LP1    BL   @&gt;262E            Skip these 6 chars<br>       DEC  R9<br>       JNE  LP1<br>       BL   @&gt;2594            Read an integer from file<br>       MOV  0,0               Should be 0 for data segment<br>       JNE  ILLEG             Could be non-0 if CSEG: illegal tag<br>       MOV  @&gt;2028,@DSEGPT    Set data segment pointer<br>       MOV  @TEMP,@&gt;2028      New FSTLOW value<br>       B    @&gt;2400            Continue loading with next tag<br> <br>TOOBIG B    @&gt;2494            "Memory overflow" error<br> <br> <br>LDADR  MOV  R8,@&gt;202C     |S| New loading address in DSEG<br>       BL   @&gt;2594            Read an integer from file<br>       A    @DSEGPT,R0        Address in data segment<br>       B    @&gt;24B0            To address setting routine <br><br> <br>ADDR   MOV  R8,@&gt;202C     |T| Reference to a DSEG-relative address<br>       BL   @&gt;2594            Read an integer from file<br>       A    @DSEGPT,R0        Address in data segment<br>       B    @&gt;24B6            To data loading<br><br> <br>DATDEF MOV  R8,@&gt;202C     |W| DEF of a label located in DSEG<br>       BL   @&gt;2594            Read an integer from file<br>       A    @DSEGPT,R0        Address of the label in data segment<br>       BL   @&gt;2566            Create new entry in symbol table<br>       MOV  R0,@TEMP          Save label value for later<br>       BL   @&gt;2594            Read integer<br>       MOV  R0,R0             Should be 0 for DSEG<br>       JNE  SK1<br>       MOV  @TEMP,R0          Restore label value<br>       B    @&gt;2504            To DEF processing<br><br> <br>DATREF MOV  R8,@&gt;202C     |X| REF to an external label from inside a DSEG<br>       BL   @&gt;2594            Read an integer from file<br>       A    @DSEGPT,R0        Address of the first reference in data segment <br>       BL   @&gt;2566            Create new entry in symbol table<br>       MOV  R0,@TEMP          Save ptr for later<br>       BL   @&gt;2594            Read integer<br>       MOV  R0,R0             Should be 0 for DSEG<br>       JNE  SK1<br>       MOV  @TEMP,R0          Restore ptr value<br>       B    @&gt;24C4            To REF processing<br> <br>SK1    B    @&gt;2400            Ignore other REFs/DEFs from other segments <br> <br>DSEGPT DATA 0                 DSEG pointer<br>TEMP   DATA 0                 Temporary buffer<br> <br>ENDPG  END</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>Loading that file enables the use of data segments: any file loaded
+after that one may contain DSEG sections that will be loaded in the low
+memory expansion.</p>
+<h4><br>
+Loading multiple segments</h4>
+<p>If you have a memory expansion device that performs bank switching,
+you may want to extend the above concept to common segments. All you
+have
+to do at programming time, is to split your program into (relatively)
+independent
+units that you declare as segments by enclosing them in CSEG segname
+....
+instructions.</p>
+<p>A segment loader would check all the tag M at the top of the file
+and
+use them to arrange segments in the available banks. It should probably
+create a segment location table somewhere in memory, that will be used
+by your program to branch to a given segment.</p>
+<p>The loader will use tags N, P, W and X pretty much in the same way
+as
+described above for data segments. Except of course that is must read
+the
+segment number at the end of each tag to determine which segment must
+be
+accessed.</p>
+<p>The nice thing is, you don't need to re-write an assembler: just use
+the TI one and provide a special loader. Either by writing one from
+scratch,
+or by patching the existing loader as described above.</p>
+<h3><br>
+<a name="loading bias"></a>Loading bias</h3>
+<p>Sometimes you would like to load a program in the whole range of the
+low memory expansion. This is not possible, since it would cause the
+loader
+to overwrite itself. And if we load the program elsewhere, say at
+&gt;A000,
+then save it into a memory -image file that loads at &gt;2000, it won't
+work properly since all addresses will be wrong.</p>
+<p>Is there a solution (apart from writing a version of the loader that
+runs in the high memory)? Well, we could fool the loader into using a
+wrong
+offset value to adjust data when encountering a tag C. The problem is
+that
+this will also affect the setting of a new loading address by tag A,
+and
+the assembler issues a tag A at the beginning of each new record. We
+must
+therefore disable tag A first: </p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>* This program will be loaded at &gt;A002, but is meant to run at &gt;2000<br>* REFs are not allowed yet<br>       AORG &gt;266C<br>       DATA &gt;045F             Change the jump vector for tag |A| into tag |8| <br> <br>       AORG &gt;20E4<br>       DATA &gt;2000             Change the content of loader's R5 (reloc offset)<br>SLOAD  EQU  &gt;2000             Where the program should run<br> <br>       AORG &gt;A000             Where we want to load it temporarily<br>       NOP                    AORG won't be issued unless followed by some code <br><br>       RORG                   Ignored upon loading, but needed to assemble<br>SFIRST ....                   Put our program here</pre>
+      <pre>SLAST  DATA 0                 This will be overwritten by the next file loaded <br>       END</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>The AORG &gt;A000 sets the loading pointer, that will remain
+unchanged
+throughout the RORG section since tag A is now disabled. Since the
+assembler
+disregards any AORG that is not followed by data, we need to load a
+dummy
+NOP at address &gt;A000. Our program will therefore begin at &gt;A002.
+Hence the final DATA 0, that will be overwritten by the next program
+being
+loaded (since the loader added the size of our program to FSTHI, which
+normally contains &gt;A000, not &gt;A002).</p>
+<p>A big problem remains: we cannot use REFs in our program as the
+reference
+solving routine uses R5 to find the next location to patch, based on
+the
+current one (each occurence of a REFerenced label points to the
+previous
+one). We could of course restore R5 at the end of our program, but then
+the DEFined labels would be all wrong. And we cannot place an AORG
+whithin
+the list of DEFs and REFs since the assembler groups them all at the
+end
+of the file.</p>
+<p>We must therefore use the REFerence solving routine to patch the
+loader.
+To do this, we'll use one of the pre-defined labels, say SPCHRD which
+is
+rarely used anyhow. We'll change its entry in the symbol table by
+negating
+the first word, so that it appears to be an unresolved REF. Then we'll
+change its value so that it points to R5 in the loader's workspace.
+Then
+all we have to do is to DEFine SPCHRD in our program: this value will
+be
+place in R5 by the REFerence solving routine. The solving routine will
+then proceed with the address found in R5, then with the address found
+at that address, until is finds a &gt;0000 value. It is thus imperative
+that we stop the process by loading a &gt;0000 value in the address
+pointed
+at by R5 (which is &gt;2000 in our example). </p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>* This program is loaded at &gt;A000, but is meant to run at &gt;2000<br>* The SAVE utility will handle it accordingly<br> <br>       AORG &gt;266C<br>       DATA &gt;045F             Change the jump vector for tag "A" into tag "8"<br> <br>       AORG &gt;20E4<br>       DATA &gt;2000             Change the content of loader's R5 (rel offset)<br> <br>       AORG &gt;A000             Where we want to load it temporarily<br>       NOP                    AORG won't be issued unless followed by code<br><br>       RORG<br>       DEF  SLOAD             This DEF will be biased (i.e. &gt;2000)<br>       DEF  SPCHRD            Cancel bias now<br>       DEF  SFIRST,SLAST      These will have the real address (&gt;A002, etc)<br>       REF  SPCHWT            For test purposes: this REF will work normally<br>SLOAD<br>SFIRST<br>       ABS  @SLOAD            Silly test program: ABS @&gt;2000<br>       NEG  @SFIRST                               NEG @&gt;2000<br>       CLR  @SPCHWT                               CLR @&gt;9400<br>       B    *R11<br>SLAST<br>       DATA 0                 This will be overwritten by the next program loaded </pre>
+      <pre>* This causes the DEF SPCHRD to cancel the load bias<br>       AORG &gt;3F78             Point at entry for label SPCHRD<br>       DATA &gt;ACB0             That's "SP" negated: this label is now an unresolved REF <br>       AORG &gt;3F7E             Point at value of SPCHRD<br>       DATA &gt;20E4             Link to the next occurence: this will be the loader's R5<br> <br>       AORG &gt;2000<br>       DATA &gt;0000             Stop the reference solving (since R5 now contains &gt;2000)<br>SPCHRD EQU  &gt;A002             Value that will be placed in R5 (&gt;A000 +2 for the NOP)<br> <br>       END<br></pre>
+      <pre>* The liker will complain since we changed the value in &gt;2000 ("program not found")<br>* Therefore load this program just after the above one to restore the flag value in &gt;2000 <br>       AORG &gt;2000<br>       DATA &gt;A55A<br>       END</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>Load these two programs, then load the SAVE utility. It will save
+the
+first program from the high memory expansion, into an EA5 file that
+will
+load and run in the low memory expansion.</p>
+<h3><br>
+<a name="Extra opcodes"></a>Extra assembler opcodes</h3>
+<p>By editing the ASSM1 file, I found out that the assembler can
+recognize
+(and issue data for) a number of opcodes corresponding to machine
+language
+instructions that are supposedly illegal with the TMS9900. This is
+probably
+due to the fact that this assembler is able to produce programs meant
+to
+run on other systems, such as the 990 minicomputer, the TMS9940-based
+systems,
+TMS99000 or 9989 systems.</p>
+<p>The opcodes in the first group are in format VII, which means they
+do
+not take any operand.<br>
+laeco represent the status bits affected: <b>l</b>ogically higher, <b>a</b>rithmetically
+greater, <b>e</b>qual, <b>c</b>arry and <b>o</b>verflow</p>
+<pre><u>Value Opcode Status Meaning<br></u>&gt;0C00 CRI    laeco  Convert Real to Integer<br>&gt;0C01 CDI    laeco  Convert Decimal to Integer<br>&gt;0C02 NEGR   lae    Negate Real<br>&gt;0C03  -      -     (exists, but not encoded by the assembler)<br>&gt;0C04 CRE    laeco  Convert Real to Extended integer<br>&gt;0C05 CDE    laeco  Convert Decimal to Extended integer<br>&gt;0C06 CER    laeco  Convert Extended integer to Real<br>&gt;0C07 CED    laeco  Convert Extended integer to Decimal<br>&gt;0C08-0C0D    -     (exist, but not encoded by the assembler)<br>&gt;0C0E XIT           eXIT the floating point interpreter<br><br><br>The opcodes in the second group are in format VI, i.e they take one operand in any of the general addressing modes.</pre>
+<pre><u>Value Opcode Status Meaning<br></u>&gt;0780 LDS           Long Distance Source<br>&gt;07C0 LDD           Long Distance Destination</pre>
+<pre>&gt;0C40 AR     laeco  Add Real<br>&gt;0C80 CIR    laeco  Convert Integer to Real<br>&gt;0CC0 SR     laeco  Substract Real<br>&gt;0D00 MR     laeco  Multiply Real<br>&gt;0D40 DR     laeco  Divide Real<br>&gt;0D80 LR     lae    Load Real<br>&gt;0DC0 STR    lae    Store Real<br>&gt;0E00 -            (not&nbsp;encoded by the assembler assembler, but some exist)<br>&gt;0E40 AD     laeco  Add Decimal<br>&gt;0E80 CID    laeco  Convert Integer to Decimal<br>&gt;0EC0 SD     laeco  Substract Decimal<br>&gt;0F00 MD     laeco  Multiply Decimal<br>&gt;0F40 DD     laeco  Divide Decimal<br>&gt;0F80 LD     lae    Load Decimal<br>&gt;0FC0 STD    lae    Store Decimal</pre>
+<p>All opcodes dealing with Reals are meant for TMS99000-based systems
+that use a 99110A CPU and for the 9989. They are designed to provide a
+floating point package.</p>
+<p>The Decimal and Extended integer opcodes are found on the 9989. They
+provide an easy-to-use BCD interface.</p>
+<p>LDS and LDD are meant for 990/10 mainframe systems, for 99000-based
+systems and for the 9989. They are designed to support the TMS99610
+memory
+mapper, to allow easy access from one page to another without the need
+for the user to switch pages.</p>
+<p><br>
+Finally, there are a few more:</p>
+<pre><u>Value Opcode Format Meaning<br></u>&gt;2C00 DCA    IX     Decimal Correct for Addition (= XOP 0)<br>&gt;2C40 DCS    IX     Decimal Correct for Substraction (=XOP 1)<br>&gt;2C80 LIIM   IX     Load Immediate Interrupt Mask (= XOP 2)<br>&gt;0320 LMF    X      Load Memory-map File</pre>
+<p>The first three are aliases for XOP instructions. They are meant for
+use with a 9940 CPU. This CPU only allows 4 levels of interrupts and
+therefore
+cannot use LIMI (which allows 16 levels). Hence the special LIIM
+instructions
+that takes a number from 0 to 3 as an argument. DCA and DCS take one
+argument,
+in any of the general addressing mode. You can use them as shortcuts
+for
+XOP 0 and XOP 1 on the TI-99/4A, if you feel like it.</p>
+<p>LMF takes two operands: a register and a number that can be 0 or 1.
+It is used by the TMS99000, but I don't know what for.</p>
+<h4><br>
+Not assembled opcodes</h4>
+<p>The assembler will not produce the following opcodes, although they
+can be used on the 9989 and often also on the 99000. Formats I-IX are
+the
+<a href="assembly.htm#Encoding%20format">standard formats</a> we know,
+formats
+X-XXI are unique to these special opcodes and are only used by the
+TI990/40
+minicomputer.<br>
+laeco represent the status bits affected: <b>l</b>ogically higher, <b>a</b>rithmetically
+greater, <b>e</b>qual, <b>c</b>arry and <b>o</b>verflow</p>
+<pre><u>Value Opcode Format Status Meaning<br></u>&gt;0000-001B   -            (no opcodes)<br>&gt;001C SRAM   XIII  laec   Shift Right Arithmetic Multiple<br>&gt;001D SLAM   XIII  laeco  Shift Left Arithmetic Multiple<br>&gt;001E RTO    XI      e    Right Test for One<br>&gt;001F LTO    XI      e    Left Test for One<br>&gt;0020 CNTO   XI      e    Count Ones<br>&gt;0021 SLSL   XX      e    Search LiSt Logical address<br>&gt;0022 SLSP   XX      e    Search LiSt Physical address             <br>&gt;0023 BDC    XI    lae o  Binary to Decimal ascii Conversion<br>&gt;0024 DBC    XI    lae o  Decimal ascii to Binary Conversion<br>&gt;0025 SWPM   XI    lae    SWaP Multiple precision<br>&gt;0026 XORM   XI    lae    eXclusive OR Multiple precision<br>&gt;0027 ORM    XI    lae    OR Multiple precision<br>&gt;0028 ANDM   XI    lae    AND Multiple precision<br>&gt;0029 AM     XI    lae    Add Multiple<br>&gt;002A SM     XI    lae    Substract Multiple<br>&gt;002B MOVA   XIX   lae    MOVe Address<br>&gt;002C -                   no opcode<br>&gt;002D EMD    VII   (all)  Execute Micro Diagnostic<br>&gt;002E EINT   VII          Enable INTerrupts<br>&gt;002F DINT   VII          Disable INTerrupts<br>&gt;0030 STPC   VIII         Store Program Counter<br>&gt;0040 CS     XII   lae    Compare String<br>&gt;0050 SEQB   XII   lae    Search string for EQual Byte<br>&gt;0060 MOVS   XII   lae    MOVe String<br>&gt;0070 LIM    VIII  (mask) Load Interrupt Mask from register<br>&gt;0080 LST    VIII  (all)  Load Status from register<br>&gt;0090 LWP    VIII         Load Workspace Pointer from register<br>&gt;00A0 LCS    VIII         Load writable Control Store<br>&gt;00B0 BLSK   VIII         Branch immediate and push Link to StacK<br>&gt;00C0 MVSR   XII   lae    MOVe String Reverse<br>&gt;00D0 MVSK   XII   lae    MOVe String from StacK<br>&gt;00E0 POPS   XII   lae    POP String from stack<br>&gt;00F0 PSHS   XII   lae    PuSH String to stack<br>&gt;0100 EVAD   VI           EValuate ADdress instruction<br>&gt;0140 BIND   VI           Branch INDirect<br>&gt;0180 DIVS   VI    lea o  Divide-Signed<br>&gt;01C0 MPYS   VI    lae    Multiply-Signed<br>&gt;0301 CR     ??    ?????  Compare Reals<br>&gt;0302 MM     ??    ?????  Multiply Multiple<br>&gt;0303-031F   -            (no opcodes)</pre>
+<pre>&gt;03F0 EP     XXI          Extended Precision</pre>
+<pre>&gt;0C03 NEGD   VII   lae    Negate Decimal<br>&gt;0C08 NRM    XI    lae    Normalize<br>&gt;0C09 TMB    XIV     e    Test Memory Bit<br>&gt;0C0A TCMB   XIV     e    Test and Clear Memory Bit<br>&gt;0C0B TSMB   XIV     e    Test and Set Memory Bit<br>&gt;0C0C SRJ    XVII         Substract from Register and Jump<br>&gt;0C0D ARJ    XVII         Add to register and Jump<br>&gt;0C0F -                   no opcode<br>&gt;0C10 INSF   XVI   lae    Insert Field<br>&gt;0C20 XV     XVI   lae    eXtract Value<br>&gt;0C30 XF     XVI   lae    eXtract Field</pre>
+<pre>&gt;0E00 IOF    XV           Invert Order of Field<br>&gt;0E01 SNEB   XII   lae    Search string for Not Equal Byte<br>&gt;0E02 CRC    XII     e    Cyclic Redundancy Code calculation<br>&gt;0E03 TS     XII   lae    Translate String<br>&gt;0E04-0E3F   -            (no opcodes)</pre>
+<p><br>
+If you have any insight on what these opcodes are good at, please <a
+ href="feedback.htm#questions">let
+me know</a>.</p>
+<h2><br>
+<a name="EA5"></a>File formats</h2>
+<h3>Memory-image EA5 files</h3>
+<p>These "program" files contain a mere dump of the memory content.
+There is only a 3-word header that contains instructions for the
+loader.
+Normally, this will be option 5 of the Editor/Assembler cartridge,
+hence
+the name EA5. But there are other loaders around: you can even <a
+ href="download.htm#MILD%20and%20MISS">download
+</a>one from this website (MILD).</p>
+<p>The header structure is the following:</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Address </th>
+      <th>Content</th>
+    </tr>
+    <tr>
+      <td>&gt;0000</td>
+      <td>Flag. &gt;0000 = last file. &gt;FFFF = load one more file</td>
+    </tr>
+    <tr>
+      <td>&gt;0002</td>
+      <td>Address where to load the program.</td>
+    </tr>
+    <tr>
+      <td>&gt;0004</td>
+      <td>Number of bytes to load (not counting these 6).</td>
+    </tr>
+  </tbody>
+</table>
+<p>The loader loads the specified number of bytes, taken directly after
+to the header, to the specified address in memory. If the flag word in
+&gt;FFFF, the loader then loads another file whose name is coined by
+incrementing
+by 1 the last character of the current file name. This process goes on
+until a file with a &gt;0000 flag is loaded. At this point, the loader
+executes the program by performing a <tt>BL</tt> to the address where
+the
+first program was loaded. </p>
+<p>The workspace upon entry will be &gt;20BA with the Editor/Assembler
+cartridge, but the program should not take this for granted since other
+loaders may use a different workspace. Similarly, it may be wise for a
+program to properly setup the VDP memory, rather than to assume that
+the
+Editor/Assembler cartridge has already done it.</p>
+<p>A program can return to the caller with<tt> B *R11</tt>, or reset
+the
+TI-99/4A with <tt>BLWP @&gt;0000</tt>.</p>
+<h3><br>
+<a name="tagged-object"></a>Tagged-object code files</h3>
+<p>These Div/Fix 80 files are produced by the assembler and used by the
+linking loader to place a program in memory. They are more bulky and
+slow
+to load than EA5 files, but have two main advantages:</p>
+<ul>
+  <li>They can be loaded anywhere into memory, the loader just has to
+find
+a place where there is enough room for the whole file. By contrast EA5
+files must be loaded at a fixed address. Note that it is also possible
+to force loading of an object file, or part of it, at a fixed address:
+the AORG assembly instruction provides for it.</li>
+  <li>It is possible to load several files and to link them together by
+the
+way of DEF and REF statements in assembly. The loader uses the values
+DEFined
+in a file to resolved the REFerences in the others. </li>
+</ul>
+<p>All this is achieved by interlacing the data words with special
+characters
+called "tags". A tag is nothing else than an instruction for
+the loader. Almost all tags are followed with a word of data, sometimes
+by a string or an additional word. There are two file formats,
+compressed
+and uncompressed, determined by the C option of the assembler. In
+compressed
+files, data words are passed as integers, and no checksum nor record
+number
+is issued. In uncompressed mode, the numbered are "spelled out"
+as 4-character hexadecimal strings. This has the advantage that the
+file
+can be edited with the Editor without having to re-assemble the source
+file.</p>
+<p>Below are all the tags I'm aware of. Not all of them can be issued
+by
+the assembler provided with the Editor/Assembler cartridge.</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Tag</th>
+      <th>Data</th>
+      <th>Segment</th>
+      <th>Meaning</th>
+    </tr>
+    <tr>
+      <td><a href="#segment%20tags%200M">0</a></td>
+      <td><tt>####$$$$$$$$</tt></td>
+      <td>PSEG</td>
+      <td>At top of file. ####: size of the program segment.<br>
+$$$$$$$$: its name (empty unless renamed with the IDT instruction). </td>
+    </tr>
+    <tr>
+      <td><a href="#tag%201%202">1</a></td>
+      <td><tt>####</tt></td>
+      <td>AORG</td>
+      <td>Auto-start file at absolute address ####</td>
+    </tr>
+    <tr>
+      <td><a href="#tag%201%202">2</a></td>
+      <td><tt>####</tt></td>
+      <td>PSEG</td>
+      <td>Auto-start file at offset #### in the program segment.</td>
+    </tr>
+    <tr>
+      <td><a href="#labels%20tags">3</a></td>
+      <td><tt>####$$$$$$</tt></td>
+      <td>PSEG</td>
+      <td>Reference to a REF label from a program segment. $$$$$$:
+label name
+      <br>
+#### offset of the last address referencing this label. At end of file.</td>
+    </tr>
+    <tr>
+      <td><a href="#labels%20tags">4</a></td>
+      <td><tt>####$$$$$$</tt></td>
+      <td>AORG</td>
+      <td>Reference to a REF label inside an absolute section. $$$$$$:
+label
+name<br>
+#### last address referencing this label. At end of file.</td>
+    </tr>
+    <tr>
+      <td><a href="#labels%20tags">5</a></td>
+      <td><tt>####$$$$$$</tt></td>
+      <td>PSEG</td>
+      <td>DEFinition of a label located in a program segment. $$$$$$:
+label name<br>
+#### offset of the label in the segment. At end of file.</td>
+    </tr>
+    <tr>
+      <td><a href="#labels%20tags">6</a></td>
+      <td><tt>####$$$$$$</tt></td>
+      <td>AORG</td>
+      <td>DEFinition of a label located in an absolute section, or an
+EQUated
+label.<br>
+$$$$$$: label name, #### label value (e.g. absolute address). At end of
+file.</td>
+    </tr>
+    <tr>
+      <td><a href="#rec%20info%20tags">7</a></td>
+      <td><tt>####</tt></td>
+      <td>all</td>
+      <td>Checksum. ####: negated sum of all bytes in the record upto
+tag 7.</td>
+    </tr>
+    <tr>
+      <td><a href="#rec%20info%20tags">8</a> !</td>
+      <td><tt>####</tt></td>
+      <td>all</td>
+      <td>Ignore the number ####. Used to "comment out" a checksum.</td>
+    </tr>
+    <tr>
+      <td><a href="#loading%20tags">9</a></td>
+      <td><tt>####</tt></td>
+      <td>AORG</td>
+      <td>####: new address where to load data.</td>
+    </tr>
+    <tr>
+      <td><a href="#loading%20tags">A</a></td>
+      <td><tt>####</tt></td>
+      <td>PSEG</td>
+      <td>####: new offset in the program segment where to load data.</td>
+    </tr>
+    <tr>
+      <td><a href="#loading%20tags">B</a></td>
+      <td><tt>####</tt></td>
+      <td>all</td>
+      <td>Load data word #### at the current address (then increment
+the pointer)
+      </td>
+    </tr>
+    <tr>
+      <td><a href="#loading%20tags">C</a></td>
+      <td><tt>####</tt></td>
+      <td>all</td>
+      <td>Add PSEG offset to word #### and load it in memory. </td>
+    </tr>
+    <tr>
+      <td><a href="#loading%20tags">D</a> *!</td>
+      <td><tt>####</tt></td>
+      <td>all but AORG </td>
+      <td>Replaces the relocatable offset with #### .</td>
+    </tr>
+    <tr>
+      <td><a href="#Tag%20E">E</a> *!</td>
+      <td><tt>nnnn####</tt></td>
+      <td>all</td>
+      <td>Adds #### to a REF when resolving it. nnnn is the number of
+the REF.</td>
+    </tr>
+    <tr>
+      <td><a href="#rec%20info%20tags">F</a></td>
+      <td>.</td>
+      <td>all</td>
+      <td>End of record. Optionally followed by a right-justified
+record number.</td>
+    </tr>
+    <tr>
+      <td><a href="#Odd%20tags">G</a> *!</td>
+      <td><tt>####$$$$$$</tt></td>
+      <td>PSEG</td>
+      <td>Symbol table dump. $$$$$$: label name ###: value</td>
+    </tr>
+    <tr>
+      <td><a href="#Odd%20tags">H</a> *!</td>
+      <td><tt>####$$$$$$</tt></td>
+      <td>AORG</td>
+      <td>Symbol table dump. $$$$$$: label name ###: value</td>
+    </tr>
+    <tr>
+      <td><a href="#rec%20info%20tags">I</a> !</td>
+      <td><tt>$$$$$$$$</tt></td>
+      <td>all</td>
+      <td>Program ID (used with symbol table dump).</td>
+    </tr>
+    <tr>
+      <td><a href="#Odd%20tags">J</a> !</td>
+      <td><tt>####$$$$$$0xxx<br>
+00tt</tt> or <tt>000t</tt></td>
+      <td>DSEG, CSEG</td>
+      <td>Normally, symbol table dump. $$$$$$: label name ###: value.
+xxx: segment.<br>
+But the TI loader uses <tt>tt </tt>as the next tag (<tt>t</tt> in
+uncompressed
+mode)</td>
+    </tr>
+    <tr>
+      <td><a href="#Tag%20K">K</a> *!</td>
+      <td><tt>####$$$$$$</tt></td>
+      <td>?</td>
+      <td>External macro reference.</td>
+    </tr>
+    <tr>
+      <td><a href="#segment%20tags%200M">M</a> *</td>
+      <td><tt>####$DATA 0000<br>
+####$BLANK0001<br>
+####$$$$$$0xxx</tt></td>
+      <td>DSEG<br>
+CSEG<br>
+      </td>
+      <td>At top of file. ####: size of the data segment, <br>
+of the blank common segment (CSEG with no name), <br>
+or of the common segment named $$$$$$, number xxx assigned by assembler.</td>
+    </tr>
+    <tr>
+      <td><a href="#loading%20tags">N</a> *</td>
+      <td><tt>####0xxx</tt></td>
+      <td>all</td>
+      <td>Add the address of common segment xxx to word #### and load
+it in memory.
+      </td>
+    </tr>
+    <tr>
+      <td><a href="#loading%20tags">P</a> *</td>
+      <td><tt>####0xxx</tt></td>
+      <td>CSEG</td>
+      <td>####: new offset in common segment xxx where to load data.</td>
+    </tr>
+    <tr>
+      <td><a href="#Odd%20tags">Q</a> *!</td>
+      <td><tt>####nnnn</tt></td>
+      <td>?</td>
+      <td>COBOL segment reference. ####: record offset. nnnn:CBSEG #.</td>
+    </tr>
+    <tr>
+      <td><a href="#Odd%20tags">R</a> *!</td>
+      <td><tt>####nnnn</tt></td>
+      <td>?</td>
+      <td>Repeat count. ####: value. nnnn: count.</td>
+    </tr>
+    <tr>
+      <td><a href="#loading%20tags">S</a> *</td>
+      <td><tt>####</tt></td>
+      <td>DSEG</td>
+      <td>####: new offset in the data segment where to load data.</td>
+    </tr>
+    <tr>
+      <td><a href="#loading%20tags">T</a> *</td>
+      <td><tt>####</tt></td>
+      <td>DSEG</td>
+      <td>Add DSEG offset to word #### and load it in memory. </td>
+    </tr>
+    <tr>
+      <td><a href="#Tag%20U">U</a> *</td>
+      <td><tt>0000$$$$$$</tt></td>
+      <td>all</td>
+      <td>Issued by the LOAD instruction. $$$$$$: label name.</td>
+    </tr>
+    <tr>
+      <td><a href="#tag%20V">V</a> *</td>
+      <td><tt>####$$$$$$</tt></td>
+      <td>PSEG</td>
+      <td>SREF to a label, matching DEF is not required. $$$$$$: label
+name</td>
+    </tr>
+    <tr>
+      <td><a href="#labels%20tags">W</a> *</td>
+      <td><tt>####$$$$$$0000<br>
+####$$$$$$0xxx</tt></td>
+      <td>DSEG<br>
+CSEG</td>
+      <td>DEFinition of a label located in the data/common segment.
+$$$$$$: label
+name<br>
+#### offset of the label in segment xxx. At end of file.</td>
+    </tr>
+    <tr>
+      <td><a href="#labels%20tags">X</a> *</td>
+      <td><tt>####$$$$$$0000<br>
+####$$$$$$0xxx</tt></td>
+      <td>DSEG<br>
+CSEG</td>
+      <td>Reference to a REF label from a data/common segment. $$$$$$:
+label
+name <br>
+#### offset of the last address referencing this label. At end of file.</td>
+    </tr>
+    <tr>
+      <td><a href="#tag%20V">Y</a> *</td>
+      <td><tt>####</tt></td>
+      <td>AORG</td>
+      <td>SREF to a label, matching DEF is not required. $$$$$$: label
+name</td>
+    </tr>
+    <tr>
+      <td><a href="#tag%20V">Z</a> *</td>
+      <td><tt>####0000<br>
+####0xxx</tt></td>
+      <td>DSEG<br>
+CSEG</td>
+      <td>SREF to a label, matching DEF is not required. $$$$$$: label
+name<br>
+xxx: segment number.</td>
+    </tr>
+    <tr>
+      <td><b><a href="#rec%20info%20tags">:</a></b></td>
+      <td><i>copyrights string</i></td>
+      <td>.</td>
+      <td>End of file. Ignore copyright string and following records,
+if any.</td>
+    </tr>
+  </tbody>
+</table>
+<p>* These tags are not accepted by the standard loader provided in the
+Editor/Assembler cartridge.<br>
+! These tags are not issued by the standard assembler, as far as I know.<br>
+#### In compressed mode: 2-byte integer. In uncompressed mode: string
+of
+4 hex digits 0-9, A-F. Ditto for nnnn.<br>
+0xxx Segment number, from 0 (DSEG) to 127. Compressed: 2 bytes,
+uncompressed:
+4 hex digits.<br>
+$ Any ascii character. Not affected by compression mode.</p>
+<h4><br>
+<a name="segment tags 0M"></a>Segments</h4>
+<p>Tags <b>0</b> and <b>M</b> are used by the loader to find a free
+slot
+in memory where to load a given segment. The total size of the segments
+is passed as an argument together with the segment name. Note that the
+names of the data and the "blank-common" segments are predefined
+($DATA and $BLANK), whereas the name of the program segment can be
+defined
+with the IDT assembly instruction (by default, it's a string of 8
+spaces).
+Other common segments can be specified by placing their name after the
+CSEG instruction in the assembly program. Tag M is followed by the
+number
+of the segment: &gt;0000 for the data segment, &gt;0001 for the blank
+common
+segment (i.e. when no name is specified after CSEG), and higher numbers
+for all other common segments.</p>
+<p>There can thus be at least three type of relocatable segments:
+program,
+data and common segments that can be loaded at different memory
+locations.
+All the PSEG sections in a file will be grouped together inside the
+program
+segment, all DSEG inside the data segment and all CSEG inside the
+corresponding
+common segments. AORG sections are always loaded at the specified
+address
+and the loader therefore has no need to know their size.</p>
+<p>Note that the loader in the Editor/Assembler cartridge cannot handle
+the data nor the common segments.</p>
+<h4><br>
+<a name="loading tags"></a>Loading data</h4>
+<p>Tags <b>9</b>, <b>A</b>, <b>S</b> and <b>P</b> are used to
+specify a
+loading address. Tag 9 passes the address as such. The others pass an
+offset
+within the program, data or common segment respectively. The loader
+must
+add the address of the beginning of that segment to the offset to
+obtain
+the actual address. Note that tag P comprises an additional number that
+specifies the number of the common segment to be used.</p>
+<p>The loader in the cartridge only recognises tag 9 and A. It loads
+relocatable
+segments in the high memory expansion first, then in the low memory
+expansion
+and maintains a pointer to the next available space, that will be used
+as a load offset for the next file. Tag <b>D</b> can be used to
+override
+this offset by a user-specified value. This tag isn't produced by the
+assembler,
+but is meant for use when editing the code file.</p>
+<p>Tag <b>B</b> copies data as such into memory. Most of a program
+will
+consists of data that can be passed by tag B. The only exceptions are
+instruction
+whose operand is a label located in a relocatable segment, whether
+program,
+data or common. E.g. <tt>CLR @COUNT</tt> or <tt>BL @SUB1</tt>,
+assuming
+COUNT is in the data segment and SUB1 in the program segment. The
+assembler
+does not know where these segments will be located, but it knows the
+offset
+of a label with respect to the beginning of the segment. Therefore, it
+issues a tag <b>C</b>, <b>T</b> or <b>N</b> which tells the loader
+to add
+the address of the program, data or common segment respectively to the
+data word before to load it into memory. Here also, tag N specifies the
+number of the common segment to use.</p>
+<h4><br>
+<a name="labels tags"></a>Labels</h4>
+<p>Tag <b>6</b> is used to define a label. The value of the label and
+its
+name are passed together with the tag. Such labels could be addresses
+in
+an absolute section, or values defined with an EQU statement. By
+contrast,
+tag <b>5</b> and <b>W</b> are used to specify labels corresponding to
+an
+offset in the program, data or common segment (W is shared by data and
+common segment: an extra word is passed to determine which segment must
+be used). Here again, the loader adds the base address of the adequate
+segment to specified offset and places the label in the symbol table,
+thereby
+possibly solving any pre-existing REFs.</p>
+<p>Tag <b>4</b>, <b>3</b> and <b>X</b> are used to REFerence
+external labels
+(i.e. labels DEFined in another file) from inside an absolute section,
+a program, a data or a common segment (X is shared by data and common:
+an extra word containing the segment number determines which is which).
+The accompanying data corresponds to the offset (or the absolute
+address
+with tag 4) of the last place in the segment where this label is used.
+If the loader knows the value of this label, it places it at the
+pointed
+location. Otherwise it places the label in the symbol table (and
+negates
+the first 2 chars) and waits for a DEF to the same label to arrive, by
+which time it will solve the REF.</p>
+<p>Since it would use up a lot of memory to have a tag for each memory
+word that uses an external label, the assembler uses a special trick.
+There
+is only one REF per label (per file), and it points to the last address
+where the label is used. The content of this address, that will be
+replaced
+with the label value, contains a pointer to the previous address where
+the label was used. This pointer is an absolute address with tag 4, an
+offset with tag 3 and X. That address in turn contains a pointer to the
+previous one, etc. The last address contains a &gt;0000 word with a tag
+B to mark the end of the chain. All the loader has to do is to walk the
+chain, replacing each pointer with the value of the label.</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre><u>Offset      Program          Object code (uncompressed, tag in bold)<br></u>            REF  TEST        <br><b>            </b>IDT  'PLAYBOYS'<b>  0</b>000CPLAYBOYS   (size and name of PSEG)  <br>&gt;0000       CLR  @TEST       <b>B</b>04E0<b>B</b>0000&lt;---+ (end of REF chain)     <br>&gt;0004       SETO @TEST       <b>B</b>0720<b>C</b>0002----+<br>&gt;0008       DATA TEST        <b>C</b>0006--^   &lt;---+<br>&gt;000A       ABS  @TEST       <b>B</b>0760<b>C</b>0008-----+  &lt;--+<br>            END              <b>3</b>000CTEST  <b>F</b>---------+ points to last use of TEST <br></pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p><br>
+<a name="tag V"></a>Tag <b>V</b> is issued by the SREF instruction and
+is equivalent to tag 3. The only difference is that it will not
+generate
+an "undefined symbol" error number &gt;0D if no matching DEF
+was provided by the time the program is launched. This can be useful if
+your program comprises optional modules. All you must do is to check
+the
+first occurence of this label in your program to see if a value was
+provided
+by the loader: if it contains &gt;0000 the optional module was not
+loaded.
+Note that this tag is not supported by the standard loader.</p>
+<p>Tag <b>Y</b> does the same for SREFs included in an absolute
+section,
+tag <b>Z</b> for SREF in a DSEG or CSEG segment.</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>* This demonstrate the use of SREF  <br>* PRINT is a procedure in a optional extra file <br>       SREF PRINT      Reference it, but don't check for a DEF </pre>
+      <pre>       MOV  @HERE+2,R0<br>       JEQ  NOPE       The extra file was not loaded<br>HERE   BL   @PRINT     The second word is &gt;0000 before linking<br>NOPE   ...                    <br>       <br>       MOV  @HERE+2,R0   <br>       JEQ  $+4         Skip if not loaded<br>       BL   @PRINT      The 2nd word is not &gt;0000: it points at HERE+2 <br>       ...</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p><br>
+<a name="Tag U"></a>Tag <b>U</b> is an oddball. It is issued by the
+assembly
+instruction LOAD, whose operand is a label. Contrarily to the other
+tags
+dealing with labels, that are grouped at the end of the file, tag U
+appears
+in the program at the position it was inserted in the source file. The
+value of the LOADed label is always &gt;0000. Appearantly this is meant
+as a dummy DEF, used to force loading of a label in the symbol table
+(possibly
+to implement #ifdef and #ifnotdef statements?). It is not supported by
+the standard loader anyway (but it could be useful to implement a fancy
+loader and pass loading commands without having to re-write the
+assembler...).</p>
+<p><a name="Tag E"></a>Tag <b>E</b> is another weird one. As far as I
+know,
+it is not issued by the assembler and is not recognized by the loader.
+It serves to add an absolute value to a REF symbol. It is followed by
+two
+words of data: the second is to value to be added, the first one is the
+number of the REF symbol to be modified. REF symbols are counted from
+0,
+in the order they appear in the code file, whether the are preceded by
+a tag 3, 4, V, X, or Y. When resolving the REF chain, the specifed
+value
+should be added to the DEFined one. </p>
+<p><a name="Tag K"></a>Tag <b>K</b> is an external macro REF (whatever
+this means). It has the same syntax as tag 3 but is not issued by the
+assembler,
+not recognized by the standard loader.</p>
+<h4><br>
+<a name="tag 1 2"></a>Autostart</h4>
+<p>Tag <b>1</b> and <b>2</b> are used by auto-start files. The loader
+saves
+the address they provide in word &gt;2022 (with tag 2, it adds the
+address
+of the program segment to the specified offset). Once loading is
+completed,
+i.e. a tag : is encountered, the loader begins execution at this
+address.
+That is, provided there are no REF labels that were not solved by a
+matching
+DEF. </p>
+<p>To generate a tag 1 or 2, you place a label in the operand field
+after
+the END instruction: <tt>END START</tt></p>
+<h4><br>
+<a name="rec info tags"></a>Record info</h4>
+<p>Tag <b>F</b> marks the end of each record, any following byte in
+this
+record is ignored. With uncompressed files the last 4 bytes in the
+record
+contain a decimal record number.</p>
+<p>Tag <b>:</b> signals the end of the file. Any extra byte on this
+record
+are ignored, so is any additional record.</p>
+<p>Tag <b>7</b> is used to verify the integrity of a record. Both the
+assembler
+and the loader perform the same calculation on each record: they add up
+all bytes in the record, upto and including the tag 7 itself. Then the
+assembler negates the resulting word and passes it with a tag 7 in
+uncompressed
+files. The loader just adds this value to the checksum it has
+calculated:
+if the result is not zero the record has been tempered with and a
+loading
+error occurs.</p>
+<p>Tag <b>8</b> is not issued by the assembler. It is useful for us as
+it allows to comment out any tagged word. Most often this will be to
+replace
+tag 7 and prevent verification of the checksum.</p>
+<p>Tag <b>I</b> is issued by the SYMT directive, which does not work
+with
+the TI assembler: it includes the program ID in the output file. The
+loader
+recognises it, and just skips the next 8 characters.</p>
+<h4><br>
+<a name="Odd tags"></a>Oddballs</h4>
+<p>The following tags are not issued by the assembler, as far as I
+know.
+They were meant for other assembler, such as the model 990 computer
+assembler.</p>
+<p>Tag <b>G</b>,&nbsp;<b>H</b> and <b>J</b> are used to include a
+copy
+of the whole symbol table within the output file. This is triggered by
+the SYMT directive, which is not supported by the assembler included in
+the Editor/Assembler module. Tag G would be used to list relocatable
+symbols,
+tag H for absolute symbols and tag J for data or common segment symbols.</p>
+<p>The loader does recognise tag J, but in a very stange way: it uses
+the
+second byte of data as a tag (or the last hex digit with uncompressed
+files).
+I have no idea whether this is of any use or if it's just a bug, since
+it does not match the expected syntax for tag J.</p>
+<p>Tag <b>Q</b> references a Cobol segment. It is followed by the
+record
+offset and the Cobol segment number.</p>
+<p>Tag <b>R</b> specifies a repeat count. It is followed by a value
+and
+the number of repeats. </p>
+<p>I do not know the meanings of the remaining tags: <b>L</b>, <b>O</b>,
+nor of any tag beyond Z, if any. </p>
+<p>If you can provide any information on these, by all means <a
+ href="feedback.htm#questions">let
+me know</a>.</p>
+<address><br>
+Revision 1. 6/22/99 Ok to release<br>
+Revision II. 9/5/99 Added non-TI99 opcodes. Added DF80 tag D + K. CSEG
+discussed.</address>
+<address>Revision III. 1/7/01 Added tags E,G,H,K,Q,R,Y,Z.</address>
+<center>
+<p><br>
+<br>
+<a href="titechpages.htm">Back to the TI-99/4A Tech Pages</a><br>
+</p>
+</center>
+</body>
+</html>

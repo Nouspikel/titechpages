@@ -1,0 +1,592 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+  <title></title>
+  <meta name="Author" content="">
+  <meta name="GENERATOR"
+ content="Mozilla/3.04Gold (Win95; U) [Netscape]">
+</head>
+<body>
+<h1 align="center"><a
+ href="http://www.nouspikel.com/ti99/titechpages.htm"><img
+ src="logo.jpg" style="border: 0px solid ; height: 33px; width: 95px;"
+ title="" alt=""></a></h1>
+<h1>AVL trees</h1>
+<p>This page describes an assembly-language implementation of indexed
+AVL
+trees.</p>
+<p><a href="#Intro">Introduction<br>
+</a><a href="#Rotations">Rotations<br>
+</a><a href="#Insertion">Inserting nodes<br>
+</a><a href="#Deletion">Deleting nodes</a></p>
+<p><a href="#Threaded%20trees">Threaded trees<br>
+</a><a href="#Indexed%20trees">Indexed trees</a></p>
+<p><a href="#Test">Testing</a></p>
+<p><a href="#Refs">References</a></p>
+<h2><a name="Intro"></a>Introduction</h2>
+<p>Binary trees are very usefull to perform ultra-fast dictionnary-type
+searches. The principle is very simple: the data are arranged in a
+balanced,
+binary tree in which each node contains two pointers, to a larger and a
+smaller value. Here is an example:</p>
+<pre>        "DETERMINE"<br>       /           \<br>    "BULL"        "FROG"<br>   /      \       /    \<br>"ADAM" "CLOUD"       "GUTS" </pre>
+<p>To search for a string, start from the top and compare the target
+string
+with that in the node. If it is smaller take the left link, if it is
+larger
+follow the right link. In this way, you can search through a thousand
+words
+with 10 comparisons, through a million with 20, a billion with 30, etc.
+</p>
+<p>This is fine for sets of data that can be arranged in advance: start
+with the middle value and put it at the top. On level two, put the
+values
+that are at 1/4 and 3/4, then those at 1/8, 3/8, 5/8 and 7/8, etc.</p>
+<p>The problems begin when the user is allowed to enter new values, or
+to delete existing ones. Suppose the user enters values in alphabetical
+order, if we just follow a "go left / go right" strategy, we'll
+end up with:</p>
+<pre>"ADAM"<br>/    \<br>    "BULL" <br>    /    \     <br>        "CLOUD"<br>        /    \<br>            "ERIC"</pre>
+<p>Which defeats the purpose of a binary tree.</p>
+<p>AVL trees were created by G.M. Adel'son-Velskii and E.M. Landis to
+overcome
+this problem. The idea is very elegant: each node contains an
+additional
+value, the balance, that indicates which child subtree is heaviest
+(i.e.
+the depth in levels of the right subtree is substracted from that of
+the
+left subtree). A value of 0 indicates that this node is perfectly
+balanced.
+Values of +1 and -1 are unavoidable, but anything beyond that is not
+tolerated
+and will cause the tree to rearrange.</p>
+<p>But first, let's see how we can search a binary tree:</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>* Node structure:<br>* --------------<br>*      DATA key               Key after which nodes are sorted (or ptr to it)<br>*      DATA left-link         Points to smaller node or &gt;0000 if none<br>*      DATA right-link        Points to greater node or &gt;0000 if none<br>*      BYTE balance           Balance factor (-1 / 0 / +1)<br>*      BYTE lcount            Number of items in the left branch (optional)<br>*<br>KEY    EQU  0<br>LEFT   EQU  2<br>RIGHT  EQU  4<br>BAL    EQU  6<br>LCNT   EQU  7<br>NSIZE  EQU  8                 node size</pre>
+      <pre>*----------------------------------------------------------<br>* Find greatest node in a (sub)tree, keep track of our path<br>* Starting from node in R5, return ptr in R5<br>*----------------------------------------------------------<br>MAX    MOV  5,*8+             save node ptr in stack<br>       MOVB @BAL(5),*8+       and its balance<br>       MOVB @H00,*8+          no link yet<br>       MOV  @RIGHT(5),0       always go to the right<br>       JEQ  SK7               no more: we are done<br>       MOVB @H01,@-1(8)       flag: we went to the right<br>       MOV  0,5               keep going<br>       JMP  MAX<br>SK7    B    *11               found<br>*<br>*----------------------------------------------------------<br>* Find smallest node in a (sub)tree, keep track of our path<br>* Starting from node in R5, return ptr in R5<br>*----------------------------------------------------------<br>MIN    MOV  5,*8+             save node ptr in stack<br>       MOVB @BAL(5),*8+       and its balance<br>       MOVB @H00,*8+          no link yet<br>       MOV  @LEFT(5),0        always go to the left<br>       JEQ  SK7               no more: we are done<br>       MOVB @HFF,@-1(8)       flag: we went to the left<br>       MOV  0,5               keep going<br>       JMP  MIN<br>*<br>*----------------------------------------------------------<br>* Search for a key, keep track of our route<br>* Value to find (or ptr to it) in R4<br>* Return ptr to node into R5, skip JMP if found<br>*----------------------------------------------------------<br>FIND   MOV  11,10<br>       LI   8,STACK+4         memorize our route on a stack<br>       MOV  @ROOT+4,5         start from top of tree<br> <br>LP2    JEQ  SK6               not found<br>       MOV  5,*8+             save node ptr<br>       MOV  @BAL(5),*8+       save balance<br> <br>       BL   @COMP             compare current node with wanted value<br>       JGT  SK4               value is greater<br>       JLT  SK5               value is smaller<br>       INCT 10                we  found it, skip jump<br>SK6    B    *10<br> <br>SK4    MOVB @H01,@-1(8)       leave flag: we went to the right<br>       MOV  @RIGHT(5),5       go right<br>       JMP  LP2<br> <br>SK5    MOVB @HFF,@-1(8)       leave flag: we went to the left<br>       MOV  @LEFT(5),5        go left<br>       JMP  LP2</pre>
+      <pre>*----------------------------------------------------------<br>* User-defined routine.<br>* Compare two keys, return with result in status<br>* Values in R4 and *R5. ( or pointers to values).<br>*----------------------------------------------------------<br>COMP   C    4,*5              here: let's compare values<br>       B    *11</pre>
+      <pre>*----------------------------------------------------------<br>* Data area<br>*----------------------------------------------------------<br>00    BYTE &gt;00               constants<br>H01    BYTE &gt;01<br>HFF    BYTE &gt;FF<br>       EVEN<br>*<br>ROOT   DATA 0,0,0,0           root of the tree<br> <br>WREGS  DATA 0,1,2,3,4,5,6,7,8 our workspace<br>       DATA 0,10,11,MEM,13,14,15<br> <br>STACK  DATA ROOT,&gt;0001        trace-back stack<br>       BSS  80                20-level deep: 1 million nodes</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>You may wonder what's with the stack pointed by R8. I'm using it to
+save the route from the root of the tree to the current node: at each
+step
+I save a pointer to the node and a flag saying whether we followed the
+left link or the right link. This is not strictly required for the
+above
+routines, but it will be essential for inserting and deleting nodes.
+Rather
+than writing two versions of FIND, one with and one without route
+tracking,
+I decided to implement it anyhow. </p>
+<h2><br>
+<a name="Rotations"></a>Rotations</h2>
+<p>A tree can be rearranged to restore balance by just rotating a node
+and its child:</p>
+<pre> A        balance = +2     ----LL------&gt;       B       balance = 0<br>/ \                         rotate A-B        / \ <br>  B       balance = +1       to the          A   C     balance = 0 0<br> / \                          left          / \ / \<br>    C     balance = 0</pre>
+<p>Now we should check what the effect on the balance will be. There
+are
+two possibilities, as node B can be balanced or not (B could be
+balanced
+if the rotation was caused by the deletion of a node at the left of A,
+for instance).</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th colspan="2">Old balance</th>
+      <th colspan="2">New balance</th>
+      <th colspan="2">Tree depth</th>
+    </tr>
+    <tr>
+      <th>A</th>
+      <th>B</th>
+      <th>A</th>
+      <th>B</th>
+      <th>Insertion</th>
+      <th>Deletion</th>
+    </tr>
+    <tr>
+      <td>+2</td>
+      <td>0</td>
+      <td>+1</td>
+      <td>-1</td>
+      <td>(never)</td>
+      <td>Unchanged </td>
+    </tr>
+    <tr>
+      <td>+2</td>
+      <td>+1</td>
+      <td>0</td>
+      <td>0</td>
+      <td>Unchanged </td>
+      <td>Changed</td>
+    </tr>
+  </tbody>
+</table>
+<p>In fact, one can generalize the above situation and consider the
+cases
+when A and B are not terminal nodes (aka "leaves") but have subtrees
+themselves. In the following sheme, subtrees are denoted by lower-case
+letters, while individual nodes are represented by upper-case letters.</p>
+<pre>  A          ----LL------&gt;       B      <br> / \           rotate           / \ <br>a1  B          to the          A   b2    <br>   / \          left          / \  <br>  b1  b2                     a1  b1 <br>  </pre>
+<p>Obviously, A must have a balance of +2 to cause a rotation, but B
+could
+be balanced or not. If this situation was cause by an insertion (in one
+of the B subtrees) , then B cannot be balanced. </p>
+<h4>Tree depth</h4>
+<p>What will be the effect of such a rotation on the overall tree
+depth?
+It depends on the balance of B and on the operation that caused
+imbalancing:
+deletion or insertion. An insertion will cause subtree b2 to become
+longer
+(insetions in b1 require another type of rotation, see below). As we
+are
+moving b2 one level up, it will still reach the same depth. But what
+about
+a1? We know that a1 must be exactly one node shorter than b2 before the
+insertion: if it were 2 nodes shorter a rotation would have occured
+before,
+it it were the same length (or larger) no rotation would be required.
+We
+are now moving a1 one level down, which means that it will reach the
+same
+depth than b2 prior to the insertion. In conclusion, the tree depth is
+not affected by a rotation caused by an insertion.</p>
+<p>Things are trickier with a deletion since B could be imbalanced
+prior
+to the deletion: b2 could be larger than b1 (the opposite is also
+possible
+but calls for another type of rotation). After the deletion, the
+rotation
+moved b2 one level higher, which shortened the overall depth of the
+tree
+(of course a1 went down, but remember we deleted a node in it, so it
+reaches
+the same depth as before). If B was balanced before the deletion, the
+overall
+tree depth remains unchanged because b1 did not move and reaches the
+same
+depth as before.</p>
+<p>Why are we so concerned about tree depth? Because we must consider
+the
+possibility that our "tree" could in fact be a subtree of a larger
+tree. In which case, if the depth changes, we must step one level up
+and
+see what will be the effect it has on the balance of the parent node.
+But
+this will be discussed later. </p>
+<h4>Other rotations</h4>
+<p>For now, I'd like to discuss the other types of rotations: firstly,
+we have the mirror-image of the above situation, which can be solved by
+a rotation to the right:</p>
+<pre>    B        ----RR------&gt;       A      <br>   / \          rotate          / \ <br>  A   b         to the         a1  B    <br> / \            right             / \<br>a1 a2                            a2  b</pre>
+<table border="1">
+  <tbody>
+    <tr>
+      <th colspan="2">Old balance</th>
+      <th colspan="2">New balance</th>
+      <th colspan="2">Tree depth</th>
+    </tr>
+    <tr>
+      <th>C</th>
+      <th>B</th>
+      <th>C</th>
+      <th>B</th>
+      <th>Insertion</th>
+      <th>Deletion</th>
+    </tr>
+    <tr>
+      <td>-2</td>
+      <td>0</td>
+      <td>-1</td>
+      <td>+1</td>
+      <td>(never)</td>
+      <td>Unchanged </td>
+    </tr>
+    <tr>
+      <td>-2</td>
+      <td>-1</td>
+      <td>0</td>
+      <td>0</td>
+      <td>Unchanged </td>
+      <td>Changed</td>
+    </tr>
+  </tbody>
+</table>
+<p><br>
+<br>
+This situation is a bit trickier and requires a double rotation, first
+right between B and C, then left between A and B:</p>
+<pre>  A                      A      --L--&gt;     B       <br> / \                    / \               / \ <br>a1  C       --R--&gt;     a1  B             A   C <br>   / \                    / \           / \ / \<br>  B  c1                  b1 C         a1 b1 b2 c1<br> / \                       / \ <br>b1 b2                     b2 c1</pre>
+<p>There are three possible cases, depending on the balance of B (in
+the
+case of an insertion, there are only two cases, as B cannot be balanced
+after insertion).</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th colspan="3">Old balance</th>
+      <th colspan="3">New balance</th>
+      <th colspan="2">Tree depth</th>
+    </tr>
+    <tr>
+      <th>A</th>
+      <th>C</th>
+      <th>B</th>
+      <th>A</th>
+      <th>B</th>
+      <th>C</th>
+      <th>Insertion</th>
+      <th>Deletion</th>
+    </tr>
+    <tr>
+      <td>+2</td>
+      <td>-1</td>
+      <td>+1</td>
+      <td>-1</td>
+      <td>0</td>
+      <td>0</td>
+      <td>Unchanged </td>
+      <td>Changed</td>
+    </tr>
+    <tr>
+      <td>+2</td>
+      <td>-1</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>(never)</td>
+      <td>Changed</td>
+    </tr>
+    <tr>
+      <td>+2</td>
+      <td>-1</td>
+      <td>-1</td>
+      <td>0</td>
+      <td>0</td>
+      <td>+1</td>
+      <td>Unchanged</td>
+      <td>Changed</td>
+    </tr>
+  </tbody>
+</table>
+<p>In the case of an insertion, in either b1 or b2, the overall tree
+length
+will not be affected: the expanded subtree is brought one level up, so
+it will reach the same depth as before. Subtree c1 does not move so we
+don't need to worry about it. And subtree a1 must be exactly one node
+shorter
+than b1 and b2, prior to the insertion (otherwise a rotation would have
+occured before, or would not be necessary now). The rotation brings a1
+down by one level, which means that it now reached the same depth than
+b1 and b2 prior to the rotation. In conclusion: a double-rotation
+caused
+by an insertion does not change the depth of the tree.</p>
+<p>What about deletions? If a1 is trucated, and b1 and b2 are brought
+one
+level up, the only subtree that could maintain the depth of the tree
+would
+be c1. But we know that c1 does not reach as deep as b1/b2, otherwise a
+double-rotation wouldn't be necessary: we could just rotate A and C. So
+double-rotations caused be a deletion always change the depth of the
+tree.</p>
+<p><br>
+Finally, the mirror-image of the above situation requires a left-right
+double rotation:</p>
+<pre>    C                    C      --R--&gt;     B       <br>   / \                  / \               / \ <br>  A   c1    --L--&gt;     B  c1             A   C <br> / \                  / \               / \ / \<br>a1  B                A   b2           a1 b1 b2 c1<br>   / \              / \<br>  b1 b2            a1 b1</pre>
+<p>Did you notice? We ended up with the very same situation than in the
+case of a right-left rotation. Now isn't that convenient? It means that
+the effects on the balance and tree depth will be the same.</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th colspan="3">Old balance</th>
+      <th colspan="3">New balance</th>
+      <th colspan="2">Tree depth</th>
+    </tr>
+    <tr>
+      <th>C</th>
+      <th>A</th>
+      <th>B</th>
+      <th>A</th>
+      <th>B</th>
+      <th>C</th>
+      <th>Insertion</th>
+      <th>Deletion </th>
+    </tr>
+    <tr>
+      <td>-2</td>
+      <td>+1</td>
+      <td>+1</td>
+      <td>-1</td>
+      <td>0</td>
+      <td>0</td>
+      <td>Unchanged</td>
+      <td>Changed</td>
+    </tr>
+    <tr>
+      <td>-2</td>
+      <td>+1</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>(never)</td>
+      <td>Changed</td>
+    </tr>
+    <tr>
+      <td>-2</td>
+      <td>+1</td>
+      <td>-1</td>
+      <td>0</td>
+      <td>0</td>
+      <td>+1</td>
+      <td>Unchanged </td>
+      <td>Changed </td>
+    </tr>
+  </tbody>
+</table>
+<h4>Code</h4>
+<p>Here are the four assembly routines that perform these rotations. <br>
+NB. Don't worry about the "left count" lines, this is a feature
+of indexed trees, it will be discussed <a href="#Indexed%20trees">later</a>.</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>*--------------------------------------------                    A          B<br>* Rotate left once. Parent in R5, child in R6                   / \  ==&gt;   / \<br>*--------------------------------------------                  a   B      A  b2<br>ROTLL  MOV  @LEFT(6),0        memorize left grand-child           / \    / \<br>       MOV  5,@LEFT(6)        put parent at left of child        b1 b2  a  b1<br>       MOV  0,@RIGHT(5)       and grand-child at right of parent<br> <br>       AB   @LCNT(5),@LCNT(6) adjust left count in child<br>       AB   @H01,@LCNT(6)     now becomes parent<br> <br>       LI   0,&gt;FF00           new balance will shift to the left<br>SK15   AB   @BAL(6),0         adjust balances after single rotation<br>       MOVB 0,@BAL(6)         child decremented or incremented<br>       NEG  0<br>       MOVB 0,@BAL(5)         parent is invert of child<br>       MOV  6,7               (grand-)child is now at top<br> <br>SK16   MOV  @-4(8),1          get ancestor<br>       MOVB @-1(8),0          which side did we go ?<br>       JLT  SK14<br>       MOV  7,@RIGHT(1)       update link to this level<br>       JMP  SKE<br>SK14   MOV  7,@LEFT(1)        ditto, if we went on the other side<br>SKE    MOVB @BAL(6),0         test balance of top node<br>       B    *11<br>*<br>*---------------------------------------------                    B        A<br>* Rotate right once. Parent in R5, child in R6                   / \  ==&gt; / \<br>*---------------------------------------------                  A   b    a1  B<br>ROTRR  MOV  @RIGHT(6),0       memorize right grand-child       / \          / \<br>       MOV  5,@RIGHT(6)       put parent at right of child   a1  a2        a2  b  <br>       MOV  0,@LEFT(5)        and grand-child at left of parent<br> <br>       SB   @LCNT(6),@LCNT(5) adjust left count in parent<br>       SB   @H01,@LCNT(5)     now becomes child<br> <br>       LI   0,&gt;0100           balance will shift to the right<br>       JMP  SK15<br>*<br>*---------------------------------------------                 A          B<br>* Rotate left-right. Parent in R5, child in R6                / \   ==&gt;  / \<br>*---------------------------------------------               a   C      A    C<br>ROTLR  MOV  @LEFT(6),7         get left grand-child             / \    / \  / \<br>       MOV  @LEFT(7),@RIGHT(5) put its left at right of parent B   c  a  b1 b2 c<br>       MOV  @RIGHT(7),@LEFT(6) its right at left of child     / \<br>       MOV  5,@LEFT(7)         parent will be at its left    b1  b2<br>       MOV  6,@RIGHT(7)        child at its right<br> <br>       SB   @LCNT(7),@LCNT(6)  adjust left count in child<br>       SB   @H01,@LCNT(6)      now lost the grand-child<br>       AB   @LCNT(5),@LCNT(7)  adjust left count in grand-child<br>       AB   @H01,@LCNT(7)      now becomes parent<br> <br>SK12   MOVB @H00,@BAL(6)       adjust balances after dobble rotation<br>       MOVB @BAL(7),0          get grand-child balance<br>       NEG  0<br>       JGT  SKF<br>       JLT  SK10<br>       MOVB @H00,@BAL(5)       grand-child was balanced: all 3 are now<br>       MOVB @H00,@BAL(7)<br>       JMP  SK16               update link in ancestor<br> <br>SKF    MOVB 0,@BAL(7)          grand-child balance was -1, now it's +1<br>       MOVB @H00,@BAL(5)       parent is now balanced<br>       JMP  SK16               update link in ancestor<br> <br>SK10   MOVB @H00,@BAL(7)       grand-child balance was +1, now it's 0<br>       MOVB 0,@BAL(5)          but parent becomes -1<br>       JMP  SK16               update link in ancestor<br>*<br>*---------------------------------------------                      C  ==&gt; same<br>* Rotate right-left. Parent in R5, child in R6                     / \     as<br>*---------------------------------------------                    A   c   above<br>ROTRL  MOV  @RIGHT(6),7        get right grand-child             / \<br>       MOV  @LEFT(7),@RIGHT(6) put its left at right of child   a   B<br>       MOV  @RIGHT(7),@LEFT(7) its right at left of parent         / \<br>       MOV  5,@RIGHT(7)        parent will be at its right        b1  b2<br>       MOV  6,@LEFT(7)         child at its left<br> <br>       AB   @LCNT(6),@LCNT(7)  adjust left count for grand-child<br>       AB   @H01,@LCNT(7)      now becomes parent<br>       SB   @LCNT(7),@LCNT(5)  adjust left count in parent<br>       SB   @H01,@LCNT(5)      now becomes child<br> <br>       JMP  SK12               update balance (same as above)</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h2><br>
+<a name="Insertion"></a>Insertion</h2>
+<p>Now that we know how to rearrange a tree by rotating a node, we can
+insert new elements without imbalancing the tree. First, we insert the
+element where it belongs. Then we check the effect on its parent node's
+balance. Two cases are possible</p>
+<pre> E  --&gt; E                 E ---&gt; E<br>/ \    / \               / \    / \<br>          N             D      D   N<br>E was balanced          E was imbalanced<br>now it's not            now it's balanced</pre>
+<p>In both cases, the balance of E remains in the acceptable range.
+However,
+in the first case we have increased the depth of the 'E' subtree by one
+level. This may result in imbalancing a node above the level of E. We
+must
+thus go one level up, and repeat our checks. This time, a third
+situation
+may occur, when the node was already imbalanced and is now even more
+tilted.
+This will require a rotation.</p>
+<pre>   B          ---&gt;        B           --LL--&gt;         E<br>  / \                    / \                         / \<br>     E                      E                       B   N<br>    / \                    / \                     / \ / \<br>                              N         <br>B was imbalanced     Now it's not aceptable     We must rotate<br>but acceptable       (balance B = 2)            to rebalance this level</pre>
+<p>Theoretically we should check what effect the rotation has on the
+upper
+levels, but rotations caused be insertions never change the depth of
+the
+tree, so we can dispense with it.</p>
+<p>The insertion algorithm thus become:</p>
+<li>The node was imbalanced, now it is balanced ==&gt; stop here</li>
+<li>The node was balanced, now it's imbalanced ==&gt; check the effect
+at the upper level (if any)</li>
+<li>The node was imbalanced, now it's not acceptable ==&gt; rotate,
+then
+stop</li>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>*----------------------------------------------------------<br>* Insert a node into the tree.<br>* New key value in R4. Ptr to new node into R5<br>*----------------------------------------------------------<br>INSERT MOV  11,9<br>       BL   @FIND             look for value in existing nodes<br>       JMP  SK8<br>       B    *9                we found it: error (optional)<br> <br>SK8    LI   0,NSIZE           node size<br>       BL   @NEW              get memory space for node<br>       MOV  1,2               save ptr<br>       MOV  4,*1+             save data<br>       CLR  *1+               clear links<br>       CLR  *1+<br>       CLR  *1+               reset balance + count<br>       BL   @INCNT            ajust counts upstream<br> <br>       AI   8,-4<br>       MOV  *8,5              get parent ptr<br>       MOVB @3(8),0           where did we go ?<br>       JLT  SK9<br>       MOV  2,@RIGHT(5)       insert at right of parent<br>       JMP  SKA<br>SK9    MOV  2,@LEFT(5)        insert at left of parent<br>SKA    AB   @BAL(5),0         update parent balance<br>       JMP  SK23              balanced (one leaf on each side): done<br> <br>LP3    CI   8,STACK+4         did we reach top of tree?<br>       JLE  SK17              yes: done<br>       AI   8,-4              back up one level<br>       MOV  *8,5              get node ptr<br>       MOV  @2(8),0           and its balance<br>       AB   @3(8),0           tree became heavier on the side we went<br> <br>SK23   MOVB 0,@BAL(5)         update balance<br>       JLT  SKB               tilted on the left<br>       JGT  SKC               tilted on the right<br>SK17   B    *9                balanced: done<br> <br>SKC    CI   0,&gt;01FF           node is heavy on the right<br>       JLE  LP3               still ok, but see what will happen upstream <br>       MOV  @RIGHT(5),6       get heavy child<br>       MOV  @BAL(6),0         check its balance<br>       JLT  SKD               it's heavy on the other side: rotate twice<br>       BL   @ROTLL            rotate left once<br>       B    *9                and we are done<br> <br>SKD    BL   @ROTLR            rotate left, then right<br>       B    *9<br> <br>SKB    CI   0,&gt;FF00           node is heavy on the left<br>       JHE  LP3               still ok, but  see what happens above<br>       MOV  @LEFT(5),6        get heavy child<br>       MOV  @BAL(6),0         check its balance<br>       JGT  SK11              it's heavy on the other side: rotate twice<br>       BL   @ROTRR            rotate right once<br>       B    *9                <br> <br>SK11   BL   @ROTRL            rotate rigth, then left<br>       B    *9</pre>
+      <pre>*---------------------------------<br>*&nbsp;User-defined routine.<br>* Allocate space for a node<br>* Size in R0, address into R1.<br>*---------------------------------<br>NEW    MOV  12,1              here: from a stack, ptr in R12<br>       A    0,12              update ptr (needs check for overflow)<br>       B    *11<br>*<br>*---------------------------------<br>*&nbsp;User-defined routine.<br>* Reclaim space after deletion<br>* Size in R0, address into R1.<br>*---------------------------------<br>FREE   B    *11               don't bother for this demo</pre>
+      <pre>*<br>MEM    BSS  whatever          buffer where we put the nodes</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h2><br>
+<a name="Deletion"></a>Deletion</h2>
+<p>Deletions are more complicated than insertions, because the target
+node
+is not necessarily at the end of a branch. In fact, tree cases are
+possible:</p>
+<pre>   B   ---&gt;    B                 B   ---&gt;   B                  B  ---&gt;   ???<br>  / \         / \               / \        / \                / \<br>     R                             R          T                  R<br>    / \                           / \        / \                / \<br>                                     T                         M   T<br>R is a leaf (no children)    R is a branch (1 child)       R is a subtree (2 children)<br>Remove it                    Connect child + parent        We are stuck!</pre>
+<p>The last case is a bummer, because there is no way we can connect
+both
+children to the parent node. We must use a little trick here:</p>
+<li>Find the next in-order node after node R (i.e. the smallest item in
+its right subtree). </li>
+<li>Install it in place of R. It belongs here since all the other nodes
+in the subtree are greater than it.</li>
+<li>Now perform the deletion from where that node was. It is always a
+leaf
+or a branch, because it cannot have a left child (otherwise, this child
+would be the next in-order node after R).</li>
+<pre>   B          ---&gt;             B           ---&gt;            B<br>  / \                         / \                         / \<br>     R                           S                           S<br>    / \                         / \                         / \<br>   M   T                       M   T                       M   T<br>      / \                         / \                           \<br>     S   X                       S   X                           X<br>We want to remove R       Install S in place of R      Now delete from were S was<br>Next node in order is S</pre>
+<p>When deleting a node, we must determine the effect it has on its
+parent
+node. Three cases are possible:</p>
+<li>The node was balanced, now it's imbalanced (tree depth did not
+change)
+==&gt; stop here.</li>
+<li>The node was imbalanced, now its balanced (we trimmed the longest
+subtree)
+==&gt; check the effect at upper levels</li>
+<li>The node was imbalanced, now its not acceptable ==&gt; rotate and
+check
+the effect at upper levels (if tree depth changed)</li>
+<pre>    C   ---&gt;   C                 C   ---&gt;   C                C   ---&gt;   C<br>   / \        / \               / \        / \              / \        / \<br>  A   R      A                     R                       A   R      A <br>                                                          / \        / \<br>                                                             B          B<br>Balanced   Imbalanced       Imbalanced   Balanced      Imbalanced   Not acceptable<br>        Depth unchanged              Tree shortened                 We must rotate<br><br></pre>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>*----------------------------------------------------------<br>* Remove a node from tree. Key value in R4          <br>*----------------------------------------------------------<br>REMOVE MOV  11,9<br>       BL   @FIND             look for value in existing nodes<br>       B    *9                not found (optionally: issue error)<br>       MOV  5,1<br>       BL   @FREE             delete it from memory<br>       MOV  5,1               save node ptr<br>       AI   8,-4              ignore this node, in stack (deleted)<br> <br>LP5    AI   8,-4              move one step up<br>       MOV  *8,5              get parent<br>       MOV  @LEFT(1),6        get left child<br>       JNE  SK20<br>       MOV  @RIGHT(1),6       none: get right child, if none node is a leaf<br>SK21   BL   @DECNT            update counts upstream<br>       CLR  0<br>       MOVB @3(8),0           where did we go ?<br>       NEG  0<br>       JGT  SK18              left<br>       MOV  6,@RIGHT(5)       replace in parent link (or clear it)<br>       JMP  SK24              check effect upstream<br>SK18   MOV  6,@LEFT(5)        ditto, if we went to the left<br>SK24   AB   @BAL(5),0         update parent balance<br>       JMP  SK1A<br> <br>SK20   MOV  @RIGHT(1),6       child found at left, get other side<br>       JEQ  SK21              node is a branch<br> <br>       MOV  5,7               node is a tree (has two children)<br>       MOV  @RIGHT(1),5       means we can't delete it like that<br>       C    *8+,*8+           keep parent in traceback stack<br>       MOV  8,2               remember this position, we'll modify it later<br>       INCT 8                 don't know yet what it will be<br>       MOVB @H01,@-1(8)       we'll go to the right to find successor<br>       BL   @MIN              find node successor (smallest item on its right)<br>       MOV  5,*2              put its pointer in stack<br>       MOV  @LEFT(1),@LEFT(5) swap data with it (or: just swap keys)<br>       CLR  @LEFT(1)          successor cannot have smaller child<br>       MOV  @RIGHT(5),0<br>       MOV  @RIGHT(1),@RIGHT(5)<br>       MOV  0,@RIGHT(1)<br>       MOV  @BAL(5),0<br>       MOV  @BAL(1),@BAL(5)<br>       MOV  0,@BAL(1)<br>       C    1,@RIGHT(7)       check were we went from parent<br>       JNE  SK22<br>       MOV  5,@RIGHT(7)       substitute successor in parent link<br>       JMP  LP5               now remove node from successor's position<br>SK22   MOV  5,@LEFT(7)        ditto, if we went left<br>       JMP  LP5<br> <br>LP4    CI   8,STACK+4         did we reach top of tree?<br>       JLE  SK1F              yes: done<br>       AI   8,-4              back up one level<br>       MOV  *8,5              get node ptr<br>       MOV  @2(8),0           and its balance<br>       SB   @3(8),0           tree became lighter on the side we went<br> <br>SK1A   MOVB 0,@BAL(5)         update balance<br>       JLT  SK1B              tilted on the left<br>       JGT  SK1C              tilted on the right<br>       JMP  LP4               balanced: see effects above (tree shortened)<br> <br>SK1C   CI   0,&gt;01FF           node is heavy on the right<br>       JLE  SK1F              still ok, done (one branch shortened, were equal)<br>       MOV  @RIGHT(5),6       get heavy child<br>       MOV  @BAL(6),0         check its balance<br>       JLT  SK1D              it's heavy on the other side: rotate twice<br>       BL   @ROTLL            rotate left once<br>       JEQ  LP4               if balanced: continue upstream<br>SK1F   B    *9                else we are done<br> <br>SK1D   BL   @ROTLR            rotate left, then right<br>       JMP  LP4               check effect upstream<br> <br>SK1B   CI   0,&gt;FF00           node is heavy on the left<br>       JHE  SK1F              still ok, done<br>       MOV  @LEFT(5),6        get heavy child<br>       MOV  @BAL(6),0         check its balance<br>       JGT  SK1E              it's heavy on the other side: rotate twice<br>       BL   @ROTRR            rotate right once<br>       JEQ  LP4               if balanced: one level up<br>       B    *9                else we are done<br> <br>SK1E   BL   @ROTRL            rotate rigth, then left<br>       JMP  LP4               see what it does at upper levels</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>A faster way to install the next in-order node in place of the
+current
+one would be to just swap keys between the nodes. This however may be
+dangerous:
+if the calling program memorized the location of the nodes, swapping
+them
+in memory could create havoc. Thus, it is safer to swap pointers but to
+leave the nodes where they are.</p>
+<h2><br>
+<a name="Threaded trees"></a>Threaded trees</h2>
+<p>You may have noted in the above drawings that when a node has less
+than
+two children, the remaing links are empty. It seems a pity not to make
+use of these. And that's precisely what threaded trees are for. </p>
+<p>In a threaded tree, when a node has no right child, this pointer is
+replaced with a pointer to the next in-order node (wherever in the tree
+this node may be). Similarly, when there is no left child, the left
+link
+is replaced with a pointer to the previous node in order. This requires
+some extra code to maintain the pointers, but it allows for faster
+travel
+whithin the tree: finding the next or previous in-order node does not
+require
+tracing back our route to previous levels. As a compromise, there are
+right-threaded
+trees that only have pointers to the next in-order, and left-threaded
+trees
+that only have pointers to the previous in-order node.</p>
+<p>Of course this requires using two extra bits to tell whether a link
+points to a child node or to an in-order successor, My suggestion would
+be to use the least significant bit: since all addresses are even on
+the
+TI-99/4A, an odd address will indicate an in-order pointer (that last
+bit
+will be cleared when using this pointer).</p>
+<p>Here is an exemple of a threaded tree (lower-case letters denote
+in-order
+pointers):</p>
+<pre>        D                                 D                           D   <br>    /        \                        /         \                /         \  <br>   B         F                       B           F              B           F    <br>  / \      /   \                   /  \       /    \           /  \       /    \<br> A   C    E     H                 A    C     E     H          A    C     E     H        <br>/ \ / \  / \   / \               / \  / \   / \   /  \       / \  / \   / \   /  \<br>              G   I                b  b d  d  f  G    I         b   d     f  G    I<br>             / \ / \                            / \  / \                    / \  / \<br>                                               f  h g                          h   <br>Not threaded                      Fully threaded                Right-threaded</pre>
+<p>Note how easy it is to walk the treaded tree:</p>
+<ol>
+  <li>Start from the top of the tree, or from a given node.</li>
+  <li>From the current node, go all the way to the left, to find the
+smallest
+node and return it.</li>
+  <li>Get its right link. If it's an in-order pointer, return this
+node.
+Then continue at 2.</li>
+  <li>If it's a regular child pointer, go to 2.</li>
+</ol>
+<p>By contrast, here are the routines required to walk a non-threaded
+tree.
+As you see, we must walk our way up the calling stack each time the
+node
+does not have a child on the proper side.</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>*-----------------------------------------------------------<br>* Find next inorder node (called after FIND, MIN or MAX)<br>* Current node in R5, route in stack, stack ptr in R8<br>* Ptr to node into R5, skip JMP if found<br>*-----------------------------------------------------------<br>NEXT   MOV  @RIGHT(5),0       get current node's right child<br>       JEQ  LP6               none: up one level<br>       MOVB @H01,@-1(8)       change flag: we are going to the right <br>       INCT 11                we found one<br>       MOV  0,5               return this node or ...<br>       B    @MIN              the smallest item in its right branch<br> <br>LP6    AI   8,-4              one level up<br>       CI   8,STACK+4         root  reached?<br>       JLE  SK2               yes: no more found<br>       MOV  @-4(8),5          get last item on stack<br>       CB   @-1(8),@H01       did we go right from it ?<br>       JEQ  LP6               yes: then we already returned it<br>       INCT 11                no: return this node<br>SK2    B    *11<br>*<br>*-----------------------------------------------------------<br>* Find previous inorder node (called after FIND, MIN or MAX)<br>* Current node in R5, route in stack, stack ptr in R8<br>* Ptr to node into R5, skip JMP if found<br>*-----------------------------------------------------------<br>PREV   MOV  @LEFT(5),0        get current node's left child<br>       JEQ  LP7               none: up one level<br>       MOVB @HFF,@-1(8)       change flag: we are going to the left<br>       INCT 11                we found one<br>       MOV  0,5               return this node or ...<br>       B    @MAX              the largest item in its left branch<br> <br>LP7    AI   8,-4              one level up<br>       CI   8,STACK+4         root  reached?<br>       JLE  SK2               yes: no more found<br>       MOV  @-4(8),5          get last item on stack<br>       CB   @-1(8),@HFF       did we go left from it ?<br>       JEQ  LP7               yes: then we already returned it<br>       INCT 11                no: return this node<br>       B    *11</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h2><a name="Indexed trees"></a>Indexed trees</h2>
+<p>The problem with a tree structure is that it is quite difficult to
+answer
+questions like: "Which is the 87th node in the tree?", or "What
+is the rank of this node whitin the in-order list?". Arrays are much
+better at this, but then again arrays are slow to search. Well, maybe
+we
+can have the best of two worlds? All we need to do is to add an extra
+variable
+in each node: the number of nodes in the left subtree. This will
+require
+some overhead code to maintain the count, but it allows us very fast
+indexing
+strategies.</p>
+<p>To find the node at position x:</p>
+<ul>
+  <li>Start from the top of the tree.</li>
+  <li>Compare the target value with its left-count.</li>
+  <ul>
+    <li>If it's equal we found it. Return this node</li>
+    <li>If it's lower take the left link and try again</li>
+    <li>If it's higher take the right link, after substracting the
+left-count
+(+1 for the current node) from the target value.</li>
+  </ul>
+</ul>
+<p>To find the rank of a node:</p>
+<ol>
+  <li>Initialize a counter as 0.</li>
+  <li>Add the left-count of the current node to the counter</li>
+  <li>Go up one level. Was the node a left-child or a right-child?</li>
+  <ul>
+    <li>If it was a left child, ignore the current node and go to 3.</li>
+    <li>If it was a right-child, increment the count and go to 2.</li>
+    <li>If there is no parent node, we are done.</li>
+  </ul>
+</ol>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>*----------------------------------------------------------<br>* Find a node from its inorder rank (in R0)<br>* Return node ptr in R5, skip JMP if found<br>*----------------------------------------------------------<br>INDEX  MOV  @ROOT+4,5         start from top<br>       SLA  0,8               only 256 nodes in this demo<br>       LI   8,STACK+4         memorize our route on a stack<br> <br>LP1    MOV  5,*8+             save node ptr<br>       MOV  @BAL(5),*8+       save balance<br>       CB   0,@LCNT(5)        compare to count<br>       JL   SK25<br>       JH   SK26<br>       INCT 11                we found it (index start from 0)<br>       B    *11               skip jump on return<br> <br>SK25   MOVB @HFF,@-1(8)       we must go to the left<br>       MOV  @LEFT(5),5        get node ptr<br>       JNE  LP1<br>       B    *11               no link (should never happen)<br> <br>SK26   MOVB @H01,@-1(8)       we must go to the right<br>       SB   @LCNT(5),0        we leave all these behind us: decount them<br>       SB   @H01,0            plus current node<br>       MOV  @RIGHT(5),5       get node ptr<br>       JNE  LP1<br>       B    *11               no more: number too big<br> <br>*----------------------------------------------------------<br>* Return inorder rank for node in R5, into R0<br>* Route in stack, stack ptr in R8<br>*----------------------------------------------------------<br>ANK   CLR  0                 init counter<br>       MOV  @ROOT+4,5         start from top of tree<br> <br>LP8    MOVB @LCNT(5),1        get # of items in left subtree<br>       SRL  1,8               max 255 in this demo<br>       A    1,0               add to total<br> <br>LPA    AI   8,-4              one level up<br>       CI   8,STACK+4         root  reached?<br>       JLE  SK27              yes: we are done<br>       MOV  @-4(8),5          get previous item on stack<br>       CB   @-1(8),@H01       did we go to the right from it?<br>       JNE  LPA               no: ignore this node<br>       INC  0                 yes: then we must count this node<br>       JMP  LP8               and its left subtree<br> <br>SK27   B    *11<br>*<br>*-------------------------------------------------------------<br>* Update left-count after insertion/deletion <br>* Route in stack, stack ptr in R8 (called by INSERT and REMOVE)<br>*-------------------------------------------------------------<br>INCNT  LI   0,&gt;0100           increment count after insertion<br>       JMP  SK29<br> <br>DECNT  LI   0,&gt;FFFF           decrement count after deletion<br>SK29   MOV  8,1               we want to keep R8 intact<br> <br>LP9    AI   1,-4              one level up<br>       CI   1,STACK+4         root  reached?<br>       JLE  SK27              yes: we are done<br>       CB   @-1(1),@HFF       did we go left from there?<br>       JNE  LP9               no: count unchanged in this node<br>       MOV  @-4(1),2          get node ptr<br>       AB   0,@LCNT(2)        update its count<br>       JMP  LP9               keep going</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h2><br>
+<a name="Test"></a>Testing</h2>
+<p>Here is a sample test program. You can also download the whole file
+from <a href="avl_s.txt">here</a>.</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>*-----------------------------------------------------------<br>* Example of a test program using the above routines<br>*-----------------------------------------------------------<br>       DEF  TEST<br> <br>TEST   LWPI WREGS              load our workspace<br>       LI   4,'A '             create a tree<br>       BL   @INSERT<br>       LI   4,'B '<br>       BL   @INSERT<br>       LI   4,'C '<br>       BL   @INSERT<br>       LI   4,'D '<br>       BL   @INSERT<br>       LI   4,'E '<br>       BL   @INSERT<br>       LI   4,'F '<br>       BL   @INSERT<br>       LI   4,'G '<br>       BL   @INSERT<br>       LI   4,'H '<br>       BL   @INSERT<br>       LI   4,'I '<br>       BL   @INSERT<br><br>       LI   4,'G '            delete node "G "<br>       BL   @REMOVE<br> <br>       LI   0,4               find the fifth node (index starts at 0) <br>       BL   @INDEX<br>       JMP  ERR               returns here if not found<br><br>       LI   4,'I '            find node "I "<br>       BL   @FIND<br>       JMP  ERR<br>       BL   @RANK             return its rank (should be 7)<br> <br>ERR    LWPI &gt;20BA             caller's workspace<br>       B    *11               exit program<br>*<br>       END</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h2><a name="Refs"></a>References</h2>
+<p>The AVL Page. On Ben Pfaff website at <a
+ href="http://www.msu.edu/user/pfaffben/avl">http://www.msu.edu/user/pfaffben/avl</a>
+Comprises many usefull links.</p>
+<p>Brad Appleton's AVL library in C language. The doc includes an
+excellent
+explanation of AVL trees.<br>
+<a href="ftp://ftp.cdrom.com/pub/algorithms/c/avllib/">ftp://ftp.cdrom.com/pub/algorithms/c/avllib/</a></p>
+<address><br>
+Revision 1. 6/17/00. Ok to release.<br>
+Revision 2. 9/3/00. Discussed tree depth, subtrees. Corrected bugs in
+code.</address>
+<center>
+<p><br>
+<a href="titechpages.htm">Back to the TI-99/4A Tech Pages</a></p>
+</center>
+</body>
+</html>

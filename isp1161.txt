@@ -1,0 +1,346 @@
+*====================================
+* USB Host Controller Access Routines  c)2004 Th. Nouspikel
+*------------------------------------
+WREGS  EQU >5FD0        <<<<  you may change this and use your own workspace
+ 
+HCW2
+HCW    DATA WREGS,HCW0        host controller write
+HCW2I
+HCWI   DATA WREGS,HCWI0       host controller write immediate
+HCWIM  DATA WREGS,HCWIM0      host controller write immediate multiple
+HCR2
+HCR    DATA WREGS,HCR0        host controller read
+ 
+ITLR   DATA WREGS,ITLR0       read from ITL stacks
+ITLW   DATA WREGS,ITLW0       write to ITL stacks
+ATLR   DATA WREGS,ATLR0       read from ATL stack
+ATLW   DATA WREGS,ATLW0       write to ATL stack
+*-----------------------------------
+SETWR  LI   1,>0080           write flag
+       JMP  SK0
+ 
+SETRD  CLR  1                 no write flag
+SK0    MOV  13,2              get host workspace
+       INCT 2                 default target is R1
+SK7    MOV  *14+,0            get address from data word
+       MOVB 0,0               is is < 256 ?
+       JEQ  SK1               yes: register #
+       CI   0,>0200           no: address or R ?
+       JL   SK2               absolute address
+       MOV  0,2               this is source address
+       CI   2,>FFF0           is address a register ?
+       JL   SK7               no
+       SLA  2,12              yes: find its address
+       SRL  2,11
+       A    13,2
+       JMP  SK7               next word must be register
+ 
+SK2    SLA  0,12              calculate R address
+       SRL  0,11
+       A    13,0
+       MOV  *0,0              get value from address
+SK1    ANDI 0,>007F           keep only register #
+       A    0,1               add flag, if any
+       SWPB 1
+       MOV  1,@>5FFA          send register #
+       CI   0,>0020           16 or 32 bits ?
+       B    *11
+*
+HCWI0  BL   @SETWR            set address to write
+       JL   SK3               32-bit register
+       MOV  *14+,0
+SKB    SWPB 0
+       MOV  0,@>5FF8          write 1 data word
+SKF    RTWP
+ 
+SK3    MOV  *14+,0            write two data words
+       MOV  *14+,11
+       SWPB 11
+       MOV  11,@>5FF8         lsw first
+       JMP  SKB
+*
+HCW0   BL   @SETWR            set address to write
+       JHE  SK4               16-bit register
+       MOV  @2(2),11          from word after source
+       SWPB 11
+       MOV  11,@>5FF8
+SK4    MOV  *2,0              from source
+       JMP  SKB
+*
+HCWIM0 MOV  *14,1             check next data word
+       JEQ  SKF               0 = end of list
+       BL   @SETWR            set address to write
+       JL   SKE               32-bit register
+       MOV  *14+,11           16-bit: send 1 data word
+       SWPB 11
+       MOV  11,@>5FF8
+       JMP  HCWIM0            loop
+ 
+SKE    MOV  *14+,0            32-bit register
+       MOV  *14+,11
+       SWPB 0
+       SWPB 11
+       MOV  11,@>5FF8
+       MOV  0,@>5FF8          send 2 data words
+       JMP  HCWIM0            loop
+*
+HCR0   BL   @SETRD            set address to read
+       JHE  SK8               16-bit register
+       MOV  @>5FF0,@2(2)      32-bit: read word into R2
+       SWPB @2(2)
+SK8    MOV  @>5FF0,*2         read word into R1
+       SWPB *2
+       RTWP
+*
+ITLW0  LI   0,>C000           code for ITL write
+HC0    EQU  $-2
+       JMP  SK9
+ 
+ATLW0  LI   0,>C100           code for ATL write
+SK9    MOV  @4(13),2          get # of bytes
+       SWPB 2
+       LI   1,>A200           HcTransferCounter
+       MOV  1,@>5FFA          write command
+       MOV  2,@>5FF8          send # of bytes
+       SWPB 2
+ 
+       MOV  @2(13),1          get source address
+       MOV  0,@>5FFA          write command
+LP1    MOV  *1+,@>5FF8        send words
+       DECT 2
+       JGT  LP1               more
+       RTWP
+*
+ITLR0  LI   0,>4000           code for ITL read
+       JMP  SKA
+ 
+ATLR0  LI   0,>4100           code for ATL read
+SKA    MOV  @4(13),2          get # of bytes
+       SWPB 2
+       LI   1,>A200           HcTransferCounter
+       MOV  1,@>5FFA          write command
+       MOV  2,@>5FF8          send # of bytes
+       SWPB 2
+ 
+       MOV  @2(13),1          get destination address
+       MOV  0,@>5FFA          write command
+LP2    MOV  @>5FF0,*1+        read words
+       DECT 2
+       JGT  LP2               more
+       RTWP
+*
+*=======================================
+* USB Device Controller Access Routines
+*---------------------------------------
+DCA    DATA WREGS,DCWA0       device controller action
+DCW    DATA WREGS,DCW0        device controller write
+DCWI   DATA WREGS,DCWI0       device controller write immediate
+DCWIM  DATA WREGS,DCWIM0      device controller write immediate multiple
+DCR    DATA WREGS,DCR0        device controller read
+DCEPCF DATA WREGS,DCEPC1      device controller endpoints configuration
+ 
+EPR    DATA WREGS,EPR1        endpoint read
+EPW    DATA WREGS,EPW1        endpoint write
+EPSTAL DATA WREGS,EPSTL1      endpoint stall
+EPUNST DATA WREGS,EPUNS1      endpoint unstall
+EPCLR  DATA WREGS,EPCLR1      endpoint clear
+EPVAL  DATA WREGS,EPVAL1      endpoint validate
+EPST   DATA WREGS,EPST1       endpoint read status
+EPCHK  DATA WREGS,EPCK1       endpoint check status
+EPERR  DATA WREGS,EPER1       endpoint read error
+EPCFR  DATA WREGS,EPCFR1      endpoint read configuration
+*-----------------------------------
+GETEP  MOV  13,2              get user workspace
+       INCT 2                 default target is R1
+SK1D   MOV  *14+,0            get address from data word
+       MOVB 0,0               is is < 256 ?
+       JEQ  SK15              yes: endpoint #
+       CI   0,>0200
+       JL   SK6
+       MOV  0,2               this is target address
+       CI   2,>FFF0           is it R ?
+       JL   SK1D              no
+       SLA  2,12              yes: calculate its address
+       SRL  2,11
+       A    13,2
+       JMP  SK1D              next word must be endpoint
+ 
+SK6    SLA  0,12              calculate R address
+       SRL  0,11
+       A    13,0
+SK16   MOV  *0,0              get value from address
+ 
+SK15   MOV  0,1               save endpoint #
+       SRL  0,5
+       SLA  0,14              get direction flags
+       ANDI 1,>000F           keep only #
+       JNE  SK17              not 0
+       MOV  0,0               0: is it IN or OUT ?
+       JGT  SK18              >20: OUT h->d
+       JEQ  SK18              >00: OUT h->d
+SK17   INC  1                 >40: IN  d->h
+SK18   SWPB 1
+       MOV  0,0
+       B    *11
+*
+SETAD  MOV  13,2              get user workspace
+       INCT 2                 default target is R1
+SK12   MOV  *14+,0            get address from data word
+       MOVB 0,0               is is < 256 ?
+       JEQ  SK10              yes: register #
+       CI   0,>0200
+       JL   SK13
+       MOV  0,2               this is target address
+       CI   2,>FFF0           is it Rx ?
+       JL   SK12              no
+       SLA  2,12              yes: calculate its address
+       SRL  2,11
+       A    13,2
+       JMP  SK12              next word must be register
+ 
+SK13   SLA  0,12              calculate R address
+       SRL  0,11
+       A    13,0
+SK11   MOV  *0,0              get value from address
+SK10   SWPB 0
+       MOV  0,@>5FFE          send register #
+       COC  @HC0,0            check if 32-bit register (i.e. >Cx)
+       JNE  SK27
+       CZC  @H30,0
+SK27   B    *11
+*
+DCWA0  BL   @SETAD            set address
+       RTWP
+*
+DCWI0  BL   @SETAD            set address
+       JEQ  SK20
+       MOV  *14+,0            write 1 data word
+SK19   SWPB 0
+       MOV  0,@>5FFC
+SK14   RTWP
+ 
+SK20   MOV  *14+,0            get first data word
+       MOV  *14+,11           get second data word
+SK22   SWPB 11
+       MOV  11,@>5FFC         pass second word first
+       JMP  SK19
+*
+DCW0   BL   @SETAD            set address
+       JNE  SK21
+       MOV  *2,0              from source
+       JMP  SK19
+ 
+SK21   MOV  *2+,0             get first word from source
+       MOV  *2,11             get second word
+       JMP  SK22              pass it, then first word
+*
+DCWIM0 MOV  *14,1             check next data word
+       JEQ  SK14              0 = end of list
+       BL   @SETAD            set address
+       JEQ  SK23
+       MOV  *14+,0            16-bit: send 1 data word
+SK24   SWPB 0
+       MOV  0,@>5FFC
+       JMP  DCWIM0            loop
+ 
+SK23   MOV  *14+,0            32 bit: get first word
+       MOV  *14+,11           get second
+       SWPB 11
+       MOV  11,@>5FFC         pass it
+       JMP  SK24
+*
+DCR0   BL   @SETAD            set address
+       JEQ  SK25
+SK26   MOV  @>5FF4,*2         read word into R1
+       SWPB *2
+       RTWP
+ 
+SK25   MOV  @>5FF4,@2(2)      32-bit: first word into second dest word
+       SWPB @2(2)
+       JMP  SK26              second word into first destination word
+*
+EPW1   BL   @GETEP            get endpoint #
+       JGT  SK14              illegal direction
+       MOV  1,@>5FFE          send it
+       MOV  @2(13),1          get source ptr
+       MOV  @4(13),2          get size
+       SWPB 2
+       MOV  2,@>5FFC          pass size to endpoint
+       SWPB 2
+LP3    MOV  *1+,@>5FFC        pass data to endpoint
+       DECT 2                 more ?
+       JGT  LP3               yes
+       RTWP
+*
+EPR1   BL   @GETEP            get endpoint #
+       JLT  SK14              illegal direction
+       AI   1,>1000           add read command
+       MOV  1,@>5FFE          send command
+       MOV  @2(13),1          get destination ptr
+       MOV  @4(13),0          get buffer size
+       MOV  @>5FF4,2          get actual size
+       SWPB 2
+       MOV  2,@4(13)          announce # of bytes
+       C    0,2               is buffer big enough ?
+       JHE  LP4               yes
+       MOV  0,2               no: use buffer size
+LP4    MOV  @>5FF4,*1+        read data from endpoint
+       DECT 2                 more ?
+       JGT  LP4               yes
+       RTWP
+*
+EPCFR1 LI   3,>3000           read config command
+H30    EQU  $-2
+       JMP  SK1A
+ 
+EPER1  LI   3,>A000           read error command
+       JMP  SK1A
+ 
+EPCK1  LI   3,>D000           check status command
+       JMP  SK1A
+ 
+EPST1  LI   3,>5000           read status command
+ 
+SK1A   BL   @GETEP            get endpoint #
+       A    3,1               add command
+       MOV  1,@>5FFE          send it
+       MOV  @>5FF4,*2         read data into destination
+       SWPB *2
+       RTWP
+*
+EPVAL1 LI   3,>6000           validate command
+       BL   @GETEP            get endpoint #
+       JGT  SK14              invalid direction
+       JMP  SK1C
+ 
+EPCLR1 LI   3,>7000           clear command
+       BL   @GETEP            get endpoint #
+       JLT  SK14              invalid direction
+       JMP  SK1C
+ 
+EPSTL1 LI   3,>4000           stall command
+       JMP  SK1B
+ 
+EPUNS1 LI   3,>8000           unstall command
+ 
+SK1B   BL   @GETEP            get endpoint #
+SK1C   A    3,1               add command
+       MOV  1,@>5FFE          send it
+       RTWP
+*
+DCEPC1 MOV  *14+,2            get first data word
+       CI   2,>C383           if immediate: must define EP0 this way
+       JNE  SK1F              else it's source address
+       DECT 14                back to original value
+       MOV  14,2              copy pointer
+       AI   14,>0010          update return point
+SK1F   LI   0,>2000           write config command
+LP5    MOV  0,@>5FFE          send command
+       MOVB *2+,11            get data
+       SRL  11,8
+       MOV  11,@>5FFC         send it
+       AI   0,>0100           next endpoint
+       CI   0,>0300           more ?
+       JL   LP5               yes
+       RTWP
+*

@@ -1,0 +1,425 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+  <title></title>
+  <meta name="Author" content="ThN">
+  <meta name="GENERATOR"
+ content="Mozilla/3.04Gold (Win95; U) [Netscape]">
+</head>
+<body>
+<h1 align="center"><a
+ href="http://www.nouspikel.com/ti99/titechpages.htm"><img
+ src="logo.jpg" style="border: 0px solid ; height: 33px; width: 95px;"
+ title="" alt=""></a></h1>
+<h1>Calling GPL routines from assembly </h1>
+<p><a href="#Sub%20stack">The subroutine stack<br>
+</a><a href="#CALL%20RTN">The CALL / RTN mechanism<br>
+</a><a href="#DSWGR%20RTGR">The DSWGR / RTGR mechanism<br>
+</a><a href="#%3E0010%20%3E0012">The &gt;0010 and &gt;0012 routines</a></p>
+<p>The first thing to consider is that there are different types of
+routines
+in GPL: </p>
+<li>Routines called with CALL and returning with RTN or RTNC </li>
+<li>Routines called with DSWGR and returning with RTGR</li>
+<li>Routines called by name with routine G&amp;&gt;0010 and returning
+with
+routine G&amp;&gt;0012</li>
+<p>All three make use of the subprogram stack to save their return
+parameters,
+so let's first talk about this stack.</p>
+<h3><br>
+<a name="Sub stack"></a>The GPL subroutine stack</h3>
+<p>This stack has to be located in the scratch-pad RAM, between
+addresses
+&gt;8300 and &gt;83FF. Upon normal GPL execution, the stack starts at
+&gt;8380
+and grow upward to &gt;839F.</p>
+<p>A stack pointer is maintained in byte &gt;8373. Since this pointer
+is
+only one byte, the most significant byte of the address is assumed to
+be
+&gt;83, which is why the stack must be in the scratch-pad. The pointer
+points at the last entry saved on the stack. Entries are 2-byte in
+length
+and can be assumed to be word-aligned.</p>
+<pre>      +---------+<br>&gt;83FE :         :<br>      : (free)  :<br>      :         :<br>      +---------+<br>&gt;8388 |         |&lt;-,<br>      +---------+  |<br>      |         |  |<br>      +---------+  |<br>      |         |  |<br>      +---------+  |<br>      |         |  |<br>      +---------+  |<br>&gt;8380 |         |  |<br>      +---------+  |<br>                   |<br>      +---------+  |<br>&gt;8372 | xx | 88 |--'<br>      +---------+<br><br></pre>
+<p>Calling instructions save parameters such as the return address on
+the
+stack, after incrementing the pointer. Return instructions fetch the
+proper
+return parameters from the stack, then decrement the pointer.</p>
+<p>There is no safety mechanism to detect stack overflow (i.e.
+overwriting
+the 'data' stack that begins at &gt;83A0), nor underflow (i.e. fetching
+meaningless bytes from under &gt;8380).</p>
+<h2><br>
+<a name="CALL RTN"></a>The CALL and RTN mechanism</h2>
+<p>The GPL opcode <tt>CALL </tt>(opcode &gt;06) gets the current
+address
+from the GROMs, saves it on the stack, then branches to the subroutine
+specified in the code flow:</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>       CALL G@&gt;8234       which is encoded as &gt;06,&gt;82,&gt;34<tt>  </tt></pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>Unfortunately, no provision is made to pass the address as a
+variable.
+To do so you would have to resort to complicated tricks like: 1) save
+the
+return address on the stack, 2) save the desired address on the stack,
+and 3) perform a dummy <tt>RTN</tt>.</p>
+<p>The called routine can return with either <tt>RTN </tt>(opcode
+&gt;00)
+or <tt>RTNC </tt>(opcode &gt;01). The difference being that <tt>RTN </tt>clears
+the Cnd bit (the GPL equivalent of the Eq bit) in the GPL status byte,
+whereas <tt>RTNC </tt>leaves it intact. This gives the caller a
+chance
+to test the result of a subroutine:</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre><tt>      </tt> CALL G@&gt;62A5<br>       BS   G@SET<br>       BR   G@NOTSET<tt>   </tt></pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>NB If the called subroutine (&gt;62A5) returned with <tt>RTN</tt>,
+the
+<tt>BR </tt>will always be taken. </p>
+<p>Note that no mechanism is provided to return with the Cnd bit always
+set. But you can easily do it with:</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre><tt>       </tt>CEQ  @&gt;8300,@&gt;8300        compare a byte to itself <br>       RTNC<tt> </tt></pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>Since a byte is always equal to itself, the Cnd bit will be set.
+We're
+just wasting memory for the 3 bytes required to encode the <tt>CEQ </tt>instruction...</p>
+<h3><br>
+Calling from assembly: the easy way </h3>
+<p>If you have a cartridge like Editor/Assembler or Mini-Memory, you
+have
+a very simple way of calling GPL routines: the GPLLNK subprogram. Its
+syntax
+is very simple:</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>       BLWP @GPLLNK<br>       DATA &gt;6234              GROM address of the routine to call </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>The subroutine returns after the <tt>DATA </tt>statement, the Cnd
+bit
+will unfortunately be lost in the process and cannot be recovered, even
+from &gt;837C directly.</p>
+<p>Also, there is no provision made to pass parameters in the form of
+data
+statements following the call. For instance, in GPL you could write:</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>       CALL  G@&gt;7123<br>       BYTE  &gt;F5,&gt;A2,&gt;83  </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>The called subroutine would then retrieve the three data bytes with
+FETCh instructions. <tt>FETC </tt>looks up the return address on the
+stack,
+fetches bytes from GROM and updates the return address accordingly.
+Obviously
+this is not going to work from assembly, since <tt>FETC </tt>always
+accesses
+GROM, not cpu memory.</p>
+<h3><br>
+Calling from assembly: the hard way </h3>
+<p>Assuming you don't have a cartridge with a GPLLNK routine, you will
+need to do the call yourself, which is easy, and to implement a return
+mechanism, which is not.</p>
+<p>The first thing to do to emulate a call is to pass a return address
+on the stack. This will be the address of a GPL routine that enters
+assembly
+at the address you want (e.g. your return address). We'll talk about
+that
+later, let's first see the calling mechanism:</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre><tt> </tt>      INCT @&gt;8373                Increment the stack pointer<br>       MOVB @&gt;8373,R1             Get stack pointer <br>       SRL  R1,8                  Make it LSB <br>       LI   R0,&gt;xxxx              GROM address of our GPL return routine <br>       MOV  R0,@&gt;8300(R1)         Save it on the stack</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>Now that we have set a return address, we can branch to a GPL
+routine:</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>       MOV  @&gt;83FA,R9            Get current GROM base <br>       LI   R0,&gt;6234             GROM address of the GPL routine to call <br>       MOV  R0,@&gt;0402(R9)        Set the address <br>       SWPB R0 <br>       MOV  R0,@&gt;0402(R9) <br>       LWPI &gt;83E0                GPL workspace <br>       B    @&gt;006A               Enter GPL interpreter<tt>   </tt></pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h3>Returning to assembly: the easy way </h3>
+<p>If you have a GRAM card and can write your own GPL routines, it is a
+simple matter to write one that will return to a predetermined address
+in your assembly program. You just use the <tt>XML </tt>instruction.
+This
+instructions gets the address where to enter assembly from 16 tables
+located
+at various places in memory. Each table can hold upto 16 vectors, i.e.
+addresses where to branch.</p>
+<p>The <tt>XML </tt>instruction (code &gt;0F) is followed by a byte
+of
+data whose first nibble indicates the table, and the second nibble
+indicates
+the entry within the table. Each entry is one word in length, being a
+cpu
+address.</p>
+<p>The address of the 16 tables are:</p>
+<pre>XML &gt;0x  &gt;0D1A through &gt;0D39   In console ROM <br>XML &gt;1x  &gt;12A0 through &gt;12BF    "<br>XML &gt;2x  &gt;2000 through &gt;201F   Low memory expansion <br>XML &gt;3x  &gt;3FC0 through &gt;3FDF    "<br>XML &gt;4x  &gt;3FE0 through &gt;3FFF    "<br>XML &gt;5x  &gt;4010 through &gt;402F   Peripheral cards DSR space <br>XML &gt;6x  &gt;4030 through &gt;404F    "<br>XML &gt;7x  &gt;6010 through &gt;602F   Cartridge ROM <br>XML &gt;8x  &gt;6030 through &gt;604F    "<br>XML &gt;9x  &gt;7000 through &gt;701F    "<br>XML &gt;Ax  &gt;8000 through &gt;801F   Decoded as &gt;8300, i.e. scratch-pad <br>XML &gt;Bx  &gt;A000 through &gt;A01F   High memory expansion <br>XML &gt;Cx  &gt;B000 through &gt;B01F    "<br>XML &gt;Dx  &gt;C000 through &gt;C01F    "<br>XML &gt;Ex  &gt;D000 through &gt;D01F    "<br>XML &gt;Fx  &gt;8300 through &gt;831F   Scratch-pad RAM</pre>
+<p>So for instance: </p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre><tt> </tt>       XML &gt;C3        Coded as &gt;0F,&gt;C3</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>will get its vector from address &gt;B006 and enter assembly
+language
+at whatever address is found in &gt;B006. </p>
+<p>Now all you have to do is: </p>
+<li>Place the desired assembly return address at &gt;B006</li>
+<li>Place the GROM address of your <tt>XML </tt>instruction on the
+subprogram
+stack (shown above as &gt;xxxx ) </li>
+<li>Call the desired GPL subroutine (shown above as &gt;6234).</li>
+<p>When the GPL subroutine performs its <tt>RTN </tt>(or <tt>RTNC</tt>)
+it will return to the XML instruction at address &gt;xxxx, wich will
+cause
+the GPL interpreter to relinquish control to your assembly program, at
+whatever address you placed at &gt;B006. Remember that the workspace
+will
+still be &gt;83E0, the GPL workspace, so the first thing to do will
+probably
+be to switch to your own workspace. </p>
+<p>Note that XML does not affect the status byte, so you will be able
+to
+test the Cnd bit, if the GPL subroutine returned with <tt>RTNC</tt>.</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>GPLRET LWPI &gt;20BA         My workspace <br>       MOV  @&gt;837C,R1     Get GPL status byte <br>       SLA  R1,3          Test Cnd bit (value &gt;20)<br>       JOC  SET<br>       JNC  NOTSET<tt>  </tt></pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h3><br>
+Returning to assembly: the hard way</h3>
+<p>If you don't have a GRAM card, things are getting though: how are
+you
+going to re-enter assembly? It should be possible since GPL is entered
+upon power-up and you are executing an assembly program: obviously
+there
+is a way in! However it may not be possible to resume assembly at an
+arbitrarily
+chosen location...</p>
+<p>One way around this problem is to search the console GROMs for
+sequences
+of bytes that resemble an <tt>XML </tt>instrustion, i.e. &gt;0F
+&gt;xx,
+where &gt;xx is a suitable table location.</p>
+<p>One such sequence is found at GROM address &gt;36B8 : it contains
+&gt;0F
+&gt;4B, which could be interpreted as an XML to a vector found at
+&gt;3FF6.
+(It is actually part of the instruction <tt>MOVE
+&gt;000F,@&gt;834A,@&gt;834B</tt>
+but we are reading it out of sequence.) The actual location of this
+instruction
+may vary according to the GROM version, so you'd better use your
+favorite
+memory editor to locate the &gt;0F, &gt;4B string.</p>
+<p>All we have to do then is to use &gt;36B8 as a GPL return address,
+and
+push it on the stack as shown above (&gt;xxxx). Then place our assembly
+return address at &gt;3FF6 and enter the GPL interpreter, just as above.</p>
+<h2><br>
+<a name="DSWGR RTGR"></a>The DSWGR and RTGR mechanism</h2>
+<p>As you know, GROMs are accessed via a set of four addresses in cpu
+memory:
+<br>
+&gt;9800 to read data (this is known as the GROM base)<br>
+&gt;9802 to read the current address <br>
+&gt;9C00 to write data (GRAM only) <br>
+&gt;9C02 to set the address.</p>
+<p>However, provision is made to use upto 16 sets of such addresses,
+&gt;0004
+bytes apart, which give access to as much as one megabyte of GROM/GRAM.
+This never became a reality at Texas Intruments (in fact the console
+GROMs
+answer to each and every base), but most GRAM cards make use of this
+trick
+to implement more than 64K of GRAM.</p>
+<p>Interestingly, TI provided GPL opcodes to call routines located in
+another
+base. Unfortunately, one of them is buggy!</p>
+<p>The <tt>DSWGR </tt>opcode has the following syntax:</p>
+<pre>       DSWGR base,address<tt>  </tt></pre>
+<p>Where <i>base </i>can be either a variable or a constant, whereas <i>address
+</i>has to be a variable. So, in practice you could type:</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>       DST   &gt;604A,@&gt;8300        Address where to branch<br>       DSWRG &gt;9804,@&gt;8300        Branch at &gt;604A using GROM port &gt;9804<tt> </tt></pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p><tt>DSWGR </tt>pushes both the current base and the return address
+on
+the subroutine stack, then changes the base value at &gt;83FA and takes
+the branch.</p>
+<p>Routines called in this way simply return with:</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>       RTGR   </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>which recovers the base and the return address from the stack. </p>
+<p>Unfortunately, <tt>RTGR </tt>also performs a dummy write to
+GROM/GRAM
+memory, at the address corresponding to the current base. That is, it
+erases
+GRAM byte &gt;9800 when returning to base &gt;9800, GRAM byte &gt;9804
+when returning to &gt;9804, etc. Why TI did that is beyond my
+understanding.
+Maybe they thought it didn't matter since GROMs cannot be written to?
+Or
+because GROMs were limited to &gt;1800 bytes, GROM 8 would cover
+&gt;8000-97FF
+so the &gt;98xx addresses would not be a problem? Well, it may be a
+problem
+with GRAM cards, so be aware of it.</p>
+<p>Anyhow, there is no <tt>DSWGR</tt>-callable routine in the console
+GROMs,
+and I'm not aware of any cartridge that contains one. Which does not
+mean
+that you cannot write your own!</p>
+<h3><br>
+Calling from assembly </h3>
+<p>To call a <tt>DSWGR</tt>-type routine from assembly, you cannot use
+GPLLNK. You have to resort to the 'manual' technique explained above.
+Namely:</p>
+<li>Push the return address on the subroutine stack</li>
+<li>Push the current GROM base (that you can get from &gt;83FA) </li>
+<li>Call the desired GPL subroutine.</li>
+<h2><br>
+<a name="&gt;0010 &gt;0012"></a>The &gt;0010 and &gt;0012 calling mechanism </h2>
+<p>At address &gt;0010 in the console GROMs, is a routine which is the
+GPL equivalent of DSRLNK. It is used to call by name DSRs and
+subprograms
+(e.g. CALLs) that can be located either in peripheral card ROMs, or in
+GROMs.</p>
+<p>The routine expects the name of the DSR or subprogram to be placed
+in
+VDP memory, at an address specified by word &gt;8356 (which points at
+the
+size byte of the string). The &gt;0010 routine also FETChes one data
+byte
+from GROM memory: if it's &gt;08 it will scan the DSR lists, if it's
+&gt;0A
+it will scan the subprogram lists.</p>
+<p>The routine first checks the name and returns with the Cnd bit set
+if
+its size is zero, or larger than 7. Then it calls <tt>XML &gt;19</tt>
+which
+scans the peripheral cards DSR space at &gt;4000-5FFF. If the desired
+subprogram/DSR
+is found there, the <tt>XML </tt>returns with the Cnd bit reset. </p>
+<p>If the subprogram/DSR is not found in any card ROM, the routine goes
+on scanning GROM headers (i.e. &gt;0000,&gt;2000, &gt;4000, etc upto
+&gt;E000).
+To this end, it first saves the GROM base on the subprogram stack. Then
+it calls <tt>XML &gt;1A</tt> with performs the scanning. Note that <tt>XML
+&gt;1A</tt> will scan all sixteen GROM bases and change the current
+base
+in &gt;83FA accordingly.</p>
+<p>GPL subprograms and DSRs called by this mechanism must return by
+branching
+to a subroutine found at address &gt;0012 in the console GROMs. This
+routine
+simply retrieves the initial GROM base from the top of the stack, sets
+it, then returns directly to the caller of the &gt;0010 routine.</p>
+<p>Note that for some reason, subroutine &gt;0010 leaves two bytes of
+garbage
+on the stack before it saves the current GROM base. This is why routine
+&gt;0012 must be used: it knows that it should retrieve the base, then
+decrement the pointer, then perform a <tt>RTN</tt>.</p>
+<h3><br>
+Calling from assembly</h3>
+<p>This is not as easy as it seems. We cannot call routine &gt;0010
+directly,
+because it expects a data byte from GROM, that we cannot pass from
+assembly.
+Fortunately, the <tt>FETC </tt>instruction is the very first one in
+the
+routine, so we could just skip it as follow:</p>
+<li>Read the 2-byte instruction at GROM address &gt;0010: it will be a
+branch the actual location of the routine.</li>
+<li>Doctor it so as to increment the address by two (<tt>ANDI </tt>with
+&gt;1FFF, then <tt>INCT </tt>it)</li>
+<li>Place &gt;08 or &gt;0A in byte &gt;836D.</li>
+<li>Now enter GPL at our doctored address, by performing a 'manual' GPL
+call as described above.</li>
+<p>Another way around is to do the scanning ourselves, but that's not
+easy
+either. We can obviously use the DSRLNK routine to search peripheral
+card
+ROMs. But assuming the subprogram/DSR is not found there, how to search
+GROM headers? </p>
+<p>We cannot call <tt>XML &gt;1A</tt> directly because it does not
+return
+to its caller, instead it re-enters the GPL interpreter. Plus, routine
+&gt;0010 contains a number of intricacies to repeatedly call <tt>XML
+&gt;1A</tt>,
+that would make our life really difficult.</p>
+<p>So the best way is probably to write a routine that scans the GROM
+headers
+and calls the appropriate GPL subprogram/DSR. This would be cleaner
+than
+calling subroutine &gt;0010 with the dirty trick described above.</p>
+<address>Initial version 3/6/02 posted on OLUG <br>
+Revision 1. 1120/02 Turned into a webpage</address>
+<center>
+<p><br>
+<a href="titechpages.htm">Back to the TI-99/4A Tech Pages</a></p>
+</center>
+</body>
+</html>

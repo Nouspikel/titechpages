@@ -1,0 +1,89 @@
+Getting an emulator to communicate with Bug99
+===================================
+
+Purpose
+-----------
+
+Bug99 can operate has a remote debugger by communicating with the TI-99/4A via a cable connecting the PC parallel port to the PIO port of the RS232 card. A small "enslavement" routine must be run on the TI-99/4A to handle communications and grant Bug99 the control of your TI-99/4A.
+
+Starting with version 1.1, Bug99 offers the option to use a third-party emulator in place of a real TI-99/4A for remote debugging. However, the emulator must contain the appropriate code to communicate with Bug99. The purpose of this document is to document how this is done, for people who write emulators.
+
+There are two main issues here:
+1) Communicating with Bug99. This is done via the Windows messaging system.
+2) Communicating with the enslavement routine within the emulated TI-99/4A. This is done by manipulating the emulated PIO port and CRU bits.
+
+
+1. Communicating with Bug99
+-------------------------------------------
+All operations will be initiated by Bug99. If you are writing an emulator and wish to allow Bug99 to use it for remote debugging, follow these steps:
+
+- Open a window with the caption "Bug99 calling". The caption must be exact, since this is how Bug99 detects that an emulator is listening. The window cannot be a child window. My suggestion is to make it a modeless dialog box. You may want to make it invisible so as not to puzzle the end user.
+
+- This window should contain only one control, a text box. Bug99 will talk to your emulator by changing the text inside this box. For your application to react to these changes, your best bet is probably to handle the EN_CHANGE notification message.
+
+- When a change is detected, parse the contents of the control. If the first character is an equal sign, Bug99 is trying to write a byte to the PIO port. The next two characters should contain the byte in hexadecimal notation. Thus, valid values for the text box are "=00" through "=FF".
+
+- Pass the byte value to the emulated PIO port and report success to Bug99 with ReplyMessage(1). If a problem occured (e.g. the enslavement routine not answering) reply with ReplyMessage(0).
+
+- If the string begins with a question mark (most likely "??"), Bug99 is attempting to input a byte from the emulated TI-99/4A. Obtain the byte from the enslavement routine and return it with ReplyMessage(byte). If something goes wrong, e.g. the enslavement routine not answering, reply with ReplyMessage(-1).
+
+NB. Just ignore the content of the text box if it doesn't start with = or ?
+
+Here is an example in C++, using MFC:
+
+void CBug99::OnChangeEdit() 
+{
+	BYTE value;
+	int i;
+
+	UpdateData(TRUE);			// MFC trick to get text box contents into m_Text variable
+
+	if(m_Text.Find("??")!=-1)		// Bug99 wants to input a byte from the TI-99/4A
+	{					
+						// TODO: get byte value from TI-99/4A
+		ReplyMessage(value);		// send answer to Bug99
+	}
+	else if(m_Text.Find("=")!=-1)		// Bug99 wants to send a byte to the TI-99/4A
+	{
+		i=sscanf(m_Text,"=%x",&value);	// extract byte from string
+		if(i<1)				// illegal value
+			ReplyMessage(0);	// report error
+		else 
+		{
+						// TODO: pass the byte to the TI-99/4A
+			ReplyMessage(1);	// report success
+		}
+	}					// if neither = nor ? do nothing
+}
+
+
+2. Communicating with the enslavement routine
+--------------------------------------------------------------------
+This small assembly routine communicates with the PC via the PIO port, using the HandshakeIn and HandshakeOut lines for synchronization. The enslavement routine toggles HandshakeOut by changing CRU output bit 2, and it senses HandshakeIn via CRU input bit 2. To mimic the PC, your routine should thus do the opposite, i.e. toggle CRU input bit 2 and sense CRU output bit 2.
+ 
+To send a byte to the enslavement routine (i.e. after receiving an "=" command from Bug99), follow this algorithm:
+- Set CRU input bit 2 high
+- Wait for CRU output bit 2 to become low. Execute an emulated instruction between each try.
+- Place the byte received from Bug99 into the emulated PIO port.
+- Set CRU input bit 2 low.
+- Wait for CRU output bit 2 to become high. Again, execute emulated instructions between each test.
+
+To input a byte from the enslavement routine (in answer to Bug99 "??" queries), you must:
+- Set CRU input bit 2 low
+- Wait for CRU output bit 2 to become low. Execute an emulated instruction between each try.
+- Input a byte from the PIO port.
+- Set CRU input bit 2 high.
+- Wait for CRU output bit 2 to become high. Again, execute emulated instructions between each test.
+- Send the byte to Bug99 with ReplyMessage, as described above.
+
+So how long should you wait for the enslavement routine to answer? If it has yielded control to the program being debugged, it won't return until a breakpoint is hit, possibly never. Obvsiouly, you can't wait for ever, so you need to implement some kind of timeout mechanism.
+
+ If it is in control, the enslavement routine should answer before 50 instructions have been executed. So a simple way is just to count instructions, and time out with an error after 50.  Alternatively, you could time out after 1 millisecond.
+
+Be aware that Bug99 only waits for your answer for 10 milliseconds. After that, it will resend the same message, which may result in duplicating a command. So make sure your routine always answers in less than 10 milliseconds, reporting an error if needed.
+
+Note: If you want to check the code of the enslavement routine, it's inside the Bug99.zip package, the filename is Bug99.s
+
+Good luck.
+
+c) Thierry Nouspikel, November 2009

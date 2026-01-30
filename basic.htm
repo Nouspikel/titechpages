@@ -1,0 +1,1570 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+  <title></title>
+  <meta name="Author" content="">
+  <meta name="GENERATOR"
+ content="Mozilla/3.04Gold (Win95; U) [Netscape]">
+</head>
+<body>
+<h1 align="center"><a
+ href="http://www.nouspikel.com/ti99/titechpages.htm"><img
+ src="logo.jpg" style="border: 0px solid ; height: 33px; width: 95px;"
+ title="" alt=""></a></h1>
+<h1>The Basic interpreter</h1>
+<p>Most of the ROM and GROM memory in the TI-99/4A is devoted to the
+Basic
+Interpreter. One could even consider that TI-Basic is operating system
+of the TI-99/4A.</p>
+<p>This interpreter is written in GPL, itself an interpreted language,
+with a bunch of assembly language routines. This has the unfortunate
+consequence
+of making TI-Basic extremely sluggish, as the double interpretation
+process
+takes a lot of time. On the other hand, one could argue that it makes
+programs
+more compact (although I'm not fully convinced of that).</p>
+<p>I don't have the pretention of understanding the TI-Basic
+interpreter.
+In this page, I summarized information that I gathered from several
+sources
+and that (I hope) could be usefull to somebody studying TI-Basic "under
+the hood".</p>
+<p><b>Structure of a Basic program<br>
+</b><a href="#VDP%20usage">VDP memory<br>
+</a><a href="#statements">Statement list<br>
+</a><a href="#tokens">Tokens<br>
+</a><a href="#line%20numbers">Line number table<br>
+</a><a href="#symbol%20table">Symbol table<br>
+</a><a href="#String%20space">String space<br>
+</a><a href="#PABs">PAB chain<br>
+</a><a href="#variables">Value stack<br>
+</a><a href="#scratch-pad">Scratch-pad usage</a></p>
+<p><b>The Basic GROMs<br>
+</b><a href="#Basic%20tables">Tables<br>
+</a><a href="#PARS%20table">_PARSE<br>
+</a><a href="#EXEC%20table">_EXEC<br>
+</a><a href="#CONT%20table">_CONT<br>
+</a><a href="#NUD%20table">_NUD<br>
+</a><a href="#Token%20tables">_Tokens</a></p>
+<p><a href="#Basic%20routines">Routines</a></p>
+<h2><br>
+Structure of a Basic program</h2>
+<p>A TI-Basic program consists in a line number table and a list of
+Basic
+statements. It is generally stored at the top of the VDP memory
+(although
+Basic programs can be stored in GRAM/GROM). The statement list comes
+just
+under the area reserved by the disk controller for file buffers, and
+grows
+downwards. The line number table comes under it.</p>
+<p>Under the program come all the variable and constants it uses: the
+value
+stack, the symbol table, the string space and the PAB space.</p>
+<h3><a name="VDP usage"></a>VDP memory usage with TI-Basic</h3>
+<table border="1">
+  <tbody>
+    <tr>
+      <td>&gt;0000<br>
+      <br>
+      <br>
+&gt;02FF</td>
+      <td>Screen Image (add &gt;60 to each char) <br>
++ Char pattern table (chars &gt;00-60)</td>
+    </tr>
+    <tr>
+      <td>&gt;0300<br>
+&gt;031F</td>
+      <td>Color table</td>
+    </tr>
+    <tr>
+      <td>&gt;0320<br>
+&gt;036F</td>
+      <td>Crunch buffer for current line<br>
+(human-readable Basic &lt;=&gt; tokens)</td>
+    </tr>
+    <tr>
+      <td>&gt;0370<br>
+&gt;03C0<br>
+&gt;03DF<br>
+&gt;07FF</td>
+      <td>Char pattern table for chars &gt;6E-FF<br>
+VDP roll out buffer<br>
+      <br>
+      </td>
+    </tr>
+    <tr>
+      <td>@&gt;8324<br>
+@&gt;836E</td>
+      <td><a href="#variables">Value stack</a></td>
+    </tr>
+    <tr>
+      <td>@&gt;833C<br>
+      </td>
+      <td><a href="#PABs">PAB chain</a></td>
+    </tr>
+    <tr>
+      <td>@&gt;831A<br>
+@&gt;8318</td>
+      <td><a href="#String%20space">String space</a></td>
+    </tr>
+    <tr>
+      <td>@&gt;833E</td>
+      <td><a href="#symbol%20table">Symbol table</a></td>
+    </tr>
+    <tr>
+      <td>@&gt;8330<br>
+@&gt;8332</td>
+      <td><a href="#line%20numbers">Line number table</a></td>
+    </tr>
+    <tr>
+      <td><br>
+@&gt;8370</td>
+      <td><a href="#statements">Statement list</a></td>
+    </tr>
+    <tr>
+      <td><br>
+      </td>
+      <td><a href="#Disk%20buffers">Disk file buffers</a> </td>
+    </tr>
+  </tbody>
+</table>
+<h3><br>
+<a name="Disk buffers"></a>Disk file buffers</h3>
+<p>The TI disk controller card reserves space at the top of the VDP RAM
+at power-up time. Other controllers may or may not do so. The TI
+routines
+are written in such a way that several controller cards can reserve
+space
+under each other.</p>
+<p>The last free address, just under the bottom of these buffers, is
+stored
+in &gt;8370. Normally it will be &gt;37D7, with CALL FILES(3). If you
+change
+the number of files, add or substract 518 bytes (&gt;206) per file.</p>
+<h3><br>
+<a name="statements"></a>Basic statement list</h3>
+<p>This list starts at the top of the VDP memory, just under the area
+reserved
+by the disk controller. The list grows downwards, with the last line
+that
+was typed in at the bottom. Which means that the lines are not sorted
+by
+number (the line number table will take care of that). During Basic
+execution,
+<a href="gpl2.htm#xml1b">XML &gt;1B</a> can be used to get the next
+token
+and place it in &gt;8342.</p>
+<p>Each statement begins with a lenght byte and ends with a &gt;00
+byte.
+All TI-Basic keywords are replaced with 1-byte codes known as "<a
+ href="#tokens">tokens</a>".
+This both saves space and speeds up execution. The "crunch buffer"
+at &gt;0320-036F is used to place the decoded Basic statment and
+perform
+the conversion operations.</p>
+<h4>Scratch-pad addresses</h4>
+<p>&gt;837C contains a pointer to the next token to be processed in the
+current statement.<br>
+Byte &gt;8342 contains the value of the previous token fetched from the
+statement.<br>
+&gt;8332 points to the top of the <a href="#line%20numbers">line
+number table</a>,
+just below the statement list.<br>
+&gt;8370 points to the last byte in the statement list.<br>
+</p>
+<h4>Example</h4>
+<p>Here is a exemple of how a TI-Basic statement is encoded. </p>
+<p>100 CALL MYSUB(A,"TEST2",U$,512).</p>
+<pre><u>Address Token/chars Meaning <br></u>&gt;37BA    &gt;1D        Line size<br>&gt;37BB    &gt;9D        CALL<br>&gt;37BC    &gt;C8        Unquoted string<br>&gt;37BD    &gt;05        String length<br>&gt;37BE    MYSUB      The name is, of course, not encoded<br>&gt;37C3    &gt;B7        (<br>&gt;37C4    A          Variable names are not encoded either<br>&gt;37C5    &gt;B3        ,<br>&gt;37C6    &gt;C7        Quoted string "..."<br>&gt;37C7    &gt;05        String length<br>&gt;37C8    TEST2      Content of the string<br>&gt;37CD    &gt;B3        ,<br>&gt;37CE    U$         Another variable<br>&gt;37D0    &gt;B3        ,<br>&gt;37D1    &gt;C8        Unquoted string<br>&gt;37D2    &gt;03        String length<br>&gt;37D3    512        Numeric constants are passed as strings<br>&gt;37D6    &gt;B6        )<br>&gt;37D7    &gt;00        End-of-line mark</pre>
+<h4><br>
+<a name="tokens"></a>TI-Basic tokens</h4>
+<p>A TI-basic program is not stored as such in memory. Instead, each
+line
+is "crunched" into 1-byte tokens, as much as possible. All token
+have a value of &gt;80 or above, which allow to quickly distinguish
+them
+from a variable name or a number (since these are made of ascii
+characters).
+The exceptions are those token that correspond to keywords that cannot
+be part of a program (e.g. NEW, RUN, etc).</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Word</th>
+      <th>Token</th>
+      <th>Word</th>
+      <th>Token</th>
+      <th>Word </th>
+      <th>Token</th>
+    </tr>
+    <tr>
+      <td>Quoted<br>
+string</td>
+      <td>&gt;C7</td>
+      <td>Unquoted<br>
+string</td>
+      <td>&gt;C8</td>
+      <td>Line<br>
+number</td>
+      <td>&gt;C9</td>
+    </tr>
+    <tr>
+      <td>)</td>
+      <td>&gt;B6</td>
+      <td>EXP</td>
+      <td>&gt;CE</td>
+      <td>SEG$</td>
+      <td>&gt;D8</td>
+    </tr>
+    <tr>
+      <td>(</td>
+      <td>&gt;B7</td>
+      <td>INT</td>
+      <td>&gt;CF</td>
+      <td>STR$</td>
+      <td>&gt;DB</td>
+    </tr>
+    <tr>
+      <td>&amp;</td>
+      <td>&gt;B8</td>
+      <td>LOG</td>
+      <td>&gt;D0</td>
+      <td>LIST</td>
+      <td>&gt;03</td>
+    </tr>
+    <tr>
+      <td>^</td>
+      <td>&gt;C5</td>
+      <td>RND</td>
+      <td>&gt;D7</td>
+      <td>SAVE</td>
+      <td>&gt;08</td>
+    </tr>
+    <tr>
+      <td>=</td>
+      <td>&gt;BE</td>
+      <td>SGN</td>
+      <td>&gt;D1</td>
+      <td>CALL</td>
+      <td>&gt;9D</td>
+    </tr>
+    <tr>
+      <td>*</td>
+      <td>&gt;C3</td>
+      <td>SIN</td>
+      <td>&gt;D2</td>
+      <td>OPEN</td>
+      <td>&gt;9F</td>
+    </tr>
+    <tr>
+      <td>/</td>
+      <td>&gt;C4</td>
+      <td>SQR</td>
+      <td>&gt;D3</td>
+      <td>BREAK</td>
+      <td>&gt;8E</td>
+    </tr>
+    <tr>
+      <td>+</td>
+      <td>&gt;C1</td>
+      <td>TAN</td>
+      <td>&gt;D4</td>
+      <td>GOSUB</td>
+      <td>&gt;87</td>
+    </tr>
+    <tr>
+      <td>-</td>
+      <td>&gt;C2</td>
+      <td>LEN</td>
+      <td>&gt;D5</td>
+      <td>FIXED</td>
+      <td>&gt;FA</td>
+    </tr>
+    <tr>
+      <td>&lt;</td>
+      <td>&gt;BF</td>
+      <td>POS</td>
+      <td>&gt;D9</td>
+      <td>INPUT</td>
+      <td>&gt;92</td>
+    </tr>
+    <tr>
+      <td>&gt;</td>
+      <td>&gt;C0</td>
+      <td>VAL</td>
+      <td>&gt;DA</td>
+      <td>PRINT</td>
+      <td>&gt;9C</td>
+    </tr>
+    <tr>
+      <td>:</td>
+      <td>&gt;B5</td>
+      <td>ASC</td>
+      <td>&gt;DC</td>
+      <td>TRACE</td>
+      <td>&gt;90</td>
+    </tr>
+    <tr>
+      <td>;</td>
+      <td>&gt;B4</td>
+      <td>REC</td>
+      <td>&gt;DE</td>
+      <td>CLOSE</td>
+      <td>&gt;A0</td>
+    </tr>
+    <tr>
+      <td>#</td>
+      <td>&gt;FD</td>
+      <td>NEW</td>
+      <td>&gt;01</td>
+      <td>OPTION</td>
+      <td>&gt;9E</td>
+    </tr>
+    <tr>
+      <td>,</td>
+      <td>&gt;B3</td>
+      <td>RUN</td>
+      <td>&gt;00</td>
+      <td>RETURN</td>
+      <td>&gt;88</td>
+    </tr>
+    <tr>
+      <td>GO</td>
+      <td>&gt;85</td>
+      <td>CON</td>
+      <td>&gt;02</td>
+      <td>NUMBER</td>
+      <td>&gt;05</td>
+    </tr>
+    <tr>
+      <td>IF</td>
+      <td>&gt;84</td>
+      <td>NUM</td>
+      <td>&gt;05</td>
+      <td>OUTPUT</td>
+      <td>&gt;F7</td>
+    </tr>
+    <tr>
+      <td>ON</td>
+      <td>&gt;9B</td>
+      <td>RES</td>
+      <td>&gt;07</td>
+      <td>APPEND</td>
+      <td>&gt;F9</td>
+    </tr>
+    <tr>
+      <td>TO</td>
+      <td>&gt;B1</td>
+      <td>BYE</td>
+      <td>&gt;04</td>
+      <td>UPDATE</td>
+      <td>&gt;F8</td>
+    </tr>
+    <tr>
+      <td>DEF</td>
+      <td>&gt;89</td>
+      <td>OLD</td>
+      <td>&gt;06</td>
+      <td>DELETE</td>
+      <td>&gt;99</td>
+    </tr>
+    <tr>
+      <td>DIM</td>
+      <td>&gt;8A</td>
+      <td>BASE</td>
+      <td>&gt;F1</td>
+      <td>UNTRACE</td>
+      <td>&gt;91</td>
+    </tr>
+    <tr>
+      <td>END</td>
+      <td>&gt;8B</td>
+      <td>DATA</td>
+      <td>&gt;93</td>
+      <td>UNBREAK</td>
+      <td>&gt;8F</td>
+    </tr>
+    <tr>
+      <td>EOF</td>
+      <td>&gt;CA</td>
+      <td>EDIT</td>
+      <td>&gt;09</td>
+      <td>RESTORE</td>
+      <td>&gt;94</td>
+    </tr>
+    <tr>
+      <td>FOR</td>
+      <td>&gt;8C</td>
+      <td>ELSE</td>
+      <td>&gt;81</td>
+      <td>DISPLAY</td>
+      <td>&gt;A2</td>
+    </tr>
+    <tr>
+      <td>LET</td>
+      <td>&gt;8D</td>
+      <td>GOTO</td>
+      <td>&gt;86</td>
+      <td>CONTINUE</td>
+      <td>&gt;02</td>
+    </tr>
+    <tr>
+      <td>REM</td>
+      <td>&gt;9A</td>
+      <td>NEXT</td>
+      <td>&gt;96</td>
+      <td>VARIABLE</td>
+      <td>&gt;F3</td>
+    </tr>
+    <tr>
+      <td>SUB</td>
+      <td>&gt;A1</td>
+      <td>READ</td>
+      <td>&gt;97</td>
+      <td>INTERNAL</td>
+      <td>&gt;F5</td>
+    </tr>
+    <tr>
+      <td>TAB</td>
+      <td>&gt;FC</td>
+      <td>STEP</td>
+      <td>&gt;B2</td>
+      <td>RELATIVE</td>
+      <td>&gt;F4</td>
+    </tr>
+    <tr>
+      <td>ABS</td>
+      <td>&gt;CB</td>
+      <td>STOP</td>
+      <td>&gt;98</td>
+      <td>RANDOMIZE</td>
+      <td>&gt;95</td>
+    </tr>
+    <tr>
+      <td>ATN</td>
+      <td>&gt;CC</td>
+      <td>THEN</td>
+      <td>&gt;B0</td>
+      <td>PERMANENT</td>
+      <td>&gt;FB</td>
+    </tr>
+    <tr>
+      <td>COS</td>
+      <td>&gt;CD</td>
+      <td>CHR$</td>
+      <td>&gt;D6</td>
+      <td>SEQUENTIAL</td>
+      <td>&gt;F6</td>
+    </tr>
+    <tr>
+      <td><br>
+      </td>
+      <td><br>
+      </td>
+      <td><br>
+      </td>
+      <td><br>
+      </td>
+      <td>RESEQUENCE</td>
+      <td>&gt;07</td>
+    </tr>
+  </tbody>
+</table>
+<h3><br>
+<br>
+<a name="line numbers"></a>Line number table</h3>
+<p>The line number table begins right below the <a href="#statements">statement
+list</a> and grows downwards in VDP memory. The line numbers are
+arranged
+in numerical order from top to bottom. Each entry consists in two
+words:
+the line number and the address of that line in the statements list.
+This
+is the address of the first executable byte in the statement, i.e.
+after
+the size byte.</p>
+<h4>Scratch-pad addresses</h4>
+<p>Word &gt;832E: Current line entry in the line number table<br>
+Word &gt;8330: Bottom of the line number table<br>
+Word &gt;8332: Top of the the line numer table<br>
+Word &gt;8336: Entry for the line containing the next DATA element</p>
+<h4>Example</h4>
+<p>100 CALL MYSUB(A,"TEST2",U$,512)<br>
+110 STOP</p>
+<p>The line number table for the above program would be:</p>
+<pre><u>Address Contents  Meaning             <br></u>&gt;37AF : &gt;0063     Line number (110)<br>&gt;37B1 : &gt;37B8     Pointer to the line in the statement list<br>&gt;37B3 : &gt;0064     Line number (100)<br>&gt;37B5 : &gt;37BB     Pointer to the line in the statement list</pre>
+<h3><br>
+<br>
+<a name="symbol table"></a>Symbol table</h3>
+<p>This table is used to store all variables used in a Basic program.
+Each
+entry is at least 8 bytes (i.e. 4 words) long, but can be much longer
+if
+needed. For instance, entries for arrays contain a size word for each
+dimension,
+followed by pointers for each elements.</p>
+<p><a href="gpl2.htm#xml13">XML &gt;13</a> and <a href="gpl2.htm#xml16">XML
+&gt;16</a> can be used to search the symbol table for a given symbol.
+Both
+place a pointer to the symbol in the symbol table at &gt;834A. Then <a
+ href="gpl2.htm#xml14">XML
+&gt;14</a> can be called to generate an 8-byte description for this
+symbol.<br>
+<a href="gpl2.htm#xml15">XML &gt;15</a> can be used to modify the value
+of the variable, after pushing the description on stack with <a
+ href="gpl2.htm#xml17">XML
+&gt;17</a>.</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Type</th>
+      <th>Byte 1</th>
+      <th>Byte 2</th>
+      <th>Word 2</th>
+      <th>Word 3</th>
+      <th>Word 4</th>
+      <th>More words</th>
+    </tr>
+    <tr>
+      <td>DEF</td>
+      <td>0</td>
+      <td>Name size</td>
+      <td>Ptr to next entry </td>
+      <td>Ptr to symbol name </td>
+      <td>Ptr to definition</td>
+    </tr>
+    <tr>
+      <td>String</td>
+      <td>&gt;80</td>
+      <td>Name size</td>
+      <td>Ptr to next entry</td>
+      <td>Ptr to name</td>
+      <td>Ptr to string</td>
+    </tr>
+    <tr>
+      <td>Numeric</td>
+      <td>0</td>
+      <td>Name size</td>
+      <td>Ptr to next entry</td>
+      <td>Ptr to name</td>
+      <td colspan="2">Floating point value (4 words)</td>
+    </tr>
+    <tr>
+      <td>Numeric array</td>
+      <td>Dim</td>
+      <td>Name size</td>
+      <td>Ptr to next entry</td>
+      <td>Ptr to name</td>
+      <td colspan="2">Size for each dimension. Floating point values.</td>
+    </tr>
+    <tr>
+      <td>String array</td>
+      <td>&gt;8Dim</td>
+      <td>Name size</td>
+      <td>Ptr to next entry</td>
+      <td>Ptr to name</td>
+      <td colspan="2">Size for each dimension. Pointers to strings.</td>
+    </tr>
+  </tbody>
+</table>
+<p>Ptr to name: points to a location in the <a href="#statements">statement
+list</a> where the variable name is spelled out. E.g. X=25.<br>
+Ptr to next entry: allow to walk the symbol table by linking from a
+variable
+to the next. The last entry contains &gt;0000.</p>
+<h4>Scratch-pad addresses</h4>
+<p>Word &gt;833E: Bottom of the symbol table<br>
+Word &gt;8330: Bottom of the <a href="#line%20numbers">line number
+table</a>
+(which is just above the symbol table).</p>
+<h4>Example</h4>
+<p>100 X=25<br>
+110 A$="STRING IN&nbsp;A$"</p>
+<p>This sample program generates the following symbol table:</p>
+<pre><u>Address  Content                                   <br></u>&gt;3778 :  &gt;80 02 &gt;3780 &gt;37AB &gt;3759<br>&gt;3780 :  &gt;00 01 &gt;0000 &gt;37BE &gt;4019 &gt;0000 &gt;0000 &gt;0000</pre>
+<p>&gt;37AB and &gt;37BE are addresses in the statement list where the
+variable names A$ and X are mentionned. The sizes of their names are 02
+and 01 respectively.<br>
+&gt;3759 is an address in the string space, pointing at the S in
+"STRING
+IN&nbsp;A$".<br>
+&gt;4019 0000 0000 0000 is the floating point value for 25.0</p>
+<p>Here is another example, that deals with arrays:</p>
+<p>100 DIM A$(2,3)<br>
+110 A$(0,0)="TEST"<br>
+120 A$(0,1)="THIS"<br>
+130 A$(1,1)="THAT"<br>
+140 A$(1,2)="SOMETHING&nbsp;ELSE"</p>
+<pre>&gt;82<u>02</u> &gt;<u>0000</u> &gt;<u>37CC</u> &gt;<u>0002</u> &gt;<u>0003</u>   &gt;3735 &gt;372D &gt;0000 &gt;0000  &gt;0000 &gt;3725 &gt;3713 0  0 0 0 <u>0<br></u> || |    |     |     |     |    A$(0,0) (0,1) (0,2) (0,3)  (1,0) (1,1) (1,2)  ...  (2,3)<br> || |    |     |     |     '- Second dimension  '-----'------'-- empty strings<br> || |    |     |     '------- First dimension<br> || |    |     '- Ptr to name in program<br> || |    '------- Next entry (none here)<br> || '- Name size (A$ is 2-char long)<br> |'--- Number of dimensions (2 here)<br> '---- String flag</pre>
+<p>For a string array, the values following the dimensions (&gt;3735,
+&gt;372D,
+etc) are pointers to the strings in the string space. If the string is
+empty, there is nothing is the string space and the pointer is &gt;0000.</p>
+<p>For a numerical array the structure is similar, except that the
+string
+pointers are replaced with numerical values.Each value is 8-byte long
+in
+floating point format.</p>
+<h3><br>
+<a name="String space"></a>String space</h3>
+<p>Strings are saved in the string space at the bottom of the VDP
+memory.
+The strings accumultes downwards. When you change the value of a string
+variable, a new string is created in the string space. The old one
+remains
+in place, but it not used anymore. </p>
+<p>The GROM routine &gt;0038 can be used to allocate space for a new
+string
+in the string space. If necessary, it will call the "garbage collection
+routine" to free more space by getting rid of unused strings. </p>
+<p>Each string is preceded and followed by a size byte. In addition,
+each
+string is preceded with a pointer to its entry in the <a
+ href="#symbol%20table">symbol
+table</a> (to make it easier to change its pointer when the string has
+to be moved). This pointer is &gt;0000 for unused strings that can be
+deleted
+by the garbage collection routine.</p>
+<h4>Scratch-pad addresses</h4>
+<p>Word &gt;8318: Top of the string space.<br>
+Word &gt;831A: Bottom of the string space.<br>
+Word &gt;831C: Temporary pointer to a string.</p>
+<h4>Example:</h4>
+<p>100 PRINT "THIS&nbsp;IS&nbsp;A&nbsp;TEST"<br>
+110 A$="STRING IN A$"<br>
+120 A$="NEW STRING"</p>
+<p>This sample program generates the following string space:</p>
+<pre><u>Address Contents                      Comments                        <br></u>&gt;374D : &gt;3783 &gt;0A NEW&nbsp;STRING &gt;0A      New version. &gt;3783 points to &gt;3750 in A$.<br>&gt;375B : &gt;0000 &gt;0C STRING&nbsp;IN&nbsp;A$ &gt;0C    Old version: can be deleted<br>&gt;376B : &gt;0000 &gt;0E THIS IS&nbsp;A&nbsp;TEST &gt;0E  Temporary string used by PRINT</pre>
+<p>The symbol table contains only one entry, the one for A$:</p>
+<pre><u>Address Contents                      Comments                        <br></u>&gt;377D : &gt;80 &gt;02 &gt;0000 &gt;37B3 &gt;3750     &gt;3750 points at the N in "NEW&nbsp;STRING"<br></pre>
+<h3><br>
+<br>
+<a name="PABs"></a>PAB chain</h3>
+<p>In Basic, all Peripheral Access Blocks are linked together, in a
+list
+of the following format:</p>
+<p>Bytes 0-1 : link to next PAB (&gt;0000 in last one)<br>
+Byte 2 : file #<br>
+Byte 3 : internal offset (used to write in PAB data buffer)</p>
+<p>Byte 4 : opcode<br>
+Byte 5 : error/type flags<br>
+Bytes 6-7 : data buffer address<br>
+Byte 8 : record length<br>
+Byte 9 : characters count<br>
+Bytes 10-11: record number (relative files)<br>
+Byte 12 : screen offset/status returned by opcode &gt;09<br>
+Byte 13 : file name length<br>
+Byte 14+ : file name</p>
+<p>By that time, you probably realised that bytes 4 to 14 correspond to
+bytes 0 to 10 of the PAB used to call a <a href="headers.htm#PAB">DSR</a>:
+TI-Basic just adds a 4 bytes header above them.</p>
+<h4>Scratch-pad addresses</h4>
+<p>Word &gt;833C: Pointer to the first PAB in the chain</p>
+<h3><br>
+<a name="variables"></a>Value stack</h3>
+<p>Basic maintains a stack in VDP memory onto which values can be
+pushed
+with with <a href="gpl2.htm#xml17">XML &gt;17</a> and retrieved with <a
+ href="gpl2.htm#xml18">XML
+&gt;18</a>. The internal description of Basic symbols is fairly
+complex,
+since there are many different types of symbols, however <a
+ href="gpl2.htm#xml14">XML
+&gt;14</a> can be used to generate a description that always fits in 8
+bytes (i.e. 4 words), to be placed on the value stack. Always use XML
+&gt;17
+and &gt;18 to push/pop strings from the stack since they update the
+pointers
+in the description (this is required if a string was moved while its
+entry
+was on the stack, for instance).</p>
+<p>Note that it may happen that a program does not require any value to
+be placed on the stack.</p>
+<p>Here are the formats for the different entries in the value stack,
+as
+created by XML &gt;14:</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Type of entry</th>
+      <th>Word 1</th>
+      <th colspan="2">Word 2</th>
+      <th>Word 3</th>
+      <th>Word 4</th>
+    </tr>
+    <tr>
+      <td>Numeric cte </td>
+      <td colspan="5">Floating point number, in radix 100 notation</td>
+    </tr>
+    <tr>
+      <td>String cte </td>
+      <td>&gt;001C</td>
+      <td colspan="2">&gt;6500</td>
+      <td>pointer to string</td>
+      <td>string size</td>
+    </tr>
+    <tr>
+      <td>Numeric var </td>
+      <td>pointer to entry </td>
+      <td colspan="2">&gt;0000</td>
+      <td>pointer to value</td>
+      <td>&gt;0000</td>
+    </tr>
+    <tr>
+      <td>String var </td>
+      <td>pointer to entry</td>
+      <td colspan="2">&gt;6500</td>
+      <td>pointer to string</td>
+      <td>string size</td>
+    </tr>
+    <tr>
+      <td>Numeric array </td>
+      <td>pointer to entry</td>
+      <td>&gt;00 </td>
+      <td>Dim </td>
+      <td>pointer to value</td>
+      <td>&gt;0000</td>
+    </tr>
+    <tr>
+      <td>String array </td>
+      <td>pointer to entry</td>
+      <td>&gt;65</td>
+      <td>Dim</td>
+      <td>pointer to value</td>
+      <td>&gt;0000</td>
+    </tr>
+    <tr>
+      <td>GOSUB </td>
+      <td>ptr to line#</td>
+      <td colspan="2">&gt;6600</td>
+      <td>n.a.</td>
+      <td>n.a.</td>
+    </tr>
+    <tr>
+      <td>FOR *</td>
+      <td>pointer to entry</td>
+      <td colspan="2">&gt;6700</td>
+      <td>pointer to value</td>
+      <td>ptr to line #</td>
+    </tr>
+    <tr>
+      <td>DEF number </td>
+      <td>ptr to line</td>
+      <td colspan="2">&gt;6800</td>
+      <td>old symbol table ptr</td>
+      <td>old free space ptr</td>
+    </tr>
+    <tr>
+      <td>DEF string </td>
+      <td>ptr to line</td>
+      <td colspan="2">&gt;6880</td>
+      <td>old symbol table ptr</td>
+      <td>old free space ptr</td>
+    </tr>
+  </tbody>
+</table>
+<p><b>Ptr to entry</b>: points to the entry for that variable in the
+symbol
+table.<br>
+<b>Dim</b>: number of dimensions of the array.<br>
+<b>*</b>: each FOR entry is followed by two numeric entries: the step
+and
+the upper limit values.</p>
+<h3><br>
+<a name="scratch-pad"></a>Scratch-pad usage summary</h3>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Address</th>
+      <th>Use</th>
+    </tr>
+    <tr>
+      <td>&gt;8300-8316</td>
+      <td>Temporary variables storage.</td>
+    </tr>
+    <tr>
+      <td>&gt;8318</td>
+      <td>Beginning of string space (i.e. top).</td>
+    </tr>
+    <tr>
+      <td>&gt;831A</td>
+      <td>End of string space (bottom), first free address in VDP</td>
+    </tr>
+    <tr>
+      <td>&gt;831C</td>
+      <td>Temporary string pointer. Also: PAB error.</td>
+    </tr>
+    <tr>
+      <td>&gt;831E</td>
+      <td>Start of current Basic statement.</td>
+    </tr>
+    <tr>
+      <td>&gt;8320</td>
+      <td>Current screen address.</td>
+    </tr>
+    <tr>
+      <td>&gt;8322</td>
+      <td>Error code returned by assembly language routines.</td>
+    </tr>
+    <tr>
+      <td>&gt;8324</td>
+      <td>VDP value stack base pointer.</td>
+    </tr>
+    <tr>
+      <td>&gt;8326</td>
+      <td>Return address for assembly language routines.</td>
+    </tr>
+    <tr>
+      <td>&gt;8328</td>
+      <td>Pointer to NUD tables for PARSe and EXEC.</td>
+    </tr>
+    <tr>
+      <td>&gt;832A</td>
+      <td>Pointer to end of screen display (cf &gt;8320).</td>
+    </tr>
+    <tr>
+      <td>&gt;832C</td>
+      <td>Pointer to current token (or text) in the current statement.</td>
+    </tr>
+    <tr>
+      <td>&gt;832E</td>
+      <td>Pointer to current line number, in line number table.</td>
+    </tr>
+    <tr>
+      <td>&gt;8330</td>
+      <td>Pointer to start of line number table.</td>
+    </tr>
+    <tr>
+      <td>&gt;8332</td>
+      <td>Pointer to end of line number table, start of statement list.</td>
+    </tr>
+    <tr>
+      <td>&gt;8334</td>
+      <td>Data pointer for READ.</td>
+    </tr>
+    <tr>
+      <td>&gt;8336</td>
+      <td>Line number table pointer for READ.</td>
+    </tr>
+    <tr>
+      <td>&gt;8338</td>
+      <td>Address of intrinsic Poly constants ???</td>
+    </tr>
+    <tr>
+      <td>&gt;833A</td>
+      <td>Subprogram symbol table pointer.</td>
+    </tr>
+    <tr>
+      <td>&gt;833C</td>
+      <td>PAB address in VDP RAM: first link in PAB list.</td>
+    </tr>
+    <tr>
+      <td>&gt;833E</td>
+      <td>Pointer to bottom of symbol table.</td>
+    </tr>
+    <tr>
+      <td>&gt;8340</td>
+      <td>VDP RAM free space pointer.</td>
+    </tr>
+    <tr>
+      <td>&gt;8342</td>
+      <td>Current char/token (value).</td>
+    </tr>
+    <tr>
+      <td>&gt;8344</td>
+      <td>Contains &gt;FF if RUN, else &gt;00 ( * READY * ).</td>
+    </tr>
+    <tr>
+      <td>&gt;8345</td>
+      <td>Extended Basic flags:bit 0=1 Auto-num, 1=1 On break next,<br>
+3=1 Trace, 4=1 Edit mode, 5=1 On warning stop, <br>
+6=1 On warning next, 2 + 7 unused.</td>
+    </tr>
+    <tr>
+      <td>&gt;8346</td>
+      <td>Crunch buffer destruction level</td>
+    </tr>
+    <tr>
+      <td>&gt;8348</td>
+      <td>Last subprogram block on stack.</td>
+    </tr>
+    <tr>
+      <td>&gt;836C</td>
+      <td>Floating point error address in GROM ??</td>
+    </tr>
+    <tr>
+      <td>&gt;836D</td>
+      <td>Contains &gt;08 for DSR call.</td>
+    </tr>
+  </tbody>
+</table>
+<h2><br>
+<hr width="100%"><br>
+<br>
+<a name="Basic tables"></a>Basic GROMs structure</h2>
+<p>Here is an outline of the content of the Basic GROMs (addresses
+&gt;2000
+to &gt;57FF).</p>
+<h3>Tables</h3>
+<h4><a name="EXEC table"></a>EXEC table</h4>
+<p>The GPL opcode EXECute can call 34 procedures, their addresses being
+stored in a table located at &gt;1C9C in CPU memory. These procedures
+may
+be in ROM or in GROM, in which case they are written in GPL. For the
+latter,
+the table only contains an index with a &gt;8000 flag to indicate a
+GROM
+procedure. The index is used to branch inside the <a
+ href="#NUD%20table">NUD
+table</a> located in GROM memory.</p>
+<p>NB &gt;1A2C corresponds to an error code 0</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th width="93">Token</th>
+      <th width="77">Address</th>
+      <th width="115">Token</th>
+      <th width="82">Address</th>
+    </tr>
+    <tr>
+      <td width="93">reserved</td>
+      <td width="77">&gt;1A2C</td>
+      <td width="93">INPUT</td>
+      <td width="77">NUD &gt;16</td>
+    </tr>
+    <tr>
+      <td width="93">ELSE</td>
+      <td width="77">&gt;1A2C</td>
+      <td width="115">DATA</td>
+      <td width="82">&gt;19E6</td>
+    </tr>
+    <tr>
+      <td width="93">: : </td>
+      <td width="77">&gt;1A2C</td>
+      <td width="115">RESTORE</td>
+      <td width="82">NUD &gt;12</td>
+    </tr>
+    <tr>
+      <td width="93">IF</td>
+      <td width="77">&gt;1BB6</td>
+      <td width="115">RANDOMIZE</td>
+      <td width="82">NUD &gt;14</td>
+    </tr>
+    <tr>
+      <td width="93">GO</td>
+      <td width="77">&gt;1A8E</td>
+      <td width="115">NEXT</td>
+      <td width="82">&gt;1C14</td>
+    </tr>
+    <tr>
+      <td width="93">GOTO</td>
+      <td width="77">&gt;1AFC</td>
+      <td width="115">READ</td>
+      <td width="82">NUD &gt;0A</td>
+    </tr>
+    <tr>
+      <td width="93">GOSUB</td>
+      <td width="77">&gt;1AE0</td>
+      <td width="115">STOP</td>
+      <td width="82">&gt;1A3C</td>
+    </tr>
+    <tr>
+      <td width="93">RETURN</td>
+      <td width="77">&gt;1B74</td>
+      <td width="115">DELETE</td>
+      <td width="82">NUD &gt;3E</td>
+    </tr>
+    <tr>
+      <td width="93">DEF</td>
+      <td width="77">&gt;19E6</td>
+      <td width="115">REM</td>
+      <td width="82">&gt;19E6</td>
+    </tr>
+    <tr>
+      <td width="93">DIM</td>
+      <td width="77">&gt;19E6</td>
+      <td width="115">ON</td>
+      <td width="82">&gt;1A92</td>
+    </tr>
+    <tr>
+      <td width="93">END</td>
+      <td width="77">&gt;1A36</td>
+      <td width="115">PRINT</td>
+      <td width="82">NUD &gt;0C</td>
+    </tr>
+    <tr>
+      <td width="93">FOR</td>
+      <td width="77">NUD &gt;00</td>
+      <td width="115">CALL</td>
+      <td width="82">NUD &gt;0E</td>
+    </tr>
+    <tr>
+      <td width="93">LET</td>
+      <td width="77">&gt;1BEA</td>
+      <td width="115">OPTION</td>
+      <td width="82">&gt;19E6</td>
+    </tr>
+    <tr>
+      <td width="93">BREAK</td>
+      <td width="77">NUD &gt;02</td>
+      <td width="115">OPEN</td>
+      <td width="82">NUD &gt;18</td>
+    </tr>
+    <tr>
+      <td width="93">UNBREAK</td>
+      <td width="77">NUD &gt;04</td>
+      <td width="115">CLOSE</td>
+      <td width="82">NUD &gt;1A</td>
+    </tr>
+    <tr>
+      <td width="93">TRACE</td>
+      <td width="77">NUD &gt;06</td>
+      <td width="115">SUB</td>
+      <td width="82">&gt;1A2C</td>
+    </tr>
+    <tr>
+      <td width="93">UNTRACE</td>
+      <td width="77">NUD &gt;08</td>
+      <td width="115">DISPLAY</td>
+      <td width="82">NUD &gt;3C</td>
+    </tr>
+    <tr>
+      <td width="93">UNTRACE</td>
+      <td width="77">NUD &gt;08</td>
+      <td width="115"><br>
+      </td>
+      <td width="82"><br>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h4><br>
+<a name="PARS table"></a>PARS table</h4>
+<p>The GPL opcode PARSe uses a table located at &gt;1CE2 in CPU memory,
+that contains addresses for 38 procedures. These procedures can be in
+assembly
+or in GPL.NUD refers to an entry in the <a href="#NUD%20table">NUD
+table</a>
+in GROM.</p>
+<p><br>
+NB. &gt;1A2C corresponds to an error code 0</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Token </th>
+      <th>Address</th>
+      <th>Token</th>
+      <th>Address</th>
+      <th>Token </th>
+      <th>Address</th>
+    </tr>
+    <tr>
+      <td>(</td>
+      <td>NUD &gt;1C </td>
+      <td>/</td>
+      <td>&gt;1A2C</td>
+      <td>SGN</td>
+      <td>NUD &gt;2E</td>
+    </tr>
+    <tr>
+      <td>&amp;</td>
+      <td>&gt;1A2C</td>
+      <td>^</td>
+      <td>&gt;1A2C</td>
+      <td>SIN</td>
+      <td>NUD &gt;30</td>
+    </tr>
+    <tr>
+      <td>reserved</td>
+      <td>&gt;1A2C</td>
+      <td>reserved</td>
+      <td>&gt;1A2C</td>
+      <td>SQR</td>
+      <td>NUD &gt;32</td>
+    </tr>
+    <tr>
+      <td>OR</td>
+      <td>&gt;1A2C</td>
+      <td>Quoted string</td>
+      <td>NUD &gt;10</td>
+      <td>TAN</td>
+      <td>NUD &gt;34</td>
+    </tr>
+    <tr>
+      <td>AND</td>
+      <td>&gt;1A2C</td>
+      <td>String</td>
+      <td>&gt;1A5C</td>
+      <td>LEN</td>
+      <td>NUD &gt;36</td>
+    </tr>
+    <tr>
+      <td>XOR</td>
+      <td>&gt;1A2C</td>
+      <td>Line number</td>
+      <td>&gt;1A2C</td>
+      <td>CHR$</td>
+      <td>NUD &gt;38</td>
+    </tr>
+    <tr>
+      <td>NOT</td>
+      <td>&gt;1A2C</td>
+      <td>EOF</td>
+      <td>NUD &gt;4A</td>
+      <td>RND</td>
+      <td>NUD &gt;3A</td>
+    </tr>
+    <tr>
+      <td>=</td>
+      <td>&gt;1A2C</td>
+      <td>ABS</td>
+      <td>NUD &gt;22</td>
+      <td>SEG$</td>
+      <td>NUD &gt;40</td>
+    </tr>
+    <tr>
+      <td>&lt;</td>
+      <td>&gt;1A2C</td>
+      <td>ATN</td>
+      <td>NUD &gt;24</td>
+      <td>POS</td>
+      <td>NUD &gt;46</td>
+    </tr>
+    <tr>
+      <td>&gt;</td>
+      <td>&gt;1A2C</td>
+      <td>COS</td>
+      <td>NUD &gt;26</td>
+      <td>VAL</td>
+      <td>NUD &gt;44</td>
+    </tr>
+    <tr>
+      <td>+</td>
+      <td>NUD &gt;1E</td>
+      <td>EXP</td>
+      <td>NUD &gt;28</td>
+      <td>STR$</td>
+      <td>NUD &gt;42</td>
+    </tr>
+    <tr>
+      <td>-</td>
+      <td>NUD &gt;20</td>
+      <td>INT</td>
+      <td>NUD &gt;2A</td>
+      <td>ASC</td>
+      <td>NUD &gt;48</td>
+    </tr>
+    <tr>
+      <td>*</td>
+      <td>&gt;1A2C</td>
+      <td>LOG</td>
+      <td>NUD &gt;2C</td>
+      <td><br>
+      </td>
+      <td><br>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h4><a name="CONT table"></a>CONT table</h4>
+<p>The GPL opcode CONTinue uses an 8 procedures table located at
+&gt;1D2E
+in CPU memory. These procedures are all in ROM.</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Token </th>
+      <th>Address </th>
+    </tr>
+    <tr>
+      <td>=</td>
+      <td>&gt;1D5C</td>
+    </tr>
+    <tr>
+      <td>&lt;</td>
+      <td>&gt;1D3E</td>
+    </tr>
+    <tr>
+      <td>&gt;</td>
+      <td>&gt;1D4C</td>
+    </tr>
+    <tr>
+      <td>+</td>
+      <td>&gt;1DEC</td>
+    </tr>
+    <tr>
+      <td>-</td>
+      <td>&gt;1E18</td>
+    </tr>
+    <tr>
+      <td>*</td>
+      <td>&gt;1E24</td>
+    </tr>
+    <tr>
+      <td>/</td>
+      <td>&gt;1E30</td>
+    </tr>
+    <tr>
+      <td>^</td>
+      <td>&gt;1E3C</td>
+    </tr>
+  </tbody>
+</table>
+<h4><br>
+<a name="NUD table"></a>NUD table</h4>
+<p>Some of the procedures called by PARSe and EXEC are written in GPL
+and
+stored in the Basic GROMs. They are listed in the NUD table in the form
+of <tt>BR G@xxxx</tt> statements (that may well lead to another branch
+statement). The NUD table is in GROM memory, at address specified by
+word
+&gt;8322 (normally &gt;4E84). The parse and exec tables in ROM only
+contain
+index values whithin the NUD table (plus a flag bit of &gt;8000 to
+indicate
+a GPL procedure).</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Keyword</th>
+      <th>Address</th>
+      <th>Keyword </th>
+      <th>Address</th>
+      <th>Keyword </th>
+      <th>Address</th>
+    </tr>
+    <tr>
+      <td>FOR</td>
+      <td>&gt;4FB6</td>
+      <td>(</td>
+      <td>&gt;4FF9</td>
+      <td>CHR$</td>
+      <td>&gt;52EA</td>
+    </tr>
+    <tr>
+      <td>BREAK</td>
+      <td>&gt;5463</td>
+      <td>+</td>
+      <td>&gt;4FB2</td>
+      <td>RND</td>
+      <td>&gt;4F00</td>
+    </tr>
+    <tr>
+      <td>UNBREAK</td>
+      <td>&gt;5479</td>
+      <td>-</td>
+      <td>&gt;4FA8</td>
+      <td>DISPLAY</td>
+      <td>&gt;4000</td>
+    </tr>
+    <tr>
+      <td>TRACE</td>
+      <td>&gt;5459</td>
+      <td>ABS</td>
+      <td>&gt;4ED1</td>
+      <td>DELETE</td>
+      <td>&gt;4002</td>
+    </tr>
+    <tr>
+      <td>UNTRACE</td>
+      <td>&gt;545E</td>
+      <td>ATN</td>
+      <td>&gt;4EDC</td>
+      <td>SEG$</td>
+      <td>&gt;524A</td>
+    </tr>
+    <tr>
+      <td>READ</td>
+      <td>&gt;400E</td>
+      <td>COS</td>
+      <td>&gt;4EE2</td>
+      <td>STR$</td>
+      <td>&gt;531A</td>
+    </tr>
+    <tr>
+      <td>PRINT</td>
+      <td>&gt;4004</td>
+      <td>EXP</td>
+      <td>&gt;4EE8</td>
+      <td>VAL</td>
+      <td>&gt;5349</td>
+    </tr>
+    <tr>
+      <td>CALL</td>
+      <td>&gt;50DB</td>
+      <td>INT</td>
+      <td>&gt;4EEE</td>
+      <td>POS</td>
+      <td>&gt;53A9</td>
+    </tr>
+    <tr>
+      <td>quoted string</td>
+      <td>&gt;5111</td>
+      <td>LOG</td>
+      <td>&gt;4EFA</td>
+      <td>ASC</td>
+      <td>&gt;5306</td>
+    </tr>
+    <tr>
+      <td>RESTORE</td>
+      <td>&gt;400C</td>
+      <td>SGN</td>
+      <td>&gt;4F26</td>
+      <td>EOF</td>
+      <td>&gt;401C</td>
+    </tr>
+    <tr>
+      <td>RANDOMIZE</td>
+      <td>&gt;50C8</td>
+      <td>SIN</td>
+      <td>&gt;4F40</td>
+      <td><br>
+      </td>
+      <td><br>
+      </td>
+    </tr>
+    <tr>
+      <td>INPUT</td>
+      <td>&gt;4006</td>
+      <td>SQR</td>
+      <td>&gt;4F46</td>
+      <td><br>
+      </td>
+      <td><br>
+      </td>
+    </tr>
+    <tr>
+      <td>OPEN</td>
+      <td>&gt;4008</td>
+      <td>TAN</td>
+      <td>&gt;4F4C</td>
+      <td><br>
+      </td>
+      <td><br>
+      </td>
+    </tr>
+    <tr>
+      <td>CLOSE</td>
+      <td>&gt;400A</td>
+      <td>LEN</td>
+      <td>&gt;52BE</td>
+      <td><br>
+      </td>
+      <td><br>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h4><br>
+<a name="Token tables"></a>Token tables</h4>
+<p>The crunching and expanding routines use a token table located in
+GROM
+at address &gt;2870. The table is split into several sub-tables,
+depending
+on the lenght of the keywords. For each keyword length, the subtable
+ends
+with a &gt;FF byte.</p>
+<p>The pointers for the different sub-tables are just before them, at
+address
+&gt;285C:</p>
+<pre><u>Address  Value  Pointer to subtable for <br></u>&gt;285C    &gt;2870  1-byte keywords<br>&gt;285E    &gt;288F  2-byte keywords<br>&gt;2860    &gt;289C  3-byte keywords<br>&gt;2862    &gt;291D  4-byte keywords<br>&gt;2864    &gt;2973  5-byte keywords<br>&gt;2866    &gt;299E  6-byte keywords<br>&gt;2868    &gt;29D0  7-byte keywords<br>&gt;286A    &gt;29F1  8-byte keywords<br>&gt;286C    &gt;2A16  9-byte keywords<br>&gt;286E    &gt;2A2B  10-byte keywords</pre>
+<p>Tokens C7 to C9 are not part of the token table.</p>
+<h3><br>
+<a name="Basic routines"></a>Routines</h3>
+<p>See the NUD table above, for the address of some Basic procedures. </p>
+<p>Here are a few other entry points in GROM memory:</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Address</th>
+      <th>Use</th>
+    </tr>
+    <tr>
+      <td>&gt;1387</td>
+      <td>OPEN cassette.</td>
+    </tr>
+    <tr>
+      <td>&gt;13CF</td>
+      <td>READ cassette.</td>
+    </tr>
+    <tr>
+      <td>&gt;13DA</td>
+      <td>WRITE cassette.</td>
+    </tr>
+    <tr>
+      <td>&gt;13F2</td>
+      <td>OLD cassette.</td>
+    </tr>
+    <tr>
+      <td>&gt;140E</td>
+      <td>CLOSE cassette.</td>
+    </tr>
+    <tr>
+      <td>&gt;1444</td>
+      <td>Verify cassette.</td>
+    </tr>
+    <tr>
+      <td>&gt;1489</td>
+      <td>SAVE cassette.</td>
+    </tr>
+    <tr>
+      <td>&gt;216F</td>
+      <td>Start of Basic interpreter (Entry point for NEW).</td>
+    </tr>
+    <tr>
+      <td>&gt;2214</td>
+      <td>Address table for RUN, NEW, CONTINUE, LIST, BYE, <br>
+NUMBER, OLD, RES,SAVE and EXIT.</td>
+    </tr>
+    <tr>
+      <td>&gt;27E3</td>
+      <td>Clears screen, resets cursor and continues as below:</td>
+    </tr>
+    <tr>
+      <td>&gt;27F1</td>
+      <td>Loads char patterns, resets colors and VDP registers 2,3 and
+4. </td>
+    </tr>
+    <tr>
+      <td>&gt;2A42</td>
+      <td>Start line editor with default position and length.</td>
+    </tr>
+    <tr>
+      <td>&gt;2A49</td>
+      <td>Ditto with max length in &gt;835E.</td>
+    </tr>
+    <tr>
+      <td>&gt;2A4F</td>
+      <td>Ditto with starting screen position in &gt;8361.</td>
+    </tr>
+    <tr>
+      <td>&gt;3450</td>
+      <td>Checks if a char is valid for a variable name (A-Z, a-z,
+0-9..).</td>
+    </tr>
+    <tr>
+      <td>&gt;351C</td>
+      <td>CALL CLEAR.</td>
+    </tr>
+    <tr>
+      <td>&gt;3538</td>
+      <td>CALL SOUND.</td>
+    </tr>
+    <tr>
+      <td>&gt;360E</td>
+      <td>CALL HCHAR.</td>
+    </tr>
+    <tr>
+      <td>&gt;362A</td>
+      <td>CALL VCHAR.</td>
+    </tr>
+    <tr>
+      <td>&gt;3643</td>
+      <td>CALL CHAR.</td>
+    </tr>
+    <tr>
+      <td>&gt;3708</td>
+      <td>CALL KEY.</td>
+    </tr>
+    <tr>
+      <td>&gt;3748</td>
+      <td>CALL JOYST.</td>
+    </tr>
+    <tr>
+      <td>&gt;37D6</td>
+      <td>CALL SCREEN.</td>
+    </tr>
+    <tr>
+      <td>&gt;401E</td>
+      <td>OPEN a file.</td>
+    </tr>
+    <tr>
+      <td>&gt;4160</td>
+      <td>DELETE a file.</td>
+    </tr>
+    <tr>
+      <td>&gt;4174</td>
+      <td>CLOSE a file</td>
+    </tr>
+    <tr>
+      <td>&gt;41CF</td>
+      <td>Closes all files.</td>
+    </tr>
+    <tr>
+      <td>&gt;41D7</td>
+      <td>RESTORE a file.</td>
+    </tr>
+    <tr>
+      <td>&gt;4227</td>
+      <td>PRINT in a file or on screen.</td>
+    </tr>
+    <tr>
+      <td>&gt;426C</td>
+      <td>DISPLAY on screen. </td>
+    </tr>
+    <tr>
+      <td>&gt;4344</td>
+      <td>INPUT from files or keyboard.</td>
+    </tr>
+    <tr>
+      <td>&gt;45E3</td>
+      <td>READ the DATA inserted in a program.</td>
+    </tr>
+    <tr>
+      <td>&gt;4641</td>
+      <td>OLD loads a program.</td>
+    </tr>
+    <tr>
+      <td>&gt;46FC</td>
+      <td>SAVE a program.</td>
+    </tr>
+    <tr>
+      <td>&gt;474C</td>
+      <td>LIST a program.</td>
+    </tr>
+    <tr>
+      <td>&gt;482B</td>
+      <td>EOF tests for end of file.</td>
+    </tr>
+    <tr>
+      <td>&gt;4D7C</td>
+      <td>Prints "Bad Value".</td>
+    </tr>
+    <tr>
+      <td>&gt;4D81</td>
+      <td>Prints "String-number mismatch".</td>
+    </tr>
+    <tr>
+      <td>&gt;566C</td>
+      <td>Prints "Can't do that".</td>
+    </tr>
+    <tr>
+      <td>&gt;56CD</td>
+      <td>Scrolls up.</td>
+    </tr>
+    <tr>
+      <td>&gt;56EF</td>
+      <td>CALL GCHAR.</td>
+    </tr>
+    <tr>
+      <td>&gt;5713</td>
+      <td>CALL COLOR.</td>
+    </tr>
+  </tbody>
+</table>
+<address><br>
+<br>
+Revision 1. 6/13/99 Preliminary, but ok to release<br>
+Revision II. 9/12/99 Made some corrections. Added examples.<br>
+Revision III. 9/19/99 More examples added (symbol table, value stack).<br>
+Revision IV. 3/4/00. Added PARS, EXEC, and CONT tables.</address>
+<center>
+<p><br>
+<br>
+<a href="titechpages.htm">Back to the TI-99/4A Tech Pages</a><br>
+</p>
+</center>
+</body>
+</html>

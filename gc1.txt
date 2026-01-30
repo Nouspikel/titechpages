@@ -1,0 +1,834 @@
+*==============================================================================*
+* 9900 assembly routines to be executer in the card's rom                      *
+*                        from >4000 to >4AFF                                   *
+*------------------------------------------------------------------------------*
+       AORG >4000
+ 
+A2700  EQU  >2700
+GRAM   EQU  >27FE
+ 
+A4000  DATA >AA01        header version
+       DATA >0000        no program
+       DATA A4012        power up
+       DATA >0000        program
+       DATA >0000        dsr
+       DATA A41C4        subprogram
+       DATA >0000        interrupt
+       DATA 0,0
+*---------------------------------------
+A4012  DATA >0000        power up
+       DATA PWRUP        --------
+       DATA >0000        no name
+*
+PWRUP  STWP 9
+       MOV  11,8
+       SBO  1            ram bank off
+       SBO  2            gram2 off
+       SBO  3            gram off
+       SBZ  6            bank switch on
+       MOVB @>0002(13),7 get gram address
+       SWPB 7
+       MOVB @>0002(13),7
+       SWPB 7
+       DEC  7
+       LI   2,>9800      set new address
+A4036  LI   3,>6000
+A403A  BL   @GWA
+       MOVB *2,5         get 1rst byte
+       JNE  A404C        busy: next base
+       AI   3,>2000      next grom
+       JNE  A403A
+       JMP  A4070        last: no module present
+A404A  SBO  3            gram off
+A404C  AI   2,>0004      next base
+       CI   2,>9820
+       JNE  A4036        first grom
+PWRRET MOVB 7,@>0402(13) last base
+       SWPB 7
+       MOVB 7,@>0402(13) restore addr
+       B    *8           return
+*
+GWA    MOVB 3,@>0402(2)  write gram addr
+       SWPB 3            ---------------
+       MOVB 3,@>0402(2)
+       SWPB 3
+       B    *11
+*
+A4070  SBZ  3            no module: gram enable
+       SETO 4
+       CLR  1
+       LI   3,>6000
+A407A  BL   @GWA         set addr
+       MOVB *2,5
+       CB   5,@A4000     header?
+       JNE  A40B0
+       MOV  12,1
+       BL   @>0020       test <clear>
+       JNE  A4096
+       MOV  1,12         pressed
+       SBZ  5            grom 0-2 built-in
+       CLR  1
+       JMP  A40B6        reset card
+A4096  MOV  1,12         not pressed
+       LI   3,>6000      check if bank busy
+A409C  MOV  *3+,1        c>6000-6030 empty?
+       JNE  PWRRET       no: return
+       CI   3,>6030
+       JNE  A409C
+       CI   2,>9800      first base?
+       JNE  PWRRET       no: return
+       SBZ  1            ram bank enable
+       JMP  PWRRET       return
+*
+A40B0  AI   3,>2000      no header
+       JNE  A407A        next grom
+A40B6  LI   3,>6000      6000-6030 ram?
+A40BA  BL   @GWA         write >FF
+       MOVB 4,@>0400(2)
+       BL   @GWA         check it
+       MOVB *2,5
+       CB   5,4
+       JNE  A404A        rom: next base
+       BL   @GWA         write >00
+       MOVB 1,@>0400(2)
+       BL   @GWA         check it
+       MOVB *2,5
+       JNE  A404A        rom: next base
+       INC  3
+       CI   3,>6030
+       JNE  A40BA        loop
+       LI   3,>6000
+       CLR  5
+A40EA  MOV  *3+,1        bank c>6000-6030 empty?
+       JNE  A4106        no
+       CI   3,>6030
+       JNE  A40EA
+       CI   2,>9800      bank empty
+       JNE  A4106
+       SBZ  1            first base: bank enable
+       CB   @>6000,@A4000
+       JEQ  A4106        header
+       SETO 5
+A4106  LI   0,>0002
+A410A  LI   3,>6000      copy gpl program
+       BL   @GWA         to g>6000-7400
+       LI   1,A4C00      from A4C00
+       LI   4,>1400
+A411A  MOVB *1+,@>0400(2)
+       DEC  4
+       JNE  A411A
+       CLR  1            clear 7400-FFFF
+       LI   4,>EC00
+A4128  MOVB 1,@>0400(2)
+       DEC  4
+       JNE  A4128
+       LI   3,>6027      write cru at g>6027
+       BL   @GWA
+       MOVB 12,@>0400(2)
+       SWPB 12
+       MOVB 12,@>0400(2)
+       SWPB 12
+       MOV  2,1          copy base at g>6029
+       MOVB 1,@>0400(2)
+       SWPB 1
+       MOVB 1,@>0400(2)
+       LI   3,>6011
+       BL   @GWA
+       MOVB 1,@>0400(2)  copy base(l) at g>6011
+       LI   3,>6023
+       BL   @GWA
+       MOV  2,3
+       LI   6,>0004      write base at g>6023
+A416A  MOV  3,1
+       SRL  1,12
+       AI   1,>0030
+       CI   1,>0039
+       JLE  A417C
+       AI   1,>0007      A-F
+A417C  SWPB 1
+       MOVB 1,@>0400(2)
+       SLA  3,4
+       DEC  6
+       JNE  A416A
+       DEC  0
+       JEQ  A4192        return
+       AI   2,>0020      next base
+       JMP  A410A
+A4192  B    @PWRRET      return
+*
+VWR    ORI  0,>4000      vdp write addr
+VRD    SWPB 0            --------------
+       MOVB 0,*15
+       SWPB 0
+       MOVB 0,*15
+       B    *11
+*
+VMBR   MOV  11,10        vmbr
+       BL   @VRD         ----
+A41AA  MOVB @>FBFE(15),*1+
+       DEC  2
+       JNE  A41AA
+       B    *10
+*
+VMBW   MOV  11,10        vmbw
+       BL   @VWR         ----
+A41BA  MOVB *1+,@>FFFE(15)
+       DEC  2
+       JNE  A41BA
+       B    *10
+*---------------------------------------
+A41C4  DATA A41CE        subprograms
+       DATA A41EC        ===========
+       BYTE >04
+       TEXT 'GRAM'       gram-card loader
+       BYTE 0            ----------------
+A41CE  DATA A41D8
+       DATA A41EC
+       BYTE >05
+       TEXT 'GRAM1'      idem
+A41D8  DATA A41E2
+       DATA A41F4
+       BYTE >05
+       TEXT 'GRAM2'      idem
+A41E2  DATA A421C
+       DATA A41FC
+       BYTE >05
+       TEXT 'GRAM3'      idem
+*
+A41EC  CI   1,>0001      check if 1rst call
+       JEQ  A4202
+A41F2  B    *11          no
+A41F4  CI   1,>0002      check if 2nd call
+       JEQ  A4202
+       JMP  A41F2
+A41FC  CI   1,>0003      check if 3rd call
+       JNE  A41F2
+A4202  STWP 9            ok
+       INCT 11
+       LI   1,A4E00      copy c>4E00-5FFF
+       LI   0,A2700      to ram c>2700-2900
+       LI   2,>1200
+A4212  MOV  *1+,*0+
+       DECT 2
+       JNE  A4212
+       B    @GRAM        run loader
+*-----------------------------------------------
+A421C  DATA A434C        basic program -> module
+       DATA MODULE       -----------------------
+       BYTE >05
+       TEXT 'MODUL'
+*
+SUBRET MOV  @>FF8D(9),11 get ret addr
+       B    *11          return
+*
+MODULE STWP 9
+       INCT 11           save ret addr
+       MOV  11,@>FF8C(9) at c>836C
+       CI   13,>9800
+       JNE  SUBRET       not first base: return
+       MOV  @>FF50(9),6  c>8330 first line number ptr
+       MOV  @>FF52(9),4  c>8332 last line number ptr
+       C    6,4
+       JEQ  SUBRET       no line in table
+       MOV  @>FF44(9),1  c>8324 vdp value stack
+       CI   1,>0957      should be >0800 in TI-Basic
+       JHE  SUBRET       return if Extended Basic
+       MOV  @>FF90(9),5  c>8370 highest free vdp addr
+       LI   7,>4000
+       S    5,7          space reserved for disk controler buffers
+       MOV  6,3
+       A    7,3
+       AI   3,>6000      below g>A000
+       MOV  3,@>FF88(9)  save beg address in c>8368
+       AI   7,>6000      gram offset
+       MOV  6,0          copy line numbers table
+       BL   @VRD         -----------------------
+       MOV  13,2
+       BL   @GWA
+A4276  MOVB @>FBFE(15),@>0400(13) copy number from vdp to gram
+       INCT 6            vdp address
+       INCT 3            gram address
+       MOVB @>FBFE(15),@>0400(13)
+       MOVB @>FBFE(15),1 read address
+       SWPB 1
+       MOVB @>FBFE(15),1
+       SWPB 1
+       A    7,1          update address for gram
+       MOVB 1,@>0400(13) copy it
+       SWPB 1
+       MOVB 1,@>0400(13)
+       INCT 6
+       INCT 3
+       C    6,4          end of table?
+       JL   A4276        no
+       MOV  3,@>FF8A(9)  save end address in c>836A
+       DEC  @>FF8A(9)
+A42AE  MOVB @>FBFE(15),@>0400(13) copy basic program
+       INC  3                     ------------------
+       CI   3,>A000
+       JNE  A42AE
+       LI   3,>6000      copy gpl program to gram card
+       BL   @GWA         ----------------
+       LI   2,A4B00      this program will start the module
+       LI   1,>0100      and pause in case of error
+A42CC  MOVB *2+,@>0400(13)
+       DEC  1
+       JNE  A42CC
+       MOV  9,1          copy beg + end addresses
+       AI   1,>FF88      ------------------------
+       LI   0,>0004      from c>8368+836A
+       LI   3,>6023      to g>6023
+       MOV  13,2
+       BL   @GWA
+A42E8  MOVB *1+,@>0400(13)
+       DEC  0
+       JNE  A42E8
+       MOV  @>FF4C(9),5  c>832C prog token ptr
+       LI   4,>0007      +7
+       A    4,5
+       MOV  5,0
+       BL   @VRD         get basic token
+       CLR  1
+       MOVB @>FBFE(15),1
+       CI   1,>C700      "string"?
+       JNE  SUBRET       no: return
+       MOVB @>FBFE(15),1 name length
+       CI   1,>0A00
+       JH   SUBRET       too big
+       SWPB 1
+       MOV  1,6          save length
+       MOV  6,4
+       A    5,4          end of name
+       AI   4,>0003      +3
+       MOV  4,@>FF4C(9)  next token ptr: c>832C
+       CLR  1
+       MOVB 1,@>FF62(9)  c>8342 current token=0
+       LI   3,>6014
+       MOV  13,2         copy program name
+       BL   @GWA         -----------------
+       MOV  6,1          copy name length
+       SWPB 1
+       MOVB 1,@>0400(13)
+A433E  MOVB @>FBFE(15),@>0400(13) copy name
+       DEC  6
+       JNE  A433E
+       B    @SUBRET
+*---------------------------------------
+A434C  DATA >0000        edit memory
+       DATA EDMEM        -----------
+       BYTE >07
+       TEXT 'EDITMEM'
+*
+EDMEM  STWP 9
+       MOV  12,@>FF86(9) save cru at c>8366
+       INCT 11
+       MOV  11,@>FF8C(9) save ret at c>836C
+A4364  CLR  0
+       MOV  0,@>8360
+       BL   @VWR         clear screen
+       LI   1,>8000
+       LI   2,>0300
+A4376  MOVB 1,@>FFFE(15)
+       DEC  2
+       JNE  A4376
+       LI   1,A478E
+       BL   @MESSGE      "* edit memory *"
+       LI   1,A47A2
+       BL   @MESSGE      "type of memory:"
+       LI   1,A47B4
+       BL   @MESSGE      "start memory:"
+       LI   0,>0053      disp cursor
+       BL   @VWR
+       LI   1,>7E00
+       MOVB 1,@>FFFE(15)
+       CLR  1            scan keyboard
+       MOVB 1,@>8374
+       MOVB 1,@>837C
+A43B0  BL   @>000E       keyscan
+       CLR  1
+       MOVB @>8375,1
+       CI   1,>0E00      f(5)
+       JNE  A43DC
+       MOV  @>FF4C(9),5  c>834C token ptr
+       AI   5,>0008
+       MOV  5,@>FF4C(9)  ptr + 8
+       CLR  1
+       MOVB 1,@>FF62(9)  clr current token
+       MOV  @>FF86(9),12 restore cru
+       MOV  @>FF8C(9),11 restore ret addr
+       B    *11          return
+A43DC  CI   1,>0F00      f(9)
+       JEQ  A4364        restart
+       CI   1,>4300      <C>
+       JNE  A43F2
+       CLR  @>8368
+       CLR  @>836A
+       JMP  A4410
+A43F2  CI   1,>4700      <G>
+       JNE  A4402
+       CLR  @>8368
+       SETO @>836A
+       JMP  A4410
+A4402  CI   1,>5600      <V>
+       JNE  A43B0        no: key scan
+       SETO @>8368
+       SETO @>836A
+A4410  LI   0,>0053      echo char (mem type)
+       BL   @VWR
+       AI   1,>6000
+       MOVB 1,@>FFFE(15)
+       LI   0,>0093
+       BL   @NUMIN
+       CI   1,>0D00
+       JNE  A4364        fctn key: restart
+       MOV  @>8350,3     <enter>
+       ANDI 3,>FFF8      multiple of 8
+       LI   0,>0093      display addr
+       BL   @VWR
+       MOVB 3,2
+       BL   @DISPBY
+       SWPB 3
+       MOVB 3,2
+       SWPB 3
+       BL   @DISPBY
+       MOV  3,@>8350
+       MOV  @>8368,0
+       JNE  A44B8        check if g mem
+       MOV  @>836A,0
+       JEQ  A44B8
+       MOV  @>8350,@>8362 save addr
+       LI   1,A47E0
+       BL   @MESSGE      "gram address:"
+       LI   0,>00D3
+       BL   @NUMIN       input base
+       CI   1,>0D00
+       JEQ  A447E
+       B    @A4364       fctn key: restart
+A447E  MOV  @>8350,3
+       ANDI 3,>983C
+       CI   3,>9800
+       JH   A4490
+A448C  LI   3,>9800      illegal base -> 9800
+A4490  CI   3,>983C
+       JH   A448C
+       LI   0,>00D3      display base
+       BL   @VWR
+       MOVB 3,2
+       BL   @DISPBY
+       SWPB 3
+       MOVB 3,2
+       SWPB 3
+       BL   @DISPBY
+       MOV  3,@>835C
+       MOV  @>8362,@>8350 restore addr
+A44B8  MOV  @>8368,0
+       JEQ  A44C4
+       LI   1,A47C4      "vdp-ram"
+       JMP  A44D4
+A44C4  MOV  @>836A,0
+       JEQ  A44D0
+       LI   1,A47CE      "g-ram"
+       JMP  A44D4
+A44D0  LI   1,A47D6      "cpu-ram"
+A44D4  BL   @MESSGE
+       LI   0,>0207
+       MOV  0,@>8356     screen address (of byte)
+       CLR  @>8360       flag 0:hex      -1:ascii
+       CLR  @>835E       flag 0:digit 1  -1:digit 2
+       MOV  @>8350,@>8354 mem address
+A44EE  MOV  @>8350,@>8352 current line address
+       LI   0,>0202
+A44F8  BL   @DLINE       disp one line
+       LI   0,>0008
+       A    0,@>8352     next line address
+       MOV  @>834A,0
+       AI   0,>0020      next screen address
+       CI   0,>0300
+       JL   A44F8        next line
+       JMP  A4518
+A4514  CLR  @>835E
+A4518  MOV  @>8356,@>834A retrieve screen addr
+       MOV  @>835E,0     address of cursor
+       JEQ  A4528
+       INC  @>834A       ascii / hex digit 2
+A4528  BL   @POINT       current byte
+A452C  BL   @HEXIN
+       CI   1,>2000
+       JL   A45C8
+       MOV  @>834A,0     input digit/char
+       BL   @VWR
+       AI   1,>6000
+       MOVB 1,@>FFFE(15) echo it
+       MOVB @>8358,2
+       MOVB @>8360,0
+       JEQ  A4558
+       AI   1,>A000      ascii
+       MOVB 1,2
+       JMP  A456E
+A4558  MOV  @>835E,0     hex
+       JEQ  A4566
+       ANDI 2,>F000      digit 2
+       SLA  3,8
+       JMP  A456C
+A4566  SLA  3,12         digit 1
+       ANDI 2,>0F00
+A456C  AB   3,2
+A456E  MOVB 2,@>8358     new byte value
+       BL   @MEMWR       modify memory
+A4576  MOV  @>835E,0
+       JEQ  A45BE
+       INC  @>8354       digit 2: next byte
+       MOV  @>8356,0
+       AI   0,>0003
+       MOV  0,1
+       ANDI 1,>001E      column
+       MOV  0,@>8356
+       CI   1,>001E
+       JHE  A45A4
+       MOV  @>8360,0
+       JEQ  A4514        hex
+       SETO @>835E       ascii: digit 2
+       JMP  A4518
+A45A4  AI   0,>0008      last column
+       MOV  0,@>8356
+       CI   0,>0300
+       JHE  A46A2        e o screen
+       MOV  @>8360,0
+       JEQ  A4514        hex
+       SETO @>835E       ascii: digit 2
+       JMP  A4518
+A45BE  INC  @>834A       screen addr+1
+       SETO @>835E       digit 2
+       JMP  A452C
+A45C8  CI   1,>0E00      fctn keys
+       JEQ  A469E        f5: restart
+       CI   1,>0F00
+       JEQ  A469E        f9: restart
+       CI   1,>0100
+       JNE  A45E4
+       INV  @>8360       f7 ascii flag
+       SETO @>835E       digit 2
+       JMP  A44EE        redisplay
+A45E4  CI   1,>0900
+       JNE  A45F0
+       BL   @DELAY       ->
+       JMP  A4576
+A45F0  CI   1,>0800
+       JNE  A4652
+       BL   @DELAY       <-
+       MOV  @>8360,0
+       JNE  A4606
+       MOV  @>835E,0
+       JNE  A4646        hex digit 2
+A4606  DEC  @>8354       ascii / hex digit 1
+       SETO @>835E
+       MOV  @>8356,0
+       DECT 0
+       DEC  0
+       MOV  0,@>834A     screen addr -3
+       INC  @>834A
+       MOV  0,1
+       ANDI 1,>001F      column
+       MOV  0,@>8356
+       CI   1,>0007
+       JHE  A4642
+       AI   0,>FFF8      first
+       MOV  0,@>8356
+       INC  0
+       MOV  0,@>834A     new screen addr
+A463C  CI   0,>0202
+       JLE  A46CE        first line
+A4642  B    @A4528
+A4646  DEC  @>834A       hex digit 2
+       CLR  @>835E       on digit 1
+       B    @A452C
+A4652  LI   0,>0020      32 chars
+       LI   2,>0008      8 bytes
+       CI   1,>0B00
+       JNE  A4676        ^
+       BL   @DELAY       |
+       S    0,@>8356
+       S    0,@>834A     new screen addr
+       S    2,@>8354     new pointer
+       MOV  @>8356,0
+       JMP  A463C
+A4676  CI   1,>0A00      |
+       JNE  A469A        v
+       BL   @DELAY
+       A    0,@>8356
+       A    0,@>834A     new screen addr
+       A    2,@>8354     new pointer
+       MOV  @>8356,3
+       CI   3,>0300
+       JHE  A46BE        end of screen
+       B    @A4528
+A469A  B    @A452C
+A469E  B    @A4364       begin
+A46A2  LI   0,>0020
+       LI   2,>0008
+       MOV  @>8360,1
+       JEQ  A46BA
+       INC  @>834A       acsii: screen addr+1
+       SETO @>835E       digit 2
+       JMP  A46BE
+A46BA  CLR  @>835E       hex: digit 1
+A46BE  S    0,@>8356     lower limit
+       A    2,@>8350     scroll down
+       S    0,@>834A     previous screen addr
+A46CA  B    @A44EE
+A46CE  LI   0,>0020      uper limit
+       LI   2,>0008
+       A    0,@>8356     previous
+       A    0,@>834A     previous screen addr
+       S    2,@>8350     scroll up
+       JMP  A46CA
+*
+POINT  MOV  11,10        pointer management
+       LI   0,>01CB      ------------------
+       BL   @VWR         display current addr
+       MOV  @>8354,3
+       MOVB 3,2
+       MOV  @>8360,@>834E save flag
+       CLR  @>8360       hex
+       BL   @DISPBY
+       SWPB 3
+       MOVB 3,2
+       SWPB 3
+       BL   @DISPBY
+       MOV  @>834E,@>8360 retrieve flag
+       MOV  @>8368,0     fetch current byte
+       JEQ  A4724
+       MOV  3,0          vdp mem
+       BL   @VRD
+       MOVB @>FBFE(15),2
+       JMP  A4738
+A4724  MOV  @>836A,0
+       JEQ  A4736
+       MOV  @>835C,2     gram mem
+       BL   @GWA
+       MOVB *2,2
+       JMP  A4738
+A4736  MOVB *3,2         cpu mem
+A4738  MOVB 2,@>8358
+       B    *10
+*                        modify mem
+MEMWR  MOV  11,10        ----------
+       MOV  @>8354,3     address
+       MOVB @>8358,1     byte
+       MOV  @>8368,0
+       JEQ  A475A
+       MOV  3,0          vdp mem
+       BL   @VWR
+       MOVB 1,@>FFFE(15)
+       JMP  A4770
+A475A  MOV  @>836A,0
+       JEQ  A476E
+       MOV  @>835C,2     gram mem
+       BL   @GWA
+       MOVB 1,@>0400(2)
+       JMP  A4770
+A476E  MOVB 1,*3         cpu mem
+A4770  B    *10
+*
+MESSGE MOV  11,10        display message
+       MOV  *1+,0        ---------------
+       BL   @VWR         vdp addr
+       MOVB *1+,2        size
+       SRL  2,8
+A477E  MOVB *1+,0        char
+       AI   0,>6000      add bias
+       MOVB 0,@>FFFE(15)
+       DEC  2
+       JNE  A477E
+       B    *10
+*                        messages
+A478E  DATA >0007        --------
+       BYTE >11
+       TEXT '*  EDIT MEMORY  *'
+A47A2  DATA >0042
+       BYTE >0F
+       TEXT 'TYPE OF MEMORY:'
+A47B4  DATA >0082
+       BYTE >0D
+       TEXT 'START MEMORY:'
+A47C4  DATA >01C2
+       BYTE >07
+       TEXT 'VDP-RAM'
+A47CE  DATA >01C2
+       BYTE >05
+       TEXT 'G-RAM'
+A47D6  DATA >01C2
+       BYTE >07
+       TEXT 'CPU-RAM'
+A47E0  DATA >00C2
+       BYTE >0C
+       TEXT 'GRAM-ADRESS:'
+       BYTE >00
+*
+NUMIN  MOV  11,@>834C    input number
+       CLR  @>8350       ------------
+A47F8  ANDI 0,>3FFF
+       MOV  0,@>834A     screen address
+       BL   @HEXIN       input hex digit
+       CI   1,>2000
+       JH   A4810
+       MOV  @>834C,11    fctn key
+       B    *11          return number in >8350
+A4810  MOV  @>8350,4     update number
+       SLA  4,4
+       A    3,4
+       MOV  4,@>8350
+       MOV  @>834A,0     echo char on screen
+       BL   @VWR
+       INC  0
+       AI   1,>6000      add biad
+       MOVB 1,@>FFFE(15)
+       JMP  A47F8
+ 
+HEXIN  MOV  11,@>834E    input hex digit
+       CLR  1            ---------------
+       MOVB 1,@>8374
+       MOVB 1,@>837C
+       MOV  @>834A,0     screen address
+       BL   @VRD         save current char
+       MOVB @>FBFE(15),@>8359
+       BL   @VWR         disp cursor
+       LI   1,>7E00
+       MOVB 1,@>FFFE(15)
+       CLR  @>835A
+A485C  BL   @>000E       key scan loop
+       MOVB @>837C,1
+       JNE  A4894
+       INC  @>835A       no key
+       MOV  @>835A,0
+       CI   0,>0180
+       JNE  A485C        input loop
+       CLR  @>835A       reset delay
+       MOV  @>834A,0     cursor blink
+       BL   @VRD
+       MOVB @>FBFE(15),1 char
+       BL   @VWR
+       MOVB @>8359,@>FFFE(15)
+       MOVB 1,@>8359
+       JMP  A485C        loop
+A4894  CLR  1            key pressed
+       MOVB @>8375,1
+       CI   1,>2000
+       JL   A48E8        fctn key
+       MOV  @>8360,2
+       JNE  A48CA
+       CI   1,>3000
+       JL   A485C        <0
+       MOV  1,3
+       SRL  3,8
+       AI   3,>FFD0
+       CI   3,>000A
+       JL   A48CA
+       AI   3,>FFF9      >9
+       CI   3,>000A
+       JL   A485C        <A
+       CI   3,>000F
+       JH   A485C        >F
+A48CA  CLR  2
+       MOVB @>8359,2
+       CI   2,>7E00      cursor on screen
+       JEQ  A48E2
+       MOV  @>834A,0     no: update char
+       BL   @VWR
+       MOVB 2,@>FFFE(15)
+A48E2  MOV  @>834E,11    return
+       B    *11          r1: char r3: hex digit
+A48E8  LI   0,>2000      fctn key
+A48EC  DEC  0
+       JNE  A48EC        delay
+       JMP  A48CA        return
+*
+DLINE  MOV  11,@>834C    display one window line
+       MOV  0,@>834A     -----------------------
+       MOV  0,6          r0: screen address
+       BL   @VWR
+       MOV  @>8352,3
+       MOVB 3,2
+       MOV  @>8360,@>834E save flag
+       CLR  @>8360       hex
+       BL   @DISPBY      display address
+       INCT 6
+       SWPB 3
+       MOVB 3,2
+       BL   @DISPBY
+       INCT 6
+       MOV  @>834E,@>8360 retrieve flag
+       SWPB 3
+       LI   5,>0008
+A492C  LI   4,>8000
+       MOVB 4,@>FFFE(15) space
+       INC  6
+       MOV  @>8368,0     read byte
+       JEQ  A494E
+       MOV  3,0          vdp mem
+       BL   @VRD
+       MOVB @>FBFE(15),2
+       MOV  6,0
+       BL   @VWR
+       JMP  A4962
+A494E  MOV  @>836A,0
+       JEQ  A4960
+       MOV  @>835C,2     gram mem
+       BL   @GWA
+       MOVB *2,2
+       JMP  A4962
+A4960  MOVB *3,2         cpu mem
+A4962  INC  3
+       BL   @DISPBY      display byte
+       INCT 6
+       DEC  5
+       JNE  A492C        8 bytes per line
+       MOV  @>834C,11
+       B    *11
+*
+DISPBY LI   0,>0002      display 1 byte
+       CLR  1            --------------
+       MOVB @>8360,1     r2: byte
+       JNE  A49A0
+       MOVB 2,1          hex byte
+A4982  SRL  1,4
+       AI   1,>9000      bias
+       CI   1,>9A00
+       JL   A4992
+       AI   1,>0700      A-F
+A4992  MOVB 1,@>FFFE(15)
+       MOVB 2,1
+       SLA  1,4
+       DEC  0
+       JNE  A4982        next digit
+       B    *11
+A49A0  MOVB 2,1          ascii char
+       CI   1,>2000
+       JHE  A49AE
+A49A8  LI   1,>2A00      if not in 32-127
+       JMP  A49B4
+A49AE  CI   1,>7F00
+       JHE  A49A8
+A49B4  LI   0,>8000      disp char
+       MOVB 0,@>FFFE(15)
+       AI   1,>6000
+       MOVB 1,@>FFFE(15)
+       B    *11
+*
+DELAY  CLR  @>83C8       fctn key delay
+       LI   5,>2000      --------------
+A49CE  DEC  5
+       JNE  A49CE
+       B    *11
+*
+*      A49D4-A4AFF: >FFFF
+*      A4B00-A4B53: gpl program for basic modules
+*      A4B54-A4BFF: >FFFF
+*      A4C00-A4DFF: gpl program: gramcard menu
+*      A4E00-A5FFF: assembly routines to be run at >2700-38FF
+*
+A4B00  EQU  >4B00
+A4C00  EQU  >4C00
+A4E00  EQU  >4E00
+ 
+       END

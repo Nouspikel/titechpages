@@ -1,0 +1,97 @@
+********************************************************************************
+**                                                                            **
+**     R O S   8 . 1 4 B    Disassembled and commented by Th. Nouspikel, 1993 **
+**                                                                            **
+********************************************************************************
+ 
+This Ramdisk operating system is loaded in ram at >4000 to >57FF.
+The area >5800 to >5FFF is used to display various pages, each corresponds to 8
+disk sectors. Pages are selected by passing their number to cru bits 1 to 11.
+Page 0 is reserved for continuation of the ROS.
+ 
+Rambo mode is selected by setting cru bit 15 as 1: a bank made of 4 pages (8K)
+appears at >6000 to >7FFF. It can be switched with cru bits 3 to 11 for a total
+of 512 banks (i.e. 4 Mega). However opcode >B0 can only used 192 banks (1.5 M).
+Also, the page at >5800 is changed: page 0  now contains rambo banks switching
+routines and possibly user-defined dsr, interrupt and power-up routines.
+ 
+ 
+ 
+Structure of the ROS:
+=====================
+ 
+The DSK. dsr routine starts at A455E, the DSKn dsrs at A45E4.
+    ----                                  ----
+They have a common part and then branch to the various opcode routines:
+ 
+OPEN     A49B6
+CLOSE    A4B8E
+READ     A4BB0
+WRITE    A4D6E
+RESTORE  A4E6E
+LOAD     A4E98
+SAVE     A4EC0
+DELETE   A4F3C
+SCRATCH  A4F98
+STATUS   A501C
+ASSEMBLY A50CE
+BASIC    A51CE
+CATRIDGE A52BE
+ 
+ 
+ 
+User dsr begins at A574E, by default it returns at A57F6
+--------
+ 
+ 
+Standard sbr main routine it at A4488, it calls the various sbrs:
+------------
+>10    A46F8  sector r/w
+>11    A4728  format
+>12    A473E  (un)protect
+>13    A4764  rename
+>14    A47BE  direct input
+>15    A4842  direct output
+ 
+N.B. sbr >16 (FILES) is not implemented: there are always 16 open files allowed
+ 
+ 
+ 
+Ramdisk specific SBR, have there main routine at A444E, and are located at:
+--------------------
+AF     A5CD6  auto-start off
+AO     A5CCE  auto-start on
+DN     A5C5E  change drive number
+WO     A5CC2  write-protection on
+WF     A5CC8  write-protection off
+LD     A573E  load program file (branches at A5CDC)
+>B0    A57FC  rambo block operator
+ 
+ 
+ 
+Interrupt routine is at A5752. Unless a vector is provided, it returns at A57F6.
+-----------------
+ 
+ 
+There are 2 power-up routines. The first is at A43EC:
+            -----------------
+- it clears the list of opened files,
+- it loads a routine (located at A5DB0) at >A3A0 and branches to it,
+- that routine looks for p-gram card, saves its cru address, and returns.
+- it calls possible user-defined routines: by default it returns to A57F6
+- it then returns if called from scratch-pad, or if power-up 2 is not there.
+- else it tests shift key and returns if it's pressed,
+- if not it copies a power-up scanning routine (located at A5E5C) at >A050
+ 
+- this routine executes all remaining power-ups except for ramdisks 2nd power-up
+  for those, it saves ramdisk cru address on a stack,
+- when done, it saves part of the scratch-pad and executes the first sbr of each
+  of the ramdisks saved on stack.
+- if still in control by that time, it retrieves scratch-pad, displays copyright
+  and return to the end of the console power-up scanning routine.
+ 
+ 
+The second (optional) power-up:
+- tests shift key and returns if it's pressed,
+- else copies the same power-up scanning routine as above in high-memory and
+  goes on just as above.

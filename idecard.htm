@@ -1,0 +1,120 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+  <title></title>
+  <meta name="Author" content="">
+  <meta name="GENERATOR"
+ content="Mozilla/3.04Gold (Win95; U) [Netscape]">
+</head>
+<body>
+<h1 align="center"><a
+ href="http://www.nouspikel.com/ti99/titechpages.htm"><img
+ src="logo.jpg" style="border: 0px solid ; height: 33px; width: 95px;"
+ title="Back to main index" alt=""></a></h1>
+<h1>IDE interface card prototype</h1>
+<p><br>
+A fine mess o' wires, isn't it? And yet it works!</p>
+<p><img src="idecard.jpg" alt="Blow-up of IDE prototype board"
+ height="410" width="627"></p>
+<p>PE-box connector</p>
+<li>Connections #2 to 60 on this side, connections #1 to 59 on back
+side
+(small PCB glued to the prototyping board).</li>
+<li><b>244</b>: three 8-bit buffers, 74LS244 for the address bus and
+control
+lines (74LS245 would also do).</li>
+<li><b>245</b>: A 8-bit transceiver, 74LS245 for the data bus.</li>
+<li><b>125</b>: A quad 74LS125 buffers, for 3-state output signals
+(RDBENA*
+and EXTINT*).</li>
+<li><b>7805</b>: A voltage regulator, 7805CT, +5 volts, 1 Amp. A 22 uF
+cap is located under then lower part of the heat sink.</li>
+<p>CRU logic</p>
+<li><b>85</b>: A 4-bit comparator, 74LS85 to compare the CRU address to
+that set on the DIP-switch.</li>
+<li><b>DIP</b>: Dual-in-line 7-switch package (only 5 are used). Note
+the
+blue 4.7K pull-up resistor network.</li>
+<li><b>259</b>: An 8-bit addressable latch, 74LS259 for CRU output
+operations</li>
+<li><b>251</b>: An 8-to-1 multiplexer, 74LS251 for CRU input operations
+(unbuffered CRUIN line to the PE-box).</li>
+<li><b>LEDs</b>: A yellow light-emitting diode reacts to CRU bit 0, a
+red
+one to IDE access. A 270 ohm resistor for each.</li>
+<p>Address selection logic</p>
+<li><b>138</b>: A 3-to-8 decoder, 74LS138 does most of the work.</li>
+<li><b>688</b>: An 8-bit comparator, 74LS688 to detect the register
+mapping
+area (&gt;4000-40FF).</li>
+<li><b>139</b>: Half a dual 2-to-4 decoder, to select among the
+devices:
+clock / SRAM / IDE port1 / port3</li>
+<li><b>Sw:</b> Main switch. Prevents the card to answer to CRU
+commands,
+hence to memory operations (which need bit 0).</li>
+<p>Static RAM</p>
+<li><b>628512</b>: A 512 kbytes SRAM, HM628512ALP-5 to store the DSRs
+and
+the file buffers (upside-down).</li>
+<li><b>373</b>: An 8-bit latch, 74LS373, to store a page number for the
+SRAM.</li>
+<li>Eight 4.7K pull-down resistors, to select page 0 when the '373 is
+in
+high impedance state.</li>
+<p>Clock</p>
+<li>A <b>RTC65271</b> real-time clock, with 4 Kbytes of SRAM and an
+on-chip
+crystal (upside-down). </li>
+<li>Two +3 volts, BR1225 batteries in an on-chip battery holder.</li>
+<p>Bus demultiplexer (8 &lt;=&gt;16 bits)</p>
+<li><b>139</b>: Half a dual 2-to-4 decoder to decode read/write on
+odd/even
+bytes operations.</li>
+<li><b>244</b>: An 8-bit buffer, to read odd bytes from the IDE ports.</li>
+<li><b>373</b>: Two 8-bit latch, 74LS373, to latch odd bytes upon
+writing
+and even bytes upon reading.</li>
+<li><b>245</b>: An 8-bit transceiver, to write the even byte to IDE
+ports
+(historical reasons: should be a 74LS244).</li>
+<li>IDE connector: pins # <b>1</b> and <b>40</b> indicated. Pin #20
+(key)
+removed to prevent wrong connections.</li>
+<li><b>Insert</b>: IDE cable, to connect two drives. Hole #20 plugged
+to
+prevent upside-down connections.</li>
+<p>Pulse generator</p>
+<p><b>165:</b> A 74LS165 shift registers produces WR* and RD* pulses
+for
+the IDE controller.</p>
+<p>Logic gates (used in parts by the above sections)</p>
+<li><b>32</b>: Two quad OR gates, 74LS32.</li>
+<li><b>02</b>: A quad NOR gates, 74LS02.</li>
+<li><b>08</b>: A quad AND gates, 74LS08.</li>
+<li><b>04</b>: Two hex inverters, 74LS04.</li>
+<p>Note the tiny yellow bypass cap (100 nF) above each chip</p>
+<p>Color code</p>
+<li><b><font color="#ff0000">Red</font></b>: unbuffered signals</li>
+<li><b><font color="#ff8000">Orange</font></b>: address bus.
+Orange/white:
+signals derived from address lines.</li>
+<li><b><font color="#00ff40">Green</font></b>: 8-bit data bus.
+Green/white:
+least significant byte in 16-bit bus.</li>
+<li><b><font color="#0000ff">Blue</font></b>: CRU bit lines.
+Blue/white:
+signals derived from CRU bits.</li>
+<li><b><font color="#804000">Brown</font></b>: Control lines (RDBIN,
+MEMEN*,
+etc). Brown/white: signals derived from control lines.</li>
+<li><b>Black</b>: power lines</li>
+<address><br>
+Revision 1. 5/24/00. Preliminary, not for release.<br>
+Revision 2. 8/26/01. New dempx, pulse generator. OK to release.</address>
+<center>
+<p><br>
+<a href="titechpages.htm">Back to the TI-99/4A Tech Pages</a>.</p>
+</center>
+</body>
+</html>

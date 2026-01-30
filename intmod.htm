@@ -1,0 +1,360 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+  <title>widget</title>
+  <meta http-equiv="Content-Type"
+ content="text/html; charset=iso-8859-1">
+  <meta name="Author" content="Thierry Nouspikel">
+  <meta name="GENERATOR"
+ content="Mozilla/3.04Gold (Win95; U) [Netscape]">
+</head>
+<body>
+<h1 align="center"><a
+ href="http://www.nouspikel.com/ti99/titechpages.htm"><img
+ src="logo.jpg" style="border: 0px solid ; height: 33px; width: 95px;"
+ title="Back to main index" alt=""></a></h1>
+<h1>Jeff Brown's interrupt mod</h1>
+<p>This mini-board was designed by Jeff Brown to get better control on
+the TI-99/4A interrupts system. Basically, it doubles each interrupt
+with
+a non-maskable LOAD* interrupt. Since LOAD* causes a branch into the
+high-memory
+expansion, you can have a program there that will handle interrupts
+better
+than the console ROMs. A spare CRU bit in the console lets you turn
+this
+feature on and off.</p>
+<p><a href="#Theory">A bit of theory<br>
+</a><a href="#Hardware">Hardware description<br>
+</a><a href="#Building">Building the board<br>
+</a><a href="#Installing">Installing the board<br>
+</a><a href="#Software">Software</a></p>
+<h2><a name="Theory"></a>A bit of theory</h2>
+<p>There are two kinds of interrupts with the TMS9900: maskable and
+non-maskable
+interrupts. Non-maskable interrupts are triggered by bringing the LOAD*
+pin low. As the name implies, they are not maskable, which means the
+TMS9900
+has to answer immediately. It does so by performing an implied BLWP
+@&gt;FFFC.</p>
+<p>Maskable interrupts are more sophisticated. They are arranged in 16
+levels of priority, with 0 (the reset interrupt) having the highest
+priority.
+Such interrupts are signaled by grounding the INTREQ* pin of the
+TMS9900,
+while placing the level number on pins IC0 through IC3. This is
+achieved
+by an independent chip, typically a TMS9901, that receives interrupts
+from
+16 different pins, places the proper code on IC0-IC3, and brings the
+INTREQ*
+line low. Software instructions such as LIMI let you decide upon a
+threashold
+level: interrupts with a higher priority (lower number) will be
+answered,
+others will be ignored. The TMS9900 answered this kind of interrupts by
+performing an implied BLWP to an address that depends on the interrupt
+level: &gt;0000 for level 0, &gt;0004 for level 1, &gt;0008 for level
+2,
+etc. In addition, it bumps up the current interrupt mask so that only
+interrupts
+with a higher priority will be accepted, until the interrupt service
+routine
+returns. </p>
+<p>That's a wonderful and sophisticated way to handle interrupts,
+unfortunately
+it's not how things happen in the TI-99/4A. First of all, the IC0-IC3
+pins
+were hard-wired so that all interrupts are read as level 1.
+Furthermore,
+the TMS9901 in the console is wired in such a way that only 3 interrupt
+levels can be used: level 1 for peripheral cards, level 2 for the
+videoprocessor,
+level 3 for the TMS9901 internal timer. To add insult to injury, the
+interrupt
+service routine in the console ROMs does not handle level 3 properly,
+in
+that it either considers that all interrupts are level 3 or that none
+are,
+but does not check the TMS9901 to see what the actual level is! On top
+of that, it looses the return address when handling level 3 interrupts!</p>
+<p>One way around this unfortunate situation would be to <a
+ href="eeproms.htm">replace
+the console ROMs with EEPROMs</a>, so we can modify the interrupt
+service
+routine, and to connect the IC0-IC3 pins as they should be. Jeff Brown
+came up with another solution: he designed a small module to be
+installed
+inside the console, that will generate a non-maskable LOAD* interrupt
+each
+time a maskable interrupt occurs.</p>
+<h2><br>
+<a name="Hardware"></a>Hardware</h2>
+<p>This very simple module consists in only 3 TTL chips (more
+precisely,
+2 and 1/4): two 74LS00 quad-NAND gates, and one 74LS74 dual flip-flop.</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>TMS9901           +5V---WWW---+------------------,         74LS74<br>-------+  74LS00              |  +------+        |        +------+   <br>INTREQ*|---=|)o---,           '--| Set* |        '--------|Set*  |<br>       |          |              |      |                 |      |   <br>     P0|-----------=|)o---=|)o---|Clk   | TMS9900/IAQ &gt;---|Clk   |<br>       |                         |      |                 |      |<br>-------+          Reset*&gt;--------|D    Q|-----------------|D     |<br>                                 |      |                 |      |<br>                                 |      |  Reset* &gt;---+---|Clr*  |<br>                                 |      |             |   |      |<br> Remaining gates (3)         ,---|Clr*  |             |   |    Q*|--+--&gt;TMS9900/LOAD*<br> +5V---WWW---=|)o-           |   +------+             |   +------+  |<br>                             |                        |             |<br>                             '-------o(|=---------o(|=--------------'      </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>The INTREQ* pin is normally used by the TMS9901 to signal a maskable
+interrupt to the TMS9900. Here, it is also inverted with a NAND gate
+mounted
+as an inverter, masked with the P0 pin and inverted again to be applied
+to the 74LS74 flip-flop.</p>
+<p>P0 is one of the TMS9901 output pins left unused in the TI-99/4A
+console.
+It is normally low, but can be modified via CRU bit 16 (address
+&gt;0020).
+When it is high, any low signal on INTREQ* will result is a high signal
+on the Clk input of the 74LS74.</p>
+<p>The 74LS74 contains two flip-flops. When a Clk input goes high, the
+corresponding flip-flop copies the content of the D input to the Q
+output,
+and its opposite to the Q* output. The rest of the time, Q and Q*
+remain
+unchanged. A low level on Clr* resets Q as 0 and Q* as 1, whereas a low
+level or Set* does the opposite. Note that once the clock has ticked,
+is
+must become low again to generate another flipping by becoming high:
+simply
+staying high has no effect. In the modification that we are about to
+make,
+this means that interrupts will be edge-triggered (i.e. fire when the
+line
+becomes active) as opposed to the usual TI-99/4A way of level-triggered
+interrupts (where an active line keeps generating interrupts until it's
+reset).</p>
+<p>Is our case, the raising signal on Clk will copy the Reset* line
+(which
+is normally high) on Q, which itself is connected to the D input of the
+second half of the 74LS74. This half is clocked by the IAQ pin from the
+TMS9900. This pin goes high when the TMS9900 is acquiring an
+instructions
+from the memory, as opposed to reading or writing data. Only at that
+point
+will the Q* output become low and trigger a LOAD* interrupts.</p>
+<p>The Q* output, combined with Reset*, is fed back to the first haf of
+the 74LS74, which it resets: Q becomes low when either Reset* or Q* is
+low. At the next IAQ pulse, the LOAD* line will thus become high again.
+This means that the LOAD interrupt line will never stay active for more
+than one instruction. This is critical so that the TMS9900 does not
+lose
+the return address by performing several BLWP @&gt;FFFC one after the
+other!
+For the module to generate another LOAD* interrupt, either P0 or
+INTREQ*
+must become low again. Typically, INTREQ* will be reset when the
+interrupt
+it asknowledge.</p>
+<p>The Reset* line is briefly brought down at power-up time, and when a
+new cartridge is inserted. It goes to many chips in the console,
+including
+the TMS9900 and the TMS9901. In the later, the reset signal results in
+bringing P0 low, i.e. the interrupt modification will be off by
+default.
+The Reset* signal also resets both halfs of the 74LS74 through their
+Clr*
+pins. Finally, Reset* is fed to the D input of the first flip-flop so a
+high signal will not be latched by mistake upon power-up.</p>
+<h3><br>
+<a name="Building"></a>Building the board</h3>
+<p>Building this board is a good project for beginners because it's
+extremely
+easy to do. Since the circuit is so simple, you don't need to actually
+etch a printed circuit board. You may use one of those pre-etched,
+perforated
+boards. In addition, you will need:</p>
+<p>2 74LS00 (quad NAND gates)<br>
+1 74LS74 (dual flip-flop)<br>
+3 1 kilohm resistors<br>
+3 14-pin sockets (optional).</p>
+<p>Decide how you're going to arrange the chips, then cut the board
+accordingly.
+The smaller, the better since it will have to fit inside the console,
+where
+space is limited.</p>
+<p>Solder the chips or the sockets. Sockets make it easier to change a
+bad chip, but they also make the board a little thicker. It should fit
+under the console hood, though.</p>
+<p>Here is an example of how to connect the chips together. You may opt
+for a slightly different arrangement, as long as you follow the above
+schematics.</p>
+<pre> </pre>
+<pre>               74LS00                            74LS00<br>            +---+--+---+                      +---+--+---+          <br>INTREQ*--+--|1A     Vcc|             LOAD*----|1A     Vcc| <br>         '--|1B      4B|--,          RESET*---|1B      4B|--,     <br>         ,--|1Y      4A|--+-------------------|1Y      4A|--+     <br>         '--|2A      4Y|--------------,    ,--|2A      4Y|  |    <br>P0----------|2B      3B|--,           |    +--|2B      3B|--+--WWW--+5V          <br>         ,--|2Y      3A|--+           |    |  |2Y      3A|--'   1K       <br>         |  |Gnd     3Y|--|--------,  |    |  |Gnd     3Y|     <br>         |  +----------+  |        |  |    |  +----------+<br>         '----------------'        |  |    |<br>                                   |  |    '--WWW---+5V<br>       ,------------------------,  |  |        1K<br>       |     74LS74             |  |  |<br>       |  +---+--+---+          |  |  |<br>RESET*-|--|1Clr*  Vcc|          |  |  |<br>       '--|1D   2Clr*|----------|--|--'<br>IAQ-------|1Clk    2D|---RESET* |  |        All Vcc to +5V<br>        ,-|1PR*  2Clk|----------|--'        All Gnd to ground<br>        | |1Q    2PR*|--,       |<br>LOAD*---|-|1Q*     2Q|--|-------'       <br>        | |Gnd    2Q*|  |     <br>        | +----------+  |    1K<br>        '---------------+---WWW---+5V    </pre>
+<p>Solder some length of wire to the pins that should lead to the
+TMS9900
+(RESET*, LOAD* and IAQ) and to the TMS9901 (INTREQ* and P0). Also
+install
+longer wires, possibly of a different color, for the power supply (+5V
+and ground).</p>
+<p>Once done, tape or glue the board on a piece of cardboard, or any
+kind
+of insulating material, so it wont make contact with the metal casing
+aroud
+the motherboard.</p>
+<p>Here is a <a href="intm1.jpg">picture</a> of a board that was made
+for
+me by Richard Bell.</p>
+<h3><br>
+<a name="Installing"></a>Installing the board</h3>
+<p>To install this board, you must open your console. No big deal
+though.
+Refer to my <a href="surgery.htm">console surgery</a> page for
+detailed
+instructions.</p>
+<p>Identify the TMS9900: with 64 pins, it's the biggest chip on board.
+Then identify the TMS9901: it's the 40-pin chip that's the closest to
+the
+keyboard. Here is an <a href="motherb.jpg">annotated picture</a>, to
+help
+you orient yourself. Notice that there is a notch on one end of each
+chip:
+this is where pin #1 is.</p>
+<p>Now you must solder some wires from the board to both the TMS9900
+and
+the TMS9901.</p>
+<p>On the TMS9901, you want pin #11 (INTREQ*) and pin #38 (P0). Here is
+a <a href="intm3.jpg">picture</a> (the wire labelled "ignore"
+is a different modification).</p>
+<pre>       +----+<u>--</u>+----+ <br> RST1* |1 o       <font
+ color="#ff0000">40| Vcc <br></font> CRUOUT|2         39| S0 <br> CRUCLK|3    T    <font
+ color="#0000ff">38| P0</font><font color="#ff0000"> <br></font> CRUIN |4    M    37| P1 <br>   CE* |5    S    36| S1 <br> INT6* |6         35| S2 <br> INT5* |7    9    34| INT7*/P15 <br> INT4* |8    9    33| INT8*/P14 <br> INT3* |9    0    32| INT9*/P13 <br>  PHI* |10   1    31| INT10*/P12 <br><font
+ color="#0000ff">INTREQ*|11</font>        30| INT11*/P11 <br>   IC3 |12        29| INT12*/P10 <br>   IC2 |13        28| INT13*/P9 <br>   IC1 |14        27| INT14*/P8 <br>   IC0 |15        26| P2 <br>   <font
+ color="#ff0000">Vss |16</font>        25| S3 <br> INT1* |17        24| S4 <br> INT2* |18        23| INT15*/P7 <br>    P6 |19        22| P3 <br>    P5 |20        21| P4 <br>       +------------+</pre>
+<p>On the TMS9900, you want pin #4 (LOAD*), #6 (Reset*) and #7 (IAQ).
+Here
+is a <a href="intm2.jpg">picture</a>.</p>
+<pre>        +----+<u>-----</u>+----+ <br>    Vbb |1 o          64| HOLD* <br>    <font
+ color="#ff0000">Vcc |2</font>            63| MEMEN* <br>   WAIT |3      T     62| READY <br>  <font
+ color="#0000ff">LOAD* |4</font>      M     61| WE* <br>  HOLDA |5      S     60| CRUCLK <br> <font
+ color="#0000ff">RESET* |6</font>            59| Vcc <br>    <font
+ color="#0000ff">IAQ |7</font>      9     58| nc <br>   PHI1 |8      9     57| nc <br>   PHI2 |9      0     56| D15 <br>    A14 |10     0     55| D14 <br>    A13 |11           54| D13 <br>    A12 |12           53| D12 <br>    A11 |13           52| D11 <br>    A10 |14           51| D10<br>     A9 |15           50| D9 <br>     A8 |16           49| D8 <br>     A7 |17           48| D7 <br>     A6 |18           47| D6 <br>     A5 |19           46| D5 <br>     A4 |20           45| D4 <br>     A3 |21           44| D3 <br>     A2 |22           43| D2 <br>     A1 |23           42| D1 <br>     A0 |24           41| D0 <br>   PHI4 |25           40| Vss <br>    <font
+ color="#ff0000">Vss |26</font>           39| nc <br>    Vdd |27           38| nc <br>   PHI3 |28           37| nc <br>   DBIN |29           36| IC0 <br> CRUOUT |30           35| IC1 <br>  CRUIN |31           34| IC2 <br>INTREQ* |32           33| IC3 <br>        +---------------+</pre>
+<p>You also need to find +5V and ground somewhere: pin #2 (Vcc) of the
+TMS9900 will provide you with +5V, pin #26 (Vss) with ground.
+Alternatively,
+you can take them from the TMS9901: Vcc is pin #40, ground is pin #16.
+In the pictures you just saw, ground was taken from the TMS9901, and +5
+volts from both chips (for no special reason).</p>
+<p>Once you are done, you can close the metal casing around the
+motherboard,
+taking care not to pinch the wires you just installed. If needed, use a
+small piece of cardboard to keep the case ajar.</p>
+<p>Then paste the mini-board on top of the metal case, on the side
+where
+the cartridge port is located. Make sure to place some insulating layer
+under the board, like a piece of cardboard for instance. Here is a <a
+ href="intm4.jpg">picture</a>
+of how I installed mine.</p>
+<h2><br>
+<a name="Software"></a>Software</h2>
+<p>Enabling the module is very easy: just set CRU bit 16 to 1. However,
+before doing so you must make sure that the appropriate vectors have
+been
+placed at &gt;FFFC-FFFF, otherwise the system will crash at the next
+interrupt.
+These vectors should branch to an appropriate interrupt service routine
+(ISR), somewhere in memory. It's good practice to check for the content
+of &gt;FFFC-FFFF before installing your vectors, just in case another
+program
+would have installed an ISR to answer LOAD* interrupts. For instance, I
+have a mouse that works by triggering the LOAD* line, and several of my
+programs install a hook at &gt;FFFC-FFFF to handle mouse operations.</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>ENABLE MOV  @&gt;FFFC,@OLDISR      Save existing vectors (if any) <br>       MOV  @&gt;FFFE,@OLDIDR+2<br>       MOV  ISRWS,@&gt;FFFC        Install our vectors<br>       MOV  ISRWS+2,@&gt;FFFE<br>       CLR  R12                 CRU  of the console<br>       SBO  16                  Enable the interrupt mod<br>       B    *R11<br>*<br>DISABL CLR  R12<br>       SBZ  16                  Disable the mod<br>       MOV  @OLDISR,@&gt;FFFC      Restore old vectors (optional)<br>       MOV  @OLDISR+2,@&gt;FFFE<br>       B    *R11<br>*<br>ISRWS  DATA WREGS,ISR           Vectors for our ISR<br>OLDISR DATA 0,0                 Previous LOAD vectors</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>When your ISR gets called, there are several things it should do.
+First
+it must determine whether a real LOAD* interrupt occured, or whether
+the
+mod triggered one along with a maskable interrupt. In the latter case,
+it should determine the source of the interrupt (peripheral cards, VPD,
+TMS9901 internal timer, etc) and react accordingly. The detection part
+can be simply achieved by querying the TMS9901 via its CRU bits: while
+in clock mode, CRU bit 15 returns the status of the INTREQ* pin. If it
+is low, a maskable interrupt has occured, causing the module to
+generate
+a LOAD* interrupt. If INTREQ* is high, then a genuine LOAD* must have
+occured.
+In regular mode, CRU bit 1 returns the value of the INT1* pin which is
+triggered by peripheral cards interrupts, bit 2 plays the same role for
+the INT2* pin that reacts to the VDP. The remaining pins are used for
+different
+purposes and should never generate interrupts, thus if neither INT1*
+nor
+INT2* was triggered, the interrupt must have come from the internal
+timer.</p>
+<p>Once the ISR has determined where the interrupt came from, it may or
+may not answer it. Note that most programs work in LIMI 0 state, i.e.
+do
+not enable interrupts, except at very limited moments. However, this
+modification
+forces interrupts to occur at any time, which may result in crashing
+the
+host program. To avoid this, you could retrieve the current interrupt
+mask,
+that was placed into R15 by the implied BLWP instruction. If interrupts
+are allowed, just call the corresponding routine in the console ROMs.
+Otherwise,
+just perform a RTWP: once interrupts become enabled (after a LIMI 2
+instruction),
+the console ISR will take care of the interrupt and reset it.</p>
+<p>Such a primitive ISR should be something like this:</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>* Get current interrupt mask<br>ISR    MOV  R15,R2              Get caller's ST register<br>       ANDI R2,&gt;000F            Keep only interrupt mask (for later)</pre>
+      <pre>* Check where interrupt came from<br>       CLR  R12                 TMS9901 address is &gt;0000<br>       SBO  0                   Clock mode<br>       TB   15                  Test INTREQ* pin<br>       SBZ  0                   Back to normal mode<br>       JEQ  GENUIN              INTREQ* high: genuine LOAD* interrupt <br>       TB   1                   Test INT1* pin<br>       JNE  CARDS               Low: peripheral card interrupt<br>       TB   2                   Test INT2* pin<br>       JNE  VDP                 Low: VDP interrupt<br>       MOV  @&gt;83FC,R1           High: assume timer interrupt<br>       SLA  R1,3                Test cassette routines bit<br>       JOC  CASS                Cassette routines were set<br>       JMP  TIMER               Handle timer interrupt ourselves</pre>
+      <pre>* Handling interrupts<br>CARDS  LI   R1,&gt;0918            Where console ISR scans periph cards for ints <br>       JMP  SK1<br>*<br>VDP    LI   R1,&gt;094A            Where console ISR handles VPD interrupts<br>       JMP  SK1<br>*<br>CASS   LI   R1,&gt;1404            Where console ISR handles cassette ints</pre>
+      <pre>SK1    DECT  R2                 Is interrupt level 1 or greater?<br>       JLT  EXIT                No: just return               <br>       MOV  R13,@&gt;83DA          Yes: call console ROM routines <br>       MOV  R14,@&gt;83DC          Copy saved context to interrupt workspace<br>       MOV  R15,@&gt;83DE<br>       LI   R13,WREGS           Use GPL workspace<br>       MOV  R1,R14              Where to branch<br>       JMP  EXIT                To console ISR<br>*<br>TIMER  ...                      Handle timer interrupts ourselves<br>       JMP  EXIT                Then return<br>*<br>GENUIN ...                      Handle actual LOAD* interrupts<br>       BLWP @OLDISR             Call previous handler (optional)<br>*<br>EXIT   RTWP </pre>
+      <pre>* Data area<br>WREGS  BSS  32                  Our workspace</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>But of course, the main purpose of this modification is to handle
+interrupts
+yourself, so you will need to expand upon the above ISR. For instance,
+you may want to implement a special routine to handle timer interrupts
+in case they don't come from the cassette routines, since these are
+highly
+buggy. And of course, there is no routine in ROM to handle genuine
+LOAD*
+interrupts, so you may want to provide one (or just to branch to the
+pre-existing
+vectors, if any). </p>
+<p>Just remember that maskable interrupts should be acknowledged so as
+to re-prime the board for the next interrupt. This is done with SBO 1
+for
+peripheral interrupts, and SBO 2 for VDP interrupts. (Or SBZ, to
+disable
+this type of interrupt).</p>
+<address><br>
+Revision 1. 11/15/01 Preliminary. Not tested yet.</address>
+<address>Revision 2. 1/1/02 Tested. Added pictures. Ok to release.<br>
+<br>
+</address>
+<center>
+<p><a href="titechpages.htm">Back to the TI-99/4A Tech Pages</a>
+</p>
+</center>
+<p><br>
+<br>
+<br>
+<br>
+</p>
+</body>
+</html>

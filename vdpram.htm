@@ -1,0 +1,893 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+  <title></title>
+  <meta name="Author" content="">
+  <meta name="GENERATOR"
+ content="Mozilla/3.04Gold (Win95; U) [Netscape]">
+</head>
+<body>
+<h1 align="center"><a
+ href="http://www.nouspikel.com/ti99/titechpages.htm"><img
+ src="logo.jpg" style="border: 0px solid ; height: 33px; width: 95px;"
+ title="Back to main index" alt=""></a></h1>
+<h1>The Videoprocessor RAM</h1>
+<p><a href="#Pinout">Pinout<br>
+</a><a href="#Operation">Operation<br>
+</a><a href="#Timing%20diagrams">Timing diagrams</a> <br>
+<a href="#Electrical">Electrical characteristics</a> </p>
+<p><a href="#Contents">Contents</a></p>
+<h2><br>
+Introduction</h2>
+<p>The VDP RAM is implemented with eith TMS4116, 16384 x 1 bit NMOS RAM
+chips. These are dynamic RAMs, which means that they must be constantly
+refreshed, less they would forget data. Fortunately, the VDP takes care
+of this so no extra circuitery is needed. </p>
+<p>Eight chips add up to 16 Kbytes. Apart for the 256 bytes of
+(expensive)
+SRAM known as the scratch-pad, at address &gt;8300-83FF, the VDP RAM is
+the only RAM available in the TI-99/4A console.</p>
+<p>I don't have data sheet for the Texas Instruments chips, the info
+provided
+here is taken from the Mitsubishi equivalent chip: M5K4116P.</p>
+<h2><br>
+<a name="Pinout"></a>Pinout</h2>
+<pre>     +----+--+----+ <br> Vbb |1 o       20| Gnd <br> DIN |2    T    19| CAS* <br>R/W* |3    M    18| DOUT <br>RAS* |4    S    17| A6<br>  A0 |5    4    16| A3 <br>  A2 |6    1    15| A4 <br>  A1 |7    1    14| A5 <br> Vdd |8    6    13| Vcc <br>     +------------+</pre>
+<p><u>Power supply<br>
+</u><b>Vcc</b>: +5V <br>
+<b>Vdd</b>: +12V<br>
+<b>Vbb:</b> -5V<br>
+<b>Gnd</b>: ground</p>
+<p><u>Address + data buses<br>
+</u><b>A0-A6</b>: Address bus (multiplexed: 2 x 6 bits)<br>
+<b>DIN</b>: Data bit input<br>
+<b>DOUT</b>: Data bit output</p>
+<p><u>Control bus<br>
+</u><b>RAS*</b>: Row address select<br>
+<b>CAS*</b>: Column address select<br>
+<b>R/W*</b>: H=read, L=write</p>
+<h2><a name="Operation"></a>Operation</h2>
+<p>A 14-bit address must be latched in two operations, through the
+A0-A6
+lines. The first 7 bits (row number) are latched when RAS* is brought
+low,
+the last 7 bits (column number) with CAS* is brought low (the CAS* is
+internally
+inhibited until the chip is ready to set the column address).</p>
+<p>The data present on DIN is written when both R/W* and CAS* are low.
+Whichever of the two becomes low last determines the writing operation.</p>
+<p>For read operations, the data bit will be presented on DOUT when
+CAS*
+goes low after the address has been set. It will remain unchanged until
+CAS* goes high, irrespective of RAS*. When CAS* is high, DOUT is in
+high-impedance
+state.</p>
+<p>This allow for a chip-select mechanism that can use either RAS* or
+CAS*.
+Decoding RAS* reduces the power dissipation as CAS* will be ignored in
+the non-selected chips.</p>
+<p>The 4116 must be refreshed by presenting all 128 row addresses on
+A0-A6
+and pulsing RAS* low, every 2 msec. A normal memory cycle will also
+perform
+refreshing of this particular row, but it uses more power than a
+RAS*-only
+cycle. This is because most of the power is dissipated when addresses
+are
+latched.</p>
+<p>At power-up, it is recommended that Vbb is applied first (and
+removed
+last) and that it never goes above Gnd while Vdd is powered. Some eight
+dummy cycles are necessary after power is on before the chip is ready
+to
+operate.</p>
+<h2><br>
+<a name="Timing diagrams"></a>Timing diagrams</h2>
+<p>I don't have the datasheet for the TI chips. These diagrams come
+from
+the Mitsubishi equivalent: M5K4116P,S-3 (200 ns).</p>
+<h4>Read cycle</h4>
+<pre><u>       </u>|                 &gt;375 ns            <u>       </u>|<br>       \<u>           200-1000 ns             </u>/&gt;120 ns\<u>    </u> RAS*<br>        |             &gt;200 ns          |   |       |      <br> <u>       | 25-65 ns </u> |       &gt;135 ns    <u>    |       |  <br></u>        |          \<u>     &gt;135 ns      </u>/|  &gt; -20 ns |  \_ CAS*<br>        |     &gt;120 ns      |           |<br>  <u>| &gt;0  | &gt;25 </u>|  <u>|a |&gt;55 ns</u>|           |                <br>XX<u>    row     </u>XXX<u>  column  </u>XXXXXXXXXXXXXXXXXXXXXXXXXXXXX A0-A6<br>        |    <u>|&gt;0 |                     |&gt;0</u>|<br>XXXXXXXXXXXX/       |   &lt;135 ns  |     |  \XXXXXXXXXXXXX R/W*<br>        |         &lt;200 ns        <u>|     |&lt;50</u>|            <br>ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZX<u>  data    </u>XZZZZZZZZZZZZ DOUT  <br>                                                <br>a) &gt; -10 ns<br></pre>
+<h4>Write cycle</h4>
+<pre><u>       </u>|                    &gt;375 ns              <u>         </u>|     <br>       \<u>              200-1000 ns               </u>/ &gt;120 ns \<u>    </u> RAS* <br>        |                &gt;200 ns              | |         |     <br> <u>       | 25-65 ns </u> |         &gt;135 ns         <u>  |         |  </u>     <br>        |          \<u>|     &gt;135 ns            </u>/|  &gt; -20 ns |  \_ CAS*<br>        |           |                         | |               <br>        |      &gt;120 ns      |                 | |                 <br>  <u>| &gt;0  | &gt;25 </u>|   <u>|a| &gt;55   </u>|                 | |                  <br>XX<u>     row    </u>XXXX<u>  column  </u>XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX A0-A6<br>        |      |                 &gt;85 ns       | |<br>        |      |              &gt;70 ns            |<br><u>        |      </u>|&lt;-20| &gt;55 |<u>                                </u>       <br>        |      \<u>  &gt;55 ns  </u>/                                \<u>  </u> R/W*<br>        |     &gt;120 ns     |                                         <br>                  <u>|b| &gt;55 ns </u>|           <br>XXXXXXXXXXXXXXXXXX<u>   data    </u>XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX DIN  <br>        |       &gt;55 ns       |                                <br>ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ DOUT</pre>
+<p>a) &gt; -10 ns <br>
+b) &gt; -20 ns (data setup time before CAS*)<br>
+</p>
+<h4>Refresh cycle</h4>
+<pre><u>       </u>|            &gt;375 ns <u>                             </u>| <br>       \<u>    200-1000 ns    </u>/        120 ns - 2 ms        \<u>    </u> RAS* <br>        |                                      <br>  <u>| &gt;0  | &gt;25 </u>|                               <br>XX<u>     row    </u>XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX A0-A6<br><br>ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ DOUT</pre>
+<h2><br>
+<a name="Electrical"></a>Electrical characteristics</h2>
+<p>I don't have the datasheet for the TI chips. These are the
+characteristics
+of the Mitsubishi equivalent: M5K4116P.</p>
+<h3>Absolute maximum ratings</h3>
+<pre>Supply voltage: Vcc, Vdd, Gnd  -0.5 to +20 V over Vbb<br>                Vcc, Vdd         -1 to +15 V over Gnd<br>                Vbb                  max 0 V over Gnd<br>Input voltage:                  -0.5 to 20 V over Vbb<br>Output voltage:                 -0.5 to 20 V over Vbb<br>Output current:                         50 mA<br>Power dissipation:                700-1000 mW<br>Free air temperature:             0 to 70 `C<br>Storage temperature:           -40 to 125 `C</pre>
+<h3><br>
+<br>
+Recommended operating conditions</h3>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Parameter</th>
+      <th>Min</th>
+      <th>Nom</th>
+      <th>Max</th>
+      <th>Unit</th>
+    </tr>
+    <tr>
+      <td>Supply voltage Vdd</td>
+      <td>10.8</td>
+      <td>12</td>
+      <td>13.2</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>Supply voltage Vcc</td>
+      <td>4.5</td>
+      <td>5</td>
+      <td>5.5</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>Supply voltage Gnd</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>Supply voltage Vbb</td>
+      <td>-4.5</td>
+      <td>-5</td>
+      <td>-5.7</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>High level input voltage: RAS*, CAS*, R/W* </td>
+      <td>2.7</td>
+      <td>.</td>
+      <td>7</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>High level input voltage: A0-A6, Din</td>
+      <td>2.4</td>
+      <td>.</td>
+      <td>7</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>Low level voltage</td>
+      <td>-1</td>
+      <td>.</td>
+      <td>0.8</td>
+      <td>V</td>
+    </tr>
+  </tbody>
+</table>
+<h3><br>
+Characteristics under recommended conditions</h3>
+<p>Ta = 0-70 `C, Vdd = 12V+/- 10%, Vcc = 5V +/- 10%, Gnd = 0V, Vbb =
+-5.7
+to -4.5 V</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Parameter</th>
+      <th>Test conditions</th>
+      <th>Min</th>
+      <th>Typ</th>
+      <th>Max</th>
+      <th>Unit</th>
+    </tr>
+    <tr>
+      <td>High-level output voltage</td>
+      <td>-5 mA</td>
+      <td>2.4</td>
+      <td>.</td>
+      <td>Vcc</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>Low-level output voltage</td>
+      <td>4.2 mA</td>
+      <td>0</td>
+      <td>.</td>
+      <td>0.4</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>Offstate output current</td>
+      <td>0-5.5 V, D floating</td>
+      <td>-10</td>
+      <td>.</td>
+      <td>10</td>
+      <td>uA</td>
+    </tr>
+    <tr>
+      <td>Input current</td>
+      <td>0-7 V, Vbb=-5V, all other pins 0 V</td>
+      <td>-10</td>
+      <td>.</td>
+      <td>10</td>
+      <td>uA</td>
+    </tr>
+    <tr>
+      <td>Average supply current from Vdd, operating </td>
+      <td>RAS*, CAS* cycling, 375 ns</td>
+      <td>.</td>
+      <td>.</td>
+      <td>35</td>
+      <td>mA</td>
+    </tr>
+    <tr>
+      <td>Average supply current from Vcc, operating</td>
+      <td>Ditto</td>
+      <td>.</td>
+      <td>.</td>
+      <td>.</td>
+      <td>.</td>
+    </tr>
+    <tr>
+      <td>Average supply current from Vbb, operating</td>
+      <td>Ditto</td>
+      <td>.</td>
+      <td>.</td>
+      <td>200</td>
+      <td>uA</td>
+    </tr>
+    <tr>
+      <td>Supply current from Vdd, standby</td>
+      <td>RAS* = H, DOUT floating</td>
+      <td>.</td>
+      <td>.</td>
+      <td>1.5</td>
+      <td>mA</td>
+    </tr>
+    <tr>
+      <td>Supply current from Vcc, standby</td>
+      <td>Ditto</td>
+      <td>-10</td>
+      <td>.</td>
+      <td>10</td>
+      <td>mA</td>
+    </tr>
+    <tr>
+      <td>Supply current from Vbb, standby</td>
+      <td>Ditto</td>
+      <td>.</td>
+      <td>.</td>
+      <td>100</td>
+      <td>uA</td>
+    </tr>
+    <tr>
+      <td>Average supply current from Vdd, refreshing</td>
+      <td>CAS* = H, RAS* cycling, 375 ns</td>
+      <td>.</td>
+      <td>.</td>
+      <td>27</td>
+      <td>mA</td>
+    </tr>
+    <tr>
+      <td>Average supply current from Vcc, refreshing</td>
+      <td>Ditto</td>
+      <td>-10</td>
+      <td>.</td>
+      <td>10</td>
+      <td>mA</td>
+    </tr>
+    <tr>
+      <td>Average supply current from Vbb, refreshing</td>
+      <td>Ditto</td>
+      <td>.</td>
+      <td>.</td>
+      <td>200</td>
+      <td>uA</td>
+    </tr>
+    <tr>
+      <td>Input capacitance: A0-A6, DIN</td>
+      <td>1 mHz, 25 mVrms</td>
+      <td>.</td>
+      <td>.</td>
+      <td>5</td>
+      <td>pF</td>
+    </tr>
+    <tr>
+      <td>Input capacitance: R/W*</td>
+      <td>Ditto</td>
+      <td>.</td>
+      <td>.</td>
+      <td>7</td>
+      <td>pF</td>
+    </tr>
+    <tr>
+      <td>Input capacitance: RAS*, CAS*</td>
+      <td>Ditto</td>
+      <td>-10</td>
+      <td>.</td>
+      <td>10</td>
+      <td>pF</td>
+    </tr>
+    <tr>
+      <td>Output capacitance</td>
+      <td>Ditto</td>
+      <td>.</td>
+      <td>.</td>
+      <td>.</td>
+      <td>pF</td>
+    </tr>
+    <tr>
+      <td><br>
+      </td>
+      <td>Vcc=5.25 V, Vdd=12.6 V, T=0-70 `C</td>
+      <td>-</td>
+      <td>71</td>
+      <td>95</td>
+      <td>mA</td>
+    </tr>
+    <tr>
+      <td><br>
+      </td>
+      <td>Vcc=5.25 V, Vdd=12.6 V, T=0-70 `C</td>
+      <td>-</td>
+      <td>73</td>
+      <td>95</td>
+      <td>mA</td>
+    </tr>
+    <tr>
+      <td>Supply current from Vdd</td>
+      <td>Vcc=5.25 V, FDD+OSCIN=0, T=0-70 `C</td>
+      <td>-</td>
+      <td>14</td>
+      <td>24</td>
+      <td>mA</td>
+    </tr>
+    <tr>
+      <td>Ditto, at 3 MHz</td>
+      <td>Vcc=5.25 V, Vdd=12.6 V, T=0-70 `C</td>
+      <td>-</td>
+      <td>40</td>
+      <td>48</td>
+      <td>mA</td>
+    </tr>
+    <tr>
+      <td>Ditto, at 4 mHz</td>
+      <td>Vcc=5.25 V, Vdd=12.6 V, T=0-70 `C</td>
+      <td>-</td>
+      <td>47</td>
+      <td>52</td>
+      <td>mA</td>
+    </tr>
+  </tbody>
+</table>
+<h2><br>
+<a name="Contents"></a>Contents</h2>
+<p>Being RAM, the VDP memory can contain any kind of data, depending on
+the program currently running. Of course, the VDP will need some space,
+but the rest is available to the user, through the VDP. This has a
+major
+incovenient: is it slow since the VDP only answers memory requests when
+it's not too busy drawing the screen. But that was a cheap way to
+implement
+16K of RAM into a home computer: a dedicated CPU RAM would have
+required
+a refresh circutery, or the use of expensive SRAMs.</p>
+<p><a href="#VDP%20map">VDP<br>
+</a><a href="#ISR%20map">Console ISR<br>
+</a><a href="#FDC%20map">Floppy disk controller<br>
+</a><a href="#Basic%20map">TI-Basic<br>
+</a><a href="#XB%20map">Extended Basic<br>
+</a><a href="#Ed/Asm%20map">Editor/Assembler<br>
+</a><a href="#Writer%20map">TI-Writer<br>
+</a><a href="#Minimem%20map">Mini-memory</a></p>
+<p><br>
+</p>
+<h3><a name="VDP map"></a>Video-processor</h3>
+<p>The TMS9918a video-processor expects to find data tables in the VDP
+RAM, that describes what to displays on screen. These tables are built
+by the CPU, which accesses the VDP RAM through the VDP itself. The
+position
+of each table is specified in a dedicated register that is part of the
+VDP. Since these registers can only contain numbers from 0 to 255, the
+tables have to be aligned on a multiple of their length (e.g. on a
+&gt;800
+boundary : &gt;0000, &gt;0800, &gt;1000, etc).</p>
+<h4>Screen image table</h4>
+<p>This table contains the code of the caracter to be displayed for
+each
+screen position. In all video modes except text mode, the screen is 24
+lines x 32 columns, so the table is &gt;0300 bytes in length. It must
+be
+aligned on a &gt;0400-byte boundary.</p>
+<h4>Character pattern table</h4>
+<p>This table contains the bit pattern to be displayed for each
+character
+code. It must be aligned on a &gt;800-byte boundary. It is &gt;1800
+bytes
+long in bitmap mode, &gt;800 bytes in all other modes.</p>
+<h4>Color table</h4>
+<p>This table defines the color to be used to display a given
+character.
+It must be aligned on a &gt;40-byte boundary. Its size varies from
+&gt;20
+bytes in standard mode to &gt;1800 bytes in bitmap mode. It is not used
+in multicolor mode, nor in text mode.</p>
+<h4>Sprite attributes table</h4>
+<p>This table defines the location, pattern code, and color of upto 32
+sprites. Sprites are special characters that can be overlayed on the
+screen.
+They have a transparent background and are not limited to row/column
+positions:
+instead they use a coordinates system of 192 rows x 256 columns. The
+sprite
+attribute table is &gt;80 bytes in lenght and must be aligned on a
+&gt;80-byte
+boundary. It is not used in text mode.</p>
+<h4>Sprite pattern table</h4>
+<p>This table define the pattern to be used for each sprite code. It is
+&gt;800 bytes in length and must be aligned on a &gt;800-byte boundary.
+It is not used in text mode.</p>
+<p>See my page on the <a href="tms9918a.htm">TMS9918a VDP</a> for more
+details on the structure of these tables. See below for the location of
+the respective tables with a some important TI cartridges.</p>
+<h3><br>
+<a name="ISR map"></a>Console interrupt routine</h3>
+<p>The interupt service routine (ISR) located in the console ROMs can
+use
+the VDP memory for two purposes: automatic sprite motion and automatic
+sound playing. This only occurs for VDP-triggered interrupts, i.e. 60
+times
+per second (50 in Europe). Of course, it implies that VDP interrupts
+have
+been allowed (by setting a bit in VDP register 1) and that interrupts
+in
+general are enabled by the program in control (with a LIMI 2
+instruction).</p>
+<h4>Sprite auto-motion</h4>
+<p>The ISR expects the sprite attributes table to be located at address
+&gt;0300. It also requires a sprite motion table to be placed at
+address
+&gt;0780. This table is &gt;80 bytes in length (at max, actually 4
+bytes
+per sprite but not all sprites need to move).</p>
+<p>Some key bytes in the scratch-pad RAM control this feature:</p>
+<p>&gt;837A: Number of the highest sprite in auto-motion<br>
+&gt;83C4: Bit 0 (weight &gt;80) and 1 (weight &gt;40) disable
+auto-motion.</p>
+<h4>Sound playing</h4>
+<p>The ISR can play a list of sounds stored either in the VDP RAM or in
+GROM/GRAM memory. </p>
+<p>Some key bytes in the scratch-pad RAM control this feature:</p>
+<p>&gt;83CC-83CD: Address of the sound list.<br>
+&gt;83FD Bit 15 (weight &gt;01) is set if the sound list is in VDP RAM.<br>
+&gt;83CE: Bytes remaining to play<br>
+&gt;83C4: Bit 0 (weight &gt;80) and 2 (weight &gt;20) disable sound
+playing.</p>
+<h3><br>
+<a name="FDC map"></a>TI floppy disk controller card</h3>
+<p>The floppy disk controller (FCD) card reserves some room in the VDP
+memory at power-up time, for disk buffering purposes. The amount of
+memory
+reserved can later on be expanded or diminished by calling subprogram
+FILES
+from Basic, or subprogram &gt;16 from assembly. </p>
+<p>Normally, the reserved area will be located at the top of the VDP
+RAM,
+but provision is made to use several controllers, which each will have
+a reserved area. Therefore, each area begins with a 4-byte header that
+allows to link on the next one. The bottom area is pointed at by bytes
+&gt;8370-8271 in the scratch-pad memory:</p>
+<pre>&gt;AA      Validation code to identify a reserve area<br>&gt;11      CRU of the controller card that owns it (here &gt;1100)<br>&gt;3FFF    End of the reserved area (here: end of the VDP RAM)</pre>
+<p>Then the FDC reserves 518 bytes for each file that can be open
+simultaneously.
+By default this is three, but it can be bumped up to 9 in Basic and to
+16 in assembly. Therefore, the location of the header can vary.
+Assuming
+no other card has reserved memory on top of the VDP RAM, the
+FDC-reserved
+area can begin at:</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Files</th>
+      <th>Header</th>
+      <th>Files</th>
+      <th>Header</th>
+      <th>Files</th>
+      <th>Header</th>
+    </tr>
+    <tr>
+      <td>16</td>
+      <td>&gt;1D8A </td>
+      <td>9</td>
+      <td>&gt;2BB4</td>
+      <td><b>3</b></td>
+      <td>&gt;37D8</td>
+    </tr>
+    <tr>
+      <td>15</td>
+      <td>&gt;1F90</td>
+      <td>8</td>
+      <td>&gt;2DBA</td>
+      <td>2</td>
+      <td>&gt;39DE</td>
+    </tr>
+    <tr>
+      <td>14</td>
+      <td>&gt;2196</td>
+      <td>7</td>
+      <td>&gt;2FC0</td>
+      <td>1</td>
+      <td>&gt;3BE4</td>
+    </tr>
+    <tr>
+      <td>13</td>
+      <td>&gt;239C</td>
+      <td>6</td>
+      <td>&gt;31C6</td>
+      <td><br>
+      </td>
+      <td><br>
+      </td>
+    </tr>
+    <tr>
+      <td>12</td>
+      <td>&gt;25A2</td>
+      <td>5</td>
+      <td>&gt;33CC</td>
+      <td><br>
+      </td>
+      <td><br>
+      </td>
+    </tr>
+    <tr>
+      <td>11</td>
+      <td>&gt;27A8</td>
+      <td>4</td>
+      <td>&gt;35D2</td>
+      <td><br>
+      </td>
+      <td><br>
+      </td>
+    </tr>
+    <tr>
+      <td>10</td>
+      <td>&gt;29AE</td>
+      <td><br>
+      </td>
+      <td><br>
+      </td>
+      <td><br>
+      </td>
+      <td><br>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p><br>
+The FDC also reserves a 252-byte stack that its DSRs and subprograms
+use
+to push return adresses and save register values.</p>
+<p>Finally, there is a 256-byte buffer that generally holds sector 0 of
+the disk directory, and then some buffered variables (most notably, the
+name and drive number of the last file accessed).</p>
+<p>Here is a exemple of the area reserved by the FDC after a normal
+power-up
+(number of files = 3):</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Address</th>
+      <th>Bytes</th>
+      <th>Name</th>
+      <th>Contents</th>
+    </tr>
+    <tr>
+      <td>&gt;37D8</td>
+      <td rowspan="4">5</td>
+      <td rowspan="4">Buffer area header</td>
+      <td>Validation code: &gt;AA</td>
+    </tr>
+    <tr>
+      <td>&gt;37D9</td>
+      <td>Pointer to top of buffer: &gt;3FFF</td>
+    </tr>
+    <tr>
+      <td>&gt;37DB</td>
+      <td>CRU base of disk controller card: &gt;11</td>
+    </tr>
+    <tr>
+      <td>&gt;37DC</td>
+      <td>Max number of files (here: &gt;03)</td>
+    </tr>
+    <tr>
+      <td>&gt;37DD</td>
+      <td rowspan="4">6</td>
+      <td rowspan="4">File control block<br>
+for first file</td>
+      <td>Current sector offset in file ( 2 bytes)</td>
+    </tr>
+    <tr>
+      <td>&gt;37DF</td>
+      <td>Sector number of FDR (2 bytes)</td>
+    </tr>
+    <tr>
+      <td>&gt;37E1</td>
+      <td>Record offset in sector (for Var only)</td>
+    </tr>
+    <tr>
+      <td>&gt;37E2</td>
+      <td>Drive number (add &gt;80: modified data)</td>
+    </tr>
+    <tr>
+      <td>&gt;37E3</td>
+      <td>256</td>
+      <td>FDR for <br>
+first file</td>
+      <td>Copied from disk (add &gt;80 to first byte<br>
+to signal a modified FDR).</td>
+    </tr>
+    <tr>
+      <td>&gt;38E3</td>
+      <td>256</td>
+      <td>Data buffer<br>
+for first file</td>
+      <td>Contents of current sector data block</td>
+    </tr>
+    <tr>
+      <td>&gt;39E3</td>
+      <td>6</td>
+      <td>File control block<br>
+for second file</td>
+      <td>See above</td>
+    </tr>
+    <tr>
+      <td>&gt;39E9</td>
+      <td>256</td>
+      <td>FDR for<br>
+second file</td>
+      <td>See above</td>
+    </tr>
+    <tr>
+      <td>&gt;3AE9</td>
+      <td>256</td>
+      <td>Data buffer <br>
+for second file</td>
+      <td>See above</td>
+    </tr>
+    <tr>
+      <td>&gt;3BE9</td>
+      <td>6</td>
+      <td>File control block<br>
+for third file</td>
+      <td>See above</td>
+    </tr>
+    <tr>
+      <td>&gt;3BEF</td>
+      <td>256</td>
+      <td>FDR for<br>
+third file</td>
+      <td>See above</td>
+    </tr>
+    <tr>
+      <td>&gt;3CEF</td>
+      <td>256</td>
+      <td>Data buffer<br>
+for third file</td>
+      <td>See above</td>
+    </tr>
+    <tr>
+      <td>&gt;3DEF</td>
+      <td>252</td>
+      <td>VDP stack</td>
+      <td>Used by the routines in the controller card</td>
+    </tr>
+    <tr>
+      <td>&gt;3EEB</td>
+      <td rowspan="4">4</td>
+      <td rowspan="4">Disk drive info</td>
+      <td>Last drive number accessed (&gt;01 - 03)</td>
+    </tr>
+    <tr>
+      <td>&gt;3EEC</td>
+      <td>Last track accessed on drive 1</td>
+    </tr>
+    <tr>
+      <td>&gt;3EED</td>
+      <td>Last track accessed on drive 2</td>
+    </tr>
+    <tr>
+      <td>&gt;3EEE</td>
+      <td>Last track accessed on drive 3</td>
+    </tr>
+    <tr>
+      <td>&gt;3EEF</td>
+      <td>6</td>
+      <td>Not used</td>
+      <td>Meant for TI-99/4 (not 4A) ?</td>
+    </tr>
+    <tr>
+      <td>&gt;3EF5</td>
+      <td>256</td>
+      <td>VIB<br>
+copied from sector 0 </td>
+      <td>Copied from last drive accessed <u>for a write</u></td>
+    </tr>
+    <tr>
+      <td>&gt;3FF5</td>
+      <td rowspan="2">11</td>
+      <td rowspan="2">Filename compare</td>
+      <td>Disk number</td>
+    </tr>
+    <tr>
+      <td>&gt;3FF6</td>
+      <td>Filename (10 characters)</td>
+    </tr>
+  </tbody>
+</table>
+<h3><br>
+<a name="Basic map"></a>TI-Basic</h3>
+<p><u>VDP tables<br>
+</u>Screen image : &gt;0000-02FF<br>
+Char pattern : &gt;0000-07FF<br>
+Color table: &gt;0300-031F<br>
+Sprite attributes: &gt;0300-0301 (a single byte &gt;D0 disables all
+sprites).<br>
+Sprite patterns: &gt;0000 (not used)</p>
+<p>Yep, that's right: the character pattern table overlaps with the
+screen
+image and the color table! This means that we cannot use characters
+0-110.
+But then again we can, so there must be a trick here. There is indeed:
+before putting a character code in the screen image, TI-Basic adds 96
+(hex
+&gt;60) to its ascii code. This means that we can use characters 28 to
+159: they will be automatically translated into characters 124 to 255
+for
+display purposes, so that the only the end of the pattern table is ever
+used (&gt;03E0-07FF). This oddity was implemented to save space in the
+VDP RAM, since this is where the Basic program and all its variables
+will
+be stored.</p>
+<p>TI-Basic reserves several memory buffers for its own purpose, in the
+VDP RAM. For most of these buffers, the address is variable and is
+stored
+in some key locations in the scratch-pad RAM (two bytes each).</p>
+<p>Crunch buffer (to translate a line into "tokens"): &gt;0370-03C0<br>
+VDP roll-out area (to save temporary data): &gt;03C0-03DF</p>
+<p>Value stack: bottom in &gt;8324, top in &gt;836E.<br>
+PAB linked list: first link in &gt;833C.<br>
+String space: bottom in &gt;831A, top in &gt;8318<br>
+Symbol table: bottom in &gt;833E<br>
+Line number table: bottom in &gt;8330, top in &gt;8332<br>
+Statements: top in &gt;8370</p>
+<h4>VDP RAM map with TI-Basic</h4>
+<p>Here is a summary of the VDP RAM usage in TI-Basic. For more
+information,
+see my <a href="basic.htm">TI-Basic page</a>.</p>
+<pre>&gt;0000 +-------------------------+ &lt;--- VR2=F0, VR4=F9, VR6=0<br>      | Screen image table      |<br>      | Also char patterns table|<br>      | (not used, due to bias) |<br>&gt;0300 +-------------------------+ &lt;--- VR3=0E, VR5=86<br>      | Color table (unused)    |<br>&gt;030F | Color table (used)      |<br>&gt;0320 +-------------------------+ <br>      | Crunch buffer           |<br>&gt;0370 +-------------------------+<br>      | Char patterns &gt;0E-18    |<br>&gt;03C0 +-------------------------+<br>      | VDP roll-out area       |<br>&gt;03E0 +-------------------------+<br>      | Char patterns &gt;1C-9F    |<br>      | (chars &gt;A0-FF not used) |<br>      | (due to bias of &gt;60   ) |<br>&gt;0800 +-------------------------+<br>      | Value stack             | &lt;--- @&gt;8324<br>      |                         | &lt;--- @&gt;836E<br>      | PAB list                | &lt;--- @&gt;833C<br>      |                         |<br>      | String space            | &lt;--- @&gt;831A<br>      |                         | &lt;--- @&gt;8318<br>      | Symbol table            | &lt;--- @&gt;833E<br>      |                         | <br>      | Line number table       | &lt;--- @&gt;8330<br>      |                         | &lt;--- @&gt;8332<br>      | Statement list          |<br>&gt;37D8 +-------------------------+ &lt;--- @&gt;8370<br>      | File buffers  (3 files) |<br>&gt;3FFF +-------------------------+ VR0=0, VR1=E0, VR7=F7<br> </pre>
+<h3><br>
+<a name="XB map"></a>Extended Basic cartridge</h3>
+<p><u>VDP tables<br>
+</u>Screen image : &gt;0000-02FF<br>
+Char pattern : &gt;0000-07FF<br>
+Color table: &gt;0800-081F<br>
+Sprite attributes: &gt;0300-036F<br>
+Sprite patterns: &gt;0000-07FF</p>
+<p>Sprite motion table: &gt;0780-07FF</p>
+<p>Just as in Basic, the character pattern table overlaps other tables.
+Extended Basic automatically adds &gt;60 to the ascii code of any
+character
+to be displayed on screen, effectively limiting the use of the pattern
+table to &gt;03F0-07FF. Note however that the sprite motion table used
+by the ISR also overlaps with the pattern table and prevents us from
+using
+the last 16 characters. All in all, only characters 30 to 143 can be
+used
+in Extended Basic.</p>
+<p>Also note that the sprite pattern table completely overlaps the
+character
+pattern table: so sprites can only have a pattern that was assigned to
+a character. We are so used to this that most of us don't realise it
+does
+not have to be so: the Editor/Assembler cartridge, for instance, allows
+sprite patterns that differ from character patterns.</p>
+<p>Extended Basic also uses the VDP memory to save many variables, its
+stack, several buffers and part of the program. If a memory expansion
+card
+is installed, most of the Extended Basic program will be stored in the
+high memory expansion (&gt;A000-FFFF), which frees a lot of room in VDP
+RAM. The top of the reserved area in the high memory expansion is
+pointed
+at by word &gt;8384, the bottom by word &gt;8386 in the scratch-pad. If
+the expansion is present, byte &gt;8389 will contain &gt;E7 while the
+program
+is running.</p>
+<p>Interpreter variables (XB internal use): &gt;0370-03BF<br>
+Roll-out buffer (to save the scratch-pad): &gt;03C0-03EF<br>
+Crunch buffer (to translate a line into "tokens"): &gt;0820-08BE<br>
+Edit/Recall buffer (holds the command line): &gt;08C0-0957</p>
+<p>Value stack: bottom in &gt;8324, top in &gt;836E. <br>
+PAB linked list: first link in &gt;833C.<br>
+String space: bottom in &gt;831A, top in &gt;8318<br>
+Symbol table: bottom in &gt;833E. In memory expansion, if present
+(numeric
+values only).<br>
+Line number table: bottom in &gt;8330, top in &gt;8332. In memory
+expansion:
+bottom also in&nbsp;&gt;8386.<br>
+Statements: top in &gt;8370. In memory expansion: top in &gt;8384.</p>
+<h4>VDP RAM map with Extended Basic</h4>
+<pre>&gt;0000 +-------------------------+ &lt;--- VR2=00, VR4=00, VR6=00<br>      | Screen image table      |<br>      | Also char + sprite      |<br>      | (not used) patterns     |<br>&gt;0300 +-------------------------+ &lt;--- VR5=06<br>      | Sprite attributes table |<br>&gt;0370 +-------------------------+ <br>      | XB system area          |<br>&gt;03F0 +-------------------------+<br>      | Char patterns &gt;2E-8F    |<br>      | Also sprite patterns    |<br>&gt;0780 +-------------------------+<br>      | Sprite motion table     |<br>&gt;0800 +-------------------------+ &lt;--- VR3=20<br>      | Color table             |<br>&gt;0820 +-------------------------+<br>      | Crunch buffer           |<br>&gt;08C0 +-------------------------+<br>      | Edit/recall buffer      |<br>&gt;0958 +-------------------------+ &lt;--- VR4=01<br>      | Value stack             | &lt;--- @&gt;8324<br>      |                         | &lt;--- @&gt;836E<br>      | PAB list                | &lt;--- @&gt;833C<br>      |                         |<br>      | String space            | &lt;--- @&gt;831A<br>      |                         | &lt;--- @&gt;8318<br>      | Symbol table            | &lt;--- @&gt;833E (if no mem exp)<br>      |                         | <br>      | Line number table       | &lt;--- @&gt;8330 (if no mem exp)<br>      |                         | &lt;--- @&gt;8332<br>      | Statement list          |<br>&gt;37D8 +-------------------------+ &lt;--- @&gt;8370<br>      | File buffers  (3 files) |<br>&gt;3FFF +-------------------------+ VR0=0, VR1=E0, VR7=07<br></pre>
+<h3><br>
+<a name="Ed/Asm map"></a>Editor-Assembler cartridge</h3>
+<p><u>VDP tables<br>
+</u>Screen image : &gt;0000-02FF<br>
+Char pattern : &gt;0800-0FFF<br>
+Color table: &gt;0380-039F<br>
+Sprite attributes: &gt;0300-037F<br>
+Sprite patterns: &gt;0000-07FF</p>
+<p>Here also, there is some overlap: the sprite pattern table overlaps
+three other tables. Concretely, this means that we are limited to
+sprites
+with a pattern code of &gt;80-F0 (their patterns will be at
+&gt;0400-077F).</p>
+<p>The cartridge also uses the VDP area to store PABs for file access,
+and to load the file themselves.</p>
+<p>PAB for Editor, Assembler, edited/printed file, assembly source
+file,
+loaded file: &gt;1000-1018<br>
+PAB for assembly object file, printer: &gt;1100-1118<br>
+PAB for assembly list file: &gt;1200-1218<br>
+PAB for file copied during assembly (?): &gt;1300<br>
+Assembly source file, edited/printed file: &gt;1080-10CF<br>
+Assembly code file data, printer data: &gt;1180-11CF<br>
+Assembly list file data: &gt;1280-12CF<br>
+Program files (Editor, Assembler, user-defined): &gt;1380-157F</p>
+<p>Of course, all subprogram that are callable from TI-Basic expect the
+Basic VDP RAM organisation.</p>
+<h4>VDP RAM map with Editor/Assembler</h4>
+<pre>&gt;0000 +-------------------------+ &lt;--- VR2=00, VR6=00<br>      | Screen image table      |<br>      | (also sprite patterns)  |<br>      |                         |<br>&gt;0300 +-------------------------+ &lt;--- VR5=06<br>      | Sprite attributes table |<br>&gt;0380 +-------------------------+ &lt;--- VR3=0E<br>      | Color table             |<br>&gt;03A0 +-------------------------+<br>      |        (free)           |<br>&gt;03C0 +-------------------------+<br>      | VDP roll-out area       |<br>&gt;0400 +-------------------------+<br>      |                         |<br>      | Sprite patterns &gt;80-F0  |<br>      |                         |<br>&gt;0780 +-------------------------+<br>      | Sprite motion table     |<br>&gt;0800 +-------------------------+ &lt;--- VR4=01<br>      |                         |<br>      | Character pattern table | <br>      |                         |<br>&gt;1000 +-------------------------+<br>      | PAB for most files      |<br>&gt;1080 +-------------------------+<br>      | Data are for above PAB  |<br>&gt;10D0 +-------------------------+<br>      |        (free)           |<br>&gt;1100 +-------------------------+<br>      | PAB for object files    |<br>&gt;1180 +-------------------------+<br>      | Data are for above PAB  |<br>&gt;12D0 +-------------------------+<br>      |        (free)           |<br>&gt;1300 +-------------------------+<br>      | PAB for print files     |<br>&gt;1380 +-------------------------+<br>      | Data area for above PAB |<br>&gt;15D0 | and for "program" files |<br>      |                         |<br>&gt;3580 +-------------------------+<br>      |        (free)           |<br>&gt;35D2 +-------------------------+ &lt;--- @&gt;8370<br>      | File buffers (4 files)  |    <br>&gt;37D8 +-------------------------+ &lt;--- @&gt;8370<br>      | File buffers (3 files)  |<br>&gt;3FFF +-------------------------+ VR0=0, VR1=E0, VR7=F5<br></pre>
+<h3><br>
+<a name="Writer map"></a>TI-Writer cartridge</h3>
+<p><u>VDP tables<br>
+</u>Screen image : &gt;0000-02FF<br>
+Char pattern : &gt;0000-07FF<br>
+Color table: &gt;0300-031F<br>
+Sprite attributes: none<br>
+Sprite patterns: none</p>
+<p>The cartridge calls subprogram &gt;16 in the FDC card to change the
+number of files (and hence the size of the area reserved at the end of
+the VDP RAM): 1 files with the editor, 4 files with the formater, and 3
+files with the utility.</p>
+<p>It uses a single PAB at &gt;0680, with a data area at &gt;1000. The
+formater sets its own PABs, but I don't know where.</p>
+<h4>VDP RAM map with TI-Writer</h4>
+<pre>&gt;0000 +-------------------------+ &lt;--- VR2=00, VR6=00<br>      | Screen image table      |<br>      |                         |<br>      |                         |<br>&gt;0300 +-------------------------+ &lt;--- VR5=06<br>      | Sprite attributes table |<br>&gt;0380 +-------------------------+ &lt;--- VR3=0E<br>      | Color table             |<br>&gt;03A0 +-------------------------+<br>      |                         |<br>      | Sprite patterns &gt;74-F0  |<br>      |                         |<br>&gt;0780 +-------------------------+<br>      | Sprite motion table     |<br>&gt;0800 +-------------------------+ &lt;--- VR4=01<br>      |                         |<br>      | Character pattern table | <br>      |                         |<br>&gt;1000 +-------------------------+<br>      |                         |<br>      | Data area for PAB       |<br>      |                         |<br>&gt;3000 +-------------------------+<br>      |        (free)           |<br>&gt;35D2 +-------------------------+ &lt;--- @&gt;8370<br>      | File buffers (4 files)  |<br>&gt;37D8 +-------------------------+ &lt;--- @&gt;8370<br>      | File buffers (3 files)  |<br>&gt;3BE4 +-------------------------+ &lt;--- @&gt;8370<br>      | File buffers (1 file)   |<br>&gt;3FFF +-------------------------+ VR0=0, VR1=E0, VR7=F5</pre>
+<h3><br>
+<a name="Minimem map"></a>Mini-memory cartridge</h3>
+<p><u>VDP tables<br>
+</u>Screen image : &gt;0000-02FF<br>
+Char pattern : &gt;0800-0FFF<br>
+Color table: &gt;0380-039F<br>
+Sprite attributes: &gt;0300-0380<br>
+Sprite patterns: &gt;0800-0FFF</p>
+<p>Just like the Editor/assembler cartridge. Here also, the sprite
+pattern
+table overlaps three other tables, which limitates the use of sprite
+patterns
+to &gt;74-FF (or even &gt;74-F0 if we plan to use sprite auto-motion).
+Of course, the Mini-memory itself does not use sprites, but this is the
+VDP structure that we inherit when we start a program with Mini-memory.</p>
+<p>The subprograms and DSRs called from Basic expect of course the
+Basic
+VDP structure. Most notably, their PABs are created in the string
+space,
+by asking Basic for the adequate space.</p>
+<h4>VDP RAM map with Mini-memory</h4>
+<pre>&gt;0000 +-------------------------+ &lt;--- VR2=00, VR6=00<br>      | Screen image table      |<br>      | (also sprite patterns)  |<br>      |                         |<br>&gt;0300 +-------------------------+ &lt;--- VR5=06<br>      | Sprite attributes table |<br>&gt;0380 +-------------------------+ &lt;--- VR3=0E<br>      | Color table             |<br>&gt;03A0 +-------------------------+<br>      |                         |<br>      | Sprite patterns &gt;74-F0  |<br>      |                         |<br>&gt;0780 +-------------------------+<br>      | Sprite motion table     |<br>&gt;0800 +-------------------------+ &lt;--- VR4=01<br>      |                         |<br>      | Character pattern table | <br>      |                         |<br>&gt;1000 +-------------------------+<br>      | PAB for most files      |<br>&gt;1080 +-------------------------+<br>      | Data are for above PAB  |<br>&gt;1100 +-------------------------+<br>      | Data for CS1 in Eazybug |<br>&gt;1140 +-------------------------+<br>      |                         |<br>      |        (free)           |<br>      |                         |<br>&gt;37D8 +-------------------------+ &lt;--- @&gt;8370<br>      | File buffers (3 files)  |<br>&gt;3FFF +-------------------------+ VR0=0, VR1=E0, VR7=F5<br><br></pre>
+<center>
+<p><a href="titechpages.htm">Back to the TI-99/4A Tech Pages</a></p>
+</center>
+</body>
+</html>

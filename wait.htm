@@ -1,0 +1,1800 @@
+<!doctype html public "-//w3c//dtd html 4.0 transitional//en">
+<html>
+<head>
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+   <meta name="GENERATOR" content="Mozilla/4.79 [en] (WinNT; U) [Netscape]">
+</head>
+<body>
+
+<center>
+<h1>
+<a href="http://www.nouspikel.com/ti99/titechpages.htm"><img SRC="logo.jpg" ALT="" style="border: 0px solid ; height: 33px; width: 95px;" title="Back to main index" ></a></h1></center>
+
+<h1>
+Controlling the wait-state generator</h1>
+The fact that the PE-box only has an 8-bit data bus has been a plague ever
+since it was released. The TMS9900 microprocessor has a 16-bit bus, and
+so does the console. However, when sent through the side port, the data
+bus is multiplexed as 2 times 8 bits. To do so, the circuitery in the console
+inserts four (4 !!) wait states between the regular two clock cycles that
+make a memory operation. Thereby slowing down memory access by a factor
+of three!
+<p>Several solutions have been though of to overcome this problem: drawing
+an extra cable to carry the remaining 8 bits, multiplexing them with the
+address bus instead, etc. Recently, it occured to me that memory and TTL
+chips are so fast, that it probably wouldn't be necessary to have 4 wait
+states. I started studying the wait-state generator in the console, and
+found that it could easily be modified so that the number of wait states
+can be controlled by software: 4, 3, 2, 1... or even 0 !
+<p>Software-control is important since some peripherals may not like a
+faster multiplexer, and some programs containing delay loops may be thrown
+off by the increase in speed. For instance, the Floppy Disk Controller
+ROMs contains several loops waiting for the drive to be ready. Speeding
+up execution may cause these loops to time out too early and report a faulty
+drive. In such cases, you would select the normal 4-wait-states multiplexing.
+But you still have the ability to speed up your favorite programs!
+<p><b>Hardware description</b>
+<br><a href="#Timing">Instructions timing</a>
+<br><a href="#Wait%20generator">The wait state generator</a>
+<br><a href="#WE%20pulse%20generator">The WE* pulse generator</a>
+<br><a href="#Clock%20signals">About clock signals</a>
+<p><b>Hardware modifications</b>
+<br><a href="#Removing%202%20waits">Removing two wait states</a>
+<br><a href="#Two%20WS%20timing">_Timing diagram</a>
+<br><a href="#Doit%202-WS">_Doing it</a>
+<br><a href="#Testing%202-WS">_Testing it</a>
+<p><a href="#rewiring">Down to one wait state</a>
+<br><a href="#one%20wait%20state%20timing">_Timing diagram</a>
+<br><a href="#Doit%201-WS">_Doing it</a>
+<p><a href="#zero%20wait%20state">Zero-wait-states</a>
+<br><a href="#zero%20wait%20states%20timing">_Timing diagram</a>
+<br><a href="#Acq%20after%20write">_Write/Acquire problem</a>
+<br><a href="#Grom%20access%20problem">_GROM issues</a>
+<br><a href="#Do%20it%200-WS">_Doing it</a>
+<br><a href="#Testing%200-ws">_Testing it</a>
+<p><a href="#all%20or%20none">All-or-none version</a>
+<br><a href="#CRU%20bits">Finding CRU bits</a>
+<br><a href="#Software%20control">Software control</a>
+<h2>
+<br>
+Hardware description</h2>
+This part discusses the way multiplexing is achieved in the TI-99/4A console,
+prior to any modification. It's important to understand this circuitery
+if we want to modify it later.
+<h3>
+<a NAME="Timing"></a>Timing of execution</h3>
+To understand the wait-states issue, let's first examine some of the signals
+present on the console side connector, during the execution of the following
+loop:
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; AORG >8300&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Program loaded in fast memory
+*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LWPI >83E0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Assume workspace is also in fast memory
+HERE&nbsp;&nbsp; MOV&nbsp; @>2000,R0&nbsp;&nbsp;&nbsp;&nbsp; } Our loop
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; JMP&nbsp; HERE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; }</pre>
+This loop requires a total of 36 memory cycles (marked below by Phi3*),
+and consists in 11 main operations:
+<pre>&nbsp;| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |&nbsp; Phi3*
+&nbsp; 1&nbsp;&nbsp;<u>&nbsp;&nbsp;&nbsp;&nbsp; 2 ____</u>&nbsp; 3&nbsp;&nbsp;<u> 4&nbsp;</u>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 5&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<u> 6&nbsp;</u>&nbsp; 7&nbsp;&nbsp;<u> 8_</u>&nbsp; 9&nbsp; 10&nbsp;&nbsp;<u>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 11&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</u>|___|&nbsp;&nbsp; :...:&nbsp;&nbsp; |___|&nbsp;&nbsp; |___________|&nbsp;&nbsp; |___|&nbsp;&nbsp; |_______|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | Memen*
+_________________________________________________&nbsp;&nbsp;&nbsp; ___________________&nbsp;
+&nbsp;___&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |__|___&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; WE*
+|MOV|_______________________________________________|JMP|_______________&nbsp; IAQ
+&nbsp;___&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ___&nbsp;&nbsp;&nbsp;&nbsp; ____&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ___&nbsp;&nbsp;&nbsp;&nbsp; _______
+|&nbsp;&nbsp; |___________|&nbsp;&nbsp; |___|&nbsp;&nbsp;&nbsp; |__________|&nbsp;&nbsp; |___|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |_______________&nbsp; A15/CruOut
+&nbsp; a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; c&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; a&nbsp;&nbsp; c&nbsp;&nbsp; a&nbsp;&nbsp;&nbsp;&nbsp; a&nbsp;&nbsp; | c&nbsp;&nbsp; a&nbsp;&nbsp; c&nbsp;&nbsp; a | a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; c</pre>
+1) 2 cycles. Fetch the first program word (MOV, with type of operands and
+register numbers)
+<br>2) 6 cycles. Computation. For @xxxx(Rn) operations, Rn would be fetched
+in cycles 3+4 (dotted lines).
+<br>3) 2 cycles. Fetch second program word (address >2000). Note there
+is no pulse on IAQ (instruction acquire).
+<br>4) 2 cycles. Computation.
+<br><b>5)</b> 6 cycles. Fetch contents of @>2000. Includes 4 wait states.
+Note that A15 toggles after cycle 3.
+<br>6) 2 cycles. Computation.
+<br>7) 2 cycles. Fetch contents of R0 (always read-before-write, even when
+not needed: MOV, CLR, SETO).
+<br>8) 2 cycles. Computation.
+<br>9) 2 cycles. Write R0 back. Note the pulse on WE*.
+<br>10) 2 cycles. Fetch next program word (JMP, with disp). Note that Memen*
+doesn't go high between instructions (critical!).
+<br>11) 8 cycles. Computation, change address. If the jump were not taken,
+there would be only 6 cycles.
+<p>a) A15/CruOut reflects A15 (which is high, when not in use).
+<br>c) A15/CruOut reflects CruOut (which is low, when not in use).
+<p>For simplicity, the above program was loaded into the scratch-pad memory,
+which is quite unusual. Normally, it would reside in the memory expansion,
+so points (1), (3) and (10) would also have an extra 4 wait cycles in them.
+Similarly, if the workspace were not in the scratch-pad, points (7) and
+(9) would require an extra four wait cycles. This would bring the total
+number of cycles to 56, from a theoretical minimum of 32.
+<p>Note that although memory access is three times slower in the PE-box,
+most programs will only be about twice slower. This is because every instruction
+comprises many the internal computation cycles, that are not affected by
+wait states. In addition, if the programmer was smart enough to place his
+workspace and his most frequently used variables in the scratch-pad, you
+will only gain speed when the processor is reading the program itself from
+8-bit memory. But even this is quite appreciable.
+<p>Now you see why wait states are a drag. But how are they generated?
+<h3>
+<br>
+<a NAME="Wait generator"></a>The wait state generator</h3>
+The data bus multiplexer is described in details in my <a href="pebox.htm#Bus%20multiplexing">PE-box
+page</a>. Here, I would like to focus on the wait state generator itself.
+<br>&nbsp;
+<table CELLSPACING=2 CELLPADDING=2 BGCOLOR="#CCCCE6" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS04
+&nbsp;&nbsp;&nbsp; WE*|-----------------------------------------------------------|>o----,
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ,------------------,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS00&nbsp; ,---o(|=---,&nbsp;&nbsp;&nbsp;&nbsp; ,---+5V&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS74(A)&nbsp; |
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp; '04&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ,----o(|=----,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; '-o(|=--,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +------+&nbsp; |
+&nbsp; READY|--o&lt;|---o(|=--,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; +-------+&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | Phi4*-|Ck&nbsp;&nbsp;&nbsp; |&nbsp; |
+-------+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +---|Clr* QA|--'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp; |
+TMS9900&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; '04 |&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; QB|----------|-------|Pr*&nbsp;&nbsp; |&nbsp; | '00
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +------+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; ,--|>o-'&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; QC|----------+-------|D&nbsp;&nbsp;&nbsp; Q|--=|)o--WE*
+Phi2*---|Ck&nbsp;&nbsp; Q|------+---|----------|S0&nbsp;&nbsp; QD|&nbsp;&nbsp;&nbsp;&nbsp; '04&nbsp; | +5V---|Clr*&nbsp; |&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +----------|S1&nbsp;&nbsp; Sr|--+--o&lt;|--'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +------+
+SysRdy--|D&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp; Phi1*---|Ck&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp; '-------------------------------A15
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp; Start*--'&nbsp;&nbsp;&nbsp; Gnd---|A&nbsp;&nbsp;&nbsp; Sl|
+&nbsp; +5V---|Clr*&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Gnd---|B&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |
+&nbsp; +5V---|Pr*&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Gnd---|C&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +------+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | 74LS194
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS74(B)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-------+&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>The heart of the generator is the 74LS194 universal shift register.
+This register is controlled by a signal called "Start*". This signal is
+normally high, but becomes low during a memory operation (Memen* low) that
+does not access the console ROMs (addresses >0000-1FFF), nor the console
+RAM pad (addresses >8000-83FF). When Start* is high, it inhibits the 74LS194
+via its Clr* input, after being inverted by a 74LS04. It also presents
+the S1 input with a high level, which puts the 74LS194 in "parallel load"
+mode, i.e. inputs A through D are latched for futur output. Note that the
+inverted Start also inhibits any wait signal generated by the 74LS194 from
+reaching the CPU, by masking them with a NAND gate.
+<p>On the other hand, wait requests coming from elsewhere (such as from
+the GROMs) do reach the TMS9900. This signal is labelled SysRdy in the
+above schematics. It is latched by a 74LS74 clocked by Phi2*, although
+this may seem irrelevant since the TMS9900 only samples its Ready pin during
+Phi1. So why the 74LS74? It's here to synchronize this external signal
+with the 74LS194, in case a memory chip requests even more wait states
+than the generator is creating. Pulling low the S0 input when the 74LS194
+is active, results in a hold state (S0=0, S1=0) that will begin and end
+on a Phi2* rising edge. Once the memory chip is ready to go on, the 74LS194
+resumes counting wait states where it stopped.
+<p>When Start* is active (low), the 74LS194 is enabled and placed in the
+"shift-to-the-right" mode. Each low-to-high transition on Phi1* (i.e. its
+trailing edge) will transfer QA to QB, QB to QC, etc. Note that D and QD
+are not used in this circuit and can thus be ignore.
+<p>Also note that the output QC is inverted to make up the extra address
+line A15. By convention, A15 must be high first to transfer the odd-numbered
+data byte, then low to transfer the even byte. The A15 signal is also applied
+to the serial-right input SR of the 74LS194, which means that it will appear
+in QA at each shift operation. In summary, every time Phi1* goes high,
+we have: QC = QB, QB = QA, QA = -QC.
+<p>Initially, all inputs are low since they were reset by Clr*. Which gives
+us the following sequence of event:
+<pre><u>QA QB QC
+</u>L&nbsp; L&nbsp; L&nbsp; Initial state. A15 is high.
+H&nbsp; L&nbsp; L
+H&nbsp; H&nbsp; L
+H&nbsp; H&nbsp; H&nbsp; A15 toggles here
+L&nbsp; H&nbsp; H
+L&nbsp; L&nbsp; H&nbsp; etc</pre>
+<a NAME="cycle table"></a>Several NAND gates combine these outputs to generate
+the wait signal. A wait state occurs when QC is low, or when QA is high.
+In the above table, this occurs for the first four lines, so each of these
+cycles will be followed with a wait cycle. The first and last lines are
+the regular memory cycles:
+<pre><u>QA QB QC&nbsp; Wait? Cycle
+</u>L&nbsp; L&nbsp; L&nbsp;&nbsp; w&nbsp;&nbsp;&nbsp;&nbsp; Regular
+H&nbsp; L&nbsp; L&nbsp;&nbsp; W+w&nbsp;&nbsp; Wait
+H&nbsp; H&nbsp; L&nbsp;&nbsp; W+w&nbsp;&nbsp; Wait
+H&nbsp; H&nbsp; H&nbsp;&nbsp; W&nbsp;&nbsp;&nbsp;&nbsp; Wait (A15 toggles here)
+L&nbsp; H&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Wait
+L&nbsp; L&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Regular, end of operation</pre>
+
+<pre>W indicates a wait signal due to QC being low.
+w indicates a wait signal due to QA being high.
+Wait signals cause the <u>next</u> cycle to be a wait state.</pre>
+
+<h3>
+<br>
+<a NAME="WE pulse generator"></a>The WE* pulse generator</h3>
+There is one more thing that we must consider when multiplexing the data
+bus: for write operations the peripheral needs a low pulse on the WE* line.
+In a regular memory cycle, this pulse is located in the second clock cycle.
+Peripherals can thus latch data either on the leading edge or on the trailing
+edge of the pulse.
+<p>The following is a timing diagram for a regular memory cycle (e.g. accessing
+the console ROMs). Note that it's not drawn to scale.
+<pre>_&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <u>W</u>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <u>W</u>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;|_________| |_________| |_________&nbsp; Phi1&nbsp;
+&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+__| |______<u>|</u>__| |______<u>|</u>__| |_______ Phi2&nbsp;
+&nbsp; |&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp; |&nbsp; |&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+__<u>|</u>__| |___<u>|</u>_____| |___<u>|</u>__<u>|</u>__| |____ Phi3&nbsp;
+&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _ |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _ |&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;
+__<u>|</u>_____| |<u>|</u>________| |<u>|</u>__<u>|</u>_____| |_ Phi4&nbsp;
+__|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp; | ________&nbsp;
+&nbsp; \________<u>|</u>___________<u>|</u>__<u>|</u>/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MEMEN*
+___________|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | ___________
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \___________<u>|</u>/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; WE*</pre>
+The cycle begins on the leading edge of Phi2 (Memen* goes low) and ends
+two cycles later, also on the leading edge of Phi2. For read operations,
+the TMS9900 would input data during the last Phi1. For write operations,
+the WE* pulse becomes active (low) on the leading edge of the first Phi1
+and end on the leading edge of the next Phi1.
+<p>The wait signal is sampled during the first Phi1 pulse (marked W), and
+wait cycles will be added from Phi2 to Phi2 if requested.
+<p>This means that the WE* line is going to remain low during the whole
+multiplexing process. This is not what we want: we need <b>two </b>WE*
+pulses, one when A15 is high to latch the odd byte, then one when A15 is
+low, to latch the even byte.
+<p>This is achieved by the second half of the 74LS74 in the <a href="#Wait%20generator">above
+schematic</a>: it is clocked by Phi4*, preset by QB low and it latches
+QC. When QB is high and QC is low, the next rising (i.e. trailing) edge
+of Phi4* will cause the output Q to go low. This output is combined with
+an inverted WE* to provide a new WE* signal. When Q is high, the output
+is determined by WE*, but when Q is low, the output is always high. In
+essence, Q serves to mask WE* during one clock cycle, from Phi4* to Phi4*.
+<p>If you look at the cycle table <a href="#cycle%20table">above</a>, you
+will notice that the only moment when QB is high and QC low is just before
+A15 toggles. Thus, the WE* line will become high while A15 toggles, then
+low again. Two pulses, just like we wanted!
+<p>Here is what the timing diagram for 4 wait states looks like:
+<pre>_&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;
+&nbsp;|_____|w|_____|w|_____|w|_____|W|_____| |_____| |_____ Phi1&nbsp;
+&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;
+_| |_____| |_____| |_____| |_____| |_____| |_____| |___ Phi2&nbsp;
+&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;
+___| |_____| |_____| |_____| |_____| |_____| |_____| |_ Phi3&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;
+_____| |_____| |_____| |_____| |_____| |_____| |_____|&nbsp; Phi4&nbsp;
+__&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ____&nbsp;
+&nbsp; \_______________________________________________/&nbsp;&nbsp;&nbsp;&nbsp; MEMEN*
+________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ______
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \_______________________________________/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; WE* (cpu)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _______________________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+__________/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \____________________ QA 74LS914
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _______________________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+__________________/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \____________ QB
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _______________________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+__________________________/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \____ QC
+__________________________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ____
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \_______________________/&nbsp;&nbsp;&nbsp;&nbsp; A15
+________________________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ______________________
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \_______/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Q 74LS74
+________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _______&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ______
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \_______________/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \_______________/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; WE* (PE-box)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ~666 ns&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ~666 ns</pre>
+Note that each WE* pulse lasts from Phi1 to Phi1, just like a non-multiplexed
+pulse. Which was probably the reason for inserting 4 wait states, in the
+first place.
+<h3>
+<br>
+<a NAME="Clock signals"></a>About clock signals</h3>
+The TI-99/4A contains a sophisticated clock generator, the TIM9904. When
+clocked at 3 MHz, it generates active-high pulses 333 nanoseconds (ns)
+apart. Each pulse it 45 ns long, with up and down ramping times of about
+12 ns each.
+<p>The TIM9904 generates four such pulses, in successive phases, each a
+quarter of a cycle (83 ns) apart. These are called Phi1, Phi2, Phi3 and
+Phi4 and are meant for use by the TMS9900 microprocessor. If you do the
+math (12+45+12 vs 83) you will notice that there is a short gap between
+the end of one pulse and the beginning of the next. This can be seen in
+the first timing diagram <a href="#WE%20pulse%20generator">above</a>, but
+I omitted it from subsequent diagrams, for the sake of clarity.
+<p>The TIM9904 also generates TTL-compatible signals, to be used by the
+on-board circuitery. These signals are mirror image of the above ones,
+i.e. they are active low. They are named Phi1*, Phi2*, Phi3* and Phi4*
+(by convention, a * denotes an active-low signal).
+<p>Most events are triggered when a clock signal goes from low to high,
+so TMS9900 internal events generally occur on the leading edge of a Phi
+pulse, whereas the cicuitery in the motherboard reacts to the trailing
+edge of a Phi* pulse.
+<h2>
+
+<hr width="100%"></h2>
+
+<h2>
+Hardware modifications</h2>
+I'm describing three modifications hereunder. The first one is very easy
+to do, but only removes two wait states: #1 and #4.
+<p>The second modification is just as easy. It builds up on the first one
+and lets you remove a third wait state (#2) by adding an extra chip to
+the console: a cheap and easy-to-find 74LS74 TTL chip.
+<p>The third modification implies adding yet another cheap TTL chip to
+the console: a 74LS08 quad-AND gates. It builds up on the second one and
+lets you remove all four wait states, each under the control of a different
+CRU bit.
+<p>Finally, I'm suggesting a variant on this last modification, in which
+all wait states are controlled be the same CRU bit. You have less control
+on the number of wait states (basically, it's all or none), but you only
+need one CRU output.
+<p>If you prefer to control the wait states independently, you will need
+four CRU outputs. They can be taken from the TMS9901 chip, or by adding
+an extra CRU interface into the console.
+<p>If you don't know how to solder, don't panic: anyone can do it. Have
+a look at my <a href="howto.htm#Soldering">howto page</a> for a crash course
+in soldering.
+<p><a href="#Removing%202%20waits">Two-wait-states</a>
+<br><a href="#rewiring">One-wait-state</a>
+<br><a href="#zero%20wait%20state">Zero-wait-states</a>
+<br><a href="#all%20or%20none">All-or-none</a>
+<br><a href="#CRU%20bits">Finding CRU outputs</a>
+<h4>
+Tools &amp; materials</h4>
+For these modifications, you will need the following:
+<li>
+Philips screwdriver</li>
+
+<li>
+Soldering iron (fine tip)</li>
+
+<li>
+Solder (60/40 tin/lead for wires, 50/50 for solder bridges.)</li>
+
+<li>
+Solid, insulated wire (gauge 30, "wire-wrap" type)</li>
+
+<li>
+Insulating tape</li>
+
+<li>
+Wire cutter with narrow nose (important, to cut pins).</li>
+
+<li>
+Forceps, or long nose pliers</li>
+
+<li>
+One 74LS08 quad-AND TTL chip, one 74LS74 dual D-latch TTL chip.</li>
+
+<p><br>These tools are described in more details in my <a href="howto.htm#Tools">howto
+page</a>. The page also suggests a few places where you can buy or mail
+order this stuff.
+<h2>
+<br>
+<a NAME="Removing 2 waits"></a>Removing two wait states</h2>
+Ok, how can we modify the generator so that it introduces less wait states?
+An obvious possibility is to change the value of the 74LS194 inputs A and
+B. By setting A high, we start at line 2 in the cycle table, and thus skip
+the first wait state. By having both A and B high, we can skip two wait
+states but, since WE* starts on the leading edge of Phi1 and the masking
+pulse on the trailing edge of Phi4*, this will result in completely masking
+the first WE* pulse! Setting C high won't work because it would result
+in QC being high to start with, thus A15 would never be high. But at least,
+we can get rid of the first wait state with this trick.
+<p>There is one little problem though: the Clr* input of the 74LS194 overrides
+all other operations and holds all outputs low. This means that the inputs
+A through D won't be considered until Clr* becomes high. But when this
+happens, the Start* signal also switches the 74LS194 from "parallel load"
+mode to "shift right" mode. So when the next clock signal arrives, it will
+shift bits, not load them. In other words, input A though D are not taken
+into account!
+<p>Fortunately, this is easy to correct: we'll just hardwire Clr* high.
+We don't need this signal anyhow, since Start* can control shifting through
+the S1 input and mask out wait states through a dedicated NAND gate. The
+only thing we have to be carefull with, is that the external wait states
+act upon S0 and could place the 74LS194 in "shift-left" mode when Start*
+is inactive. So to be on the safe side, we'll just ground inputs D and
+SL (serial input left). This way, left shifts will keep the outputs low.
+<p>Note however, that this trick only lets us get rid of the wait states
+issued <b>before </b>A15 toggles. Afterwards, the one remaining wait state
+depends on QA being high, which is unavoidable after A15 went low. To get
+rid of this last wait state we'll need to mask it out somewhere outside
+the 74LS194. Fortunately this turns out to be very easy: instead of inverting
+QA with a NOT gate (of which there are several spares in the console),
+TI engineers used a NAND gate with the other input wired high. To stop
+the wait signal at the level of this gate, all we need to do is to bring
+this input low. It almost looks like they were planing for it...
+<br>&nbsp;
+<table CELLSPACING=2 CELLPADDING=2 BGCOLOR="#CCCCE6" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>TMS9900|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS04
+&nbsp;&nbsp;&nbsp; WE*|--------------<font color="#000000">-------------------------------------------|>o--------------,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</font>&nbsp;&nbsp;
+<font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ,---------------,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ,-------'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#FF0000">,--Blk8*</font><font color="#000000"> |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS00&nbsp; ,-----o(|=-,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#FF0000">,-o(|=---Bit1</font><font color="#000000">&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS74(A) |
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; '04&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ,----o(|=---,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; '---o(|=------,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +------+&nbsp; |
+&nbsp; READY|---o&lt;|---o(|=--,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-------+ |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</font> <font color="#000000">| Phi4*-|Ck&nbsp; Q*|&nbsp; |
+-------+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#FF0000">+5V--</font><font color="#000000">|Clr* QA|-'&nbsp;&nbsp;&nbsp;&nbsp;</font>&nbsp;&nbsp;<font color="#000000">&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp; |
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; '04 |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; QB|---</font>-------|<font color="#000000">-------|Pr*&nbsp;&nbsp; |&nbsp; | '00
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +------+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp; ,--|>o-'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; QC|----------+-------|D&nbsp;&nbsp;&nbsp; Q|--=|)o--WE*&nbsp;
+&nbsp; Phi2*--|Ck&nbsp;&nbsp; Q|------+--|------------------|S0&nbsp;&nbsp; QD|&nbsp;&nbsp; '04&nbsp;&nbsp;&nbsp; | +5V---|Clr*&nbsp; |&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; Q*|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +------------------|S1&nbsp;&nbsp; SR|--+--o&lt;|--'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +------+
+&nbsp;SysRdy--|D&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Phi1*---|Ck&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp; '----------------------------A15
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | Start*--'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#FF0000">Bit2---</font><font color="#000000">|A&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |
+&nbsp;&nbsp; +5V---|Clr*&nbsp; |&nbsp;&nbsp;&nbsp;</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font color="#000000">Gnd---|B&nbsp;&nbsp;&nbsp; SL|</font><font color="#FF0000">---Gnd&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; red = modified
+</font><font color="#000000">&nbsp;&nbsp; +5V---|Pr*&nbsp;&nbsp; |&nbsp;&nbsp;</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font color="#000000">Gnd---|C&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +------+&nbsp;&nbsp;</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font color="#FF0000">Gnd---</font><font color="#000000">|D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS74(B)</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-------+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS194</font></pre>
+</td>
+</tr>
+</table>
+
+<p>In summary, we now have two control points that can be programmed via
+CRU bits: the second input of the NAND gate (controlled by Bit1 and Blk8*
+in the above schematics) and the A input of the 74LS194 ( controlled by
+Bit2). Each removes one wait state in the second and first part of the
+memory cycle, respectively. Note that Bit 1 is active high and must therefore
+be inverted if you want your console to boot normally, with 4 wait states.
+This is achieved by using a spare gate left on a 74LS00 quad-NAND chip
+that's in the console.
+<p>So what's the Blk8* signal? You see, removing wait state #4 has an infortunate
+result: any wait request coming from the GROMs arrives too late to be taken
+into account by the CPU! Since GROMs need an awfull lot of wait states,
+the won't answer properly under these conditions. One way around this is
+through software: just make sure to enable wait state #4 prior to any GROM
+operation. But here I'm doing it with hardware: Blk8* is a signal present
+in the console, which is active (low) for memory operations in the range
+>8000-8FFF. I'm using this signal to mask out Bit1 and make sure wait state
+#4 will always be enabled when accessing GROMs, VDP, speech and sound chips.
+More on this <a href="#Grom%20access%20problem">later</a>.
+<p>Here is the what the cycles will look like when removing the first wait
+state by setting the 74LS194 input A high:
+<pre><u>QA QB QC&nbsp; Wait? Cycle
+</u>H&nbsp; L&nbsp; L&nbsp;&nbsp; W+w&nbsp;&nbsp; Regular
+H&nbsp; H&nbsp; L&nbsp;&nbsp; W+w&nbsp;&nbsp; Wait&nbsp;&nbsp; }
+H&nbsp; H&nbsp; H&nbsp;&nbsp; W&nbsp;&nbsp;&nbsp;&nbsp; Wait&nbsp;&nbsp; } 3 wait states
+L&nbsp; H&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Wait&nbsp;&nbsp; }
+L&nbsp; L&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Regular, end.</pre>
+
+<p><br>And here, when removing the last wait state by disabling the NAND
+gate:
+<pre><u>QA QB QC&nbsp; Wait? Cycle
+</u>L&nbsp; L&nbsp; L&nbsp;&nbsp; w&nbsp;&nbsp;&nbsp;&nbsp; Regular
+H&nbsp; L&nbsp; L&nbsp;&nbsp; w&nbsp;&nbsp;&nbsp;&nbsp; Wait&nbsp;&nbsp; }
+H&nbsp; H&nbsp; L&nbsp;&nbsp; w&nbsp;&nbsp;&nbsp;&nbsp; Wait&nbsp;&nbsp; } 3 wait states
+H&nbsp; H&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Wait&nbsp;&nbsp; }
+L&nbsp; H&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Regular, end.</pre>
+
+<p><br>Note the difference between the soutions: the first one removes
+a wait state from the odd-numbered byte access (QC low, A15 high), whereas
+the second removes it from the even-numbered byte access (QC high).
+<p>Now, if we combine the two, we get a two-wait-states memory access,
+with two clock cycles for the odd byte and two for the even byte:
+<pre><u>QA QB QC&nbsp; Wait? Cycle
+</u>H&nbsp; L&nbsp; L&nbsp;&nbsp; w&nbsp;&nbsp;&nbsp;&nbsp; Regular
+H&nbsp; H&nbsp; L&nbsp;&nbsp; w&nbsp;&nbsp;&nbsp;&nbsp; Wait&nbsp; }
+H&nbsp; H&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Wait&nbsp; } 2 wait states
+L&nbsp; H&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Regular, end.</pre>
+
+<h3>
+<br>
+<a NAME="Two WS timing"></a>Two-wait-states timing</h3>
+The timing diagram for the latter is the following:
+<pre>_&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _
+&nbsp;|_____|w|_____|w|_____| |_____| |_____| | Phi1&nbsp;
+&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;
+_| |_____| |_____| |_____| |_____| |_____&nbsp; Phi2&nbsp;
+&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;
+___| |_____| |_____| |_____| |_____| |___&nbsp; Phi3&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;
+_____| |_____| |_____| |_____| |_____| |_&nbsp; Phi4&nbsp;
+__&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ______&nbsp;
+&nbsp; \_______________________________/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MEMEN*
+________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ________
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \_______________________/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; WE* (cpu)
+&nbsp;&nbsp;&nbsp; ______________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+___/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \______________________&nbsp; QA 74LS914
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _______________________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+__________/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \______&nbsp; QB
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ______________________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+__________________/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \ QC
+__________________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \________________<u>1)</u>____/ A15
+________________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ________________
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \_______/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Q 74LS74(A)
+________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _______&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ________
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \_______/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \_______/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; WE* (PE-box)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ~330 ns&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ~330 ns</pre>
+1) Note that we have introduced a permanent modification: A15 stays low
+at the end of the cycle, until the end of the next Phi1 pulse (~250ns).
+This should not bare any consequences, but will be corrected below when
+changing the clock inputs for the 1-wait-state modification..
+<h3>
+<br>
+<a NAME="Doit 2-WS"></a>Doing it</h3>
+These two modifications are extremely easy to do. First open your console.
+Refer to my <a href="surgery.htm">console surgery page</a> for instructions.
+<p>Locate the 74LS194 and the nearby 74LS00. They are just besides the
+clock chip. Here's a <a href="motherb.jpg">picture</a> for you. And here's
+an ASCII diagram detailing the modifications to be done:
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font color="#0000FF">,-----------,
+</font>&nbsp;&nbsp; +-,_,-+&nbsp;&nbsp; <font color="#0000FF">|</font>&nbsp; +-,_,-+&nbsp; <font color="#0000FF">|</font>&nbsp;&nbsp; +-,_,-+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-,_,-+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; <font color="#0000FF">'--</font>|1&nbsp; 16|<font color="#0000FF">]-'</font>&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; <font color="#FF0000">,--</font>|1&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; <font color="#FF0000">|</font>&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |<font color="#0000FF">Bit2--</font>|3&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; <font color="#FF0000">|</font>&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; <font color="#FF0000">|</font>&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; <font color="#FF0000">|</font>&nbsp; |&nbsp;&nbsp; 10|<font color="#FF0000">---Blk8*</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; <font color="#0000FF">,-[</font>|6&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; <font color="#FF0000">|</font>&nbsp; |&nbsp;&nbsp;&nbsp; 9|<font color="#FF0000">---Bit1</font>&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; <font color="#0000FF">+-[</font>|7&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; <font color="#FF0000">|</font>&nbsp; |&nbsp;&nbsp;&nbsp; 8|<font color="#FF0000">]-,</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; <font color="#0000FF">'-[</font>|8&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-----+&nbsp;&nbsp; <font color="#FF0000">|</font>&nbsp; +-----+&nbsp; <font color="#FF0000">|
+</font>&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-----+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS74&nbsp;&nbsp;&nbsp; <font color="#FF0000">|</font>&nbsp; 74LS00&nbsp;&nbsp; <font color="#FF0000">|</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS194&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font color="#FF0000">'-----------'</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp; +-----+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp; 74LS362&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; --| : Cut pin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TMS9901&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp; = 9904&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -[| : Intact pin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; is over&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+-----------------------------------------------------+&nbsp;&nbsp; there
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TMS 9900&nbsp; microprocessor&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; V
+
+</pre>
+
+<li>
+Working from under the board, make a solder bridge between pins #6, #7
+and #8 of the 74LS194. This is easier to do if you use solder that has
+50% lead, as it's thicker. To solder wires, 40% lead is better, though.</li>
+
+<li>
+Cut pin #1on the 74LS194, close to the board. Bend it out and attach a
+thin wire to it. I prefer gauge 30 (i.e. wire-wrap type) insulated, solid
+wire. Connect the other end of the wire to pin #16 of the same chip (but
+don't cut that pin!).</li>
+
+<li>
+Cut pin #3 on the 74LS194 in the same manner. Attach a longer wire to it
+and connect it to the CRU output of your choice.</li>
+
+<li>
+Cut pin #1 on the 74LS00, and connect it to pin #8 of the same chip (no
+need to cut pin #8: it's not connected).</li>
+
+<li>
+Determine whether pin #9 and #10 of the 74LS00 are grounded. They weren't
+in my console, but it's good practice to ground unused inputs to prevent
+oscillations, so TI might have done it on later models. If any one of these
+pins is grounded, cut it and bend it out. Alternatively, you could cut
+the trace that connects it to the ground: with a pointy knife cut a ~1
+mm gap in the trace, being careful not to damage adjacent traces.</li>
+
+<li>
+Attach a long wire to pin #10 of the 74LS00. The other end of the wire
+should go to pin #11 of the 74LS138 that the closest to the console side
+port (see below). Don't cut the pin on the 74LS138!</li>
+
+<li>
+Attach another wire to pin #9 of the 74LS00 and connect it to the CRU output
+of your choice (Bit1).</li>
+
+<p><br><a NAME="Blk8"></a>This is where to find the Blk8* signal:
+<pre>&nbsp;&nbsp;&nbsp; __
+&nbsp;__|&nbsp; |
+|&nbsp;&nbsp;&nbsp;&nbsp; |__________________________________________
+|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS04&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS03&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-,_,-+&nbsp;&nbsp;&nbsp;&nbsp; +-,_,-+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +--------------+&nbsp;
+|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ,|&nbsp;
+|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | 74LS32&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; '|&nbsp;
+|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +--------------+&nbsp;
+|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; +-,_,-+&nbsp;&nbsp;
+|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |
+|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;
+|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;
+|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-----+&nbsp;&nbsp;&nbsp;&nbsp; +-----+&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-,_,-+&nbsp;&nbsp;&nbsp;&nbsp; +-,_,-+&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;
+|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; | 74&nbsp; |&nbsp;&nbsp;
+\___&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |<font color="#FF0000">Blk8*</font>|&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; | LS&nbsp; |&nbsp;
+&nbsp;___|&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; <font color="#FF0000">|</font> |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; | 367 |&nbsp;
+|===&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; <font color="#FF0000">|</font> |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; +-----+&nbsp;&nbsp;
+|===&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; <font color="#FF0000">|</font> |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; +-,_,-+&nbsp;
+|===&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; 11|<font color="#FF0000">]--'</font> |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;
+|===&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;
+|===&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |
+|===&nbsp;&nbsp;&nbsp; +-----+&nbsp;&nbsp;&nbsp;&nbsp; +-----+&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |
+|===&nbsp;&nbsp;&nbsp; 74&nbsp; +-,_,-+ 74LS138&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;
+|===&nbsp;&nbsp;&nbsp; LS&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |
+|===&nbsp;&nbsp;&nbsp; 138 |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;
+|=== S&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+|=== I&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-----+&nbsp;
+|=== D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS367&nbsp;&nbsp;
+|=== E&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+|===&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+|=== P&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+|=== O&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+|=== R&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+|=== T&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-----+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+|===&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS244&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+|===</pre>
+Now where can you find CRU outputs? If this is the only console modification
+that you are planning, the easiest is to make use of the two spare outputs
+of the TMS9901 (the 40-pin chip with no heat sink on it, the closest to
+the TMS9900. See <a href="#CRU%20bits">below</a>). Just be aware that,
+while both are low upon power-up, one is turned high by the console power-up
+routines. Another alternative is to install my console CRU modification.
+It will provide you with upto 64 CRU outputs, or 32 outputs and 32 inputs,
+as you like. See the <a href="conscru.htm">dedicated page</a>.
+<p>Assuming you decided to use the TMS9901, connect its pin #37 to the
+wire attached to the 74LS194, pin #3. Connect pin #38 to the wire attached
+to the 74LS00, pin #9. The TMS9901 pins need not to be cut, since they
+aren't connected to anything in the console. Here is a <a href="eeprom13.jpg">picture</a>,
+in which pin #37 was used for a different modification, and is thus labelled
+"to A12". Pin #38 is just above it.
+<p>Note that the above wiring will suppress wait state #1 upon reset, as
+the console power-up routine always turns pin #37 high. By contrast, wait
+state #4 remains enabled. Alternatively, you could attach both wires to
+pin #38, but this means that you loose some of the fine control over wait
+states: it's either two or four, but never three...
+<p>And now, you can close your console. That's it, you made it!
+<h3>
+<br>
+<a NAME="Testing 2-WS"></a>Testing</h3>
+To test the results, you need a program that lets you control CRU bits.
+This might be EasyBug (in the Mini-memory cartridge), MG's Explorer, or
+my Module Explorer (downloadable <a href="download.htm#modexp">here</a>).
+The advantage of EasyBug is that it does not require a memory expansion
+card...
+<p>To remove the first wait state, set CRU bit >0016 to one. To remove
+the last wait state, set CRU bit >0018 to one. Set them to zero to enable
+the corresponding wait states.
+<p>You will also need some kind of benchmark program, so you can measure
+the increase in speed.
+<p>Below is the result of my own testing. Note that, for my tests, I had
+a third wire placing input B of the 194 (pin #4) under the control of a
+CRU bit. This will be used later with the 1-wait-state modification. It
+wouldn't work right now because it prevents the first write pulse, but
+it was interesting for me to see if reading would work. Also, I didn't
+have Bit1 combined with Blk8* when I did those tests: it was coming straight
+from the CRU output. Later on I inverted it, then finally added an AND
+gate when I did the zero-wait-state modification. But of course an AND
+plus an inverter is the same as a NAND, which is why I told you to use
+the NAND gate.
+<h4>
+<br>
+Cartridge ROMs</h4>
+These read OK, with either the first or last wait state removed (or both).
+Obviously, writing could not be tested with read-only memory!
+<h4>
+<br>
+Cartridge RAM</h4>
+To my knowledge, the only cartridge with RAM is the Mini-memory. It tolerates
+well the removal of the last wait state, but removing the first wait state
+causes problems in reading or writing the odd-numbered byte. Initially,
+it reads as >FF, after the cartridge gets a little warm it starts reading
+crazy values. This suggests that the SRAM is not ready to issue data when
+the multiplexer latches it.
+<p>This is somewhat strange, as the SRAM is enabled by a fairly simple
+circuitery after Memen* drops down: a 74LS138 decoder (in the console),
+and two 73LS32 OR gates (in the cartridge). All in all, a 50 ns delay at
+the most, whereas the odd-byte cycle is still about 666 ns in length.
+<p>I suspect that the problem may be due to the circuitery that holds high
+the CE* pin of the SRAMs when power is off, thanks to a +3V coin battery.
+This circuit comprises a capacitor connecting each CE* pin to +5 Volts.
+I don't know the capacitance of this component (labeled 221) but my guess
+is, it takes a long time for the last OR gate to issue enough current to
+charge the cap, and bring CE* low.
+<h4>
+<br>
+Peripheral card ROMs</h4>
+These read OK, even with three wait states removed!
+<h4>
+<br>
+TI original 32K memory expansion</h4>
+I was expecting the memory expansion card not to work at all with any wait
+state removed. This is because this card is made of 4116 DRAM chips. Like
+most DRAMs, these chips only have half the required number of address pins:
+the address is multiplexed as two chunks, known at row and column address
+respectively. Refreshing the DRAM involves calling every row, one by one,
+while the chip is not in use.
+<p>The card contains a complicated circuitery in charge of generating the
+RAS* (row address strobe) and CAS* pulses. Unfortunately, this circuit
+is clocked by Phi3* and is designed to count three clock cycles: RAS* is
+active during the first, CAS* during the next two. Then the cycle is repeated
+for the second byte (even address). In fact, it's repeated until Memen*
+goes high.
+<p>Not so surprisingly, when removing wait states the memory is not ready
+in time for a read: the odd byte (first accessed) reads as >FF, and the
+even byte actually returns the first byte.
+<p>The amazing thing is that write operations work all right, even with
+3 wait-states removed! Even though removing a third wait state suppresses
+the write pulse, the card can still write the odd byte because it actually
+ignores the WE* line and uses only DBIN to tell reads from writes. But
+the strange thing is that the correct data gets written, instead of the
+previous byte, as with read operations. This may have to do with the fact
+that the 4116 chips need about 135 ns to read out data, whereas incoming
+data is latched in less than 55 ns after CAS* goes low...
+<p>Anyhow, the conclusion is that TI original 32K memory expansion card
+should only be used with all wait states enabled. By contrast, memory expansion
+boards based on SRAM (e.g. SuperAMS) should work flawlessly. I verified
+this with my IDE board: the 512K SRAM chip and the SRAM that's part of
+the clock chip both operate flowlessly with 2 wait states removed.
+<h4>
+<br>
+Floppy disk controller</h4>
+Reads and write correctly to the registers of the FDC, even with 3 wait
+states removed. But since the FDC maps at even addresses, only the last
+wait state is relevant here.
+<h4>
+<br>
+Console</h4>
+I first tried to control Bit1 directly, i.e. without using the NAND gate.
+The console wouldn't boot with wait state #4 removed, when hooked to the
+PE-box (even if the box was not turned on). Yet it booted by itself!. After
+I rewired the multiplexer to change the clock signals as described below,
+the console wouldn't boot at all with wait state #4 removed. Turning off
+wait state #4 with EasyBug crashed the computer if the PE-box was hooked
+up. Wait states 1 and 2 could be removed without causing any problem, though.
+This was clearly due to a GROM timing problem, since an assembly program
+that turned wait state #4 off, accessed the memory expansion, then turned
+wait state #4 back on, did not crash...
+<p>When performing a hard reset (power-on/off), the sound generator wouldn't
+shut up if wait state #4 was disabled by default. However, a soft reset
+(e.g. quit key) was no problem. Maybe this has to do with the time needed
+for the sound chip to power up???
+<p>Checking with a scope, I found out that removing wait state #4 prevents
+the GROMs from putting the CPU on hold altogether! Probably because the
+circuitery that generates the SysRdy signal is too slow. This is why I
+decided to mask Bit1 with the Blk8* signal. Note that I did it with an
+AND gate plus an inverter, but the NAND solution should work as well, if
+not better.
+<p>Under these conditions, the console boots all right and operates normally
+with two wait states removed.
+<h2>
+<br>
+<a NAME="rewiring"></a>One-wait-state</h2>
+The drag in the above scheme is that WE* is masked starting at the trailing
+edge of Phi4*, which more or less corresponds to the leading edge of Phi1.
+This means that, if we were to cancel the first two wait states, WE* would
+have virtually no time to be low before A15 toggles. Clearly not a desirable
+situation!
+<p>To overcome this problem, an obvious solution is to rewire the half-74LS74
+so that it is now clocked by Phi1* instead of Phi4*. This gives one clock
+pulse (~83 nanoseconds) for WE* to be low after we removed the first two
+wait states. But it also brings the end of WE* dangerously close to the
+point where A15 toggles, which could be a problem with peripherals that
+latch data on the trailing edge of WE*. So we'll have to also rewire the
+74LS194, so that it is clocked by Phi2* instead of Phi1*. And of course,
+we should also rewire the second half-74LS74 so that the external SysRdy
+signal is clocked by Phi3* instead of Phi2*. In other words, we are going
+to delay all three components by one clock phase, i.e. 83 ns.
+<p>However, there is an extra difficulty: because the 74LS194 is enabled
+when Memen* goes low (on the leading edge of Phi2, followed by 6 TTL gates,
+which means a delay of about 60 ns), but is now clocked by the trailing
+edge of Phi2*, it will shift one more time, at the very beginning of the
+first clock cycle. This did not happen when it was clocked by Phi1*, because
+Phi1* occurs before Phi2.
+<p>The only solution I found to overcome this problem was to add an extra
+chip inside the console: a simple 74LS74 dual-latch. Using one of the latches
+we can delay the Start* signal so that it only toggles S1 at Phi4*. Since
+Phi4* comes after Phi2*, we are back to the normal timing. Just to be on
+the safe side, we will connect Start* to the Clr* input of the 74LS74,
+so that it resets and freezes the latch as soon as Start* comes high (which
+means that we must use the inverted Start signal, since Clr* is active
+low). When Start* goes low, the latch is enabled, but will only toggle
+at the next Phi4*. The D input is connected to +5V, but don't do it right
+now because we will need to modify this later.
+<br>&nbsp;
+<table CELLSPACING=2 CELLPADDING=2 BGCOLOR="#CCCCE6" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>TMS9900|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS04
+&nbsp;&nbsp;&nbsp; WE*|--------------<font color="#000000">-------------------------------------------|>o--------------,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</font>&nbsp;&nbsp;
+<font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ,---------------,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ,-------'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#3333FF">,--Blk8*</font><font color="#000000"> |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS00&nbsp; ,-----o(|=-,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#3333FF">,-o(|=---Bit1</font><font color="#000000">&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS74(A) |
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; '04&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ,----o(|=---,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; '---o(|=------,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +------+&nbsp; |
+&nbsp; READY|---o&lt;|---o(|=--,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-------+ |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</font>&nbsp; <font color="#000000">| </font><font color="#FF0000">Phi1*-</font><font color="#000000">|Ck&nbsp; Q*|&nbsp; |
+-------+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#3333FF">+5V--</font><font color="#000000">|Clr* QA|-'&nbsp;&nbsp;&nbsp;&nbsp;</font>&nbsp;&nbsp;<font color="#000000">&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp; |
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; '04 |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; QB|---</font>-------|<font color="#000000">-------|Pr*&nbsp;&nbsp; |&nbsp; | '00
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +------+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp; ,--|>o-</font><font color="#FF0000">+</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; QC|----------+-------|D&nbsp;&nbsp;&nbsp; Q|--=|)o--WE*&nbsp;
+&nbsp; </font><font color="#FF0000">Phi3*--</font><font color="#000000">|Ck&nbsp;&nbsp; Q|------+--|------</font><font color="#FF0000">|</font><font color="#000000">-----------|S0&nbsp;&nbsp; QD|&nbsp;&nbsp; '04&nbsp;&nbsp;&nbsp; | +5V---|Clr*&nbsp; |&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; Q*|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#FF0000">| ,---------</font><font color="#000000">|S1&nbsp;&nbsp; SR|--+--o&lt;|--'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +------+
+&nbsp;SysRdy--|D&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#FF0000">| |</font><font color="#000000"> </font><font color="#FF0000">Phi2*---</font><font color="#000000">|Ck&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp; '----------------------------A15
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | Start*--'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#FF0000">| |</font><font color="#000000">&nbsp; </font><font color="#3366FF">Bit2---</font><font color="#000000">|A&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |
+&nbsp;&nbsp; +5V---|Clr*&nbsp; |&nbsp;&nbsp;&nbsp; </font><font color="#FF0000">,-----------' |</font><font color="#000000">&nbsp; </font><font color="#FF0000">Bit3---|B</font><font color="#000000">&nbsp;&nbsp;&nbsp; SL|</font><font color="#3333FF">---Gnd
+</font><font color="#000000">&nbsp;&nbsp; +5V---|Pr*&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; </font><font color="#FF0000">|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |</font><font color="#000000">&nbsp;&nbsp; Gnd---|C&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +------+&nbsp;&nbsp;&nbsp; </font><font color="#FF0000">|&nbsp; +------+&nbsp;&nbsp; |</font><font color="#000000">&nbsp;&nbsp; </font><font color="#3333FF">Gnd---</font><font color="#000000">|D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | 74LS194
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS74(B)&nbsp;&nbsp;</font><font color="#FF0000"> '--|Clr*&nbsp; |&nbsp;&nbsp; |</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-------+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#FF0000">Phi4*-|Ck&nbsp; Q*|---'</font><font color="#000000">&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#FF0000">+5V---|Pr*&nbsp;&nbsp; |&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; new mod
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +5V---|D&nbsp;&nbsp;&nbsp; Q|&nbsp; 74LS74 (new)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#3333FF">previous mod
+</font><font color="#FF0000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +------+</font></pre>
+</td>
+</tr>
+</table>
+
+<p><a NAME="new timing"></a>The new timing diagram, for 4 wait states,
+looks like this:
+<pre>_&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;
+&nbsp;|_____|w|_____|w|_____|w|_____|W|_____| |_____| |_____ Phi1&nbsp;
+&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;
+_| |_____| |_____| |_____| |_____| |_____| |_____| |___ Phi2&nbsp;
+&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;
+___| |_____| |_____| |_____| |_____| |_____| |_____| |_ Phi3&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;
+_____| |_____| |_____| |_____| |_____| |_____| |_____|&nbsp; Phi4&nbsp;
+__&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ____&nbsp;
+&nbsp; \_______________________________________________/&nbsp;&nbsp;&nbsp;&nbsp; MEMEN*
+________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ______
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \_______________________________________/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; WE* (cpu)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ____________________________________________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+______/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \___ Q* new 74LS74
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _______________________________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+____________/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \__________ QA 74LS914 (Phi2* clock)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _____________________________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+____________________/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \____ QB
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _______________________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+____________________________/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \__ QC --> serial in
+____________________________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; __
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \_______________________/&nbsp;&nbsp;&nbsp;&nbsp; A15
+__________________________&nbsp;&nbsp;&nbsp;&nbsp; ....____________________
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \___:___/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Q 74LS74(A) (Phi1* clock)
+________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _______&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ______
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \_________________/&nbsp;&nbsp; :...\_____________/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; WE* (PE-box)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ~749 ns&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ~583 ns</pre>
+
+<pre>... = with 0-wait-states modification</pre>
+Our rewiring has introduced the following permanent changes:
+<li>
+The first WE* pulse is now 83 ns longer (it ends later)</li>
+
+<li>
+A15 toggles 83 ns later than before</li>
+
+<li>
+The second WE* pulse is now 83 ns shorter (it begins later)</li>
+
+<li>
+We (almost) took care of the persistent A15, which now ends only 83 ns
+later than usual.</li>
+
+<h3>
+<br>
+<a NAME="one wait state timing"></a>One-wait-state timing</h3>
+Now we can remove the first two wait states by setting inputs A and B high,
+with the following state table:
+<pre><u>QA QB QC Wait? Cycle
+</u>H&nbsp; H&nbsp; L&nbsp;&nbsp; W+w&nbsp; Regular
+H&nbsp; H&nbsp; H&nbsp;&nbsp; W&nbsp;&nbsp;&nbsp; Wait (A15 toggles here)
+L&nbsp; H&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Wait
+L&nbsp; L&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Regular, end</pre>
+On top of this, we can also mask the last wait state with the NAND gate
+as before. The cycle table becomes:
+<pre><u>QA QB QC Wait? Cycle
+</u>H&nbsp; H&nbsp; L&nbsp;&nbsp; w&nbsp;&nbsp;&nbsp; Regular
+H&nbsp; H&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Wait (A15 toggles here)
+L&nbsp; H&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Regular, end.</pre>
+And we have achieved a one-wait-state cycle, with the following timing:
+<pre>_&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;|_____|w|_____| |_____| |_____ Phi1&nbsp;
+&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;
+_| |_____| |_____| |_____| |___ Phi2&nbsp;
+&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;
+___| |_____| |_____| |_____| |_ Phi3&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;
+_____| |_____| |_____| |_____|&nbsp; Phi4&nbsp;
+__&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ____&nbsp;
+&nbsp; \_______________________/&nbsp;&nbsp;&nbsp;&nbsp; MEMEN*
+________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ______
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \_______________/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; WE* (cpu)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ____________________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+______/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \___ Q* new 74LS74
+____________________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; __&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \_______/&nbsp;&nbsp; QA 74LS914 (Phi2* clock)
+_______________________________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; QB
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _____________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+____________/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \____ QC
+____________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ____&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \_____________/&nbsp;&nbsp;&nbsp;&nbsp; A15
+__________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ____________
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \_______/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Q 74LS74(A) (Phi1* clock)
+________&nbsp;&nbsp; _______&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ______
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \_/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \_____/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; WE* (PE-box)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ~70 ns&nbsp;&nbsp;&nbsp;&nbsp; ~250 ns</pre>
+The WE* pulses are now quite short, especially the first one. For two-wait-states
+timing, we could either lengthen the first WE* pulse (to ~ 403 ns) by enabling
+wait state #2, or the second (to ~ 583 ns) by enabling wait state #4. With
+three wait states, we would lengthen both pulses.
+<h3>
+<br>
+<a NAME="Doit 1-WS"></a>Doing it</h3>
+This modification builds up on the two-wait-states mod described <a href="#Doit%202-WS">above</a>.
+If you haven't done it yet, do it together with this one. It's easier to
+cut and bend out all pins that need to be cut, before you start soldering
+wires.
+<pre>&nbsp;<font color="#0000FF">,----------------------------------------,
+</font>&nbsp;<font color="#0000FF">|</font>&nbsp;&nbsp;&nbsp; +-,_,-+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-,_,-+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-,_,-+ <font color="#0000FF">|</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-,_,-+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;<font color="#0000FF">|</font>&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; | <font color="#0000FF">|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font>|&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;<font color="#0000FF">|</font>&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; | <font color="#0000FF">|</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;<font color="#0000FF">|</font>&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; 14|- o<font color="#FF0000">&nbsp;</font> <font color="#0000FF">,-</font>|3&nbsp;&nbsp;&nbsp; | <font color="#0000FF">|</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;<font color="#0000FF">|</font>&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp; <font color="#FF0000">Bit3-</font>|4&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;<font color="#FF0000">&nbsp;</font><font color="#FF00FF"> </font><font color="#0000FF">|</font> |&nbsp;&nbsp; 11|<font color="#0000FF">-'</font><font color="#FF0000">o</font>&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;<font color="#0000FF">|</font>&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; <font color="#0000FF">|</font> |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp; <font color="#FF0000">|</font>&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;<font color="#0000FF">|</font>&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; 11|<font color="#FF0000">-,</font><font color="#0000FF">o--'</font> |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp; <font color="#FF0000">|</font>&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;<font color="#0000FF">'---[</font>|7&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; | <font color="#FF0000">|</font>&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp; <font color="#FF0000">|</font>&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; | <font color="#FF0000">|</font>&nbsp;&nbsp;&nbsp;&nbsp; +-----+&nbsp; <font color="#FF0000">|</font>&nbsp;&nbsp;&nbsp;&nbsp; +-----+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-----+ <font color="#FF0000">|</font>&nbsp;&nbsp;&nbsp;&nbsp; 74LS74&nbsp;&nbsp; <font color="#FF0000">|</font>&nbsp;&nbsp;&nbsp;&nbsp; 74LS00&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS194 <font color="#FF0000">'--------------'</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-----+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS362&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ]-- : intact pin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; = 9904&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |-- : cut pin
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; o-- : hole where pin was&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+-----------------------------------------------------+&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TMS 9900&nbsp; microprocessor&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |</pre>
+
+<li>
+On the 74LS74, cut pins #3 and #11 close to the board, then bend then out
+horizontally. Remove the stumps from the board: melt solder with a soldering
+iron, then pull out the stump with forceps or pliers (careful: hot!).</li>
+
+<li>
+On the 74LS194, do the same with pins #4, #11 and #14. There is no need
+to remove the stumps for #4.</li>
+
+<li>
+Attach a wire to bent-out pin #3 of the 74LS74 and connect it to the hole
+where pin #11 of the 74LS194 used to be (Phi1*).</li>
+
+<li>
+Attach a wire to bent-out pin #11 of the 74LS194 and connect it to the
+hole where pin #11 of the 74LS74 used to be (Phi2*).</li>
+
+<li>
+Attach a wire to bent-out pin #11 of the 74LS74 and connect it to pin #7
+of the 74LS362 (a.k.a. TIM9904). Do not cut that pin (Phi3*).</li>
+
+<li>
+The installation of the new 74LS74 will be described <a href="#Do%20it%200-WS">later</a>.</li>
+
+<li>
+Finally, attach a wire to bent-out pin #4 of the 74LS194 and connect it
+to a low-by-default CRU output (see <a href="#CRU%20bits">below</a>). Alternatively,
+attach it to pin #3, so that both pins will be controlled by CRU bit 2.
+This saves you one CRU bit, but you loose the finer control on the wait
+states...</li>
+
+<p><br>Here is a <a href="wait1.jpg">picture</a> of this modification.
+You will notice that at that time I hadn't thought of using Blk8* as a
+masking signal. I was just inverting Bit1 with one of the spare gates on
+the 74LS04: these are the wires that go to the right of the pictures. The
+CRU bits come from the left because I'm using my console CRU interface
+mod rather than the TMS9901. The wire labeled Bit2 is taped to the top
+of the 74LS194, because I broke pin #3 when bending it out, so the soldering
+is a bit fragile.
+<h2>
+<br>
+<a NAME="zero wait state"></a>Zero-wait-states</h2>
+The elusive zero wait states cycle is harder to obtain, for two reason.
+First, there is no easy way to prevent the wait signal generated by QC
+low. However, if you look at the <a href="#one%20wait%20state%20timing">cycle
+table</a> we obtained after rewiring, you will notice that this signal
+is not necessary: all wait states could be generated by QA being high.
+We could thus disconnect QC from the NAND gate and set this input high.
+This all-or-none possibility is discussed <a href="#all%20or%20none">later</a>,
+but it has the drawback that we won't be able to have only 1 wait state:
+it's either zero or four. To keep all our options open, we will need an
+extra logic gate.
+<p>The second problem is that, in a no-wait-state cycle, the WE* pulse
+lasts one memory cycle: from Phi1 to Phi1. Which is also the duration of
+the masking pulse generated by the 74LS74! To mask only a portion of the
+WE* pulse, we need to make the masking pulse much shorter. Again, this
+will require an additional logic gate.
+<p>We will make use of a 74LS08 TTL chips, that comprises four independent
+AND gates. The schematics below shows how two of them should be installed.
+The first AND gate presets the 74LS74 when Phi4* goes low, effectively
+truncating its pulse. Remember that the 74LS194 and all clock inputs have
+been rewired as described above.
+<p>The second AND gate intercepts any wait signal coming from the 74LS194.
+Note that the CRU bit used (Bit4 here) is active high and thus needs to
+be inverted, since CRU bits are low upon power-up. Fortunately, there are
+several spare inverters in one of the 74LS04 present in the console, so
+we'll use one of them.
+<p>A third AND gate and a spare inverter found in a 74LS04 on the motherboard
+are used to mask out Bit4 with the same Blk8* signals that we used with
+Bit1. Again, this will prevent us from removing wait states when accessing
+the memory-mapped devices: GROMs, VDP, etc. This is discussed in details
+<a href="#Grom%20access%20problem">later</a>.
+<br>&nbsp;
+<table CELLSPACING=2 CELLPADDING=2 BGCOLOR="#CCCCE6" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>TMS9900|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font color="#FF0000">74LS04 (existing)&nbsp;&nbsp;</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS04
+<font color="#000000">&nbsp;&nbsp;&nbsp; WE*|---------------------------------------------------------|>o--------------,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font color="#FF0000">,--Blk8*</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font color="#FF0000">,o&lt;|--(|=---Bit4</font> ,------------,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |
+<font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#FF0000">74LS08 (new) |</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp; ,----------'&nbsp;&nbsp; </font><font color="#3333FF">,--Blk8*</font><font color="#000000"> |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS00&nbsp; </font><font color="#FF0000">,-(|=</font><font color="#000000">-o(|=-,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</font><font color="#3333FF"> ,-o(|=---Bit1</font><font color="#000000">&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS74(A) |
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; '04&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ,----o(|=---,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; '---o(|=------,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +------+&nbsp; |
+&nbsp; READY|---o&lt;|---o(|=--,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-------+ | </font><font color="#FF0000">Phi4*</font>&nbsp; <font color="#000000">| </font><font color="#3366FF">Phi1*-</font><font color="#000000">|Ck&nbsp; Q*|&nbsp; |
+-------+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +5V--|Clr* QA|-'&nbsp;&nbsp; </font><font color="#FF0000">|</font>&nbsp;&nbsp;<font color="#000000">&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp; |
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; '04 |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; QB|---</font>--<font color="#FF0000">=|)-</font>-|<font color="#000000">-------|Pr*&nbsp;&nbsp; |&nbsp; | '00
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +------+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp; ,--|>o-</font><font color="#3333FF">+</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; QC|----------+-------|D&nbsp;&nbsp;&nbsp; Q|--=|)o--WE*&nbsp;
+&nbsp; </font><font color="#3333FF">Phi3*--</font><font color="#000000">|Ck&nbsp;&nbsp; Q|------+--|------</font><font color="#3366FF">|</font><font color="#000000">-----------|S0&nbsp;&nbsp; QD|&nbsp;&nbsp; '04&nbsp;&nbsp;&nbsp; | +5V---|Clr*&nbsp; |&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; Q*|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#3333FF">| ,---------</font><font color="#000000">|S1&nbsp;&nbsp; SR|--+--o&lt;|--'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +------+
+&nbsp;SysRdy--|D&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#3333FF">| | Phi2*---</font><font color="#000000">|Ck&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp; '----------------------------A15
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | Start*--'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#3333FF">| |&nbsp; Bit2---</font><font color="#000000">|A&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |
+&nbsp;&nbsp; +5V---|Clr*&nbsp; |&nbsp;&nbsp;&nbsp; </font><font color="#3333FF">,-----------' |</font><font color="#000000">&nbsp; </font><font color="#3333FF">Bit3---</font><font color="#000000">|B&nbsp;&nbsp;&nbsp; SL|</font><font color="#3333FF">---Gnd
+</font><font color="#000000">&nbsp;&nbsp; +5V---|Pr*&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; </font><font color="#3333FF">|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |</font><font color="#000000">&nbsp;&nbsp; Gnd---|C&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +------+&nbsp;&nbsp;&nbsp; </font><font color="#3333FF">|&nbsp; +------+&nbsp;&nbsp; |</font><font color="#000000">&nbsp;&nbsp; </font><font color="#3333FF">Gnd---</font><font color="#000000">|D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | 74LS194
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS74(B)&nbsp;&nbsp; </font><font color="#3333FF">'--|Clr*&nbsp; |&nbsp;&nbsp; |</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-------+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#3333FF">Phi4*-|Ck&nbsp; Q*|---'</font><font color="#000000">&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#3333FF">+5V---|Pr*&nbsp;&nbsp; |</font><font color="#000000">&nbsp;
+</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font color="#3333FF">|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |</font>&nbsp;<font color="#FF0000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; new mod
+</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font color="#3333FF">+5V---|D&nbsp;&nbsp;&nbsp; Q|</font><font color="#FF0000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#3333FF">previous mods
+</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font color="#3333FF">+------+</font>&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font color="#3333FF">74LS74</font>&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<h3>
+<br>
+<a NAME="zero wait states timing"></a>Zero-wait-states timing</h3>
+The WE* masking pulse now only lasts from the end of Phi1* to the beginning
+of Phi4*. The timing diagram, with all wait states disabled, becomes:
+<pre>_&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;|_____| |_____| |_____ Phi1&nbsp;
+&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;
+_| |_____| |_____| |___ Phi2&nbsp;
+&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;
+___| |_____| |_____| |_ Phi3&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _&nbsp;
+_____| |_____| |_____|&nbsp; Phi4&nbsp;
+__&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ____&nbsp;
+&nbsp; \_______________/&nbsp;&nbsp;&nbsp;&nbsp; MEMEN*
+________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ______
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \_______/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; WE* (cpu)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ____________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+______/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \___ Q* new 74LS74
+__________________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \____ QA 74LS914 (Phi2* clock)
+_______________________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; QB
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _____&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+____________/&nbsp;&nbsp;&nbsp;&nbsp; \____ QC
+____________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ____&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \_____/&nbsp;&nbsp;&nbsp;&nbsp; A15
+__________&nbsp;&nbsp;&nbsp;&nbsp; ________
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \___/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Q 74LS74 (Phi1* clock, Phi4* enable)
+________&nbsp;&nbsp; __&nbsp;&nbsp;&nbsp; ______
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \_/&nbsp; \__/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; WE* (PE-box)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ~70 ns&nbsp; ~83 ns</pre>
+
+<p><br>Again the WE* pulses are quite short, but there is no way around
+since we must cram two pulses into the duration of one. Note however that
+70 ns is a long time for a TTL or a memory chip. For instance, Flash-EEPROMs
+protect themselves against spurious writing by disregarding overly short
+pulses on WE* (e.g. statics). This noise cut off is set at 15 ns, so we
+are well above this limit.
+<p>More critical is the fact the the second WE* pulse begins only ~140
+ns after A15 toggled. Peripherals must decode the address and enable the
+data bus drivers before they can receive valid data and 140 ns may be a
+bit short, depending on the complexity of the decoding logic. However,
+assuming the peripheral has latched the first byte, the decoding circuit
+will already be active and the data bus enabled. Toggling A15 won't change
+a thing, so we should be all right. Problems may only occur with peripherals
+designed never to respond to odd-numbered bytes, but I don't think there
+are any.
+<p>Here is a composite <a href="wait3.jpg">picture</a> of signals captured
+by an oscilloscope during a write operation at @>2000, in zero-wait-state
+mode. A0 is provided as a mark for the end of the memory operation (Memen*
+stays low for the next operation). Phi3* is included to give you an idea
+of the time frame. Observe that the first write pulse indeed occurs while
+A15 is high (odd byte), the second when A15 is low (even byte).
+<p>Be aware that this modification of the masking pulse will also affect
+cycles in which the last wait state was not suppressed: the second WE*
+pulse will begin ~83 ns earlier than usual (i.e. when it used to start
+before we rewired the generator). But thanks to the wait state A15 has
+toggled ~250 ns earlier, so this sould be no problem, rather an advantage:
+it makes the second WE* pulse longer. This is illustrated with dotted lines
+in the 4-wait state diagram <a href="#new%20timing">above</a>.
+<h3>
+<br>
+<a NAME="Acq after write"></a>Solving the Acquire-after-write problem</h3>
+It took me weeks to figure that one out! But I finally got it: you may
+remember from the <a href="#Timing">introduction</a> that, after a write
+cycle, Memen* stays low for the next instruction acquisition (read) cycle.
+This means that the 74LS194 is not reset after a write! With the original
+TI design it didn't matter because the 74LS194 counts up to six anyhow.
+Its last state is L L H, so shifting once more gives L L L, which is the
+same as a reset.
+<p>But things are different when we are suppressing wait states: we now
+have less than 6 cycles per memory access and the last state may not always
+be L L H. So weird things start to happen, with A15 toggling at the wrong
+time, wait states being added or supressed, etc.
+<p>What we need to do is to cause the 74LS194 to reload (rather than reset)
+after a memory access is completed. That's easy enough to do: we must toggle
+its S1 input, which we can do by bringing low the D input of the 74LS74
+that we added to the console. The only problem is to find a signal to trigger
+this action. We cannot use any of the outputs of the 74LS194, since their
+status will vary depending on the number of wait states we kept. So I decided
+to toggle S1 after two clock cycles that have no wait states. If you look
+at all the cycle tables in this page, you will find that they all end with
+two cycles that have no wait states.
+<p>This is best done with the other half of our piggy-backed 74LS74. The
+two latches are wired as a flip-flop: each takes its input from the other,
+but one of them inverts it, so each output will go L-H-L-H, etc. The second
+latch is cleared by the Ready signal that goes low if there is any wait
+states, which prevents toggling. When the Ready signal goes high (when
+the 74LS194 shifts, at Phi2*), the 74LS74 is enabled, but it will only
+toggle at the next Phi1*. In the mean time a Phi4* will occur, during which
+the first latch will remain unchanged. Only after the second Phi4* will
+the change appears on the S1 input of the 74LS194.
+<br>&nbsp;
+<table CELLSPACING=2 CELLPADDING=2 BGCOLOR="#CCCCE6" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>TMS9900|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS04&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS04
+&nbsp;&nbsp;&nbsp; WE*|---------------------------------------------------------|>o--------------,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#3333FF">,--Blk8*&nbsp;</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#3333FF">,o&lt;|--(|=---Bit4</font><font color="#000000"> ,-</font>-----------,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |
+<font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#3333FF">74LS08 |</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp; ,----------'&nbsp;&nbsp; </font><font color="#3333FF">,--Blk8*</font><font color="#000000"> |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS00&nbsp; </font><font color="#3333FF">,-(|=</font><font color="#000000">-o(|=-,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#3333FF">,-o(|=---Bit1</font><font color="#000000">&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS74(A) |
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; '04&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ,----o(|=---,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; '---o(|=------,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +------+&nbsp; |
+&nbsp; READY|-</font><font color="#FF0000">+</font><font color="#000000">-o&lt;|---o(|=--,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-------+ | </font><font color="#3333FF">Phi4*</font><font color="#000000">&nbsp; | </font><font color="#3333FF">Phi1*-</font><font color="#000000">|Ck&nbsp; Q*|&nbsp; |
+-------+ </font><font color="#FF0000">|</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +5V--|Clr* QA|-'&nbsp;&nbsp; </font><font color="#3333FF">|</font><font color="#000000">&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp; |
+</font><font color="#FF0000">,--------'&nbsp;</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; '04 |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; QB|-----</font><font color="#3333FF">=|)</font><font color="#000000">--|-------|Pr*&nbsp;&nbsp; |&nbsp; | '00
+</font><font color="#FF0000">|</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +------+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp; ,--|>o-</font><font color="#3333FF">+</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; QC|----------+-------|D&nbsp;&nbsp;&nbsp; Q|--=|)o--WE*&nbsp;
+</font><font color="#FF0000">|</font><font color="#000000"> Phi3*--|Ck&nbsp;&nbsp; Q|------+--|------</font><font color="#3333FF">|</font><font color="#000000">-----------|S0&nbsp;&nbsp; QD|&nbsp;&nbsp; '04&nbsp;&nbsp;&nbsp; | +5V---|Clr*&nbsp; |&nbsp;&nbsp;
+</font><font color="#FF0000">|</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; Q*|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#3333FF">| ,---------</font><font color="#000000">|S1&nbsp;&nbsp; SR|--+--o&lt;|--'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +------+
+</font><font color="#FF0000">|</font><font color="#000000">SysRdy--|D&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#3333FF">| |</font><font color="#000000"> </font><font color="#3333FF">Phi2*---</font><font color="#000000">|Ck&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp; '----------------------------A15
+</font><font color="#FF0000">|</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | Start*--'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#3333FF">| |</font><font color="#000000">&nbsp; </font><font color="#3333FF">Bit2---</font><font color="#000000">|A&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |
+</font><font color="#FF0000">|</font><font color="#000000">&nbsp; +5V---|Clr*&nbsp; |&nbsp;&nbsp;&nbsp; </font><font color="#3333FF">,-----------' |</font><font color="#000000">&nbsp; </font><font color="#3333FF">Bit3---</font><font color="#000000">|B&nbsp;&nbsp;&nbsp; SL|</font><font color="#3333FF">---Gnd
+</font><font color="#FF0000">|</font><font color="#000000">&nbsp; +5V---|Pr*&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; </font><font color="#3333FF">|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |</font><font color="#000000">&nbsp;&nbsp; Gnd---|C&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |
+</font><font color="#FF0000">|</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +------+&nbsp;&nbsp;&nbsp; </font><font color="#3333FF">|&nbsp; +------+&nbsp;&nbsp; |</font><font color="#000000">&nbsp;&nbsp; </font><font color="#3333FF">Gnd---</font><font color="#000000">|D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | 74LS194
+</font><font color="#FF0000">|</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS74(B)&nbsp;&nbsp; </font><font color="#3333FF">'--|Clr*&nbsp; |&nbsp;&nbsp; |</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-------+
+</font><font color="#FF0000">|</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#3333FF">Phi4*-|Ck&nbsp; Q*|---'</font><font color="#000000">&nbsp;&nbsp;
+</font><font color="#FF0000">|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +------+</font><font color="#000000"> </font><font color="#3333FF">+5V---|Pr*&nbsp;&nbsp; |</font><font color="#000000">&nbsp;
+</font><font color="#FF0000">'--------|Clr*&nbsp; |</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font color="#3333FF">|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |</font>&nbsp;<font color="#FF0000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; this mod
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; Q*|-------</font><font color="#3333FF">|D&nbsp;&nbsp;&nbsp; Q|</font><font color="#FF0000">--,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#3333FF">previous mods
+</font><font color="#FF0000">&nbsp; Phi1*--|Ck&nbsp;&nbsp; Q|</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font color="#3333FF">+------+</font>&nbsp; <font color="#FF0000">|
+&nbsp;&nbsp; +5V---|Pr*&nbsp;&nbsp; |&nbsp;</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font color="#3333FF">74LS74(B)</font> <font color="#FF0000">|
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; D|-----------------'
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +------+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS74(A)&nbsp;&nbsp;</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>In summary, this is what's hapenning when all wait states are disabled:
+<pre><u>Time&nbsp; 74/Q*(B) Q*(A) 74LS194&nbsp; Comments&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</u>Steady&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =&nbsp;&nbsp;&nbsp;&nbsp; Signal* is inactive
+Phi2&nbsp;&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =&nbsp;&nbsp;&nbsp;&nbsp; Signal* becomes active
+Phi2*&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Load&nbsp;&nbsp;&nbsp; S1 didn't see Signal* yet&nbsp;
+Phi4*&nbsp;&nbsp;&nbsp; L&nbsp;&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =&nbsp;&nbsp;&nbsp;&nbsp; Now it will
+Phi1*&nbsp;&nbsp;&nbsp; L&nbsp;&nbsp;&nbsp;&nbsp; L&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =&nbsp;&nbsp;&nbsp;&nbsp; Toggles since no wait states
+Phi2*&nbsp;&nbsp;&nbsp; L&nbsp;&nbsp;&nbsp;&nbsp; L&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Shift&nbsp;&nbsp; Second clock cycle
+Phi4*&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp; L&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =&nbsp;&nbsp;&nbsp;&nbsp; The 74LS74(B) toggles
+Phi1*&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =&nbsp;&nbsp;&nbsp;&nbsp; The 74LS74(A) toggles
+Phi2&nbsp;&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =&nbsp;&nbsp;&nbsp;&nbsp; Signal* becomes inactive, end</pre>
+
+<p><br>And with one wait state:
+<pre><u>Time&nbsp; 74/Q*(B) Q*(A) 74LS194&nbsp; Comments&nbsp;
+</u>Steady&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =&nbsp;&nbsp;&nbsp;&nbsp; Signal* is inactive
+Phi2&nbsp;&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =&nbsp;&nbsp;&nbsp;&nbsp; Signal* becomes active, enables wait states
+Phi2*&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Load&nbsp;&nbsp;&nbsp; Outputs a wait state for sure&nbsp;
+Phi4*&nbsp;&nbsp;&nbsp; L&nbsp;&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =&nbsp;&nbsp;&nbsp;&nbsp; The 74LS74(B) toggles
+Phi1*&nbsp;&nbsp;&nbsp; L&nbsp;&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =&nbsp;&nbsp;&nbsp;&nbsp; The 74LS74(A) is cleared by the wait state
+Phi2*&nbsp;&nbsp;&nbsp; L&nbsp;&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Shift&nbsp;&nbsp; Second clock cycle, no more wait states
+Phi4*&nbsp;&nbsp;&nbsp; L&nbsp;&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =&nbsp;&nbsp;&nbsp;&nbsp; No changes
+Phi1*&nbsp;&nbsp;&nbsp; L&nbsp;&nbsp;&nbsp;&nbsp; L&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =&nbsp;&nbsp;&nbsp;&nbsp; Now 74LS74(A) can toggle
+Phi2*&nbsp;&nbsp;&nbsp; L&nbsp;&nbsp;&nbsp;&nbsp; L&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Shift&nbsp;&nbsp; Third clock cycle
+Phi4*&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp; L&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =&nbsp;&nbsp;&nbsp;&nbsp; The 74LS74(B) toggles
+Phi1*&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =&nbsp;&nbsp;&nbsp;&nbsp; The 74LS74(A) toggles
+Phi2&nbsp;&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =&nbsp;&nbsp;&nbsp;&nbsp; Signal* becomes inactive, end</pre>
+
+<p><br>An additional benefit of this design is that it takes care of the
+"shift-left" problem due to peripheral wait requests arriving when there
+is no wait state. Since the Ready signal incorporates both types of wait
+requests, peripheral requests (in this case latched at Phi3*) will immediately
+reset the 74LS74, which at the next Phi4* will set the S1 input of the
+74LS194 high, thereby insuring that it is in "hold" state (S0=0 S1=0) for
+the next Phi2*.
+<pre><u>Time&nbsp; 74/Q*(B) Q*(A) 74LS194&nbsp; Comments&nbsp;
+</u>Steady&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =&nbsp;&nbsp;&nbsp;&nbsp; Signal* is inactive
+Phi2&nbsp;&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =&nbsp;&nbsp;&nbsp;&nbsp; Signal* becomes active. Peripheral takes notice
+Phi2*&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Load&nbsp;&nbsp;&nbsp; Sometime around now, it asks for a wait state
+Phi3*&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =&nbsp;&nbsp;&nbsp;&nbsp; Peripheral wait request is latched
+Phi4*&nbsp;&nbsp;&nbsp; L&nbsp;&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =&nbsp;&nbsp;&nbsp;&nbsp; The 74LS74(B) toggles
+Phi1*&nbsp;&nbsp;&nbsp; L&nbsp;&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =&nbsp;&nbsp;&nbsp;&nbsp; The 74LS74(A) is frozen by the wait state
+Phi2*&nbsp;&nbsp;&nbsp; L&nbsp;&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Hold&nbsp;&nbsp;&nbsp; S0 low (by peripheral demand), S1 low by 74LS74(B)
+Phi3*&nbsp;&nbsp;&nbsp; L&nbsp;&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =&nbsp;&nbsp;&nbsp;&nbsp; Lets say the peripheral is now ready
+Phi4*&nbsp;&nbsp;&nbsp; L&nbsp;&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =&nbsp;&nbsp;&nbsp;&nbsp; No changes
+Phi1*&nbsp;&nbsp;&nbsp; L&nbsp;&nbsp;&nbsp;&nbsp; L&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =&nbsp;&nbsp;&nbsp;&nbsp; Now 74LS74(A) can toggle
+Phi2*&nbsp;&nbsp;&nbsp; L&nbsp;&nbsp;&nbsp;&nbsp; L&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Shift&nbsp;&nbsp; Back to normal cycles
+Phi3*&nbsp;&nbsp;&nbsp; L&nbsp;&nbsp;&nbsp;&nbsp; L&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =&nbsp;&nbsp;&nbsp;&nbsp; No changes
+Phi4*&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp; L&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =&nbsp;&nbsp;&nbsp;&nbsp; The 74LS74(B) toggles
+Phi1*&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =&nbsp;&nbsp;&nbsp;&nbsp; The 74LS74(A) toggles
+Phi2&nbsp;&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =&nbsp;&nbsp;&nbsp;&nbsp; Signal* becomes inactive, end</pre>
+
+<h3>
+<br>
+<a NAME="Grom access problem"></a>Solving the GROM access problem</h3>
+You may remember from the introduction that multiplexing occurs for the
+whole memory range except >0000-1FFF and >8000-83FF. Which means that is
+does occur when accessing the memory mapped devices: the sound chip (>8400-87FF),
+the VDP (>8800-8FFF), the speech synthesizer (>9000-97FF) and the GROMs
+(>9800-9FFF). This might seem strange since all these devices have 8-bit
+ports and could thus be hooked to half the 16-bit bus, upstream of the
+multiplexer. This is indeed the case for the VDP, yet multiplexing still
+occurs when accessing the VDP: a special circuit prevents the multiplexer
+from answering when data is read from the VDP.
+<p>So why multiplex these addresses? Most probably for timing questions.
+These devices, expecially the GROMs, are very slow and cannot answer within
+a regular 2-clock-cycle memory operation. So circuitery was added to the
+console so GROM access automatically triggers the SysRdy line and puts
+the CPU on hold until the GROMs are ready to answer, which can take over
+24 clock cycles!
+<p>But there is a problem here: the cicuitery that generates this holding
+signal is fairly complex (two 74LS138, and two 74LS03). As a result, it
+takes time for SysRdy to go low after A15 has toggled. If we remove wait
+state #4, the request for a hold actually arrives too late for the CPU
+to take it into account. The situation is even worse with zero-wait-states
+timing, where there is no way the signal can get there in time.
+<p>So what to do? My solution was to mask out Bit1 and Bit4 with a signal,
+which I called Blk8*, taken from a 74LS138 in the console reacting to addresses
+>8000-8FFF. When such an address is accessed, wait states #3 and #4 are
+automatically enabled, regardless of the status of CRU bits 1 and 4. This
+lets us access the memory mapped devices with regular timing (except for
+wait states #1 and #2, but these affect the odd-numbered byte, which memory
+mapped devices ignore).
+<p>Bit4 is masked with an AND gate, from the piggy-backed chip, prior to
+being inverted. Bit1 could be masked the same way (actually that's what
+I did in my console), but we could also make use of the spare NAND gate
+left in the 74LS00. This is what I've described in the previous schematics.
+Since NAND is the same as AND plus NOT, the two solutions are equivalent.
+<h3>
+<br>
+<a NAME="Do it 0-WS"></a>Doing it</h3>
+This zero-wait-states modification build up on the other two, so do them
+first.
+<h4>
+<br>
+Step 1: Preparing the new chips</h4>
+Obtain a 74LS08, quad-AND gates, and a 74LS74 dual-latch. These are very
+common TTL chips that can be bought for less than 50 cents in any electronics
+outlet.
+<li>
+Bend out all pins on both chips, except for #7 and #14 (bottom left, and
+top right). NB: The top of the chip is where the notch (or dot), is embossed.</li>
+
+<li>
+Using a wire cutter, cut the bent-out pins at the point where they become
+narrower (i.e. from <tt>|==--</tt> to <tt>|== </tt>). This is necessary
+because chips are so crammed in the console that these stretched-out pins
+could make contact with neighbouring components!</li>
+
+<p><br>For the 74LS08:
+<pre><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-,_,-+&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp; =|&nbsp;&nbsp;&nbsp;&nbsp; |]&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp; =|&nbsp;&nbsp;&nbsp;&nbsp; |=&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [| : intact pin
+&nbsp;&nbsp;&nbsp;&nbsp; =|&nbsp;&nbsp;&nbsp;&nbsp; |=</font><font color="#FF0000">&nbsp;&nbsp;</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =| : bent &amp; trimmed&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp; =|&nbsp;&nbsp;&nbsp;&nbsp; |=&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp; =|&nbsp;&nbsp; 10|</font><font color="#FF0000">=-,</font><font color="#000000">&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp; =|&nbsp;&nbsp;&nbsp;&nbsp; |</font><font color="#FF0000">=-+</font><font color="#000000">&nbsp;
+&nbsp;&nbsp; </font><font color="#FF0000">,-[</font><font color="#000000">|&nbsp;&nbsp;&nbsp;&nbsp; |= </font><font color="#FF0000">|
+</font><font color="#000000">&nbsp;&nbsp; </font><font color="#FF0000">|</font><font color="#000000">&nbsp; +-----+&nbsp; </font><font color="#FF0000">|</font><font color="#000000">&nbsp;
+&nbsp;&nbsp; </font><font color="#FF0000">|</font><font color="#000000">&nbsp;&nbsp; 74LS08&nbsp; </font><font color="#FF0000">|
+</font><font color="#000000">&nbsp;&nbsp; </font><font color="#FF0000">'-----------'</font></pre>
+
+<li>
+Using gauge 30 wire, connect together pin #9, #10 and pin #7. This grounds
+the inputs of the unused gate, to prevent oscillations.</li>
+
+<p><br>And for the 74LS74
+<pre>&nbsp;&nbsp;&nbsp; <font color="#FF0000">,-----------,
+</font><font color="#000000">&nbsp;&nbsp;&nbsp; </font><font color="#FF0000">|</font><font color="#000000">&nbsp; +-,_,-+&nbsp; </font><font color="#FF0000">|
+</font><font color="#000000">&nbsp;&nbsp;&nbsp; </font><font color="#FF0000">|</font><font color="#000000"> =|&nbsp;&nbsp; 14|</font><font color="#FF0000">]-+</font><font color="#000000">&nbsp;
+&nbsp; </font><font color="#0000FF">,-</font><font color="#FF0000">|</font><font color="#0000FF">-=</font><font color="#000000">|2&nbsp;&nbsp;&nbsp; |= </font><font color="#FF0000">|</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [| : intact pin
+&nbsp; </font><font color="#0000FF">|</font><font color="#000000"> </font><font color="#FF0000">|</font><font color="#000000"> =|&nbsp;&nbsp; 12|</font><font color="#FF00FF">=-</font><font color="#FF0000">|</font><font color="#FF00FF">-,</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =| : bent &amp; trimmed&nbsp;
+&nbsp; </font><font color="#0000FF">|</font><font color="#000000"> </font><font color="#FF0000">'-=</font><font color="#000000">|4&nbsp;&nbsp;&nbsp; |= </font><font color="#FF0000">| </font><font color="#FF00FF">|
+</font><font color="#000000">&nbsp; </font><font color="#0000FF">|</font><font color="#000000">&nbsp;&nbsp; =|&nbsp;&nbsp; 10|</font><font color="#FF0000">=-' </font><font color="#FF00FF">|</font><font color="#000000">&nbsp;
+&nbsp; </font><font color="#0000FF">|</font><font color="#000000"> </font><font color="#FF00FF">,-=</font><font color="#000000">|6&nbsp;&nbsp; 9|</font><font color="#0000FF">=-, </font><font color="#FF00FF">|</font><font color="#000000">&nbsp;
+&nbsp; </font><font color="#0000FF">|</font><font color="#000000"> </font><font color="#FF00FF">|</font><font color="#000000"> [|&nbsp;&nbsp;&nbsp;&nbsp; |= </font><font color="#0000FF">| </font><font color="#FF00FF">|
+</font><font color="#000000">&nbsp; </font><font color="#0000FF">|</font><font color="#000000"> </font><font color="#FF00FF">|</font><font color="#000000">&nbsp; +-----+&nbsp; </font><font color="#0000FF">| </font><font color="#FF00FF">|</font><font color="#000000">&nbsp;
+&nbsp; </font><font color="#0000FF">|</font><font color="#000000"> </font><font color="#FF00FF">|</font><font color="#000000">&nbsp;&nbsp; 74LS74&nbsp; </font><font color="#0000FF">| </font><font color="#FF00FF">|
+</font><font color="#000000">&nbsp; </font><font color="#0000FF">'-</font><font color="#FF00FF">|</font><font color="#0000FF">-----------' </font><font color="#FF00FF">|</font><font color="#0000FF">&nbsp;</font><font color="#000000">&nbsp;
+&nbsp;&nbsp;&nbsp; </font><font color="#FF00FF">'-------------'</font></pre>
+
+<li>
+Connect pin #14 (Vcc) to pin #4 and pin #10 (Pr*).</li>
+
+<li>
+Connect pin #9 to pin #2 (Qb to Da)</li>
+
+<li>
+Connect pin #6 to pin #12 (Qa* to Db). NB These two connections can be
+criss-crossed on top of the chip (see <a href="wait4.jpg">picture</a>).</li>
+
+<h4>
+<br>
+<font color="#000000">Step 2: Preparing the motherboard</font></h4>
+
+<pre><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#0000FF">|</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp; +-,_,-+&nbsp;&nbsp; </font><font color="#0000FF">|</font><font color="#000000">&nbsp;&nbsp; +-,_,-+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-,_,-+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-,_,-+&nbsp;
+&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; </font><font color="#0000FF">'-o</font><font color="#000000"> |1&nbsp;&nbsp;&nbsp; | </font><font color="#FF0000">|</font><font color="#000000">&nbsp; </font><font color="#FF00FF">|</font><font color="#000000">&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;
+&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; | </font><font color="#FF0000">|</font><font color="#000000">&nbsp; </font><font color="#FF00FF">|&nbsp;</font><font color="#000000"> |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;
+&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; 14|</font><font color="#FF0000">-'</font><font color="#FF00FF">o-'</font><font color="#000000">&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;
+&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#0000FF">|</font><font color="#000000"> |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;
+&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#0000FF">|</font><font color="#000000"> |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;
+&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; | </font><font color="#FF0000">,--o</font><font color="#0000FF">'-</font><font color="#000000">|6&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;
+&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; 10|</font><font color="#FF0000">---,</font><font color="#000000">&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; | </font><font color="#FF0000">'--</font><font color="#000000">&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;
+&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; </font><font color="#FF0000">|</font><font color="#000000">&nbsp;&nbsp; +-----+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-----+&nbsp;&nbsp;&nbsp;
+&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-----+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS74&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS00&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS194&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp; +-----+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; --[| : intact pin
+&nbsp; 74LS362&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ---| : cut pin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp; = 9904&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ---o : hole where pin was&nbsp;&nbsp;
+-------------------------------------------------+&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TMS 9900&nbsp; microprocessor&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |</font></pre>
+
+<li>
+Cut pin #10 of the 74LS194 and attach a wire to it (S1 input)</li>
+
+<li>
+Cut pin #14 of the 74LS194 and attach a length of wire to it (QB output).</li>
+
+<li>
+Remove the stump of pin #14 from the board, and solder another wire into
+this hole (goes to the 74LS74).</li>
+
+<li>
+Attach a wire to the hole where pin #1 of the 74LS74 was (inverted Start*
+signal)</li>
+
+<li>
+Cut pin #6 of the 74LS00, bend it out and attach a short wire to it. Be
+careful not to make your soldering too bulky, so it won't make contact
+with the chip that you're going to install on top of it..</li>
+
+<li>
+Remove the stump of pin #6 from the board, and solder another wire into
+this hole.</li>
+
+<h4>
+<font color="#000000">Step 3: Piggy-backing the new 74LS74</font></h4>
+
+<pre><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#0000FF">,--------------------------,
+</font><font color="#000000">&nbsp; +-,_,-+&nbsp;&nbsp; </font><font color="#0000FF">|</font><font color="#000000">&nbsp;&nbsp; +-,_,-+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-,_,-+&nbsp; </font><font color="#0000FF">|</font><font color="#000000">&nbsp;&nbsp;&nbsp; +-,_,-+&nbsp;
+&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; </font><font color="#0000FF">'-o</font><font color="#000000"> |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =|1&nbsp; 14|</font><font color="#FF0000">]</font><font color="#000000"> </font><font color="#0000FF">|</font><font color="#000000">&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;
+&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =|&nbsp;&nbsp; 13|</font><font color="#0000FF">--'</font><font color="#000000">&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;
+&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; 14|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#FF0000">[</font><font color="#000000">|3&nbsp;&nbsp;&nbsp; |=&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;
+&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</font><font color="#FF00FF"> </font><font color="#000000">=|&nbsp;&nbsp;&nbsp;&nbsp; |=&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;
+&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =|&nbsp;&nbsp;&nbsp;&nbsp; |=&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;
+&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =|&nbsp;&nbsp;&nbsp;&nbsp; |=&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;
+&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; 10|</font><font color="#FF0000">---,</font><font color="#000000">&nbsp; </font><font color="#FF0000">[</font><font color="#000000">|7&nbsp;&nbsp; 8|</font><font color="#FF0000">=-,</font><font color="#000000">&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;
+&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; </font><font color="#FF0000">|</font><font color="#000000">&nbsp;&nbsp; +-----+&nbsp; </font><font color="#FF0000">|</font><font color="#000000">&nbsp;&nbsp;&nbsp; +-----+&nbsp;
+&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-----+&nbsp;&nbsp; </font><font color="#FF0000">|</font><font color="#000000">&nbsp;&nbsp; 74LS74&nbsp;&nbsp; </font><font color="#FF0000">|</font><font color="#000000">&nbsp;&nbsp;&nbsp; 74LS00&nbsp;
+&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS194&nbsp;&nbsp; </font><font color="#FF0000">'------------'
+</font><font color="#000000">&nbsp; +-----+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [| : solder to underlying pin
+&nbsp; 74LS362&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ---| : cut pin&nbsp;
+&nbsp; = 9904&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ---o : hole where pin was&nbsp;
+-------------------------------------------------+&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TMS 9900&nbsp; microprocessor&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |</font></pre>
+
+<li>
+Install the new 74LS74 on top of the existing 74LS74. Solder pin #7 of
+both chips together. Repeat for pin #14 and pin #3 (NB Pin #3 of the underlying
+chip was previously cut and rewired. Solder pin #3 of the new chip to the
+rewired pin #3). Make sure no other pin will make contact with those of
+the underlying 74LS74.</li>
+
+<li>
+Attach the wire coming from the hole were pin #1 of the 74LS194 used to
+be, to pin #13 (Clr*) of the new 74LS74.</li>
+
+<li>
+Connect the wire coming from pin #10 of the 74LS194 to pin #8 (Q*) of the
+new 74LS74.</li>
+
+<h4>
+<br>
+Step 4: Piggy-backing the new 74LS08</h4>
+
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font color="#FF0000">,-----------------,
+</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font color="#FF0000">|</font>&nbsp;&nbsp; <font color="#0000FF">,-----------,</font> <font color="#FF0000">|
+</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#FF0000">|</font><font color="#FF00FF">,--</font><font color="#0000FF">|</font><font color="#FF00FF">---------,</font><font color="#000000"> </font><font color="#0000FF">|</font><font color="#000000"> </font><font color="#FF0000">|&nbsp;
+</font><font color="#000000">&nbsp; +-,_,-+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-,_,-+ </font><font color="#FF0000">|</font><font color="#FF00FF">|&nbsp; </font><font color="#0000FF">|</font><font color="#000000"> +-,_,-+ </font><font color="#FF00FF">|</font><font color="#000000"> </font><font color="#0000FF">|</font><font color="#000000"> </font><font color="#FF0000">|</font><font color="#000000"> +-,_,-+&nbsp;&nbsp;&nbsp;
+&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; | </font><font color="#FF0000">|</font><font color="#FF00FF">|&nbsp;</font><font color="#000000"> </font><font color="#0000FF">|</font><font color="#000000"> |&nbsp;&nbsp;&nbsp;&nbsp; | </font><font color="#FF00FF">|</font><font color="#FF0000"> </font><font color="#0000FF">|</font><font color="#FF0000"> '=</font><font color="#000000">|1&nbsp;&nbsp;&nbsp; |</font><font color="#FF0000">]
+</font><font color="#000000">&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; | </font><font color="#FF0000">|</font><font color="#FF00FF">|&nbsp;</font><font color="#000000"> </font><font color="#0000FF">|</font><font color="#000000"> |&nbsp;&nbsp;&nbsp;&nbsp; | </font><font color="#FF00FF">|</font><font color="#000000"> </font><font color="#0000FF">+--=</font><font color="#000000">|2&nbsp; 13|</font><font color="#FF0000">=---Blk8*
+</font><font color="#000000">&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; 14|</font><font color="#FF0000">-'</font><font color="#FF00FF">o&nbsp;</font><font color="#000000"> </font><font color="#0000FF">o</font><font color="#000000"> |3&nbsp;&nbsp;&nbsp; | </font><font color="#FF00FF">'-</font><font color="#0000FF">|</font><font color="#FF00FF">--=</font><font color="#000000">|3&nbsp; 12|</font><font color="#0000FF">=---Bit4
+</font><font color="#000000">&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; 11|</font><font color="#0000FF">=--'</font><font color="#000000">&nbsp; =|&nbsp;&nbsp;&nbsp;&nbsp; |=&nbsp;
+&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =|&nbsp;&nbsp;&nbsp;&nbsp; |=&nbsp;&nbsp;
+&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =|&nbsp;&nbsp;&nbsp;&nbsp; |=
+&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#FF0000">[</font><font color="#000000">|&nbsp;&nbsp;&nbsp;&nbsp; |=
+&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-----+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-----+&nbsp;
+&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-----+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS74&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS08&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS194&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; on top of&nbsp;&nbsp;&nbsp;&nbsp; on top of&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp; +-----+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS74&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS00&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp; 74LS362&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [ : solder to underlying pin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp; = 9904&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; --| : cut pin&nbsp;&nbsp;&nbsp; -=| : pin of top chip
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; --o : hole where pin used to be&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+-------------------------------------------------+&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TMS 9900&nbsp; microprocessor&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |</font></pre>
+
+<li>
+Install the new 74LS08 on top of the 74LS00. Solder pin #7 of both chips
+together. Repeat for pin #14. Make sure no other pin will make contact
+with those of the underlying 74LS00 (especially those to which you have
+soldered wires). Also make sure no pin touches the 74LS74 that we piggy-backed
+next to it.</li>
+
+<li>
+Connect pin #1 of the 74LS08 to bent-out pin #14 (QB) of the 74LS194.</li>
+
+<li>
+Attach the wire coming from the hole were pin #14 of the 74LS194 used to
+be, to pin #3 of the piggy-backed 74LS08.</li>
+
+<li>
+Connect pin #2 of the 74LS08 to the hole where pin #3 of the 74LS74 used
+to be (we cut that pin for the 1-wait-state modification. The hole gives
+us access to the Phi4* clock signal).</li>
+
+<li>
+Connect together pin #2 of the 74LS08 and pin #11 of the new 74LS74 (brings
+Phi4* to the latch).</li>
+
+<li>
+Connect pin #13 of the 74LS08 to pin #11 of the 74LS138 that the closest
+to the console side port. See <a href="#Blk8">diagram </a>above.</li>
+
+<li>
+Connect pin #12 of the 74LS08 to a CRU output of your choice. This will
+be Bit4.</li>
+
+<h4>
+<br>
+Step 5: Some more wiring</h4>
+
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#0000FF">,--------------------------,</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</font><font color="#FF0000">&nbsp;
+</font><font color="#000000">&nbsp; +-,_,-+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-,_,-+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-,_,-+&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#0000FF">|</font><font color="#000000"> +-,_,-+</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS00&nbsp;&nbsp;&nbsp; <font color="#0000FF">|</font>&nbsp; 74LS00<font color="#000000">&nbsp;&nbsp;&nbsp;
+&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; </font><font color="#FF00FF">,-=</font><font color="#000000">|1&nbsp;&nbsp;&nbsp; |]&nbsp;&nbsp;&nbsp; </font><font color="#0000FF">|</font><font color="#000000"> |&nbsp;&nbsp;&nbsp;&nbsp; |</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-,_,-+&nbsp;&nbsp; <font color="#0000FF">|</font>&nbsp; +-,_,-+&nbsp;&nbsp;
+<font color="#000000">&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; </font><font color="#FF00FF">|</font><font color="#000000"> =|&nbsp;&nbsp;&nbsp;&nbsp; |=&nbsp;&nbsp;&nbsp; </font><font color="#0000FF">|</font><font color="#000000"> |&nbsp;&nbsp;&nbsp;&nbsp; |</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; <font color="#0000FF">|</font>&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;
+<font color="#000000">&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; </font><font color="#FF00FF">|</font><font color="#000000"> [|&nbsp;&nbsp;&nbsp;&nbsp; |=&nbsp;&nbsp;&nbsp; </font><font color="#0000FF">|</font><font color="#000000"> |&nbsp;&nbsp;&nbsp;&nbsp; |</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; <font color="#0000FF">|</font>&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;<font color="#000000">&nbsp;
+&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; </font><font color="#FF00FF">|</font><font color="#000000"> =|&nbsp;&nbsp;&nbsp;&nbsp; |=</font><font color="#FF0000">&nbsp;&nbsp;&nbsp; </font><font color="#0000FF">'=</font><font color="#000000">|4&nbsp; 11|</font><font color="#FF0000">-----,</font>&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; <font color="#0000FF">|</font>&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;
+<font color="#000000">&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; </font><font color="#FF00FF">|</font><font color="#000000"> =|&nbsp;&nbsp;&nbsp;&nbsp; |= </font><font color="#0000FF">,---=</font><font color="#000000">|5&nbsp;&nbsp;&nbsp; |</font>&nbsp;&nbsp;&nbsp;&nbsp; <font color="#FF0000">|</font>&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; <font color="#0000FF">|</font>&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;
+<font color="#000000">&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; </font><font color="#FF00FF">|</font><font color="#000000"> =|&nbsp;&nbsp;&nbsp;&nbsp; |= </font><font color="#0000FF">|<u> </u></font><u><font color="#FF0000">o-=</font></u><font color="#000000">|6&nbsp;&nbsp;&nbsp;</font> <font color="#000000">|</font>&nbsp;&nbsp;&nbsp;&nbsp; <font color="#FF0000">|</font>&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; <font color="#0000FF">|</font>&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;
+<font color="#000000">&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; </font><font color="#FF00FF">|</font><font color="#000000"> [|&nbsp;&nbsp;&nbsp;&nbsp; |=&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |</font>&nbsp;&nbsp;&nbsp;&nbsp; <font color="#FF0000">|</font>&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; <font color="#0000FF">|</font>&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;
+<font color="#000000">&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; </font><font color="#FF00FF">|</font><font color="#000000">&nbsp; +-----+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-----+&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#FF0000">|</font>&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; <font color="#0000FF">|</font>&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;
+<font color="#000000">&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-----+&nbsp;&nbsp;&nbsp; </font><font color="#FF00FF">|</font><font color="#000000">&nbsp; 74LS74&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS08&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#FF0000">|</font><font color="#000000">&nbsp; </font>+-----+&nbsp;&nbsp; <font color="#0000FF">|</font>&nbsp; +-----+&nbsp;&nbsp;
+<font color="#000000">&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS194&nbsp;&nbsp;&nbsp; </font><font color="#FF00FF">|</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; on top of&nbsp;&nbsp; </font><font color="#FF0000">|</font><font color="#000000">&nbsp; </font>+-,_,-+&nbsp;&nbsp; <font color="#0000FF">|</font>&nbsp; +-,_,-+&nbsp;&nbsp;
+<font color="#000000">&nbsp; +-----+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#FF00FF">|</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS00&nbsp;</font>&nbsp;&nbsp;&nbsp;&nbsp; <font color="#FF0000">|</font>&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; <font color="#0000FF">|</font>&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;
+<font color="#000000">&nbsp; 74LS362&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#FF00FF">|</font><font color="#000000">&nbsp;&nbsp; ___| : bottom chip&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#FF0000">|</font>&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; <font color="#0000FF">|</font>&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;
+<font color="#000000">&nbsp; = 9904&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#FF00FF">|</font><font color="#000000">&nbsp;&nbsp; --=| : top chip&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#FF0000">|</font>&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; <font color="#0000FF">|</font>&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font color="#FF00FF">'--------------------------,</font> <font color="#FF0000">|</font>&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; <font color="#0000FF">|</font>&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<font color="#000000">---------------------------------------------------+&nbsp; </font><font color="#FF00FF">|</font><font color="#000000"> </font><font color="#FF0000">'------------</font><font color="#0000FF">|</font><font color="#FF0000">--</font>|5&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;
+<font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TMS 9900&nbsp; microprocessor&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;</font> <font color="#FF00FF">|</font>&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; <font color="#0000FF">'-[</font>|6&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;
+<font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;</font> <font color="#FF00FF">|</font>&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |
+<font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;</font> <font color="#FF00FF">|</font>&nbsp;&nbsp;&nbsp; +-----+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-----+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp; <font color="#FF00FF">|</font>&nbsp;&nbsp;&nbsp; 74LS32&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS04
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp; <font color="#FF00FF">|</font>&nbsp;&nbsp;&nbsp; +-,_,-+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp; <font color="#FF00FF">|</font>&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |
+---------------------------------------------------+&nbsp; <font color="#FF00FF">|</font>&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; | &lt;--74LS04
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font color="#FF00FF">|</font>&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <font color="#FF00FF">'----</font>|4&nbsp;&nbsp;&nbsp; |</pre>
+
+<li>
+Connect pin #1 of the 74LS74 to pin #4 of the 74LS04 that is the closest
+to the TMS9900 (Ready signal). Don't cut the pin on the 74LS04!</li>
+
+<li>
+Attach the wire coming from pin #6 of the 74LS00 to pin #5 of the 74LS08.</li>
+
+<li>
+Attach the wire coming from the hole where pin #6 of the 74LS00 was, to
+pin #6 of the 74LS08.</li>
+
+<li>
+Attach a wire to pin #11 of the 74LS08 and connect it to pin #5 of the
+74LS04 inverter. Pin #5 should be cut and bent out if it is grounded (it
+wasn't in my console). Alternatively, you might cut the trace that connects
+it to the ground.</li>
+
+<li>
+Attach a wire to pin #6 of the 74LS04 inverter (no need to cut it) and
+connect it to pin #4 of the 74LS08.</li>
+
+<p><br>Here is a <a href="wait2.jpg">picture</a> where only the 74LS08
+was piggy-backed, and <a href="wait5.jpg">here</a> is one where both chips
+are in place. Only consider the green wires: the other colors correspond
+to different modifications. Two of which are making use of the spare bits
+on the TMS9901, so I had to implement an extra CRU interface in the console:
+you may notice that the CRU bits come from the left. Also, for historical
+reasons, I was not using the spare NAND gate, but rather the fourth AND
+gate on the piggy-backed 74LS08, following with yet another spare inverter
+on the 74LS04. The two circuits are equivalent. What's still missing here
+is a piece of electrical tape, to make sure the pins of the piggy-backed
+chips won't make contact with the metal shell around the motherboard.
+<h3>
+<br>
+<a NAME="Testing 0-ws"></a>Testing</h3>
+Use a debugger program that lets you control the CRU, like EasyBug (in
+the Mini-memory cartridge), MG's Explorer, or my Module Explorer (dowloadable
+<a href="download.htm#modexp">here</a>).
+Set the bits according to the table below.
+<pre><u>Condition&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Bit1 Bit2 Bit3 Bit4&nbsp; Wait states
+</u>4 wait states&nbsp;&nbsp; 0&nbsp;&nbsp;&nbsp; 0&nbsp;&nbsp;&nbsp; 0&nbsp;&nbsp;&nbsp; 0&nbsp;&nbsp;&nbsp;&nbsp; 1 2 3 4
+3 wait states&nbsp;&nbsp; 0&nbsp;&nbsp;&nbsp; 1&nbsp;&nbsp;&nbsp; 0&nbsp;&nbsp;&nbsp; 0&nbsp;&nbsp;&nbsp;&nbsp; - 2 3 4
+3 wait states&nbsp;&nbsp; 1&nbsp;&nbsp;&nbsp; 0&nbsp;&nbsp;&nbsp; 0&nbsp;&nbsp;&nbsp; 0&nbsp;&nbsp;&nbsp;&nbsp; 1 2 3 -
+2 wait states&nbsp;&nbsp; 1&nbsp;&nbsp;&nbsp; 1&nbsp;&nbsp;&nbsp; 0&nbsp;&nbsp;&nbsp; 0&nbsp;&nbsp;&nbsp;&nbsp; - 2 3 -
+1 wait state&nbsp;&nbsp;&nbsp; 1&nbsp;&nbsp;&nbsp; 1&nbsp;&nbsp;&nbsp; 1&nbsp;&nbsp;&nbsp; 0&nbsp;&nbsp;&nbsp;&nbsp; - - 3 -
+0 wait states&nbsp;&nbsp; x&nbsp;&nbsp;&nbsp; 1&nbsp;&nbsp;&nbsp; 1&nbsp;&nbsp;&nbsp; 1&nbsp;&nbsp;&nbsp;&nbsp; - - - -</pre>
+There are 9 additional combinations of bits, but these may yield weird
+results. For instance, 0 0 1 0 puts the computer in a forever waiting state
+(!). As a general rule, Bit3 should never be 1 unless Bit2 is also 1. And
+Bit4 should never be 1, unless both Bit2 and Bit3 are also 1.
+<p>You should run some kind of benchmark program to verify that the speed
+is actually increased. If you have "exotic" hardware, try and see if it
+can cope with the increase in speed. If not, try to figure out whether
+it's a hardware issue, or if the software contains timing loops that are
+now running too fast and could be ajusted.
+<p>Here's the results of my own tests:
+<h4>
+Cards RAM</h4>
+The original TI 32K memory card is hopeless, as it expects 6 clock cycles
+per access. However, SRAM based cards should work fine. I had no problem
+reading and writing the SRAM in my IDE card, even with zero wait states.
+<h4>
+<br>
+Cards ROM</h4>
+No problems here. All card ROMs read fine, even at zero-wait-states.
+<h4>
+<br>
+Floppy disk controller card</h4>
+This is a weird one: the modified console won't boot if the FDC card is
+present inside the PE-box. The card's light stays on, which means that
+the microprocessor is locked inside the card's power-up routine. I finally
+figured out that it was due to the fact that Memen* stays low between a
+write cycle and the next instruction acquisition. The problem was solved
+after I wired the second half of the 74LS74 to reload the 74LS194 after
+two cycles with no wait states.
+<h4>
+<br>
+Console</h4>
+Without the AND-gate masking , GPL used to crash if wait states were removed.
+The masking corrected the problem, as far as I can tell.
+<h2>
+<br>
+<a NAME="all or none"></a>Alternative, all-or-none, modification</h2>
+If you prefer, you can control all wait states with a single CRU bit. This
+only gives you two choices: four wait states, or none. My feeling is that
+it's a shame to give up the finer control on the wait states, but it's
+up to you. Note that I haven't personally tested this modification.
+<br>&nbsp;
+<table CELLSPACING=2 CELLPADDING=2 BGCOLOR="#CCCCE6" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>TMS9900|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS04&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS04
+&nbsp;&nbsp;&nbsp; WE*|---------------------------------------------------------|>o--------------,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |
+<font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#FF0000">,--+5V</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#3333FF">,--Blk8*</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS00&nbsp; ,----o(|=-,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#3333FF">,-o(|=--</font><font color="#FF0000">-Bit1</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS74(A) |
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; '04&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ,----o(|=---,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; '---o(|=------,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +------+&nbsp; |
+&nbsp; READY|-</font><font color="#3333FF">+</font><font color="#000000">-o&lt;|---o(|=--,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-------+ | </font><font color="#3333FF">Phi4*</font><font color="#000000">&nbsp;&nbsp;&nbsp; </font><font color="#3333FF">Phi1*-</font><font color="#000000">|Ck&nbsp; Q*|&nbsp; |
+-------+ </font><font color="#3333FF">|</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +5V--|Clr* QA|-'&nbsp;&nbsp; </font><font color="#3333FF">|</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp; |
+</font><font color="#3333FF">,--------'</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; '04 |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; QB|-----</font><font color="#3333FF">=|)</font><font color="#000000">----------|Pr*&nbsp;&nbsp; |&nbsp; | '00
+</font><font color="#3333FF">|</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +------+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp; ,--|>o-</font><font color="#3333FF">+</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; QC|----------+-------|D&nbsp;&nbsp;&nbsp; Q|--=|)o--WE*&nbsp;
+</font><font color="#3333FF">|</font><font color="#000000"> </font><font color="#3333FF">Phi3*--</font><font color="#000000">|Ck&nbsp;&nbsp; Q|------+--|------</font><font color="#3333FF">|</font><font color="#000000">-----------|S0&nbsp;&nbsp; QD|&nbsp;&nbsp; '04&nbsp;&nbsp;&nbsp; | +5V---|Clr*&nbsp; |&nbsp;&nbsp;
+</font><font color="#3333FF">|</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; Q*|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#3366FF">| ,---------</font><font color="#000000">|S1&nbsp;&nbsp; SR|--+--o&lt;|--'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +------+
+</font><font color="#3333FF">|</font><font color="#000000">SysRdy--|D&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#3333FF">| | Phi2*---</font><font color="#000000">|Ck&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp; '----------------------------A15
+</font><font color="#3333FF">|</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | Start*--'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#3333FF">| |</font><font color="#000000">&nbsp; </font><font color="#FF0000">Bit1-+-</font><font color="#000000">|A&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |
+</font><font color="#3333FF">|</font><font color="#000000">&nbsp; +5V---|Clr*&nbsp; |&nbsp;&nbsp;&nbsp; </font><font color="#3333FF">,-----------' |</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#FF0000">'-</font><font color="#000000">|B&nbsp;&nbsp;&nbsp; SL|</font><font color="#3333FF">---Gnd
+|</font><font color="#000000">&nbsp; +5V---|Pr*&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; </font><font color="#3333FF">|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |</font><font color="#000000">&nbsp;&nbsp; Gnd---|C&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |
+</font><font color="#3333FF">|</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +------+&nbsp;&nbsp;&nbsp; </font><font color="#3333FF">|&nbsp; +------+&nbsp;&nbsp; |</font><font color="#000000">&nbsp;&nbsp; </font><font color="#3333FF">Gnd---</font><font color="#000000">|D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | 74LS194
+</font><font color="#3333FF">|</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS74(B)&nbsp;&nbsp; </font><font color="#3333FF">'--|Clr*&nbsp; |&nbsp;&nbsp; |</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-------+
+</font><font color="#3333FF">|</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#3333FF">Phi4*-|Ck&nbsp; Q*|---'</font><font color="#000000">&nbsp;&nbsp;
+</font><font color="#3333FF">|</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#3333FF">+------+ +5V---|Pr*&nbsp;&nbsp; |</font><font color="#000000">&nbsp;
+</font><font color="#3333FF">'--------|Clr*&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |</font><font color="#000000">&nbsp;
+&nbsp;</font><font color="#3333FF">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; Q*|-------|D&nbsp;&nbsp;&nbsp; Q|--,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Same as above
+</font><font color="#000000">&nbsp; </font><font color="#3333FF">Phi1*--|Ck&nbsp;&nbsp; Q|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +------+&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#FF0000">Different
+</font><font color="#000000">&nbsp;&nbsp; </font><font color="#3333FF">+5V---|Pr*&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS74&nbsp;&nbsp; |
+</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#3333FF">|&nbsp;&nbsp;&nbsp;&nbsp; D|-----------------'
+</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#3333FF">+------+
+</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font color="#3333FF">74LS74&nbsp;</font><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</font></pre>
+</td>
+</tr>
+</table>
+
+<p>If you opt for this (untested) solution, perform all the modifications
+described above, with the following exceptions:
+<li>
+Pins #3 and #4 on the 74LS194 should be connected together so that they
+are controlled by the same CRU bit.</li>
+
+<li>
+When preparing the new 74LS08, connect pins #4, #5, to pin #7 (to ground
+the unused inputs).</li>
+
+<li>
+Do not cut the pin #6 of the 74LS00. Rather, cut pin #5, attach a wire
+to it and connect it to pin #14 of the 74LS74 (do not cut that one!). This
+forces pin #5 high.</li>
+
+<li>
+When installing the 74LS08 on top of the 74LS00, solder its pins #1, #2
+and #3 as described, but don't bother with pins #4, #5 and #6.</li>
+
+<p><br>Under these conditions, only one CRU bit comes into play. When this
+bit is high you have the normal, 4-wait-states, situation. When it's low
+you are in zero-wait-states mode.
+<h2>
+<br>
+<a NAME="CRU bits"></a>Finding CRU bits</h2>
+There are only two spare CRU outputs in the console: they belong to the
+TMS9901 controller that decodes the keyboard, controls the cassette tape
+interface, and forwards interrupts to the TMS9900. Pin #38 corresponds
+to CRU bit 16, and pin #37 to CRU bit 17. Both are low by default, but
+bit 17 is set high by the console power-up routine, before any access to
+the PE-box occurs.
+<p>Here's a <a href="clockup5.jpg">picture</a> in with pins #37 and #38
+are being use, albeit for a different modification than the one described
+here. This picture also shows connections to one of the free inverters
+in the console: the 74LS04 pins #5 and #6. This one comes handy when you
+need high-by-default CRU bits...
+<p>However, we need four bits to control all wait states. So where to find
+the extra two bits? One solution is to sacrifice some combinations. For
+instance, to control inputs A and B of the 74LS194 with the same bit. This
+limits the number of wait-state combinations that can be achieved, but
+it saves us one CRU bit.
+<p>Another solution is to make use of the TMS9901 outputs dedicated to
+the cassette tape interface, since almost nobody uses cassettes anymore.
+At the very least, you can sacrify the "audio gate" bit: it decides whether
+the cassette sound will be sent to the loudspeaker or not.
+<p>Here are the TMS9901 pins and bits assignments. As ususal, pin numbering
+starts from the top left pin (near the notch), down the left side of the
+TMS9901 (to pin #20), then up the right side from pin #21 (bottom) to #40
+(top right). Note that pins 37 and 38 can be used as such, but the other
+pins should be cut and bent out so there won't be any interference between
+our modifications and the circuitery that was connected to these pins.
+Just to be on the safe side, connect the pin stumps in the board to the
+ground, to disable said circuitery.
+<pre>&nbsp;&nbsp; +---,___,---+
+&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |
+&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |
+&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 38|]--&nbsp; Don't cut
+&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 37|]--&nbsp;&nbsp; "
+&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <u>Pin&nbsp; Bit Function
+</u>&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; #19&nbsp; 22&nbsp; CS1 motor
+&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; #23&nbsp; 23&nbsp; CS2 motor
+&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; #27&nbsp; 24&nbsp; Audio gate
+&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; #28&nbsp; 25&nbsp; Output to cassette
+&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; #37&nbsp; 17&nbsp; Free (high upon power-up)
+&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; #38&nbsp; 16&nbsp; Free
+&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |
+&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 28|--&nbsp;&nbsp; Cut, ground stumps.
+&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 27|--&nbsp;&nbsp;&nbsp; "
+&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |
+&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |
+&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |
+&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 23|--&nbsp;&nbsp; Ditto.
+&nbsp;--|19&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |
+&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |
+&nbsp;&nbsp; +-----------+</pre>
+
+<p><br>But even six bits might not be enough: there are other console modifications
+that require CRU bits. If you are after speed, an obvious one is my <a href="clockup.htm">clock
+modification</a> that lets you choose between 3 MHz and 4 MHz. And then,
+there is Jeff Brown's <a href="intmod.htm">interrupts mod</a>, then the
+page switching bit in case you <a href="eeproms.htm#console">replaced the
+console ROMs</a> with EEPROMs, etc.
+<p>So a more elegant solution is to install our own CRU interface within
+the console. It only requires two chips for 8 output bits, but the design
+is expandable to 9 chips (64 output bits or 32 input + 32 output). Check
+it out <a href="conscru.htm">here</a>.
+<h3>
+<br>
+<a NAME="Software control"></a>Software control</h3>
+
+<h4>
+Your programs</h4>
+It's important to be able to turn wait states on/off since there may be
+hardware that does not do well with fewer wait states.
+<p>However, different users implementing these modifications may select
+different CRU bits do to the job. So write your programs in such a way
+that they can easily be patched. My suggestion is to include a table at
+the beginning of your program, with the CRU address and all commands used:
+<br>&nbsp;
+<table CELLSPACING=2 CELLPADDING=2 BGCOLOR="#E6E6E6" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre><tt>WSCRU&nbsp; DATA >0400&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CRU used&nbsp;&nbsp;&nbsp;
+WS1OFF SBO&nbsp; 2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Turn off wait state #1
+WS1ON&nbsp; SBZ&nbsp; 2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Turn if back on
+WS2OFF SBO&nbsp; 3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Turn off wait state #2
+WS2ON&nbsp; SBZ&nbsp; 3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Turn if back on
+WS3OFF SBO&nbsp; 4&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Turn off all wait states
+WS3ON&nbsp; SBZ&nbsp; 4&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Turn them back on
+WS4OFF SBO&nbsp; 1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Turn off wait state #4
+WS4ON&nbsp; SBZ&nbsp; 1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Turn if back on</tt></pre>
+</td>
+</tr>
+</table>
+
+<p>Then, within you program, just execute these commands with the X instruction:
+<br>&nbsp;
+<table CELLSPACING=2 CELLPADDING=2 BGCOLOR="#E6E6E6" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MOV&nbsp; @WSCRU,R12&nbsp;&nbsp; Load proper CRU
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; X&nbsp;&nbsp;&nbsp; @WS4OFF&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Turn off wait state #4
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; X&nbsp;&nbsp;&nbsp; @WS1OFF&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; And wait state #1
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; etc.</tt></pre>
+</td>
+</tr>
+</table>
+
+<p>This way, someone using different CRU bits only needs to modify the
+initial table, rather than your whole program. You may even offer a configuration
+routine to do this from user input.
+<h4>
+<br>
+Existing programs</h4>
+As a general rule, any piece of hardware that requires a delay loop in
+the software will not operate properly as high speed. A typical example
+is the disk controller: the DSRs wait for the drive to answer within a
+given time frame, then report an error. If you speed up execution by a
+factor of three, errors will be reported quite frequently!
+<p>There are two solutions to this problem: the best one is to modify the
+value of the delay loops, so they wait longer. This is difficult to do
+in the case of the disk DSRs, unless you replace the card ROMs with EEPROMs,
+as described <a href="eeproms.htm#RS232%20card">elsewhere</a>.
+<p>The other solution is to switch back to 4-wait-states before you call
+a routine with delay loops in it. Reserve the faster modes for your own
+routines.
+<br>&nbsp;
+<address>
+Preliminary 8/1/02 Not tested, not for release</address>
+
+<address>
+Revision 1. 11/11/02 Built and tested. Ok to release but needs pictures.</address>
+
+<address>
+Revision 2. 11/18/02 Further polished. Pictures added.</address>
+
+<address>
+Revision 3. 11/26/02 Solved the Write-acquire problem (i.e. included a
+74LS74). New pictures.</address>
+
+<address>
+Revision 4. 11/27/02 Further polished.</address>
+
+<address>
+Revision 5. 11/4/08 Corrected a few typos in schematics, added blue color
+for previous mods.</address>
+
+<br>&nbsp;
+<p><br>
+<center>
+<p><a href="titechpages.htm">Back to the TI-99/4A Tech Pages</a></center>
+
+</body>
+</html>

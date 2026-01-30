@@ -1,0 +1,115 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+  <title></title>
+  <meta name="Author" content="">
+  <meta name="GENERATOR"
+ content="Mozilla/3.04Gold (Win95; U) [Netscape]">
+</head>
+<body>
+<h1 align="center"><a
+ href="http://www.nouspikel.com/ti99/titechpages.htm"><img
+ src="logo.jpg" style="border: 0px solid ; height: 33px; width: 95px;"
+ title="" alt=""></a></h1>
+<h1>Floppy disk controller card</h1>
+<p><br>
+<img src="fdc.jpg" alt="Blow-up of FDC card" height="372" width="568"></p>
+<p><br>
+<br>
+PE-box connector</p>
+<li>Connections #2 to 60 on this side, connections #1 to 59 on back side</li>
+<li><b>244</b>: three 8-bit buffers, 74LS244 for the address bus and
+control
+lines.</li>
+<li><b>245</b>: A 8-bit transceiver, 74LS245 for the data bus.</li>
+<li><b>125</b>: A quad 74LS125 buffers, for 3-state output signals
+(e.g.
+RDBENA* , READY*, EXTINT*).</li>
+<li><b>7805</b>: Voltage regulator, TL780-05C, +5 volts. Nearby, is a
+47uF
+bypass cap.</li>
+<li><b>7812</b>: Voltage regulator, 78M12C, +2 volts. Nearby, is a 47uF
+bypass cap.</li>
+<li><b>-5</b>: Negative voltage regulator, 79L05A, -5 volts</li>
+<p><br>
+CRU logic</p>
+<li><b>259</b>: An 8-bit addressable latch, 74LS259 for CRU output
+operations.</li>
+<li><b>251</b>: An 8-to-1 multiplexer, 74LS251 for CRU input operations
+(unbuffered CRUIN line to the PE-box).</li>
+<li><b>T</b>: A transistor 2N3904 to control the LED.</li>
+<li><b>LEDs</b>: A yellow light-emitting diode reacts to CRU bit 0.<br>
+</li>
+<p>Address selection logic</p>
+<li><b>Custom</b>: Custom control IC: 1500280-1 DCM00MI8240.</li>
+<li><b>27</b>: Half a dual 3-input OR gates 74LS27.</li>
+<li><b>30</b>: An 8-imput AND gate 74LS30.</li>
+<li><b>11</b>: One gate out of a triple 3-input AND gates, 74LS11
+(another
+gate handles the reset signal, with a 47 uF cap. The third gate is
+unused).</li>
+<p><br>
+Wait-state logic</p>
+<li><b>74</b>: A dual flip-flop 74LS04</li>
+<li><b>32</b>: Two gates out of a quad OR gates 74LS32</li>
+<li><b>27</b>: One gate out of a triple 3-input OR gate 73LS27</li>
+<li><b>04</b>: Three inverters out of hex inverter chips 74LS04</li>
+<p><br>
+Drive interface</p>
+<li><b>DSK1: </b>A 34-pin connector for the internal drive (odd pins
+are
+all grounded).</li>
+<li><b>DSK2</b>: A 34-pin card-edge for external drives (odd pins on
+the
+back side, all grounded).</li>
+<li><b>74</b>: Two dual flip-flops 74LS74.</li>
+<li><b>123</b>: Three one-shots out of two dual one-shot 74LS123. The
+last
+one generates the motor strobe pulse (47 uF cap).</li>
+<li><b>00</b>: Six gates out of two quad NAND gates 74LS00</li>
+<li><b>04</b>: Three inverters out of a 74LS04. All the above serve to
+demultiplex the READ signal from the drive.</li>
+<li><b>244</b>: An 8-bit buffer 74LS244 for input lines from drive.</li>
+<li><b>38</b>: A triple-NAND gate, 74LS38. Output to the drive. On some
+boards: two piggy-backed chips (???).</li>
+<li><b>16</b>: Hex-inverter 7416 (not LS). Output to the drive.</li>
+<li><b>2901</b>: A 12V buffer LM2901N. Drive selection feedback to the
+74LS251 (???).</li>
+<p><br>
+ROM</p>
+<li><b>ROM</b>: Two 4K ROMs, one for odd bytes, one for even bytes.
+Labelled
+DBT8240 (both), CD3233A &amp; CD3234A. Controlled by the custom IC.</li>
+<p><br>
+Controller</p>
+<li><b>FD1771</b>: Floppy disk controller. Western digital, FD1771B-01,
+socketed.</li>
+<li><b>Xtal:</b> Crystal 8.0000 MHz. </li>
+<li><b>04</b>: Two 74LS04 inverters mounted as a flip-flop driven by
+the
+crystal.</li>
+<li><b>00</b>: Two NAND gates, out of a 74LS00. Mounted as inverters to
+buffer the clock signal.</li>
+<li><b>161</b>: A counter74LS161 to divide the crystal frequency.</li>
+<li><b>139</b>: Half a dual 2-to-4 decoder (controls WE* and RE*
+lines).&nbsp;Also
+uses a 74LS32 OR gate.</li>
+<p><br>
+Unused gates</p>
+<li>04: Three inverters (from 3 distinct chips).</li>
+<li>16: One inverter</li>
+<li>11: A 3-input AND gate</li>
+<li>27: A 3-input OR gate</li>
+<li>244: One buffer gate.</li>
+<li>139: Half a dual 2-to-4 decoder</li>
+<p>For more details, see my <a href="disks.htm">page</a> on the FDC
+card.</p>
+<address><br>
+<br>
+Revision 1. 8/25/01. OK to release.</address>
+<center>
+<p><br>
+<a href="titechpages.htm">Back to the TI-99/4A Tech Pages</a></p>
+</center>
+</body>
+</html>

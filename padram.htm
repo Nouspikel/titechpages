@@ -1,0 +1,441 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+  <title></title>
+  <meta name="Author" content="">
+  <meta name="GENERATOR"
+ content="User-Agent: Mozilla/3.04Gold (Macintosh; I; PPC)">
+</head>
+<body>
+<h1 align="center"><a
+ href="http://www.nouspikel.com/ti99/titechpages.htm"><img
+ src="logo.jpg" style="border: 0px solid ; height: 33px; width: 95px;"
+ title="Back to main index" alt=""></a></h1>
+<h1>Scratch-pad RAM</h1>
+<p>The TI-99/4A console contains 256 bytes of RAM that appear at
+address
+&gt;8000-80FF. As the address is not fully decoded, the same memory
+appears
+at &gt;8100-81FF, at &gt;8200-82FF, and at &gt;8300-83FF. The
+convention
+is to use the &gt;8300 addresses, however well-written programs (such
+as
+the ROM DSR in the TI cards) figure out where the RAM actually lies and
+never specify any "hard-coded" address.</p>
+<p>This tiny memory is called the scratch-pad RAM and is the only CPU
+RAM
+in the console. Surprisingly, it is made of static RAM, which was a
+very
+expensive solution for the time. Probably because the TI-99/4A was
+originally
+designed around a microprocessor containing 256 bytes of RAM. When the
+TMS9900 was substituted for it, external RAM had to be added and SRAM
+was
+chosen because it did not require a refresh circuit like DRAM (or so I
+was told).</p>
+<p>The scratch-pad is implemented as two 128 bytes chips, one holding
+the
+odd bytes, the other one holding the even bytes. Together, they make up
+a 16-bit data bus which results in quicker memory access. Apart for the
+console ROMs, this is the only 16-bit memory in the TI-99/4A system.</p>
+<p><a href="#Pinout">Pinout<br>
+</a><a href="#content">Content</a></p>
+<h2><a name="Pinout"></a>Pinout</h2>
+<pre>         +----+--+----+ <br>     Vss |1 o  M    24| Vcc              MCM 6810P<br>  D0/D11 |2    C    23| A6<br>  D1/D10 |3    M    22| A5<br>  D6/D9  |4         21| A4 <br>  D5/D8  |5    6    20| A3<br>  D3/D15 |6    8    19| A2<br>  D4/D14 |7    1    18| A1<br>  D2/D13 |8    0    17| A0 <br>  D7/D12 |9    P    16| R/W* <br>    CS0  |10        15| CS5 <br>    CS1* |11        14| CS4* <br>    CS2  |12        13| CS3<br>         +------------+</pre>
+<p><u>Power supply<br>
+</u><b>Vcc </b>+5V<br>
+<b>Vss </b>Ground</p>
+<p><br>
+<u>CPU interface<br>
+</u><b>A0-A6</b> Address bus. Connected to the console address bus,
+lines
+A8 to A14.<br>
+<b>D0-D7</b> Data bus. In the TI-99/4A, one chip is connected to lines
+D0 to D7, the second chip to lines D8-D15.</p>
+<p><b>CS1*</b> Chip select. In the TI-99/4A, active (low) when memory
+in
+the range &gt;8000-83FF is accessed. The selection is performed by a
+74LS138
+decoder, with A0, A1 and A2 as inputs, and MEMEN* as enabling input
+G2A*.
+Output Y4* is combined with address lines A3, A4 and A5 via three
+cascading
+OR gates. The output of the last gate controls CS1*.<br>
+<b>CS2, CS4<i>*,</i></b><i> </i><b>CS5</b>. Chip select. Hardwired to
+the
+ground in the TI-99/4A.<br>
+<b>CS0, CS3</b>. Chip select (active high). Hardwired to +5V in the
+Ti-99/4A.</p>
+<p><b>R/W*</b> Read/write selection: low for write operations, high for
+reads. In the console, this line is controlled directly by the WE* pin
+of the TMS9900 CPU.</p>
+<h2><br>
+<a name="content"></a>Contents</h2>
+<p>Being RAM, the scratch-pad can contain any kind of data. However,
+the
+TI operating system in the console ROMs expects some values at precise
+locations. So do the GPL interpreter, the TI-Basic interpreter and the
+Extended-Basic interpreter. Of course other programs may use the
+scratch-pad
+at their leisure... The tables below attempt at summarizing important
+values.</p>
+<p>The first part of the scratch-pad is used mainly by TI-Basic and
+Extended
+Basic. If a program does not require any of these languages, these
+bytes
+are free for use.</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Address</th>
+      <th>Use</th>
+    </tr>
+    <tr>
+      <td>&gt;8300-8316</td>
+      <td>Temporary variables storage.</td>
+    </tr>
+    <tr>
+      <td>&gt;8318</td>
+      <td>Used by LINK + LOAD. Also: beginning of string space.</td>
+    </tr>
+    <tr>
+      <td>&gt;831A</td>
+      <td>First free address in VDP. Also: end of string space.</td>
+    </tr>
+    <tr>
+      <td>&gt;831C</td>
+      <td>PAB error or temporary string pointer.</td>
+    </tr>
+    <tr>
+      <td>&gt;831E</td>
+      <td>Start of current Basic statement.</td>
+    </tr>
+    <tr>
+      <td>&gt;8320</td>
+      <td>Current screen address.</td>
+    </tr>
+    <tr>
+      <td>&gt;8322</td>
+      <td>Error code returned by assembly language routines.</td>
+    </tr>
+    <tr>
+      <td>&gt;8324</td>
+      <td>VDP value stack base pointer.</td>
+    </tr>
+    <tr>
+      <td>&gt;8326</td>
+      <td>Return address for assembly language routines.</td>
+    </tr>
+    <tr>
+      <td>&gt;8328</td>
+      <td>NUD table for assembly language routines.</td>
+    </tr>
+    <tr>
+      <td>&gt;832A</td>
+      <td>Ending screen display pointer.</td>
+    </tr>
+    <tr>
+      <td>&gt;832C</td>
+      <td>Program text or token pointer.</td>
+    </tr>
+    <tr>
+      <td>&gt;832E</td>
+      <td>Pointer to current line number, in line number table.</td>
+    </tr>
+    <tr>
+      <td>&gt;8330</td>
+      <td>Start of line number table pointer.</td>
+    </tr>
+    <tr>
+      <td>&gt;8332</td>
+      <td>End of line number table pointer.</td>
+    </tr>
+    <tr>
+      <td>&gt;8334</td>
+      <td>Data pointer for READ.</td>
+    </tr>
+    <tr>
+      <td>&gt;8336</td>
+      <td>Line number table pointer for READ.</td>
+    </tr>
+    <tr>
+      <td>&gt;8338</td>
+      <td>Address of intrinsic Poly constants ???</td>
+    </tr>
+    <tr>
+      <td>&gt;833A</td>
+      <td>Subprogram symbol table pointer.</td>
+    </tr>
+    <tr>
+      <td>&gt;833C</td>
+      <td>PAB address in VDP RAM: first link in PAB list.</td>
+    </tr>
+    <tr>
+      <td>&gt;833E</td>
+      <td>Symbol table pointer.</td>
+    </tr>
+    <tr>
+      <td>&gt;8340</td>
+      <td>VDP RAM free space pointer.</td>
+    </tr>
+    <tr>
+      <td>&gt;8342</td>
+      <td>Current char/token (value).</td>
+    </tr>
+    <tr>
+      <td>&gt;8344</td>
+      <td>Contains &gt;FF if RUN, else &gt;00 ( * READY * ).</td>
+    </tr>
+    <tr>
+      <td>&gt;8345</td>
+      <td>Extended Basic flag bits: 1=1 On break next,<br>
+3=1 Trace, 4=1 Edit mode, 5=1 On warning stop, <br>
+6=1 On warning next, 7=1 Auto-num, 0&amp;2 reserved.</td>
+    </tr>
+    <tr>
+      <td>&gt;8346</td>
+      <td>Crunch buffer destruction level (the crunch buffer is used<br>
+to convert a line of text into Basic tokens).</td>
+    </tr>
+    <tr>
+      <td>&gt;8348</td>
+      <td>Last subprogram block on stack.</td>
+    </tr>
+    <tr>
+      <td>&gt;836C</td>
+      <td>Floating point error address in GROM ??</td>
+    </tr>
+    <tr>
+      <td>&gt;836D</td>
+      <td>Contains &gt;08 for DSR call.</td>
+    </tr>
+  </tbody>
+</table>
+<p><br>
+The second part of the scratch-pad memory is more general and heavily
+used
+by the GPL interpreter and the console ROM routines. The names in the
+left
+column are used by my GPL assembler, most (but not all) of them are
+generally
+accepted.</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Mnemonic</th>
+      <th>Address</th>
+      <th>Use</th>
+    </tr>
+    <tr>
+      <td>FAC</td>
+      <td>&gt;834A-8352</td>
+      <td>Floating point accumulator (8 bytes)</td>
+    </tr>
+    <tr>
+      <td>PAB</td>
+      <td>&gt;834A-8354</td>
+      <td>PAB copy area</td>
+    </tr>
+    <tr>
+      <td>FLTERR</td>
+      <td>&gt;8354</td>
+      <td>Floating point error code</td>
+    </tr>
+    <tr>
+      <td>DSRSIZ</td>
+      <td>&gt;8354</td>
+      <td>Size of DSR name</td>
+    </tr>
+    <tr>
+      <td>DSRNAM</td>
+      <td>&gt;8356</td>
+      <td>Pointer to DSR name for LINK</td>
+    </tr>
+    <tr>
+      <td>ARG</td>
+      <td>&gt;835C-8364</td>
+      <td>Floating point argument (8 bytes)</td>
+    </tr>
+    <tr>
+      <td>VAL</td>
+      <td>&gt;836E</td>
+      <td>Pointer to real numbers value stack in VDP mem</td>
+    </tr>
+    <tr>
+      <td>FREE</td>
+      <td>&gt;8370</td>
+      <td>Highest free VDP memory address</td>
+    </tr>
+    <tr>
+      <td>VLPTR</td>
+      <td>&gt;8372</td>
+      <td>Pointer to top of value stack (in pad)</td>
+    </tr>
+    <tr>
+      <td>SBPTR</td>
+      <td>&gt;8373</td>
+      <td>Pointer to top of subroutine stack (in pad)</td>
+    </tr>
+    <tr>
+      <td>MODE</td>
+      <td>&gt;8374</td>
+      <td>Keyboard scanning mode</td>
+    </tr>
+    <tr>
+      <td>KEY</td>
+      <td>&gt;8375</td>
+      <td>Code if the key detected (&gt;FF = none)<br>
+Also: sign of a real number</td>
+    </tr>
+    <tr>
+      <td>JOYY</td>
+      <td>&gt;8376</td>
+      <td>Joystick vertical value (4, 0, &gt;FC) <br>
+Also: exponent of a real number</td>
+    </tr>
+    <tr>
+      <td>JOYX</td>
+      <td>&gt;8377</td>
+      <td>Joystick horizontal value (4, 0, &gt;FC)</td>
+    </tr>
+    <tr>
+      <td>RANDOM</td>
+      <td>&gt;8378</td>
+      <td>Random number, found after RND</td>
+    </tr>
+    <tr>
+      <td>TIMER</td>
+      <td>&gt;8379</td>
+      <td>VDP interrupt timer</td>
+    </tr>
+    <tr>
+      <td>AUTO</td>
+      <td>&gt;837A</td>
+      <td>Highest sprite in auto-motion</td>
+    </tr>
+    <tr>
+      <td>VDPSTS</td>
+      <td>&gt;837B</td>
+      <td>Copy of VDP status byte</td>
+    </tr>
+    <tr>
+      <td>GPLSTS</td>
+      <td>&gt;837C</td>
+      <td>GPL status byte</td>
+    </tr>
+    <tr>
+      <td>CCHA</td>
+      <td>&gt;837D</td>
+      <td>Char at current screen position</td>
+    </tr>
+    <tr>
+      <td>CROW</td>
+      <td>&gt;837E</td>
+      <td>Current screen row</td>
+    </tr>
+    <tr>
+      <td>CCOL</td>
+      <td>&gt;837F</td>
+      <td>Current screen column</td>
+    </tr>
+    <tr>
+      <td>SBSTA</td>
+      <td>&gt;8380-839F</td>
+      <td>Area reserved for subroutine stack (32 bytes, first 9 for
+Basic)</td>
+    </tr>
+    <tr>
+      <td>VLSTA</td>
+      <td>&gt;83A0-83BF</td>
+      <td>Area reserved for data stack (32 bytes)</td>
+    </tr>
+    <tr>
+      <td>INTWS</td>
+      <td>&gt;83C0</td>
+      <td>Interrupt routine workspace (32 bytes) Random number seed</td>
+    </tr>
+    <tr>
+      <td>AMSQ</td>
+      <td>&gt;83C2</td>
+      <td>ISR&nbsp;disabling flags: &gt;80 All, &gt;40 Motion, &gt;20
+Sound,
+&gt;10 Quit key </td>
+    </tr>
+    <tr>
+      <td>ISR</td>
+      <td>&gt;83C4</td>
+      <td>Interrupt Service Routine hook: routine to be executed</td>
+    </tr>
+    <tr>
+      <td>SNDTAB</td>
+      <td>&gt;83CC</td>
+      <td>Address of the sound table</td>
+    </tr>
+    <tr>
+      <td>SNDSIZ</td>
+      <td>&gt;83CE</td>
+      <td>Sound bytes to play (&gt;0100)</td>
+    </tr>
+    <tr>
+      <td>VDPR1</td>
+      <td>&gt;83D4</td>
+      <td>Copy of VDP register 1, used by SCAN</td>
+    </tr>
+    <tr>
+      <td>CLRSC</td>
+      <td>&gt;83D6</td>
+      <td>Screen timeout counter: decremented by 2, clears when 0</td>
+    </tr>
+    <tr>
+      <td>.</td>
+      <td>&gt;83D8</td>
+      <td>Return address saved by SCAN.</td>
+    </tr>
+    <tr>
+      <td>.</td>
+      <td>&gt;83DA to &gt;83DF</td>
+      <td>used for RTWP (workspace, pc and status).</td>
+    </tr>
+    <tr>
+      <td>GPLWS</td>
+      <td>&gt;83E0</td>
+      <td>GPL interpreter workspace</td>
+    </tr>
+    <tr>
+      <td>GBASE</td>
+      <td>&gt;83FA</td>
+      <td>GROM port currently used (normally &gt;9800)</td>
+    </tr>
+    <tr>
+      <td>SPEED</td>
+      <td>&gt;83FC</td>
+      <td>Speed value, added to TIMER</td>
+    </tr>
+    <tr>
+      <td>FLAGS</td>
+      <td>&gt;83FD</td>
+      <td>&gt;20 cassette operations, &gt;10 cassette verify, &gt;08
+16K VDP
+mem<br>
+&gt;02 multicolor mode, &gt;01 sound table in VDP mem</td>
+    </tr>
+    <tr>
+      <td>.</td>
+      <td>&gt;83FE</td>
+      <td>VDP write address port (&gt;8C02).</td>
+    </tr>
+  </tbody>
+</table>
+<address><br>
+Revision 1. 3/2/00 Preliminary<br>
+Revision II. 3/4/00 OK to release<br>
+Revision III. 7/18/01 Corrected XB flagbits in &gt;8345<br>
+Revision IV. 1/30/06&nbsp; Corrected description of CS1* decoding<br>
+</address>
+<center>
+<p><br>
+<a href="titechpages.htm">Back to the TI-99/4A Tech Pages</a><br>
+</p>
+</center>
+</body>
+</html>

@@ -1,0 +1,263 @@
+*-----------------------------------------------------------
+*      dsr routines           extra opcodes (A-C)               *
+*
+A50CE  LI   11,A4B4A          assembly load
+A50D2  MOV  11,@A51CA+2       ============= entry from LD
+       MOVB @H2000,@DSRNAM+15 space after filename
+       MOV  @PABDBF,@BEGIN    data buffer
+       CLR  @PABDBF
+A50E6  BL   @A513E            point to first sector
+ 
+       MOV  *6+,9             continue flag
+       JEQ  A50F4             last file
+       C    9,@HFFFF          >ffff
+       JNE  A51B6             no: error
+ 
+A50F4  MOV  @PABREC,0         # of bytes in file
+       JEQ  A50FE
+       C    *6,0              # of bytes to load
+       JH   A51B6             too big: error
+ 
+A50FE  INCT 6
+       MOV  *6+,8             address
+       MOV  @BEGIN,0          already memorized?
+       JNE  A510C             yes
+       MOV  8,@BEGIN          no: becomes starting address
+ 
+A510C  MOV  @PABDBF,0         data buffer
+       JNE  A5116             already set
+       MOV  8,@PABDBF         use address
+ 
+A5116  BL   @A517A            transfer program file
+       MOVB *6+,*8+           data: to cpu
+       ABS  9                 more ?
+       JEQ  A5132             no
+       LI   1,FILNAM          yes: find eo filename
+A5124  CB   *1+,@H2000
+       JNE  A5124
+       DECT 1                 back on last char
+       AB   @H0100,*1         increment it
+       JMP  A50E6             load it
+ 
+A5132  C    @BEGIN,@HFFFF     start address = ffff ?
+       JEQ  A51C6             yes: return to caller
+       B    @A43D6            no: execute
+*
+A513E  MOV  11,@A5176+2       point at first sector of program
+       BL   @A548C            --------------------- find file
+       JMP  A51B6             not found: error
+       CLR  3                 first sector
+       BL   @A5466            point at file header
+       MOVB @>000C(6),0       file status
+       COC  @H0100,0          program ?
+       JNE  A51B6             no: error
+       MOV  @>000E(6),10      # of sectors
+       DEC  10                minus header
+       MOVB @>0010(6),5       eof offset
+       SRL  5,8
+       JNE  A516A
+       LI   5,>0100           0 = 256
+A516A  BL   @A5670            find sector in file (in r3)
+       MOV  4,6
+       JEQ  A51B6             not found: error
+       BL   @A546A            point to it
+A5176  B    @0000             return address may vary
+*
+A517A  MOV  *11+,@A5194       transfer program to buffer
+       MOV  11,@A51B2+2       --------------------------
+       LI   0,>00FA           first sector: -6 bytes
+       JMP  A518C
+A5188  LI   0,>0100           other sectors: full size
+A518C  MOV  10,10
+       JGT  A5194
+       JLT  A51B2             done
+       MOV  5,0               last sector: up to eof offset
+A5194  MOVB *6+,*8+           transfer sector
+       DEC  0
+       JNE  A5194             next byte
+       DEC  10
+       JLT  A51B2             last sector
+       INC  3                 no: next
+       BL   @A5466            point at header
+       BL   @A5670            find it in file
+       MOV  4,6
+       JEQ  A51B6             not found: error
+       BL   @A546A            point at it
+       JMP  A5188             go on
+A51B2  B    @0000             return address may vary
+ 
+A51B6  C    @A51CA+2,@A50CE+2 called as opcode ?
+       JNE  A51C2             no (from LD)
+       B    @A4B52            yes: file error
+A51C2  INCT @A51CA+2          skip a jump
+A51C6  LDCR @PAGE0,0          page 0
+A51CA  B    @0000             return address may vary
+*
+*
+A51CE  LI   11,A4B4A          basic load
+A51D2  MOV  11,@A51CA+2       ========== entry from LD
+       BL   @A548C            find file
+       JMP  A51B6             not found: error
+       CLR  3                 first sector
+       BL   @A5466            point at header
+       MOVB @>000C(6),0       file status
+       MOVB @>0011(6),@WREGS+1 rec len in r0 lsb
+       BL   @A5670            find sector in file
+       MOV  4,6
+       JEQ  A51B6             not found: error
+       BL   @A546A            point at it
+ 
+       COC  @H8000,0          var ?
+       JNE  A520E             no
+       COC  @H0200,0          int ?
+       JNE  A520E             no
+       INC  0
+       CB   @WREGS+1,@HFF00   rec length = 254 ?
+       JEQ  A5224             yes: merge file
+A520E  COC  @H0100,0          program ?
+       JNE  A51B6             no: error
+ 
+       MOV  *6+,4             check mark
+       MOV  *6+,5             line # table address
+       MOV  *6+,8             program address
+       XOR  8,5
+       JEQ  A51B6             can't have same address
+       ABS  4
+       C    4,5               matches checkmark ?
+       JNE  A51B6             no: error
+A5224  LDCR @PAGE0,0          page 0
+ 
+       LI   1,>6370           check for x-basic module
+       BL   @A5FA8            gram write address >6370
+       CB   @>9800,@H06       contains >0600 ?
+       JNE  A51B6             no: error
+       MOVB @>9800,2
+       JNE  A51B6             no: error
+ 
+       LI   8,>81A0           screen off
+       BL   @A4682            set vdp register 1
+ 
+       LI   0,PABSTA          copy bias+name
+       LI   1,A5E1C           to buffer (loaded in high-mem)
+       LI   2,>0014
+A5252  MOV  *0+,*1+
+       DECT 2
+       JNE  A5252
+ 
+       LI   1,A5DFC           load x-basic launcher
+       MOV  *1+,0             at >A340
+       MOV  *1+,2             # of words (>005C)
+A5260  MOV  *1+,*0+
+       DECT 2
+       JNE  A5260
+ 
+       MOV  @>8370,1          highest free vdp address
+       LI   0,>8300
+       LI   2,>0100
+A5272  CLR  *0+               clear scratch-pad
+       DECT 2
+       JNE  A5272
+       MOV  1,@>8370          restore highest free
+       LI   1,>9E80           set sbr+data stack ptrs
+       MOV  1,@>8372
+       MOVB @WREGS+17,@>83D4  copy of vdp reg 1 (r8 lsb)
+ 
+       LI   8,>0820           clear vdp mem (basic area)
+       BL   *15
+       LI   2,>0168           from >0820 to >0988
+A5294  CLR  *14
+       DEC  2
+       JNE  A5294
+ 
+       LWPI >83E0
+       LI   13,>9800          grom base
+       LI   14,>0108          system flags
+       LI   15,>8C02          vdp port
+ 
+       LWPI WREGS
+       LI   0,>A370           x-basic launcher
+       MOV  0,@>83C4          in interrupt hook
+       B    @>A340            ramdisk off, return to gpl
+ 
+A52BA  B    @A51B6
+*
+*
+A52BE  LI   11,A4B4A          cartridge load
+A52C2  MOV  11,@A51CA+2       ============== entry from LD
+       CLR  @FLAG             first file flag
+       MOVB @A5354+3,@CRUVAL  card on: >1E
+       MOV  12,@RWFL          save cru base
+       MOVB @H2000,@DSRNAM+14 add 2 space to filename
+       MOVB @H2000,@DSRNAM+15
+A52E0  BL   @A513E            point at first sector of file
+ 
+       MOV  *6+,9             (g)ram domain 0 ?
+       JEQ  A535A             yes: to cpu with no bank access
+       C    9,@HFF00          idem (with cont flag)
+       JEQ  A535A
+ 
+       CB   9,@HFF00          check continue flag
+       JEQ  A52FA             must be either 0
+       CB   9,@HFF00+1        or >ff
+       JNE  A52BA             error
+ 
+A52FA  CB   @4(6),@A4000      first byte = >AA ?
+       JNE  A5310             no
+       CB   @7(6),@HA5        fourth byte = >A5 ?
+       JNE  A5310
+       MOVB @A5354+2,@CRUVAL  header: card off (>04)
+ 
+A5310  MOV  @PGRCRU,12        get gramcard cru base
+       JEQ  A5368             not set: next file
+       LI   0,>1200
+       MOV  9,1
+       ANDI 1,>00FF           (g)ram domain
+       CI   1,>0004
+       JL   A5368             0->5FFF: next file
+       CI   1,>0008
+       JH   A5348             ram banks
+       LDCR 0,8
+       INCT 6
+       MOVB *6+,@>9C02        set gram address
+       MOVB *6+,@>9C02
+       LI   8,>9C00           gram  write port
+A533C  LI   12,>0000          retrieve ramdisk cru
+       BL   @A517A            transfer program file
+       MOVB *6+,*8            data: to gram
+       JMP  A5368             next file
+RWFL   EQU  A533C+2           r/w flag, also cru buffer
+ 
+A5348  CI   1,>0009           check rambank code
+       JEQ  A5358             bank 0
+       CI   1,>000A
+       JH   A5368             illegal
+A5354  LI   0,>0A1E           bank 1
+A5358  LDCR 0,8               enable bank (varies)
+A535A  INCT 6
+       MOV  *6+,8             address
+       MOV  @A533C+2,12       retrieve ramdisk cru
+       BL   @A517A            transfer program file
+       MOVB *6+,*8+           data: to cpu
+ 
+A5368  MOV  @A533C+2,12       retrieve ramdisk cru
+       ANDI 9,>FF00           continue flag
+       ABS  9                 more files ?
+       JEQ  A5398             no
+       LI   1,FILNAM
+A5378  CB   *1+,@H2000        find eo filename
+       JNE  A5378
+       ABS  @FLAG             first file ?
+       JNE  A538C             no: increment last char
+       MOVB @ZERO,@>FFFF(1)   add a 0 (becomes 1)
+       INC  1
+A538C  DECT 1
+       AB   @H0100,*1         increment last char
+       INC  @FLAG             files count
+       JMP  A52E0             next file
+ 
+A5398  MOV  @PGRCRU,12        get gramcard cru
+       JEQ  A53A2             none
+       LDCR @CRUVAL,8         card on (off if header + byte >A5)
+A53A2  MOV  @RWFL,12          retrieve ramdisk cru
+       B    @A51C6            return
+*

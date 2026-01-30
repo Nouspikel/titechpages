@@ -1,0 +1,323 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+  <title>bugs</title>
+  <meta http-equiv="Content-Type"
+ content="text/html; charset=iso-8859-1">
+  <meta name="GENERATOR"
+ content="Mozilla/3.04Gold (Win95; U) [Netscape]">
+</head>
+<body>
+<h1 align="center"><a
+ href="http://www.nouspikel.com/ti99/titechpages.htm"><img
+ src="logo.jpg" style="border: 0px solid ; height: 33px; width: 95px;"
+ title="" alt=""></a></h1>
+<h1>Known TI-99/4A bugs</h1>
+<p>This page describes the few bugs that are known to plague the
+TI-99/4A
+console, the peripheral card DSRs or the cartridges. In short, anything
+that we have to live with, because it is engraved in ROM. </p>
+<p><b>Console</b> <br>
+<a href="#Restore">RESTORE command</a> <br>
+<a href="#Move">GPL MOVE opcode</a> <br>
+<a href="#XGPL">Extended GPL opcodes</a> <br>
+<a href="#Timer%20#1">Timer interrupt #1</a>, <a href="#Timer%20#2">#2</a>
+<br>
+<b>Disk Controller card</b> <br>
+<a href="#DSK.">DSK.diskname</a> <br>
+<a href="#Sub10-11">Subprograms &gt;10 and &gt;11</a> <br>
+<b>RS232 card</b> <br>
+<a href="#Foreign%20ints">Unrecognized interrupts</a> <br>
+<a href="#Timer%20ints">Timer interrupts</a> <br>
+<b>Mini-memory cartridge</b> <br>
+<a href="#call%20init">RAM-files with CALL INIT</a> <br>
+<b>Extended Basic cartridge</b> <br>
+<a href="#LINPUT">LINPUT #0</a> <br>
+<a href="#Recursive">Recursive calls</a> <br>
+<a href="#ELSEGOSUB">GOSUB before ELSE</a> <br>
+&nbsp; <br>
+&nbsp; </p>
+<h2>Console</h2>
+<h4><a name="Restore"></a>RESTORE command</h4>
+<p><b>Description</b>: The RESTORE command in the Basic interpreter (in
+association with DATA, not with files) will only work if the program is
+placed in the VDP memory. It won't work for a program placed in
+GRAM/GROM.
+</p>
+<p><b>Cause</b>: This is because it imports data from the VDP directly
+instead of calling the dedicated routine that checks whether the
+program
+lies in VDP RAM or in GROM. </p>
+<p><b>Fix</b>: None that I can think of. </p>
+<h4><a name="Move"></a>GPL opcode MOVE</h4>
+<p><b>Description</b>: The GPL interpreter crashes if a VDP register is
+used as a source operand for MOVE. </p>
+<p><b>Cause</b>: because VDP registers are write-only, the MOVE opcode
+is not supposed to accept them as source operand. However, the routine
+that checks for the operand type does not exclude VDP registers.
+Instead
+it branches at a crazy address in the interpreter. </p>
+<p><b>Fix</b>: None available. However, a good GPL assembler won't let
+you generate such a MOVE statement, so the problem should only occur
+when
+the interpreter went bananas and is reading data as if it were code.
+Which
+means that we are in big trouble anyhow... </p>
+<h4><a name="XGPL"></a>Extended GPL opcodes</h4>
+<p><b>Description</b>: GPL opcodes that do not belong to the original
+set
+crash the system. </p>
+<p><b>Cause</b>: Provision was made for these opcode to be handled in a
+peripheral card, with CRU address &gt;1B00. When one is encountered,
+the
+GPL interpreter turns this card on and branches to it... without making
+sure that the card is effectively here. And of course, such a card was
+never released. </p>
+<p><b>Fix</b>: The HSGPL card has a CRU address of &gt;1B00 and
+Flash-EEPROM
+memory in its DSR space. So it would be possible to implement an
+extended
+GPL interpreter to take care of these extra opcodes. At the very least,
+a routine that skips the proper number of operand bytes and returns to
+the interpreter. </p>
+<h4><a name="Timer #1"></a>Timer interrupts</h4>
+<p><b>Description</b>: The TMS9901 interrupt-handler comprises an
+internal
+decrementer that can be used to generate timer interrupts. However, the
+interrupt service routine (ISR) does not recognizes them and mistakes
+them
+for peripheral card interrupt. It is possible to set a flag to indicate
+that we are expecting timer interrupts, but then the ISR assumes that
+all
+interrupts come from the timer. If one actually comes from the VDP or a
+peripheral card, it will not be acknowledged and the computer is locked
+into an interrupt loop. </p>
+<p><b>Cause</b>: Poor design. The ISR is assuming that only the
+cassette
+DSRs will ever make use of the timer interrupts. </p>
+<p><b>Fix</b>: Disable VDP and peripheral interrupts before you set the
+flag that enables timer interrupts. (Poor man's fix). </p>
+<h4><a name="Timer #2"></a>Timer interrupts #2</h4>
+<p><b>Description</b>: When a timer interrupt occurs, the ISR gives you
+two options: </p>
+<ol>
+  <li>Return to the main program, skipping one word (used by the
+cassette
+routines to jump out of a JMP $ waiting loop).</li>
+  <li>Branch at an address of your choice, loosing the return point!</li>
+</ol>
+<p><b>Cause</b>: Poor design again. This part of the ISR was clearly
+written
+with only the cassette DSRs in mind. The return address is lost because
+branching is achieved by placing the desired address in R14 (thereby
+overwriting
+the return point) and performing a RTWP. </p>
+<p><b>Fix</b>: Enable interrupts at only one place in your program,
+with
+a LIMI 2 LIMI 0 pair of statements. This way you know where to come
+back:
+at the LIMI 2 statement. </p>
+<h2><br>
+Disk controller</h2>
+<h4><a name="DSK."></a>DSK.diskname DSR</h4>
+<p><b>Description</b>: If the DSK.diskname DSR does not find the
+required
+disk it retuns with an error, instead of letting another card have a go
+to it. Which means that we cannot have another controller card making
+use
+of DSK.diskname. </p>
+<p><b>Cause</b>: Poor design. It would have been a trivial matter to
+just
+return as if the DSR was not found. I guess the designers wanted a
+"File
+error" rather than a "Device error". </p>
+<p><b>Fix</b>: If you do have another card that handles DSK.disname
+properly
+(such as the Horizon Ramdisk), install it at CRU address &gt;1000 so
+that
+it is scanned before the disk controller (whose CRU address is
+&gt;1100).
+<br>
+Or: write your own DSRLNK routine, and make sure it checks CRU &gt;1100
+last. This won't work with Basic though, because it uses the GPL DSRLNK
+routine that's in the console ROM. <br>
+&nbsp; </p>
+<h4><a name="Sub10-11"></a>Subprograms &gt;10 and&nbsp; &gt;11</h4>
+<p><br>
+<b>Description</b>: Just as above. These subprograms expect the drive
+number
+to be passed in byte &gt;834C. If this number does not correspond to
+one
+of its drives (i.e. &gt;01 to &gt;03) the TI disk controller returns a
+file error. </p>
+<p><b>Cause</b>: Poor design again. TI never envisionnned that there
+could
+be other controllers around, that may support additional drive numbers.
+</p>
+<p><b>Fix</b>: If you have another card that handles subprograms &gt;10
+(sector read/write) and &gt;11 (format disk), make sure it is installed
+at CRU &gt;1000. <br>
+Or, write your own DSRLNK routine, that scans the TI controller last. </p>
+<h2><br>
+RS232 card</h2>
+<h4><a name="Foreign ints"></a>Unrecognized interrupts</h4>
+<p><b>Description</b>: The RS232 card contains two TMS9902 serial
+controllers,
+each of which can be set to generate interrupts upon various
+conditions.
+The card DSRs only make use of the reception interrupt, to signal that
+a new byte was received. However, if you enable interrupts for only one
+of these chips, the RS232 card will automatically enable the second as
+soon as it sees an interrupt coming from another card. </p>
+<p><b>Cause</b>: When it determines that an interrupt did not come from
+itself, the RS232 card resets the reception interrupt on both chips.
+However,
+it does not remember on which chip interrupts were enabled and enables
+either both or none. </p>
+<p><b>Fix</b>: Have another card whatch for such situations and restore
+the proper interrupt conditions in the TMS9902. Tricky. And requires a
+card with RAM in the DSR space and a CRU address higher than that of
+the
+RS232 card (so it is called after it). </p>
+<h4><a name="Timer ints"></a>Timer interrupts</h4>
+<p><b>Description</b>: Only reception interrupts are handled by the
+RS232
+card (albeit quite poorly as we just saw). If another type of interrupt
+occurs, the TMS9902 chip is reset, thereby disabling interrupts. This
+is
+a pain because the TMS9902 contains a nice timer that we could have
+enjoyed.
+</p>
+<p><b>Cause</b>: Poor design. </p>
+<p><b>Fix</b>: Trap this kind of interrupts within another card (such
+as
+the Horizon Ramdisk) and prevent the RS232 card from seeing them.
+Easier
+said than done... </p>
+<h2><br>
+Mini-memory cartridge</h2>
+<h4><a name="call init"></a>RAM-files and CALL INIT</h4>
+<p><font color="#ef1f1d">! Top winner bug !</font> </p>
+<p><b>Description</b>: The two RAM-files EXPMEM1 and EXPMEM2 become
+basically
+unavailable once a CALL INIT is performed, or if the Mini-memory is
+initialized.
+</p>
+<p><b>Cause</b>: Provision was made that EXPMEM1 and EXPMEM2 would not
+conflict with assembly language loaded by CALL LOAD. This was done with
+two 10-lines routines, one called by OPEN and SAVE, the other by
+DELETE.
+Well, this was obviously a last-minute hack because the sloppy
+programmers
+managed to leave two deadly bugs within the first routine. </p>
+<p>Bug #1 causes the file type to be saved as Dis/Fix no matter what it
+actually was. Which means that any file you create cannot be read back
+unless it is Dis/Fix (or program, because SAVE does not check the file
+type). </p>
+<p>Bug #2 increments the wrong pointer! Which means that any attempt to
+create an EXPMEM1 file prevents CALL LOAD from loading into the high
+memory
+expansion (instead of the low memory expansion). Furthermore, the file
+we just created cannot be accessed anymore because its characteristics
+are not placed at the right location (&gt;2004 instead of &gt;2000). </p>
+<p><b>Fix</b>: Temporarily "revert" the CALL INIT before opening
+a file with a CALL LOAD to address &gt;7000. We'll also need to patch
+the
+loader's pointers at &gt;7026 (if we are using EXPMEM1) or &gt;7022
+(for
+EXPMEM2) since this won't be done automatically. Finally, we need to
+restore
+the content of &gt;7000 before any CALL LINK, otherwise an error will
+be
+issued:0 </p>
+<pre>100 CALL LOAD(28672,0)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ! Clear initialization flag<br>110 OPEN #1:"EXPMEM1",whatever&nbsp;&nbsp;<br>120 CALL LOAD(28672,165)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ! Restore it (could wait until next CALL LINK)<br>130 CALL LOAD(28710,0,0,0,0)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ! Prevent CALL LOAD(filename) into the low memory expansion</pre>
+<p>For EXPMEM2. use address 28706 to prevent CALL LOAD from loading
+assembly
+programs into the high memory expansion. </p>
+<p>For more details, see my <a href="mm_mod.htm#Bug">Mini-memory page</a>.
+</p>
+<h2><br>
+Extended Basic</h2>
+<h4><a name="LINPUT"></a>LINPUT #0</h4>
+<p><b>Description</b>: LINPUT #X where X=0 gives a "Syntax Error"
+instead of taking input from the keyboard. </p>
+<p><i>(Contributed by Ben Yates)</i> </p>
+<p><b>Cause</b>: ? </p>
+<p><b>Fix</b>: None that I know of. </p>
+<h4><a name="Recursive"></a>Recursive subprogram calls</h4>
+<p><b>Description</b>: If a subprogram is allowed to call its caller,
+you
+may end up in a forever recursive loop. For example: </p>
+<pre>100 CALL A&nbsp;<br>110 SUB A&nbsp;<br>120 CALL B&nbsp;<br>130 SUBEND&nbsp;<br>140 SUB B&nbsp;<br>150 CALL A&nbsp;<br>160 SUBEND</pre>
+<p>With the black Extended Basic version 110 cartridge, you get: </p>
+<pre>* MEMORY FULL IN 110&nbsp;<br>CALLED FROM A&nbsp;<br>CALLED FROM B&nbsp;<br>CALLED FROM A . .</pre>
+<p>The computer keeps displaying these "<tt>CALLED FROM</tt>"
+for a coons life. </p>
+<p>By contrast, a beige style, newer 110 Extended BASIC detects nested
+calls and gives the following error message: </p>
+<pre>* RECURSIVE SUBPROGRAM CALL</pre>
+<p><i>(Contributed by Casey Vanlandingham)</i> </p>
+<p><b>Cause</b>: Actually, this is not a bug. Recursivity can be a very
+nice feature. It's just up to you to include the proper controls in
+your
+subprograms so that you don't get locked in a forever loop. The only
+buggy
+feature is that the error handling routine should not display all these
+<tt>CALLED FROM</tt> messages. </p>
+<p><b>Fix</b>: Only some of the old black modules do have this problem.
+It was "fixed" in later versions...which actually was a problem
+for people who were making proper use of the recursivity feature! </p>
+<p>" There is an interesting fact related to that bug: Do you know
+the software-house APESOFT ? (was from Austria, a family business from
+family Peschetz). They wrote and sold lots of graphic programs for XB,
+but they had this special 'recursive' Basic and USED THAT
+FEATURE!!!!!!!
+<br>
+...so most of their users got the above error code....and they had to
+modify
+their programs. " </p>
+<p><i>(Note by Michael Becker)</i> </p>
+<p>Oh, so that's what the "APE" in APESOFT stands for: Austria,
+PEschetz. </p>
+<h4><br>
+<a name="ELSEGOSUB"></a>GOSUB before ELSE</h4>
+<p><b>Description</b>: If you place a GOSUB before an ELSE in a
+coumpound
+statement, and the ELSE is not taken, execution skips the next
+statment.
+Here is an example: </p>
+<pre>60 D=0&nbsp;<br>70 IF D=0 THEN GOSUB 90 ELSE Y=0 :: P=3&nbsp;<br>80 GOTO 100&nbsp;<br>90 P=1 :: RETURN&nbsp;<br>100 PRINT "P = "&amp;STR$(P)</pre>
+<p>This program should print "P=1" right? At least it does so
+if you place aything else than a GOSUB before the ELSE. But with a
+GOSUB
+it actually prints P=3. </p>
+<p><i>(Contributed by Carsten, Denmark)</i> </p>
+<p>Cause: This "bug" is probably due to the fact that GOSUB returns
+to the next statement, not to the next line number. So the compound
+statment
+Y=0 :: P=3 (which is normally part of the ELSE branch, since IF does
+jump
+to the next line number) is split in two, and GOSUB returns at P=3.</p>
+<p>Fix: ? </p>
+<p>Note: The error is replicated in the following XBASIC cartridges: </p>
+<p>TI Extended BASIC version 110 <br>
+XB Vn 2.5 by Tony Knerr <br>
+Super Extended BASIC <br>
+Mechatronic Extended BASIC <br>
+Rich XB Vn 2001 </p>
+<p><i>(Note by Bob Carmany)</i> </p>
+<address>Revision 1. 7/17/01</address>
+<address>Revision 2. 7/7/03</address>
+<p><br>
+&nbsp; </p>
+<p>&nbsp; <br>
+&nbsp; <br>
+<br>
+<br>
+</p>
+<center>
+<p><a href="titechpages.htm">Back to the TI-99/4A Tech Pages</a>
+</p>
+</center>
+</body>
+</html>

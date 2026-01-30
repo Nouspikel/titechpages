@@ -1,0 +1,2354 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+  <title></title>
+  <meta name="Author" content="">
+  <meta name="GENERATOR"
+ content="Mozilla/3.04Gold (Win95; U) [Netscape]">
+</head>
+<body>
+<h1 align="center"><a
+ href="http://www.nouspikel.com/ti99/titechpages.htm"><img
+ src="logo.jpg" style="border: 0px solid ; height: 33px; width: 95px;"
+ title="Back to main index" alt=""></a></h1>
+<h1>Video Display Processor</h1>
+<h2>Introduction</h2>
+<p>The videoprocessor use in the TI-99/4A comes in three flavors, that
+differ uniquely by the kind of output signal they send to the monitor
+port.</p>
+<p>The TMS9918A issues a 525-lines, NTSC signal for US television
+format.<br>
+The TMS9928A issues a 525-line signal, in the form of a B&amp;W
+luminance/sync
+signal and two color differential signals. This is meant to drive a RGB
+monitor, with a minimal external circuitery.<br>
+The TMS9929A issues a 625-line signal, in the same format as the 9928A.
+It is meant for use with the european PAL system.</p>
+<p>Whatever its type, the VDP has four display modes: Bitmap (aka
+Graphic
+II), Standard (aka Graphic I), Multicolor and Text mode. All modes
+handle
+a 256x192 pixels screen in 16 colors except for text mode that handles
+a 240x192 pixel screen in 2 colors.</p>
+<p>The VDP has its own, dedicated memory, that could 4K, 8K or 16K (in
+the TI-99/4A it's 16K). This memory can be accessed by the CPU, but
+only
+through the VDP. The CPU displays objects on screen by placing the
+appropriate
+values in the VDP memory.</p>
+<p>The VDP contains 8 write-only registers that contains control bits
+or
+the memory address of tables used to generate the screen image. It also
+has a status register that can be read by the CPU.</p>
+<p><a href="#Pinout">Pinout</a> <br>
+<a href="#Registers">VDP registers</a></p>
+<p><b>Video modes<br>
+</b><a href="#Videomodes">Standard mode</a> <br>
+<a href="#Textmode">Text mode</a> <br>
+<a href="#Multicolor">Multicolor mode</a> <br>
+<a href="#Bitmap">Bitmap mode</a> <br>
+<a href="#hybrid%20bitmap">__Hybrid modes<br>
+</a><a href="#Bitmap%20text">Bitmap text mode<br>
+</a><a href="#Bitmap%20multicolor">Bitmap multicolor mode<br>
+</a><a href="#Illegal%20modes">Illegal modes<br>
+</a><a href="#Sprites">Sprites</a> </p>
+<p><b>RAM interface<br>
+</b><a href="#RAM%20inteface">Wiring</a> <br>
+<a href="#Derivation">Address derivation</a> </p>
+<p><b>CPU interface<br>
+</b><a href="#CPUinterface">Access ports</a> <br>
+<a href="#CPUtiming">Timing issues</a> <br>
+<a href="#CPUexamples">Programming examples</a> </p>
+<p><b>Monitor interface<br>
+</b><a href="#Monitor%20plug">Monitor plug<br>
+</a><a href="#Colors">Colors and gray levels</a> <br>
+<a href="#Sync">Synchronisation signals</a> </p>
+<p><b>Timing diagrams<br>
+</b><a href="#Time%20cpu">CPU interface</a> <br>
+<a href="#Time%20VRAM">VDP RAM interface</a> <br>
+<a href="#Time%20clock">Clock interface</a> <br>
+<a href="#Time%20monitor%209918A">Monitor interface, TMS9918A<br>
+</a><a href="#Time%20monitor%209928/9A">Monitor interface,
+TMS9928A/9929A</a>
+<br>
+<br>
+<a href="#Electrical">Electrical characteristics</a></p>
+<h2><a name="Pinout"></a>Pinout</h2>
+<pre>       +----+--+----+ <br>  RAS* |1 o       40| XTAL2<br>  CAS* |2         39| XTAL1<br>   AD7 |3    T    38| CPUCLK        R-Y  on TMS9928A/TMS9929A<br>   AD6 |4    M    37| GROMCLK<br>   AD5 |5    S    36| COMVID        Y    on TMS9928A/TMS9929A<br>   AD4 |6         35| EXTVDP        B-Y  on TMS9928A/TMS9929A<br>   AD3 |7    9    34| RESET*/SYNC <br>   AD2 |8    9    33| Vcc <br>   AD1 |9    1    32| RD0<br>   AD0 |10   8    31| RD1 <br>  R/W* |11   A    30| RD2<br>   Vss |12        29| RD3<br>  MODE |13        28| RD4 <br>  CSW* |14        27| RD5<br>  CSR* |15        26| RD6<br>  INT* |16        25| RD7<br>   CD7 |17        24| CD0<br>   CD6 |18        23| CD1 <br>   CD5 |19        22| CD2<br>   CD4 |20        21| CD3<br>       +------------+</pre>
+<p><u>Power supply<br>
+</u><b>Vcc</b>: +5 Volts<br>
+<b>Vss</b>: Ground</p>
+<p><u>Note:</u> The console power lines +12V, +5V, and -5V are further
+filtered before being applied to the VDP, RAMs and video circuitery.
+Possibly
+to avoid RF interference with the rest of the chips on the motherboard.
+In addition, the Vcc, Vdd and Vbb pins of each RAM chip are grounded
+via
+a dedicated 0.1 nF capacitor. See the oscillator schematic for the
+by-pass
+capacitors of the VDP.</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>           6.8 uH<br>+12V----+---UUU---+-------&gt; +12V video<br>        |         |<br>  10 nF =         = 22 uF<br>        |         |<br>       Gnd       Gnd</pre>
+      <pre>           6.8 uH<br>+5V --------UUU---+-------&gt; +5V video<br>                  |<br>                  = 22 uF<br>                  |<br>                 Gnd</pre>
+      <pre>           6.8 uH<br>-5V ----+---UUU---+-------&gt; -5V video<br>        |         |<br>  10 nF =         = 22 uF<br>        |         |<br>       Gnd       Gnd</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p><u>CPU interface<br>
+</u><b>CD0-CD7</b>: Cpu data bus. CDO is the most significant bit and
+is
+connected to D0 TMS9900 data bus.<br>
+<b>MODE</b>: CPU interface mode selection. In the TI-99/4A this pin is
+driven by the A14 address line (weight &gt;0002).<br>
+<b>CSR*</b>: CPU read strobe. The CPU sets this input pin low to read
+from
+the VDP. In the TI-99/4A this occurs when accessing even adresses in
+the
+range &gt;8800-8BFE.<br>
+<b>CSW*</b>: CPU write strobe. The CPU sets this input pin low to write
+to the VDP. In the Ti-99/4A this occurs when writing to even addresses
+in the range &gt;8C00-8FFE.<br>
+<b>INT*</b>: CPU interrupt output. The VDP uses this output pin to send
+an interrupt signal to the CPU. If enabled, interrupts are send each
+time
+a frame is completed, while the beam is tracing up to the upper left
+corner
+of the screen. This occurs about every 1/50th of a second for the
+TMS9929A
+and 1/60th of a second for the TMS9918A and TMS9928A. In the TI-99/4A
+the
+interrupt is received by the TMS9901 programmable interface system, pin
+#18 (INT2*).</p>
+<p><u>Memory interface<br>
+</u><b>AD0-AD7</b>: Address/data bus. AD0 is the most significant bit
+and
+is connected to DIN on the TMS4116 RAM chip. AD7 is the least
+significant
+bit and is connected to A0 on the TMS4116 RAM chip.<br>
+<b>RD0-RD7</b>: Read data bus. Each one of these input pins is
+connected
+to the DOUT pins of a TMS4116 RAM chip.<br>
+<b>R/W*</b>: RAM write strobe. Output pin used by the VDP to indicate
+read
+(high) or write (low) memory operations.<br>
+<b>CAS*</b>: RAM column address strobe. Output pin used by the VDP to
+set
+the memory column address.<br>
+<b>RAS*</b>: RAM rwo address strobe. Output pin used by the VDP to set
+the memory row address.</p>
+<p><u>Video interface<br>
+</u><b>COMVID</b>: Composite video output. Connected to pin 4 of the
+monitor
+port via a complicated amplification circuitery. On the TMS9928A and
+TMS9929A
+this pin is the <b>Y</b> signal (black&amp;white luminance and
+composite
+sync).<br>
+<b>EXTVID</b>: External video input (to combine a signal from another
+VDP).
+Connected to pin 5 of the monitor port and grounded via a 560 ohms
+resistor.
+On the TMS9928A and TMS9929A this pin is the <b>B-Y</b> color
+difference
+output.<br>
+<b>CPUCLK</b>: VDP color burst frequency clock.Connected to pin 2 of
+the
+monitor port and grounded via a 560 ohms resistor. This signal is also
+fed to the TMS9919 sound chip (pin 14, CLK) and to the GROMs (pin 13,
+GRCLK)
+via a jumper. On the TMS9928A and TMS9929A this pin is the <b>R-Y</b>
+color
+difference output.<br>
+<b>RESET*/SYNC</b>: This trilevel input pin serves both as a reset
+signal
+(when below 0.8V for at least 3 usec) and as a synchronizing input for
+external video (when above 9V). In the TI-99/4A it is connected to the
+RESET* output of the TMS9904 clock driver and thus used uniquely as a
+reset
+signal. Note that the VDP RAM is not refresh while this line is active
+and may thus loose data.</p>
+<p><u>Clock interface<br>
+</u><b>XTAL1-2</b>: Connections for an external 10.738635 MHz crystal.<br>
+<b>GROMCLK</b>: VDP output clock. This output pin carries a signal that
+correspods to XTAL/24. It is pulled up to +5V with a 1K resistor and
+connected
+to the GROMs (pin 13, GRCLK) via a jumper. According to the VPD used,
+it
+is thus possible to select either CPUCLK or GROMCLK as a clock signal
+for
+GROMs.<br>
+<br>
+In the TI-99/4A the following circuit is used:</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>                                +----------+     <br>  ,----------------------+      |    VDP   |<br>  |                      |      |          |<br>  |  +5V--+---UUU---+----+------|Vcc       |<br>  |       |  5.8 uH |    |      |          |<br>  |   10pF=    100nF= 1pF=      |          |<br>  |       |         |    |      |          |<br>  |  Gnd--+---------+----+------|Vss       |<br>  |        S.R.                 |          |<br>  '--WWW---UUU---+---+---+------|XTAL1     |  <br>   470 Ohm       |  <u> | </u>  |      |          |<br>            56 uF=  <u>===</u>  E      |          |<br>                 |   |   E 470K |          |<br>                Gnd  3   E      |          |<br>                     3   |      |          |<br>           2-&gt;4.5 uH 3   |      |          |<br>                     |   |      |          |<br>                     +---+------|XTAL2     |<br>                     |          |          |<br>               12 pF =          +----------+<br>                     |<br>                    Gnd</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>It would also be possible to use an external oscillator, driving two
+TTL inverters as follow:</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>  +---+       +5V---www---+         +----------+   <br>  |Osc|                   |         |          |<br>  |   |---|&gt;o---+---------+---------|XTAL1     |<br>  +---+         |                   |          |<br>                '---|&gt;o---+---------|XTAL2     |<br>                          |         |          |<br>              +5V---www---+         |          |<br>                                    |          |<br>                                    +----------+</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h2><br>
+<a name="Registers"></a>VDP registers</h2>
+<p>The first eight registers are used by the CPU to control the VDP.
+Very
+unfortunately, these are write-only registers, which means there is no
+way to determine the current display mode, unless it has been saved
+somewhere
+in RAM by the program that set it. Registers 0 and 1 contains control
+bits,
+registers 2 to 6 contains pointers to various tables in the VDP RAM and
+register 7 encodes 2 colors.</p>
+<p>The VDP also contains a read-only status register that is uses to
+pass
+various information to the CPU.</p>
+<p><u>VDP register 0<br>
+</u>This register contains two control bits. All other bits must be
+zero.
+The register contains &gt;00 after a reset.<br>
+<b>Bit 6</b> (weight &gt;02) selects a bitmap graphics mode when set to
+1. VDP register 1 determines which bitmap mode is used.<br>
+<b>Bit 7</b> (weight &gt;01) enables external video input when set to 1.</p>
+<p><u>VDP register 1<br>
+</u>This register contains 7 control bits. All are set as 0 after a
+reset.<br>
+<b>Bit 0</b> (weight &gt;80) selects the memory size. For 4K of memory
+the bit is 0, for 16K it is 1.<br>
+<b>Bit 1</b> (weight &gt;40) enables the screen. When this bit is 0 the
+screen is blank.<br>
+<b>Bit 2</b> (weight &gt;20) enables interrupts. When this bit is 1,
+the
+VDP issues interrupt signals on the INT* pin each time it resumes
+refreshing
+the screen (vertical retrace signal).<br>
+<b>Bit 3</b> (weight &gt;10) selects text mode when set as 1. Bit 7 of
+register 0 can be set for bitmap text mode.<br>
+<b>Bit 4</b> (weight &gt;08) selects multicolor mode when set as 1. Bit
+7 of register 0 can be set for bitmap multicolor mode.<br>
+If both bits 3 and 4 are 0, the display is in standard mode (or in
+bitmap
+mode, depending on register 0). Bits 3 and 4 should never be set
+together.<br>
+<b>Bit 5</b> (weight &gt;04) is reserved and should be 0.<br>
+<b>Bit 6</b> (weight &gt;02) selects the sprite size. When 0, sprites
+are
+8x8 pixels. When 1, sprites are 16x16 pixels.<br>
+<b>Bit 7</b> (weight &gt;01) selects sprite magnification. When this
+bit
+is 1, each sprite pixel is replaced by a 2x2 pixels box.</p>
+<p><u>VDP register 2<br>
+</u>Defines the location of the screen image table. Only the last 4
+bits
+are used, thus possible values for this register are &gt;00 throught
+&gt;0F.
+The value is multiplied by &gt;400 to find the location of the screen
+image
+table in the VDP memory. This table contains 1 byte for each character
+position on the screen (left to right, downwards), this byte contains
+the
+character number.</p>
+<p><u>VDP register 3<br>
+</u>Defines the location of the color table. Possible values are &gt;00
+through &gt;FF and are multiplied by &gt;40 to find the location of the
+color table. The table is not used in text mode, nor in multicolor mode.</p>
+<p><a name="address mask"></a>In bitmap mode (i.e. when bit 6 in
+register
+0 is set) the meaning of this register changes: bit 0 (weight &gt;80)
+is
+the only one used to determine the address of the color table, which
+means
+the table has only two possible locations: &gt;0000 or &gt;2000. The
+remaining
+bits are used to define the table size, by the way of an address mask.
+This is done as follows: the righmost 7 bits are shifted left by 6
+positions,
+filling the rightmost bits with 1s. The result will be a number between
+&gt;003F and &gt;1FFF, which is ANDed with the address of a character
+in
+the table. As a result, the table can have any size between &gt;40 and
+&gt;2000 bytes (however, note that the maximal usable size is &gt;1800:
+3 times &gt;800 bytes).</p>
+<p><u>VDP register 4<br>
+</u>Defines the location of the character pattern table. Only the last
+3 bits are used, thus possible values are &gt;00 through &gt;07. The
+value
+is multiplied by &gt;800 to find the location of the character pattern
+table. Each entry in the table is eight bytes long and define the
+pattern
+of a character, in numeric order. Each byte in an entry defines one
+line
+of pixels in the character pattern: bits set as 1 result in foreground
+color pixels, bits set as 0 encode background color pixels.</p>
+<p>In text mode (i.e. when bit 3 in register 1 is set) the last two
+bits
+of each byte are ignored since characters are only 6-pixel wide.</p>
+<p>In bitmap mode (i.e. when bit 6 in register 0 is set) the structure
+of this register changes: bit 5 (weight &gt;04) is the only one used to
+determine the address of the color table, which means the table has
+only
+two possible locations: &gt;0000 or &gt;2000. The two rightmost bits
+are
+used to determine the length of the table, by the way of an address
+mask.
+This is done by shifting them 11 positions to the left, filling the
+righmost
+bits with 1s. The result will be a number between &gt;07FF and &gt;1FFF
+that will be used as an address mask. At least, this is what happens in
+bitmap + text mode (i.e. when bit 3 of register 1 is set). In standard
+bitmap mode, the righmost bits are not necessarily 1: they are taken
+from
+VDP register 3, i.e. the address mask of the color table is used for
+both
+the color table and the pattern table addressing.</p>
+<p><u>VDP register 5<br>
+</u>Defines the location of the sprite attributes table. Only the last
+7 bits are used, thus possible values are &gt;00 through &gt;7F. The
+value
+is multiplied by &gt;80 to find the location of the sprite attributes
+table.
+Each entry in the table is four bytes long and defines a sprite
+position
+and color, in numerical order of sprites. See the chapter on <a
+ href="#Sprites">sprites
+</a>for a detailed description of this table.</p>
+<p><u>VDP register 6<br>
+</u>Defines the location of the sprite pattern table. Only the last 3
+bits
+are used, thus possible values are &gt;00 through &gt;07. The value is
+multiplied by &gt;800 to find the location of the sprite pattern table.
+Each entry in the table is eight bytes long and defines the pattern of
+a sprite, one byte per line. Bits that are set as 1 result on a pixel
+of
+the color defined for that sprite in the sprite attributes table, bits
+that are 0 result in a transparent pixel. If the large sprite size is
+selected
+(bit 6 in register 1 is set as 1) each entry is 32 bytes long and
+define
+a sprite as a set of 4 characters arranged as:<br>
+1 3<br>
+2 4</p>
+<p><u>VDP register 7<br>
+</u>The first nibble of this register defines the color of all
+characters
+in text mode. It is not used in the other modes.<br>
+The second nibble defines the background color wich is used for all
+characters
+in text mode. In all four modes it defines the color of the backdrop
+plane:
+this is the color of the screen outside the display area and the color
+that appears under transparents characters. When this color is set as
+transparent
+the external video image appears if it is enabled, black color appears
+otherwise.</p>
+<p><u>Status register<br>
+</u>The first 3 bits of this register are automatically reset as 0 when
+the register is read or when the VDP is reset. It ensues that the
+status
+register should only be read when an interrupt is pending, otherwise an
+interrupt could be missed.</p>
+<p><b>Bit 0</b> (weight &gt;80). This bit is set to 1 at the end of the
+raster scan of the last line of the display area (i.e. before drawing
+the
+bottom margin). If interrupts are enabled (by bit 2 in VDP register 1),
+the INT* pin is low when this bit is 1 and high when it's 0. This is
+why
+the status register should be read after each frame, in order to clear
+the interrupt and be ready to receive the interrupt at the end of the
+next
+frame. Also, if bit 2 in VR1 is cleared and set again while status bit
+0 is set, an interrupt is issued immediately. <br>
+<b>Bit 1 </b>(weight &gt;40) signals that there are 5 or more sprites
+on
+a given pixel row. Only the topmost four will be displayed.<br>
+<b>Bit 1</b> (weight &gt;20) is the coincidence bit. It is set when two
+sprites or more have at least one overlapping "on" pixel. This
+occurs even if the sprite color is transparent. Note that coincidence
+is
+checked only every 1/60th of second (1/50th of a second for the
+TMS9929A),
+thus if you change sprite positions during that time a coincidence
+could
+be missed.<br>
+<b>Bits 3 to 7</b> contain the number of the 5th sprite on a pixel
+line,
+if any. This number is only meaningfull if bit 2 is set as 1 (else it
+may
+contain the number of the last displayed sprite, but no guaranty). If
+such
+a situation occurs more than once, the 5th sprite listed is the one
+closest
+to the top of the screen. </p>
+<p><br>
+<u>Summary of the VDP registers contents</u></p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Bit:<br>
+Weight:</th>
+      <th>0<br>
+&gt;80</th>
+      <th>1<br>
+&gt;40</th>
+      <th>2<br>
+&gt;20</th>
+      <th>3<br>
+&gt;10</th>
+      <th>4<br>
+&gt;08</th>
+      <th>5<br>
+&gt;04</th>
+      <th>6<br>
+&gt;02</th>
+      <th>7<br>
+&gt;01</th>
+    </tr>
+    <tr>
+      <th>VR0</th>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>Bitmap</td>
+      <td>Ext vid</td>
+    </tr>
+    <tr>
+      <th>VR1</th>
+      <td>16K </td>
+      <td>Blank</td>
+      <td>Int on</td>
+      <td>Multic</td>
+      <td>Text </td>
+      <td>0</td>
+      <td>Size 4</td>
+      <td>Mag 2x</td>
+    </tr>
+    <tr>
+      <th>VR2</th>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td colspan="4">Screen image</td>
+    </tr>
+    <tr>
+      <th rowspan="2">VR3<br>
+bitmap</th>
+      <td colspan="8">Color table </td>
+    </tr>
+    <tr>
+      <td>Addr</td>
+      <td colspan="7">Address mask</td>
+    </tr>
+    <tr>
+      <th rowspan="2">VR4<br>
+bitmap</th>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td colspan="3">Char pattern table</td>
+    </tr>
+    <tr>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>Addr</td>
+      <td colspan="2">Address mask</td>
+    </tr>
+    <tr>
+      <th>VR5</th>
+      <td>0</td>
+      <td colspan="7">Sprite attributs table</td>
+    </tr>
+    <tr>
+      <th>VR6</th>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td colspan="3">Sprites pattern table</td>
+    </tr>
+    <tr>
+      <th>VR7</th>
+      <td colspan="4">Text color (in text mode)</td>
+      <td colspan="4">Backdrop color</td>
+    </tr>
+    <tr>
+      <th>Status</th>
+      <td>Int</td>
+      <td>5+ sp</td>
+      <td>Coinc</td>
+      <td colspan="5">5th sprite number</td>
+    </tr>
+  </tbody>
+</table>
+<h2><br>
+<a name="Videomodes"></a>Video modes</h2>
+<h3>Standard mode (Graphic I)</h3>
+<p>This mode is selected by setting all mode bits as 0: bit 7 in
+register
+0 and bits 3 and 4 in register 1. VR0: <b>0</b> VR1: <b>0 0</b></p>
+<p>In this mode, the screen is divided into 24 rows of 32 characters.
+Each
+character is 8x8 pixels and has two colors: one for the "on"
+pixels (foreground color), one for the "off" pixels (background
+color). If a color is set as 0, the color of the backplane will be used
+(defined by register 7).</p>
+<p>The screen image table is thus &gt;300 bytes long (24x32=768). Each
+byte in the table contains the number of the character to display at
+the
+corresponding position on screen. This number is used to locate the
+character
+pattern in the pattern table and to look up its colors in the color
+table.</p>
+<p>The color table is 32 bytes long. Each byte encodes the two colors
+for
+a group of 8 consecutive characters in numeric order (i.e. the first
+byte
+affects characters 0-7, the second characters 8-15, etc). In each byte,
+the first nibble encodes the foreground color, the second nibble the
+background
+color.</p>
+<p>The character pattern table contains 256 entries, one per character
+in numeric order. Each entry is eight bytes long, each byte defines the
+pattern of one pixel row in the character: "1" bits set the pixel
+to the foreground color used for this character group, "0" bits
+set the pixel to the background color of this character group.</p>
+<pre> --------<br>|        |  00000000 = &gt;00<br>|  ***   |  00111000 = &gt;38<br>| *   *  |  01000100 = &gt;42<br>| *   *  |  01000100 = &gt;42<br>|  ***   |  00111000 = &gt;38<br>|   *    |  00010000 = &gt;10<br>|  ***   |  00111000 = &gt;38<br>|   *    |  00010000 = &gt;10<br> --------</pre>
+<p>The pattern table entry for the above character would be: &gt;00 38
+42 42 38 10 38 10</p>
+<p>Sprites can be used in standard mode, see <a href="#Sprites">below</a>.</p>
+<h3><br>
+<a name="Textmode"></a>Text mode</h3>
+<p>This mode is selected by setting bit 3 of VDP register 1 as 1. Bit 4
+must be 0, as well as bit 7 of register 0. VR0: <b>0</b> VR1: <b>1 0</b></p>
+<p>In this mode, the screen is devided into 24 rows of 40 characters.
+Each
+character is made of 8 rows of 6 pixels. All characters have the same
+two
+colors, defined by VDP register 7. </p>
+<p>The screen image table is &gt;3C0 bytes long (24x40=960).Each byte
+in
+the table contains the number of the character to display at the
+corresponding
+position on screen. This number is used to fetch the character pattern
+from the pattern table.</p>
+<p>The color table is not used. The foreground color for each character
+is taken from the first nibble of VDP register 7, the background color
+is transparent, which lets the backdrop plane color appears. As the
+backdrop
+color is encoded by the second nibble of VDP register 7, one can
+consider
+that this register specifies both the foreground and background colors
+for each character.</p>
+<p>The pattern table is organized just as in standard mode, except that
+the last two bits of each byte are ignored since characters are only
+6-pixels
+wide in text mode.</p>
+<pre> ------<br>|      |  000000xx = &gt;00<br>|  *** |  001110xx = &gt;38<br>| *   *|  010001xx = &gt;42<br>| *   *|  010001xx = &gt;42<br>|  *** |  001110xx = &gt;38<br>|   *  |  000100xx = &gt;10<br>|  *** |  001110xx = &gt;38<br>|   *  |  000100xx = &gt;10<br> ------</pre>
+<p>Sprites are not available in text mode. </p>
+<p>All this makes text mode the least memory-hungry mode: only a
+maximum
+of 3008 bytes (&gt;0BC0) of VDP RAM is required in this mode. This can
+be further reduced by not using all 256 characters and/or by partly
+overlapping
+the tables.</p>
+<h3><br>
+<a name="Multicolor"></a>Multicolor mode</h3>
+<p>This mode is selected by setting bit 4 of VDP register 1 as 1. Bit 3
+must be 0, as well as bit 7 of register 0. VR0: <b>0</b> VR1: <b>0 1</b></p>
+<p>In this mode, the screen is divided into 48 rows of 64 boxes. Each
+box
+is 4x4 pixel and can be independently assigned a color. The screen
+image
+table is still &gt;300 bytes long, but each byte now represent a
+"character"
+made of 4 boxes. The boxes are arranged as:<br>
+0 1<br>
+2 3<br>
+</p>
+<p>The color of the boxes are defined in the character pattern table
+(!).
+Each entry in the table is 8 bytes long but only 2 bytes are used to
+define
+the colors of the 4 boxes that make up a character: &gt;01 &gt;23. To
+avoid
+wasting 6 bytes in each entries, the characters on 4 consecutive rows
+use
+the same entry, with an offset of 2 bytes:<br>
+characters on row 0, 4, 8, 12, 16 and 20 use bytes 0 and 1, <br>
+characters on row 1, 5, 9, 13, 17 and 21 used bytes 2 and 3, <br>
+characters on row 2, 6, 10, 14, 18 and 22 used bytes 4 and 5,<br>
+characters on rows 3, 7, 11, 15, 19 and 23 use bytes 6 and 7. </p>
+<p>This reduces the size of this table to 1536 bytes (24 rows x 32
+columns
+x 8 bytes).</p>
+<p>The color table is not used in multicolor mode.</p>
+<p>Sprites can be used in this mode.</p>
+<p>To summarize, the screen organisation is the following:</p>
+<pre>Column:  0     1   ...   31  </pre>
+<pre>Row 0:  a b   q r  ...<br>        c d   s t<br>Row 1:  e f   u v<br>        g h   w x<br>Row 2:  i j   y z<br>        k l   ...<br>Row 3:  m n   <br>        o p   </pre>
+<p>The corresponding screen image table could be:</p>
+<pre>Column:  0     1   ...   31  </pre>
+<pre>Row 0:  &gt;00  &gt;01   ...  &gt;1F<br>        <br>Row 1:  &gt;00  &gt;01        &gt;1F<br>           <br>Row 2:  &gt;00  &gt;01        &gt;1F<br>           <br>Row 3:  &gt;00  &gt;01        &gt;1F </pre>
+<pre>Row 4:  &gt;20  &gt;21        &gt;3F</pre>
+<pre>        ...</pre>
+<p>And the pattern table would look like this (letters a-z represent
+the
+color of a given box, i.e. a digit in the range &gt;0-F):</p>
+<pre>Byte:       0   1    2   3   4   5    6   7<br><u>Row:          0        1       2        3___</u></pre>
+<pre>Entry &gt;00: &gt;ab &gt;cd  &gt;ef &gt;gh  &gt;ij &gt;kl  &gt;mn &gt;op</pre>
+<pre>Entry &gt;01: &gt;qr &gt;st  &gt;uv &gt;wx  &gt;yz ...</pre>
+<pre>...</pre>
+<p>This mode is fairly complicated to use (and does not yield very
+interesting
+results). A way to simplify it is to fill the screen with fixed
+character
+numbers, as shown in the above example. Drawing is then achieved by
+changing
+the color values in the character pattern table. Arranging the
+character
+numbers as in the example makes easier to calculate which byte must be
+changed in the pattern table, but there are other solutions.</p>
+<h3><br>
+<a name="Bitmap"></a>Bitmap mode (Graphics II)</h3>
+<p>I'm sure every TI user had this great idea one day or the other:
+"Hey,
+lets fill the screen with all available characters: 0, 1, 2, etc. Then
+I can draw pixel-by-pixel by just changing definitions in the character
+pattern table". If you have tried, you must have realised there is
+a big problem: with 256 characters, we can only cover 1/3 of the
+screen.
+Not to mention the fact that the color table defines 8 characters at a
+time, which makes color drawings almost impossible. Bitmap mode takes
+care
+of these problems (sort of).</p>
+<p>This mode is selected by setting bit 7 of register 0 as 1. Bits 3
+and
+4 in register 1 should be 0. VR0: <b>1</b> VR1: <b>0 0</b></p>
+<p>In this mode, the screen is still devided in 24 row of 32 character,
+just as in standard mode. However, we now have <i>three </i>character
+pattern
+tables, one after the other: the first table applies to characters
+displayed
+in the top third of the screen (i.e. the first &gt;100 bytes in the
+screen
+image table), the second to characters displayed in the middle third
+(bytes
+&gt;100-1FF) and the third to characters displayed in the bottom third
+of the screen (bytes &gt;200-2FF in the screen image table). </p>
+<p>Now we can fully cover the screen with non-redundent characters, by
+just writing &gt;00, &gt;01, &gt;02 ... &gt;FF three times in the
+screen
+image table. As the three pattern tables are consecutive, it is easy to
+calculate which byte is to be accessed to modify a given pixel.</p>
+<p>There are also three color tables, arranged in the same way as
+pattern
+tables. Each entry in a table is eight bytes long and defines the
+colors
+for one character. Each byte in an entry defines the colors of a row in
+the character: the first nibble sets the pixel color for bits that are
+set as 1 in the pattern (foreground), the second sets the pixel color
+for
+the 0 bits in the pattern (background). The major drawback of this
+system
+is that each line of pixels in the display is chopped into 8-pixels
+clusters
+for which there is only a choice of two colors. This forces us to pay a
+lot of attention when drawing complex images, as 3 colors in a given
+pixel
+line must be at least 8 pixels appart.</p>
+<p>Sprites are available in bitmap mode and work just as in standard
+mode.</p>
+<p>Not so surprisingly, bitmap mode is extremely memory-hungry: it
+requires
+&gt;3300 bytes, not counting sprite tables.</p>
+<p>To summarize, here is an example showing the correspondance between
+screen, pattern table entry and color table entry:</p>
+<pre><u>   Screen      </u>      <u> Pattern table </u>     <u>   Color table        <br></u><font
+ color="#ffff00">B</font> 1 <font color="#ffff00">B B B B B</font> 1      0 1 0 0 0 0 0 1     1 (black)  B (l.yellow)<br><font
+ color="#ffff00">B B</font> <font color="#00ffbf">7</font> <font
+ color="#ffff00">B B B</font> <font color="#00ffbf">7</font> <font
+ color="#ffff00">B</font>      0 0 1 0 0 0 1 0     7 (cyan)   B<br><font
+ color="#ffff00">B B B</font> <font color="#00ff00">C</font> <font
+ color="#ffff00">B</font> <font color="#00ff00">C</font> <font
+ color="#ffff00">B B</font>      0 0 0 1 0 1 0 0     C (green)  B<br><font
+ color="#ffff00">B B B B</font> <font color="#3f3f3f">E</font> <font
+ color="#ffff00">B B B</font>      0 0 0 0 1 0 0 0     E (gray)   B<br><font
+ color="#ffff00">B B B B</font> <font color="#ff0000">8</font> <font
+ color="#ffff00">B B B</font>      0 0 0 0 1 0 0 0     8 (m.red)  B<br><font
+ color="#ffff00">B B B B</font> <font color="#007fff">5</font> <font
+ color="#ffff00">B B B</font>      0 0 0 0 1 0 0 0     5 (l.blue) B<br><font
+ color="#ffff00">B B B B</font> <font color="#b30000">6</font> <font
+ color="#ffff00">B B B</font>      0 0 0 0 1 0 0 0     6 (d.red)  B<br><font
+ color="#007f00">2 2 2 2</font> <font color="#de057d">D</font> <font
+ color="#007f00">2 2 2</font>      0 0 0 0 1 0 0 0     D (magenta)2 (m.green)</pre>
+<p>The VDP register setting could be the following:<br>
+VR0 &gt;02 Bitmap mode on<br>
+VR1 &gt;C0 16K, screen on<br>
+VR2 &gt;08 Screen image at &gt;1800 (we can't have it at &gt;0000 since
+either the pattern or the color table must be there)<br>
+VR3 &gt;FF Color table at &gt;2000, address mask = &gt;1FFF (full size
+table: 3 times &gt;800 bytes)<br>
+VR4 &gt;03 Pattern table at &gt;0000, address mask = &gt;1FFF (full
+size
+table: 3 times &gt;800 bytes)</p>
+<h4><br>
+<a name="hybrid bitmap"></a>Hybrid bitmap modes</h4>
+<p>Note that the trick of covering the screen with three repeats of
+characters
+0-255 is just an easy way to calculate which byte corresponds to which
+pixel, this is by no means an obligation. You could use the tables just
+the way you do in standard mode: having fixed pattern definitions (and
+colors) and placing a character number in the screen image table to
+display
+it. The address masking trick becomes very handy in this case. Rather
+than
+having three copies of the pattern table one after the other, let's
+just
+have one and set the address mask to 0: in the example above, VR4 would
+become &gt;00. The advantage over standard mode is that we can set
+different
+colors for each character (rather than for a group of 8). In fact, we
+can
+even set a color pair for each pixel row in a character: this is a nice
+way to create iridescent characters!</p>
+<p>Finally, both solutions can be mixed in the various thirds of the
+screen:
+the top two thirds could be arranged for easy bitmap drawing, whereas
+the
+bottom third could be arranged for rapid character writing. Some games
+use this solution to display prompts and scores at the bottom (or top)
+of the game screen. </p>
+<p>You can use the mask bits in register 4 to assign a &gt;800-byte
+pattern
+table to each third of the screen:<br>
+&gt;00 (or &gt;04): only one pattern table, identical for each third of
+the screen.<br>
+&gt;01 (or &gt;05): two pattern tables. One at &gt;0000 (or &gt;2000)
+for
+the 1rst and 3rd thirds, one at &gt;0800 (or &gt;2800) for the middle
+third
+of the screen.<br>
+&gt;02 (or &gt;06): two pattern tables. One at &gt;0000 (or &gt;2000)
+for
+the 1rst and 2nd thirds, one at &gt;1000 (or &gt;3000) for the bottom
+third
+of the sceen.<br>
+&gt;03 (or &gt;07): three pattern tables. One at &gt;0000 (or &gt;2000)
+for the 1rst third, one at &gt;0800 (or &gt;2800) for the 2nd third and
+one at &gt;1000 (or &gt;3000) for the bottom third of the screen.</p>
+<p>Then we could do the same for the color table, using bits 1 and 2
+(weight
+&gt;40 and &gt;20) to select the number of tables. The remaining bits
+will
+affect character grouping within a table. Since they also affect
+grouping
+whitin the pattern table, we'd better be carefull with these!</p>
+<p>In summary, these would be the addresses of the tables in 8 possible
+situations:</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>VR3</th>
+      <th>VR4</th>
+      <th>Mask</th>
+      <th>Top 3rd </th>
+      <th>Middle 3rd</th>
+      <th>Bottom 3rd</th>
+    </tr>
+    <tr>
+      <td>&gt;1F</td>
+      <td>&gt;00</td>
+      <td>&gt;07FF</td>
+      <td>&gt;0000</td>
+      <td>&gt;0000</td>
+      <td>&gt;0000</td>
+    </tr>
+    <tr>
+      <td>&gt;9F</td>
+      <td>&gt;04</td>
+      <td>&gt;07FF</td>
+      <td>&gt;2000</td>
+      <td>&gt;2000</td>
+      <td>&gt;2000</td>
+    </tr>
+    <tr>
+      <td>&gt;3F</td>
+      <td>&gt;01</td>
+      <td>&gt;0FFF</td>
+      <td>&gt;0000</td>
+      <td>&gt;0800</td>
+      <td>&gt;0000</td>
+    </tr>
+    <tr>
+      <td>&gt;BF</td>
+      <td>&gt;05</td>
+      <td>&gt;0FFF</td>
+      <td>&gt;2000</td>
+      <td>&gt;2800</td>
+      <td>&gt;2000</td>
+    </tr>
+    <tr>
+      <td>&gt;5F</td>
+      <td>&gt;02</td>
+      <td>&gt;17FF</td>
+      <td>&gt;0000</td>
+      <td>&gt;0000</td>
+      <td>&gt;1000</td>
+    </tr>
+    <tr>
+      <td>&gt;DF</td>
+      <td>&gt;06</td>
+      <td>&gt;17FF</td>
+      <td>&gt;2000</td>
+      <td>&gt;2000</td>
+      <td>&gt;3000</td>
+    </tr>
+    <tr>
+      <td>&gt;7F</td>
+      <td>&gt;03</td>
+      <td>&gt;1FFF</td>
+      <td>&gt;0000</td>
+      <td>&gt;0800</td>
+      <td>&gt;1000</td>
+    </tr>
+    <tr>
+      <td>&gt;FF</td>
+      <td>&gt;07</td>
+      <td>&gt;1FFF</td>
+      <td>&gt;2000</td>
+      <td>&gt;2800</td>
+      <td>&gt;3000</td>
+    </tr>
+  </tbody>
+</table>
+<p>To group characters within a table, we could further alter the color
+table mask:</p>
+<ul>
+  <li>VR3 = &gt;0F results in &gt;400-byte tables. This means that
+characters
+&gt;80-FF will have the same colors and definitions than characters
+&gt;00-7F.
+  </li>
+  <li>VR3 = &gt;07 results in &gt;200-byte tables. This means that
+characters
+&gt;40-7F, &gt;80-BF and &gt;C0-FF will have the same colors and
+definitions
+than characters &gt;00-3F. </li>
+  <li>At the extreme, VR3 = &gt;00 results in &gt;40-byte tables. As
+there
+are 8 bytes per characters, this means characters are arranged in 8
+groups
+of 32 identical characters: chars 0-7 are identical to chars 8-15,
+16-23,
+etc. </li>
+  <li>We could even get weird grouping schemes by using values like
+&gt;02,
+&gt;04, &gt;55, etc. </li>
+</ul>
+<p>The table below lists the six most logical values, plus two gooffy
+ones
+(just for fun).</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>VR3</th>
+      <th>Mask</th>
+      <th>Character grouping </th>
+      <th>Chars </th>
+      <th>Repeats</th>
+    </tr>
+    <tr>
+      <td>&gt;00</td>
+      <td>&gt;003F</td>
+      <td>0=8=16...=248<br>
+1=9=17...=249<br>
+7=15=23...=255</td>
+      <td>8 </td>
+      <td>32</td>
+    </tr>
+    <tr>
+      <td>&gt;01</td>
+      <td>&gt;007F</td>
+      <td>0=16=32...=240<br>
+1=17=33...=241<br>
+15=31=47..=255</td>
+      <td>16</td>
+      <td>16</td>
+    </tr>
+    <tr>
+      <td>&gt;03</td>
+      <td>&gt;00FF</td>
+      <td>0=32=64...=216<br>
+1=33=65...=217<br>
+31=63=95...=255</td>
+      <td>32</td>
+      <td>8</td>
+    </tr>
+    <tr>
+      <td>&gt;07</td>
+      <td>&gt;01FF</td>
+      <td>0=64=128=192<br>
+1=65=129=193<br>
+63=127=191=255</td>
+      <td>64</td>
+      <td>4</td>
+    </tr>
+    <tr>
+      <td>&gt;0F</td>
+      <td>&gt;03FF</td>
+      <td>0=128<br>
+1=129<br>
+127=255</td>
+      <td>128</td>
+      <td>2</td>
+    </tr>
+    <tr>
+      <td>&gt;1F</td>
+      <td>&gt;07FF</td>
+      <td>Each char is unique</td>
+      <td>256</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <td>&gt;02</td>
+      <td>&gt;00BF</td>
+      <td>0=8=32=40...<br>
+4=12=36=44...</td>
+      <td>16</td>
+      <td>16</td>
+    </tr>
+    <tr>
+      <td>&gt;04</td>
+      <td>&gt;013F</td>
+      <td>0=8=16=24=64...<br>
+32=40=48=56=96...</td>
+      <td>16</td>
+      <td>16</td>
+    </tr>
+  </tbody>
+</table>
+<h3><br>
+<br>
+<a name="Bitmap text"></a>Bitmap text mode</h3>
+<p>This is the mode TI forgot to tell us about. It works just like
+standard
+bitmap mode, except that the screen is now 40 columns and that only two
+colors are available.</p>
+<p>This mode is selected by setting bit 7 of register 0 as 1. Bit 4 in
+register 1 should be 1. VR0: <b>1</b> VR1: <b>0 1</b></p>
+<p>The screen is now divided in three, each third is 8 lines high and
+thus
+occupies &gt;140 bytes in the screen image table (8*40=320). </p>
+<p>The colors are taken from VR7, just like in regular text mode. There
+is no color table, and the contents of VR3 is irrelevant.</p>
+<p>Just like in standard bitmap mode, there can be upto 3 pattern
+tables,
+located either at &gt;0000 or at &gt;2000. You can use the address mask
+bits in VR4 to determine which third of the screen uses which table.
+The
+main difference is that the color address mask is not used to fill-in
+the
+patten address mask: &gt;07FF is always used instead. No character
+grouping
+to worry about, then! This mode comes handy for black-and-white
+drawings.<br>
+</p>
+<h3><br>
+<a name="Bitmap multicolor"></a>Bitmap multicolor mode</h3>
+<p>Another undocumented mode. It works as a mixture of bitmap and
+multicolor
+mode.</p>
+<p>This mode is selected by setting bit 7 of register 0 as 1. Bit 3 in
+register 1 should be 1. VR0: <b>1</b> VR1: <b>1 0</b></p>
+<p>The screen is now divided in three, each third is 8 lines high and
+thus
+occupies &gt;100 bytes in the screen image table (8*32=256). </p>
+<p>Just like in standard multicolor mode, there is no color table and
+the
+contents of VR3 is irrelevant.</p>
+<p>The color of the boxes are taken from upto 3 pattern tables, located
+either at &gt;0000 or at &gt;2000. You can use the address mask bits in
+VR4 to determine which third of the screen uses which table. Since a
+single
+table would be sufficient for this purpose, there is no real point in
+using
+this combined mode...</p>
+<p><br>
+</p>
+<h3><br>
+<a name="Illegal modes"></a>Illegal modes</h3>
+<p>It is not allowed to set text and multicolor mode together, whether
+in bitmap mode or not. VR0: <b>x</b> VR1: <b>1 1</b></p>
+<p>If you try, the VDP will display a fixed image, that is not
+influenced
+by the contents of the VDP memory, nor by registers VR2 to VR6 (sprites
+are not available). The screen is 192 pixel lines and 40 columns. Each
+column is made of 4 pixels in foreground color, followed by 2 pixels in
+backgroud color. These two colors are taken from VR7.<br>
+</p>
+<h3><br>
+<a name="Sprites"></a>Sprites</h3>
+<p>Sprites are special characters that can be displayed at any position
+on screen, i.e they are not limited to a grid or rows/column, instead
+each
+sprite position can be defined with a precision of one pixel. </p>
+<p>Sprites can be either 8x8 pixels or 16x16 pixels depending on the
+setting
+of bit 6 in VDP register 1: when this bit is 0 all sprites are 8x8,
+when
+it is 1 all sprites are 16x16. In addition, bit 7 in VDP register 1
+provides
+a mgnification feature: when this bit is 1 all sprites are magnified by
+a factor of two. Concretely this means that each "pixel" becomes
+a 2x2 pixels box. </p>
+<p>Each sprite can have its own foreground color. The background color
+is always transparent, which lets the underlying image appear under the
+sprite.</p>
+<p>Upto 32 sprites can be displayed at a time. Each one can be seen as
+an extra image plane on the top of the screen, overlapping each others,
+with sprite number 0 at the top. Thus the virtual image planes are:<br>
+- Black<br>
+- External video<br>
+- Backdrop plane (color in VDP reg 7)<br>
+- Image plane (characters)<br>
+- Sprite number 31<br>
+- Sprite number 30<br>
+- etc upto:<br>
+- Sprite number 0</p>
+<p>There is one restriction however: the VDP cannot display more than 4
+sprites on a given line of pixels. Thus, if 5 sprites or more must be
+drawn
+on the same line, only the topmost four (those with the smallest
+numbers)
+can be displayed. The number of the 5th one is placed in the status
+register
+together with a flag bit and the others are ignored. This occurs
+whether
+or not the sprites are actually overlapping: one could be on the left
+of
+the screen, the other on the right with the same result.</p>
+<p>Coincidence is a different condition: whenever two "on" pixels
+in different sprites occupy the same screen location, a bit is set in
+the
+VDP status register. This comes handy for games programming: an easy
+way
+to check whether the bullet hits the target. Note however that the VDP
+does not tell you which are the overlapping sprites...</p>
+<p>Sprites characteristics are defined in two tables pointed by VDP
+registers
+5 and 6: the sprite attributes table and the sprite patterns table.</p>
+<h4><br>
+Sprite attributes table</h4>
+<p>This table is pointed at by VDP register 6. It contains upto 32
+entries
+for the 32 sprites arranged in numeric order. Each entry is four bytes
+long, thus the maximum size for this table is &gt;100 bytes. The four
+bytes
+define sprite characteristics as follows:</p>
+<table border="2" cellspacing="2" cellpadding="2">
+  <tbody>
+    <tr>
+      <td><br>
+      </td>
+      <td>Byte 1</td>
+      <td>Byte 2</td>
+      <td>Byte 3</td>
+      <td colspan="2">Byte 4</td>
+    </tr>
+    <tr>
+      <td>Sprite 0</td>
+      <td>vertical position -1</td>
+      <td>horizontal position</td>
+      <td>pattern number </td>
+      <td>clock bit </td>
+      <td>sprite color</td>
+    </tr>
+    <tr>
+      <td>Sprite 1</td>
+      <td>
+      <center>
+      <p>"</p>
+      </center>
+      </td>
+      <td>
+      <center>
+      <p>"</p>
+      </center>
+      </td>
+      <td>
+      <center>
+      <p>"</p>
+      </center>
+      </td>
+      <td>
+      <center>
+      <p>"</p>
+      </center>
+      </td>
+      <td>
+      <center>
+      <p>"</p>
+      </center>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>Sprite positions are expressed in pixels relative to the top left
+corner
+of the display area. This will be the position of the top leftmost
+pixel
+of the sprite (unless the early clock bit is set, see below). Note that
+the vertical position coordinate in the table is offset by one:
+therefore
+the topmost pixel line is &gt;FF, the second is &gt;00, the third is
+&gt;01
+and the last is &gt;BE. Any sprite whose vertical position is greater
+than
+&gt;BE won't be visible on screen, although coordinates close to &gt;FF
+can result in the bottom of the sprite appearing at the top of the
+screen.
+Similarly, row values just under &gt;BE result in partly blending off
+the
+bottom of the sprite. </p>
+<p>The same thing is true for sprite approaching the right border of
+the
+screen (horizontal coordinates close to &gt;FF): the sprite appears to
+blend-in from the right. However this won't work on the left of the
+screen:
+when the horizontal position is 0 the whole sprite is visible, when
+it's
+lower than 0 (i.e. &gt;FF, &gt;FE, etc), the sprite appears at the
+right
+of the screen. To allow for sprite blend-in from the left of the screen
+one can set the "early clock" bit (bit 0, value &gt;80) in the
+color byte: the horizontal coordinate now refers to a point located 32
+pixels to the right of the upper left corner of the sprite. This
+results
+in shifting the sprite 32 pixels to the left and allows for partial
+disappearance
+on the left side (but not any more on the right).</p>
+<p>The pattern number refers to the entry containing the sprite pattern
+in the sprite pattern table.</p>
+<p>Finally the sprite color is defined by the right nibble in the byte
+4 of the entry.</p>
+<p>The sprite attributes table does not need to define all sprites: if
+the vertical position of a sprite is set as &gt;D0, the sprite won't be
+displayed (as it's off-screen), but neither will any of the following
+sprites.
+This comes handy to quickly erase all sprites by just changing one byte
+in the attributes table.</p>
+<h4><br>
+Sprite pattern table</h4>
+<p>This table contains patterns to be used by the various sprites,
+arranged
+in ascending order. Each entry is either 8 bytes long or 32 bytes long
+depending on the sprite size.</p>
+<p>If the sprite size is set as 8x8, entries are 8 bytes long. Each
+byte
+defines a row in the sprite: "1" bits result in pixels of the
+color specified for that sprite in the attributes table, "0"
+bits encode transparent pixels and are ignored for display purposes.</p>
+<p>If the sprite size is set as 16x16 (VDP register 1, bit 6 set as 1)
+each entry is 32 bytes long. These bytes define the sprite pattern as
+if
+it were made of four "normal sprites" arranged in a 2x2 formation:<br>
+1 3<br>
+2 4<br>
+Thus, bytes 0-7 define the top left quadrant, one byte per line of 8
+pixels.
+Bytes 8-15 define the bottom left quadrant in a similar fashion. Bytes
+16-23 define the top right quadrant, one byte per line of 8 pixels
+(which
+now corresponds to pixels 9-15 of the sprite rows 0-7) and bytes 17-23
+define the lower right quadrant.</p>
+<p>Even wiith a 16x16 pixels size, 32 sprites require at most &gt;400
+bytes
+(32x32). Thus there is room enough for extra sprite patterns and a
+sprite
+can be animated by quickly changing its pattern number in the
+attributes
+table rather than by modifying the sprite pattern table.</p>
+<h2><br>
+<a name="RAM inteface"></a>RAM interface</h2>
+<p>The VDP could use several types of DRAM chips: 4027-type (4 Kbits),
+4108-type (8 Kbits) or 4116-type (16 Kbits). In the TI-99/4A console,
+there
+are 8 TMS4116 RAM chips, installed as shown below. They make up for 16
+Kbytes of VDP memory.</p>
+<p>These RAMs are organised as a matrix of bits: the TMS4116 has 128
+row
+x 128 columns. The VDP uses 3 command lines to control the RAMs: to
+select
+a row, it places the row number on AD0-AD7 (AD0 is always 0) and pulses
+the RAS* line low so that the RAM can latch the address. Similarly, the
+CAS* line is used to select a column number. Once the address of a bit
+has been set the each RAM will issue the corresponding bit on its DOUT
+pin. If it is a read operation, the VDP can just access the data on
+pins
+RD0-RD7. For write operations, the VDP can write bits to the selected
+address
+by pulsing the R/W* line low: each RAM chip will store one bit at the
+selected
+coordinates.</p>
+<p>In between operations, the VDP refreshes the RAMs by systematically
+selecting each row and activating the RAS* line. This is necessary
+since
+DRAMs will "forget" data if they are not read periodically. This
+normally requires a special refreshig circuit, but in our case the VDP
+takes care it.</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>    VDP        TMS4116<br>  +-----+      +----+    +----+    +----+    +----+    +----+    +----+    +----+    +----+  <br>  | R/W*|------|W*  |----|W*  |----|W*  |----|W*  |----|W*  |----|W*  |----|W*  |----|W*  |<br>  | RAS*|------|RAS*|----|RAS*|----|RAS*|----|RAS*|----|RAS*|----|RAS*|----|RAS*|----|RAS*|<br>  | CAS*|------|CAS*|----|CAS*|----|CAS*|----|CAS*|----|CAS*|----|CAS*|----|CAS*|----|CAS*|<br>  |     |      |    |    |    |    |    |    |    |    |    |    |    |    |    |    |    |<br>  |  AD7|------|A0  |----|A0  |----|A0  |----|A0  |----|A0  |----|A0  |----|A0  |--+-|A0  |<br>  |  AD6|------|A1  |----|A1  |----|A1  |----|A1  |----|A1  |----|A1  |--+-|A1  |--|-|A1  |<br>  |  AD5|------|A2  |----|A2  |----|A2  |----|A2  |----|A2  |--+-|A2  |--|-|A2  |--|-|A2  |<br>  |  AD4|------|A3  |----|A3  |----|A3  |----|A3  |--+-|A3  |--|-|A3  |--|-|A3  |--|-|A3  |<br>  |  AD3|------|A4  |----|A4  |----|A4  |--+-|A4  |--|-|A4  |--|-|A4  |--|-|A4  |--|-|A4  |<br>  |  AD2|------|A5  |----|A5  |--+-|A5  |--|-|A5  |--|-|A5  |--|-|A5  |--|-|A5  |--|-|A5  |<br>  |  AD1|------|A6  |--+-|A6  |--|-|A6  |--|-|A6  |--|-|A6  |--|-|A6  |--|-|A6  |--|-|A6  |<br>  |  AD0|--,   |    |  | |    |  | |    |  | |    |  | |    |  | |    |  | |    |  | |    |<br>  |     |  '---|DIN |  '-|DIN |  '-|DIN |  '-|DIN |  '-|DIN |  '-|DIN |  '-|DIN |  '-|DIN |<br>  |     |  ,---|DOUT|  ,-|DOUT|  ,-|DOUT|  ,-|DOUT|  ,-|DOUT|  ,-|DOUT|  ,-|DOUT|  ,-|DOUT|<br>  |  RD0|--'   +----+  | +----+  | +----+  | +----+  | +----+  | +----+  | +----+  | +----+<br>  |  RD1|--------------'         |         |         |         |         |         |<br>  |  RD2|------------------------'         |         |         |         |         |<br>  |  RD3|----------------------------------'         |         |         |         |<br>  |  RD4|--------------------------------------------'         |         |         |<br>  |  RD5|------------------------------------------------------'         |         |<br>  |  RD6|----------------------------------------------------------------'         |<br>  |  RD7|--------------------------------------------------------------------------'<br>  +-----+</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h3><br>
+<a name="Derivation"></a>Address derivation</h3>
+<p>This fairly complicated table is an attempt to explain how the VDP
+generates
+the 14-bit RAM addresses, according to the video mode and the table to
+be accessed.</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Video mode</th>
+      <th colspan="2">Table accessed</th>
+      <th>A0</th>
+      <th>A1</th>
+      <th>A2</th>
+      <th>A3</th>
+      <th>A4</th>
+      <th>A5</th>
+      <th>A6</th>
+      <th>A7</th>
+      <th>A8</th>
+      <th>A9</th>
+      <th>A10</th>
+      <th>A11</th>
+      <th>A12</th>
+      <th>A13</th>
+    </tr>
+    <tr>
+      <th rowspan="3">Standard</th>
+      <th colspan="2">Screen image</th>
+      <td colspan="4">VR2, bits 4-7</td>
+      <td colspan="5">Row (0 to 23)</td>
+      <td colspan="5">Column (0 to 32)</td>
+    </tr>
+    <tr>
+      <th colspan="2">Color</th>
+      <td colspan="8">VR3, bits 0-7</td>
+      <td>0</td>
+      <td colspan="5">Char #, bits 0-4</td>
+    </tr>
+    <tr>
+      <th colspan="2">Char pats</th>
+      <td colspan="3">VR4, bits 5-7</td>
+      <td colspan="8">Char #</td>
+      <td colspan="3">Char pat row</td>
+    </tr>
+    <tr>
+      <th rowspan="2">Text</th>
+      <th colspan="2">Screen image</th>
+      <td colspan="4">VR2, bits 4-7</td>
+      <td colspan="10">Text position: (Row * 40) + Column</td>
+    </tr>
+    <tr>
+      <th colspan="2">Char pats</th>
+      <td colspan="3">VR4, bits 5-7</td>
+      <td colspan="8">Char #</td>
+      <td colspan="3">Char pat row</td>
+    </tr>
+    <tr>
+      <th rowspan="2">Multicolor</th>
+      <th colspan="2">Screen image</th>
+      <td colspan="4">VR2, bits 4-7</td>
+      <td colspan="5">Row</td>
+      <td colspan="5">Column</td>
+    </tr>
+    <tr>
+      <th colspan="2">Char pats</th>
+      <td colspan="3">VR4, bits 5-7</td>
+      <td colspan="8">Char #</td>
+      <td colspan="3">Square row, 5-7</td>
+    </tr>
+    <tr>
+      <th rowspan="3">Bitmap</th>
+      <th colspan="2">Screen image</th>
+      <td colspan="4">VR2, bits 4-7</td>
+      <td colspan="5">Row</td>
+      <td colspan="5">Column</td>
+    </tr>
+    <tr>
+      <th colspan="2">Color</th>
+      <td>VR3, 0</td>
+      <td colspan="2">3rd</td>
+      <td colspan="8">Char #</td>
+      <td colspan="3">Char pat row</td>
+    </tr>
+    <tr>
+      <th colspan="2">Char pats</th>
+      <td>VR4, 5</td>
+      <td colspan="2">3rd</td>
+      <td colspan="8">Char #</td>
+      <td colspan="3">Char pat row</td>
+    </tr>
+    <tr>
+      <th rowspan="3">Sprites</th>
+      <th colspan="2">Attributes</th>
+      <td colspan="7">VR5, bits 1-7</td>
+      <td colspan="5">Sprite #</td>
+      <td colspan="2">Param</td>
+    </tr>
+    <tr>
+      <th rowspan="2">Pats<br>
+      <br>
+      </th>
+      <th>Size 1</th>
+      <td colspan="3">VR6, bits 5-7</td>
+      <td colspan="8">Sprite #</td>
+      <td colspan="3">Sprite pat row</td>
+    </tr>
+    <tr>
+      <th>Size 4</th>
+      <td colspan="3">VR6, bits 5-7</td>
+      <td colspan="6">Sprite #, bits 0-5</td>
+      <td colspan="2">Quadrant</td>
+      <td colspan="3">Sprite pat row</td>
+    </tr>
+  </tbody>
+</table>
+<p><u>Notes:<br>
+</u><b>VRx</b>: VDP register x. The least significant bits are used,
+except
+in bitmap mode (MSB = &gt;2000, others = mask).<br>
+<b>3rd</b>: Third of the screen. 0=upper, 1=middle, 2=lower (3 never
+occurs).<br>
+<b>Param</b>: 0=pixel row-1, 1=pixel column, 2=Pat #, 3=color (+clock
+bit)<br>
+<b>Quadrant</b>: 0=upper left, 1=lower left, 2=upper right, 3=lower
+right
+(8x8 pixels each)<br>
+In bitmap mode, the resulting address for the color and char pats
+tables
+is ANDed with an <a href="#address%20mask">address mask</a>. See the
+discussion
+of <a href="#hybrid%20bitmap">bitmap mode</a> for details.</p>
+<h2><br>
+<br>
+<a name="CPUinterface"></a>CPU interface</h2>
+<p>The TMS9900 CPU communicates with the VDP via an 8-bit data bus and
+three control lines. </p>
+<p>The CSR* line signals a read operation and instructs the VDP to
+place
+a byte on the data bus. According to the value of the MODE line, this
+byte
+can be the content of the status register (MODE is high) or a byte
+transfered
+from the VDP RAM (MODE is low). Reading the status register resets its
+content, readind a byte from the RAM increments the internal address
+pointer
+in the VDP, so that the next operation will return the next byte in RAM.</p>
+<p>The CSW* line signals a write operation and instructs the VDP to
+latch
+the byte currently on the data bus. The MODE line is used to
+differentiate
+data bytes (MODE is low) from command bytes (MODE is high). Writing a
+byte
+to the RAM increments the address pointer in the VDP, so that the next
+byte will be written to the next address in RAM. Command bytes are
+always
+passed as a pair, the two most significant bits of the second byte
+indicates
+the type of command: &gt;80 to write to a VDP register, &gt;40 to set
+the
+address for a RAM write operation, and &gt;00 to set the address for a
+RAM read operation. If the first byte was sent by mistake, one can
+cancel
+it by reading the status register.</p>
+<p>In the TI-99/4A the MODE line is connected to address line A14
+(weight
+&gt;0002). CSR* is triggered by any operation with even addresses in
+the
+range &gt;8800-8BFE, whereas CSW* is activated by a write operation to
+an even address in the range &gt;8C00-8FFE. Traditionally, the
+following
+four ports are used to communicate with the VDP:</p>
+<p>&gt;8800 Read next byte from the VDP RAM and increment the address
+pointer.<br>
+&gt;8802 Read the status byte from the status register, resets it, and
+clear interrupt.<br>
+&gt;8C00 Write a byte to the next address in the VDP RAM and increment
+the address pointer.<br>
+&gt;8C02 Send a command byte to the VDP (commands must be a pair of
+bytes).</p>
+<p>The three possible commands are the following:</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Command </th>
+      <th>First byte</th>
+      <th>Second byte</th>
+    </tr>
+    <tr>
+      <td>Write to register</td>
+      <td>Reg content</td>
+      <td>1 0 Reg#</td>
+    </tr>
+    <tr>
+      <td>Set address for write</td>
+      <td>A6-A13</td>
+      <td>0 1 A0-A5</td>
+    </tr>
+    <tr>
+      <td>Set address for read</td>
+      <td>A6-A13</td>
+      <td>0 0 A0-A5</td>
+    </tr>
+  </tbody>
+</table>
+<p>You will have noticed that commands are 2-byte long. The VDP
+maintains
+an internal flag to know whether the first byte has already arrived.
+Once
+the second byte arrives, the command is executed. It is of importance
+to
+realize than any access to the data port (&gt;8800 or &gt;8C00) or to
+the
+status port (&gt;8802) will reset this flag. This was probably done so
+that you can put the VDP in a known state in case something went wrong
+with programming: otherwise the only way to reset the byte flag would
+be
+a hardware reset! This is why interrupt must be disabled during VDP
+operations:
+since the interrupt service routine accesses the VDP it would cancel
+any
+pending command if an interrupt occured in-between the two bytes.</p>
+<p>The VDP maintains only one internal address pointer, for both
+reading
+and writing. You could thus wonder why we must tell the VDP whether we
+are setting the address for a read or a write operation. This is
+because
+the chip contains a 1-byte read-ahead buffer. As soon as the address is
+set for a reading operation, the VDP gets the relevant byte from the
+RAM
+and stores it in the read-ahead buffer. It then increments the reading
+pointer. This way, when the CPU finally asks for the byte value (from
+port
+&gt;8800), the VDP can provide it immediately. It then fetches the next
+byte and has it ready for the next CPU request. This read-ahead
+strategy
+considerably speeds up reading operations.</p>
+<p>By contrast, when the CPU sets an address to write, all the VDP does
+is to update its internal address pointer. When the CPU provides the
+new
+byte value (at port &gt;8C00), the VDP places it in the RAM and
+increments
+the address pointer. </p>
+<h3><br>
+<a name="CPUtiming"></a>Timing issues</h3>
+<p>The VDP needs 2 microseconds to read or write a byte to its RAM. In
+addition, it can only communicate with the CPU at precise moments, when
+it is not too busy with building the screen. Such moments are known as
+CPU access windows and may arise at various intervals depending on the
+video mode. In standard or bitmap mode, a window occurs every 16 memory
+cycles, each cycle being 372 ns long. This means the VDP may have to
+wait
+upto 5.95 us before a CPU access window occurs. Adding the 2 us needed
+for RAM access gives us a maximum delay time of 8 us. Of course, it can
+be as fast as 2 us if a window just happens to open (even less for
+reading
+operations, thanks to the read-ahead buffer). In text mode, a window
+opens
+every three memory cycles, i.e. at intervals of 1.1 us. In multicolor
+mode,
+a window opens every four memory cycles, i.e. at 1.5 us intervals.</p>
+<p>There are two exceptions to these rules, however:</p>
+<li>When the screen is blank (because bit 1 in register 1 is set as 0)
+the VDP does not handle the screen and a CPU access window is
+permanently
+open. Consequently, there is no wait time.</li>
+<li>When the VDP is done with drawing a frame and enters vertical
+refresh
+mode it issues an interrupt (if enabled) and opens a 4.3 milliseconds
+(4300
+us) window for CPU access.</li>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Condition</th>
+      <th>Mode</th>
+      <th>RAM access<br>
+delay</th>
+      <th>Time waiting <br>
+for a window</th>
+      <th>Total delay</th>
+    </tr>
+    <tr>
+      <td>Building screen</td>
+      <td>Standard<br>
+/ Bitmap</td>
+      <td>2 us</td>
+      <td>0 - 5.95 us</td>
+      <td>2 - 8 us</td>
+    </tr>
+    <tr>
+      <td>Building screen</td>
+      <td>Text</td>
+      <td>2 us</td>
+      <td>0 - 1.1 us</td>
+      <td>2 - 3.1 us</td>
+    </tr>
+    <tr>
+      <td>Building screen</td>
+      <td>Multicolor</td>
+      <td>2 us</td>
+      <td>0 - 1.5 us</td>
+      <td>2 - 3.5 us</td>
+    </tr>
+    <tr>
+      <td>Vertical retrace</td>
+      <td>Any</td>
+      <td>2 us</td>
+      <td>0</td>
+      <td>2 us</td>
+    </tr>
+    <tr>
+      <td>Blank screen</td>
+      <td>Any</td>
+      <td>2 us</td>
+      <td>0</td>
+      <td>2 us</td>
+    </tr>
+  </tbody>
+</table>
+<p>Contrarily to standard memory, the VDP cannot hold the CPU in a wait
+state until it is ready to accept/send data. This means that the
+application
+program must contain appropriate delays to prevent the CPU from going
+on
+with the next operation before the VDP has completed the current one. A
+typical example is passing the two command bytes to the VDP: using two
+successive MOV instructions is too fast and the second byte won't be
+read.
+The program should thus contain another instruction in between the two
+MOV (such as a NOP or a SWPB).</p>
+<h3><br>
+<a name="CPUexamples"></a>Programming examples</h3>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>*------------------------------------------------------------<br>* VDP write to register. <br>* Expects register # in R0 MSB and register content in R0 LSB<br>*------------------------------------------------------------<br>VWREG  ORI   R0,&gt;8000     Set command bits as 1xxx xrrr<br><br>CMD    SWPB R0            Send a command to the VDP<br>       MOVB R0,@&gt;8C02     Send first byte (least significant)<br>       SWPB R0            Delay<br>       MOVB R0,@&gt;8C02     Send second byte (most significant)<br>       B    *R11<br><br>*------------------------------------------------------------<br>* VDP set address to write in RAM<br>* Expects address in R0<br>*------------------------------------------------------------<br>VAD2WR ANDI R0,&gt;7FFF     Make sure command bits are 01xx xxxx<br>       ORI   R0,&gt;4000<br>       JMP  CMD          Send command<br><br>*------------------------------------------------------------<br>* VDP set address to read from RAM<br>* Expects address in R0<br>*------------------------------------------------------------<br>VAD2RD ANDI R0,&gt;3FFF     Make sure command bits are 00xx xxxx   <br>       JMP  CMD          Send command<br><br>*------------------------------------------------------------<br>* VDP write byte to RAM<br>* Expects data byte in R0 MSB and address set by VAD2WR<br>*------------------------------------------------------------<br>VWRBYT MOV  R0,@&gt;8C00    Send data to VDP<br>       B    *R11         Delay<br><br>*------------------------------------------------------------<br>* VDP read byte from RAM. Assumes address was set by VAD2RD<br>* Result will be in R0 MSB<br>*------------------------------------------------------------<br>VRDBYT MOV  @&gt;8800,R0    Get data byte<br>       B    *R11         Delay<br><br>*------------------------------------------------------------<br>* VDP read status. Result will be in R0 MSB<br>*------------------------------------------------------------<br>VRDSTA MOV  @&gt;8802,R0    Read status register, resets bits 0-2.<br>       B    *R11         Delay</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h2><br>
+<a name="Monitor"></a>Monitor interface</h2>
+<h3><a name="Monitor plug"></a>Monitor plug</h3>
+<pre>     6</pre>
+<p><img src="5pindin.gif" height="85" width="83" align="middle">
+Looking into
+the cable (invert left + right for console socket)</p>
+<p>European consoles (TMS9929A VDP)</p>
+<pre>#  Use  <br>-  ----- <br>1  +12V <br>2  R-Y<br>3  Sound output <br>4  Y <br>5  B-Y<br>6  GND</pre>
+<p><br>
+US consoles (TMS9918A VDP)</p>
+<pre>#  Use <br>-  ----- <br>1  +12V<br>2  Ground<br>3  Sound<br>4  Composite video<br>5  Signal ground </pre>
+<h3><a name="Colors"></a>Colors and gray levels</h3>
+<p>The composite video signal from the TMS9918A can drive a color
+monitor.
+It incorporates chrominance, luminance and all necessary vertical and
+horizontal
+synchronisation. The output buffer for the COMVID pin is a
+source-follower
+MOS transistor internally connected to Vcc, which requires and external
+pull-down resistor (typically 330 Ohm to provide a 1.9V sync level).
+This
+load resistor determines the sharpness of the edges on the video
+signals:
+lower resistance provides faster fall times and a sharper picture.
+While
+the VDP signals are not exactly equivalent to the NTSC colors, the
+difference
+can be easily corrected with the color and tint controls of the monitor
+(direct quote from the TI doc).</p>
+<p>The Y, R-Y and B-Y video signals from the TMS9928A and TMS9929A
+require
+an external encoding circuitery to drive a RGB monitor. The Y output
+signal
+incorporates the luminance signal and the necessary synchronisation
+signals.
+R-Y (red minus Y) and B-Y (blue minus Y) contain unmodulated
+chrominance
+information and are used in NTSC and PAL systems to modulate two
+carriers
+in quadrature. The output buffers are identical to the COMVID buffer
+described
+above and require the same pull-down resistor.</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <td colspan="2"><br>
+      </td>
+      <th colspan="2">TMS9918A</th>
+      <th colspan="3">TMS9928A/9929A</th>
+    </tr>
+    <tr>
+      <th>Hex </th>
+      <th>Color</th>
+      <th>Luminance<br>
+(DC)</th>
+      <th>Chrominance<br>
+(AC)</th>
+      <th>Y</th>
+      <th>R-Y</th>
+      <th>B-Y</th>
+    </tr>
+    <tr>
+      <td>0</td>
+      <td>Transparent</td>
+      <td>0.00</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>Black</td>
+      <td>0.00</td>
+      <td>-</td>
+      <td>0.00</td>
+      <td>0.47</td>
+      <td>0.47</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>Medium green</td>
+      <td>0.53</td>
+      <td>0.53</td>
+      <td>0.53</td>
+      <td>0.07</td>
+      <td>0.20</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>Light green</td>
+      <td>0.67</td>
+      <td>0.40</td>
+      <td>0.67</td>
+      <td>0.17</td>
+      <td>0.27</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>Dark blue</td>
+      <td>0.40</td>
+      <td>0.60</td>
+      <td>0.40</td>
+      <td>0.40</td>
+      <td>1.00</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>Light blue</td>
+      <td>0.53</td>
+      <td>0.53</td>
+      <td>0.53</td>
+      <td>0.43</td>
+      <td>0.93</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td>Dark red</td>
+      <td>0.47</td>
+      <td>0.47</td>
+      <td>0.47</td>
+      <td>0.83</td>
+      <td>0.30</td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td>Cyan</td>
+      <td>0.67</td>
+      <td>0.60</td>
+      <td>0.73</td>
+      <td>0.00</td>
+      <td>0.70</td>
+    </tr>
+    <tr>
+      <td>8</td>
+      <td>Medium red</td>
+      <td>0.53</td>
+      <td>0.60</td>
+      <td>0.53</td>
+      <td>0.93</td>
+      <td>0.27</td>
+    </tr>
+    <tr>
+      <td>9</td>
+      <td>Light red</td>
+      <td>0.67</td>
+      <td>0.60</td>
+      <td>0.67</td>
+      <td>0.93</td>
+      <td>0.27</td>
+    </tr>
+    <tr>
+      <td>A</td>
+      <td>Dark yellow</td>
+      <td>0.73</td>
+      <td>0.47</td>
+      <td>0.73</td>
+      <td>0.57</td>
+      <td>0.07</td>
+    </tr>
+    <tr>
+      <td>B</td>
+      <td>Light yellow</td>
+      <td>0.80</td>
+      <td>0.33</td>
+      <td>0.80</td>
+      <td>0.57</td>
+      <td>0.17</td>
+    </tr>
+    <tr>
+      <td>C</td>
+      <td>Dark green</td>
+      <td>0.46</td>
+      <td>0.47</td>
+      <td>0.47</td>
+      <td>0.13</td>
+      <td>0.23</td>
+    </tr>
+    <tr>
+      <td>D</td>
+      <td>Magenta</td>
+      <td>0.53</td>
+      <td>0.40</td>
+      <td>0.53</td>
+      <td>0.73</td>
+      <td>0.67</td>
+    </tr>
+    <tr>
+      <td>E</td>
+      <td>Gray</td>
+      <td>0.80</td>
+      <td>-</td>
+      <td>0.80</td>
+      <td>0.47</td>
+      <td>0.47</td>
+    </tr>
+    <tr>
+      <td>F</td>
+      <td>White</td>
+      <td>1.00</td>
+      <td>-</td>
+      <td>1.00</td>
+      <td>0.47</td>
+      <td>0.47</td>
+    </tr>
+    <tr>
+      <td>-</td>
+      <td>Black level</td>
+      <td>0.00</td>
+      <td>-</td>
+      <td>0.00</td>
+      <td>0.47</td>
+      <td>0.47</td>
+    </tr>
+    <tr>
+      <td>-</td>
+      <td>Color burst</td>
+      <td>0.00</td>
+      <td>0.40</td>
+      <td>0.00<br>
+0.00</td>
+      <td>0.47<br>
+0.73</td>
+      <td>0.10<br>
+0.20</td>
+    </tr>
+    <tr>
+      <td>-</td>
+      <td>Sync level</td>
+      <td>-0.40</td>
+      <td>-</td>
+      <td>-0.46</td>
+      <td>0.47</td>
+      <td>0.47</td>
+    </tr>
+    <tr>
+      <td>-</td>
+      <td>External video</td>
+      <td>-</td>
+      <td>-</td>
+      <td>0.00</td>
+      <td>0.47</td>
+      <td>0.47</td>
+    </tr>
+    <tr>
+      <td>-</td>
+      <td>Level</td>
+      <td>-</td>
+      <td>-</td>
+      <td>0.00</td>
+      <td>-0.46</td>
+      <td>-0.46</td>
+    </tr>
+  </tbody>
+</table>
+<p>For the TMS9918A, this results in the following hierarchy of gray
+levels.
+These levels differ slightly on the TMS9928A and TMS9929A.</p>
+<pre>1        Black<br>4        D. blue<br>6 C      D.red, D.green<br>2 5 8 D  M.green, L.blue, M.red, Magenta<br>3 9      L.green, L.red<br>7 A      Cyan, D.yellow<br>B E      L.yellow, Gray<br>F        White</pre>
+<h3><br>
+<a name="Sync"></a>Synchronisation signals</h3>
+<p>The 10.738635 oscillator is used to derive a six-phase internal
+clock
+signal at 3.579545 MHz to provide the video color signal and the color
+burst signal used by the TMS9918A. The master clock signal is divided
+by
+two to provide the pixel clock (5.3 MHz), by three to provide CPUCLK
+(3.58
+MHz for the TMS9918A only) and by 24 to provide GROMCLK (3.58 MHz for
+the
+TMS9928A only).</p>
+<p>The pixel clock drive an horizontal pixel counter that in turn
+drives
+a vertical line counter. These counters are used to generate the
+synchronisation
+signals incorporated in COMVID or Y. The TMS9918A and the TMS9928A
+operate
+at 262 lines per frame and approximately 60 frames per second in
+non-interlaced
+mode. The TMS9929A operates at 313 lines per frame and approximately 50
+frames per second.</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th rowspan="2">Horizontal</th>
+      <th colspan="2">Pixel clock cycles</th>
+    </tr>
+    <tr>
+      <th>Text mode</th>
+      <th>Other modes</th>
+    </tr>
+    <tr>
+      <td>Active display</td>
+      <td>240</td>
+      <td>256</td>
+    </tr>
+    <tr>
+      <td>Right border</td>
+      <td>25</td>
+      <td>15</td>
+    </tr>
+    <tr>
+      <td>Right blanking</td>
+      <td>8</td>
+      <td>8</td>
+    </tr>
+    <tr>
+      <td>Horiz sync</td>
+      <td>26</td>
+      <td>26</td>
+    </tr>
+    <tr>
+      <td>Left blanking</td>
+      <td>2</td>
+      <td>2</td>
+    </tr>
+    <tr>
+      <td>Color burst</td>
+      <td>14</td>
+      <td>14</td>
+    </tr>
+    <tr>
+      <td>Left blanking</td>
+      <td>8</td>
+      <td>8</td>
+    </tr>
+    <tr>
+      <td>Left border</td>
+      <td>19</td>
+      <td>13</td>
+    </tr>
+    <tr>
+      <td>Total</td>
+      <td>342</td>
+      <td>342</td>
+    </tr>
+    <tr>
+      <th>Vertical</th>
+      <th colspan="2">Lines<br>
+(all modes)</th>
+    </tr>
+    <tr>
+      <td>Active display</td>
+      <td colspan="2">192</td>
+    </tr>
+    <tr>
+      <td>Bottom border</td>
+      <td colspan="2">24</td>
+    </tr>
+    <tr>
+      <td>Bottom blanking</td>
+      <td colspan="2">3</td>
+    </tr>
+    <tr>
+      <td>Vertical sync</td>
+      <td colspan="2">3</td>
+    </tr>
+    <tr>
+      <td>Top blanking</td>
+      <td colspan="2">13</td>
+    </tr>
+    <tr>
+      <td>Top border</td>
+      <td colspan="2">27</td>
+    </tr>
+    <tr>
+      <td>Total</td>
+      <td colspan="2">362</td>
+    </tr>
+  </tbody>
+</table>
+<h2><br>
+<a name="timing diagrams"></a>Timing diagrams</h2>
+<h3><a name="Time cpu"></a>CPU interface</h3>
+<p>With CL= 300 pF. All units are nanoseconds (ns) i.e. 10<sup>-9</sup>
+second.<br>
+Fcpuclk = 3.4 (min), 3.58(typ), 3.76(max) MHz<br>
+Fgromclk= 425.12(min), 447.5(typ), 469.88(max) MHz</p>
+<h4>Write cycle</h4>
+<pre>__________|          200 ns         <u>|           </u> <br>          \________________________/             CSW*<br>  <u>|  30  ||  30  </u>|                | |               <br>XX<u> valid address </u>XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX MODE<br>                          <u>|  100  | |30 </u>|    <br>XXXXXXXXXXXXXXXXXXXXXXXXXX<u>  valid data  </u>XXXXXXXX CD0-CD7</pre>
+<h4>Read cycle</h4>
+<pre>______                             <u>             </u> <br>      \___________________________/              CSR*<br>  <u>| 0 |                         </u>                              <br>XX<u>     valid address            </u>XXXXXXXXXXXXXXXX MODE<br>      |   100-150  |<u>            | 0 </u>|65-100 |  <br>-------------------&lt;<u>   valid data   </u>XXXXXXXX&gt;--- CD0-CD7</pre>
+<h3><br>
+<br>
+<a name="Time VRAM"></a>VDP RAM interface</h3>
+<p>With CL= 50 pF. All units are nanoseconds (ns) i.e. 10<sup>-9</sup>
+second.</p>
+<h4>Write cycle</h4>
+<pre><u>       </u>|                    &gt;372 ns              <u>         </u>|     <br>       \<u>              190-230 ns                </u>/|100-150 \<u>    </u> RAS* <br>        |  30-50    |  150-190 ns                |         |     <br> <u>       |          </u> |                         <u>| &gt;45 (65)   | </u>     <br>        |          \<u>|  220-250 ns            </u>/|  80-120 ns   \_ CAS*<br>        |          95-125 ns             |    |  |               <br>        |     95-130 ns     |            |    |  |                 <br>        |-10 to -2| |  240-280 ns        |    |  |                <br>  <u>|25-65|20-30</u>|   <u>| | 45-85 </u>| <u>           </u>|    |  |                  <br>XX<u>     row    </u>XXXX<u>  column  </u>XX<u>    data   </u>XXXXXXXXXXXXXXXXXXXXXX AD0-AD7<br>                    |         |  |135-195|    |  |               <br>                    |         |  |  140-160   |  |                                              <br><u>                    |         |a</u>||   60-90 ns<u>    |          </u>       <br>                    |           \<u>| 170-210  </u>/     25-75     \<u>  </u> R/W*<br>                    |      200-310 ns       |  </pre>
+<pre>a) 0-20 ns   </pre>
+<h4>Read cycle</h4>
+<pre><u>       </u>|                 &gt;372 ns            <u>       </u>|<br>       \<u>         190-230 ns                </u>/100-150\<u>    </u> RAS* <br> <u>       |   30-50  </u> |                  <u>| &gt;45 (65)  |  <br></u>        |          \<u>   220-250 ns     </u>/   80-120 ns   \_ CAS*<br>        |    95-130 ns     |           |<br>  <u>|26-65|20-30</u>|  <u>|a |45-85 </u>|           |                <br>XX<u>    row     </u>XXX<u>  column  </u>XXXXXXXXXXXXXXXXXXXXXXXXXXXXX AD0-AD7<br>             <u>                          |&gt;0</u>|<br>XXXXXXXXXXXX/                          |  \XXXXXXXXXXXXX R/W*<br>                                 <u>| &gt;60 |&gt;0</u>|            <br>XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX<u>  data   </u>XXXXXXXXXXXXXX RD0-RD7  <br>                                                <br>a) -10 to -2 ns</pre>
+<h3><br>
+<a name="Time clock"></a>Clock interface</h3>
+<h4>External clock timing waveform</h4>
+<pre>       <u> 42-47-52 </u>              <u>          </u>       2.75 V <br>      /          \            /          \             XTAL1       <br><u>     </u>/            \<u> 42-47-52 </u>/            \<u>     </u> 0.8 V<br>    |  |           |                    |  |<br>  x-10-15          | 42-47-52  |      x-10-15<br><u>       </u>              <u>          </u>|             <u>   <br></u>       \            /          \            /               <br>        \<u>          </u>/            \<u>          </u>/           XTAL2<br></pre>
+<pre>Values given for frequencies: 10.738098 MHz (min)<br>                              10.738635 MHz (nom)<br>                              10.739172 MHz (max)</pre>
+<h3><br>
+<a name="Time monitor 9918A"></a>Monitor interface, TMS9918A</h3>
+<p>With RL = 470 Ohm and CL= 150 pF<br>
+Units are nanoseconds (ns, 10<sup>-9</sup> sec), microseconds (us, 10<sup>-6</sup>
+sec) and milliseconds (ms, 10<sup>-3</sup> sec)</p>
+<h4>COMVID horizontal timing</h4>
+<pre>    Vwhite                              2<u>.72</u> us                    2<u>.79</u> us<br>                                        /   \        ,~~~,         /   \           <br>___                    372ns     1.49us/     \   ,~~~'   `~~~,    /     \       <br><u>Vcb</u> Vblack ----,        ,--/\/\/\/\---'       `--'           `~~~'       \______                                                               <br>    Vsync       \<u>4.4 us</u>/    261 us    | |   | |     47.68 us     | |   | |1.49us\____                                                      <br>              10ns    20ns            60ns  110ns                60ns  110ns                                                                                          <br>                 Horiz      Color       Left   | Active display  | Right         Horiz                                     <br>                 sync       burst       border |     area        | border        sync</pre>
+<h4><br>
+Vertical timing</h4>
+<pre>__  __  __  __  __  __              __  __  _ _ _ _  __  __  __  __ _ _<br>  \/  \/  \/  \/  \/  \/\_ ________/  \/  \/       \/  \/  \/  \/  <br>242 243 244 245 246 247         249 250 251      262    1   2   3<br>End bottom | Vertical |  Vertical  |   Vertical back   | Start top<br>border     | front    |  sync      |    blanking *     | border<br>           | blanking*|            |                   |<br>----------&gt;| 191.1 us |  191.1 us  |     828 us        |&lt;--- 18.8 msec --</pre>
+<p>* Color burst output suppressed</p>
+<h3><br>
+<a name="Time monitor 9928/9A"></a>Monitor interface, TMS9928A/9929A</h3>
+<p>With RL = 470 Ohm and CL= 15 pF</p>
+<h4>Y horizontal timing</h4>
+<pre>   |          Horizontal line:  63.695 usec               |                <br>                        One pixel   __                         Vwhite                              <br>                        18<u>6.</u>24ns   /  \                                       <br>                   ______/  \     /    \     ______                                       <br>___        _______/2.8us     \___/      \___/2.42us\______     Vblack                                              <br>   \<u>4.84us</u>/4.47us                                   1.49us\____Vsync<br>  ||      ||                     | |  | |<br> 110ns   150ns                  75ns 50ns<br>    Horiz   Back   Left  |  Active display | Right  Front  Horiz<br>    sync    porch  border|  area           | border porch  sync</pre>
+<h4><br>
+R-Y horizontal timing</h4>
+<pre>Vwhite                               ___<br>                                    /   \                 ___<br>Vcb            _____               /     \               /   \<br>Vno_color ____/2.6us\______       /       \             /     \       __<br>              ||   ||1.49us\_____/         \      _ _ _/       \_____/<br>Vblack      150ns 100ns     2.8us           \____/              2.4us          <br>Vsync<br>              Color        Left    |  Active display  area   |  Right <br>              burst*       border          47.67 usec           border</pre>
+<p>* For TMS9929A only</p>
+<h4><br>
+B-Y horizontal timing</h4>
+<pre>Vwhite                                        ___<br>                                             /   \                 <br>                                            /     \_ _ _               ___ <br>Vno_color ____         ______              /            \        _____/   <br>              \       /1.49us\_____       /              \      /2.4us       <br>Vneg_cb        \<u>2.6us</u>/        2.8us\     /                \____/                     <br>Vblack       | |     | |            \___/<br>Vsync       100ns   150ns <br>               Color          Left  |   Active display  area   | Right <br>               burst*         border          47.67 usec         border</pre>
+<p>* For TMS9929A only</p>
+<h4><br>
+Vertical timing</h4>
+<pre>__  __  __  __  __  __ 465ns        __  __  _ _ _ _  __  __  __  __ _ _<br>  \/  \/  \/  \/  \/  \/\__________/  \/  \/       \/  \/  \/  \/  <br>292 293 294 295 296 297 298      300 301 302      313      1   2   3<br>End bottom | Vertical |  Vertical  |   Vertical back   | Start top<br>border     | front    |  sync *    |    blanking *     | border<br>           | blanking*|            |                   |<br>----------&gt;| 191.09 us|  191.09 us |     828.04 us     |&lt;--- 18.7 msec --<br>Vertical time: 19.91 msec</pre>
+<p>* Color burst output suppressed</p>
+<h2><br>
+<br>
+<a name="Electrical"></a>Electrical characteristics</h2>
+<h3>Absolute maximum ratings</h3>
+<p>Supply voltage, Vcc............................-0.3 to 20 V<br>
+All input voltages................................-0.3 to 20 V<br>
+Output voltage....................................-2 to 7V<br>
+Continuous power dissipation..............1.3 W<br>
+Operating free-air temperature.............0 to 70 `C<br>
+Storage temperature range..................-55 to 150 `C</p>
+<h3><br>
+Recommended operating conditions</h3>
+<table border="1">
+  <tbody>
+    <tr>
+      <th colspan="2">Parameter</th>
+      <th>Min</th>
+      <th>Nom</th>
+      <th>Max</th>
+      <th>Unit</th>
+    </tr>
+    <tr>
+      <td colspan="2">Supply voltage, Vcc</td>
+      <td>4.75</td>
+      <td>-</td>
+      <td>5.25</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td colspan="2">Supply voltage, Vss</td>
+      <td>-</td>
+      <td>0</td>
+      <td>-</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td rowspan="3">Input voltage on<br>
+RESET*/SYNC pin</td>
+      <td>SYNC active</td>
+      <td>10</td>
+      <td>-</td>
+      <td>12</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>RESET active</td>
+      <td>-</td>
+      <td>-</td>
+      <td>0.6</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>Both inactive</td>
+      <td>3</td>
+      <td>-</td>
+      <td>6</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td rowspan="2">High level <br>
+input voltage</td>
+      <td>XTAL1-2</td>
+      <td>2.75</td>
+      <td>-</td>
+      <td>-</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>Other inputs</td>
+      <td>2.2</td>
+      <td>-</td>
+      <td>-</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td rowspan="3">Input voltage on<br>
+EXT VDP pin<br>
+(TMS9918A)</td>
+      <td>Sync level</td>
+      <td>-</td>
+      <td>2.6</td>
+      <td>-</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>White level</td>
+      <td>-</td>
+      <td>3.7</td>
+      <td>-</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>Black level</td>
+      <td>-</td>
+      <td>3.0</td>
+      <td>-</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td colspan="2">Low level input voltage</td>
+      <td>-</td>
+      <td>-</td>
+      <td>0.8</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td colspan="2">Operating free-air temperature</td>
+      <td>0</td>
+      <td>-</td>
+      <td>70</td>
+      <td>`C</td>
+    </tr>
+  </tbody>
+</table>
+<h3><br>
+Characteristics under recommended conditions</h3>
+<h4>All models</h4>
+<table border="1">
+  <tbody>
+    <tr>
+      <th colspan="2">Parameter</th>
+      <th>Test conditions</th>
+      <th>Min</th>
+      <th>Typ</th>
+      <th>Max</th>
+      <th>Unit</th>
+    </tr>
+    <tr>
+      <td rowspan="2">High level<br>
+output<br>
+voltage</td>
+      <td>RAS*, CAS*, R/W*</td>
+      <td rowspan="2">I=400 uA</td>
+      <td>2.7</td>
+      <td>3.4</td>
+      <td>-</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>All other outputs</td>
+      <td>2.4</td>
+      <td>3.2</td>
+      <td>-</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td rowspan="2">Low level<br>
+output<br>
+voltage</td>
+      <td>CPU data</td>
+      <td>I=1.2 mA</td>
+      <td>-</td>
+      <td>0.3</td>
+      <td>0.6</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>DRAM interface</td>
+      <td>I=0.8 mA</td>
+      <td>-</td>
+      <td>-</td>
+      <td>0.6</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td colspan="2">Off-state output current, D0-D7 high</td>
+      <td>V=5.25 V</td>
+      <td>-</td>
+      <td>1</td>
+      <td>100</td>
+      <td>uA</td>
+    </tr>
+    <tr>
+      <td colspan="2">Off-state output current, D0-D7 low</td>
+      <td>V=0.4V</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-100</td>
+      <td>uA</td>
+    </tr>
+    <tr>
+      <td colspan="2">High-level input current</td>
+      <td>V=5.25 V</td>
+      <td>-</td>
+      <td>-</td>
+      <td>10</td>
+      <td>uA</td>
+    </tr>
+    <tr>
+      <td colspan="2">Low-level input current</td>
+      <td>V=0 V</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-10</td>
+      <td>uA</td>
+    </tr>
+    <tr>
+      <td colspan="2">Video voltage difference, white-black<br>
+Y, R-Y, B-Y outputs</td>
+      <td>-</td>
+      <td>0.7</td>
+      <td>1.0</td>
+      <td>-</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td colspan="2">Average supply current from Vcc</td>
+      <td>Temp=25 `C</td>
+      <td>-</td>
+      <td>200</td>
+      <td>250</td>
+      <td>mA</td>
+    </tr>
+    <tr>
+      <td rowspan="2">Input <br>
+capacitance</td>
+      <td>D0-D7</td>
+      <td rowspan="2">f=11 MHz<br>
+other pins at 0V</td>
+      <td>-</td>
+      <td>-</td>
+      <td>20</td>
+      <td>pF</td>
+    </tr>
+    <tr>
+      <td>All other inputs</td>
+      <td>-</td>
+      <td>-</td>
+      <td>10</td>
+      <td>pF</td>
+    </tr>
+    <tr>
+      <td colspan="2">Output capacitance</td>
+      <td>Ditto</td>
+      <td>-</td>
+      <td>-</td>
+      <td>20</td>
+      <td>pF</td>
+    </tr>
+  </tbody>
+</table>
+<h4><br>
+TMS9918A only</h4>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Parameter</th>
+      <th>Test conditions</th>
+      <th>Min</th>
+      <th>Typ</th>
+      <th>Max</th>
+      <th>Unit</th>
+    </tr>
+    <tr>
+      <td>Video voltage level of white on COMVID</td>
+      <td rowspan="3">R = 470 Ohm</td>
+      <td>2.8</td>
+      <td>3.0</td>
+      <td>3.2</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>Video voltage level of black on COMVID</td>
+      <td>2.1</td>
+      <td>2.3</td>
+      <td>2.5</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>Video voltage level of sync on COMVID</td>
+      <td>1.85</td>
+      <td>2.0</td>
+      <td>2.1</td>
+      <td>V</td>
+    </tr>
+  </tbody>
+</table>
+<h4><br>
+TMS9928A and TMS9929A only</h4>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Parameter</th>
+      <th>Test conditions</th>
+      <th>Min</th>
+      <th>Typ</th>
+      <th>Max</th>
+      <th>Unit</th>
+    </tr>
+    <tr>
+      <td>Video voltage level of white on Y, R-Y, B-Y</td>
+      <td rowspan="3">R = 470 Ohm</td>
+      <td>2.5</td>
+      <td>3.0</td>
+      <td>3.6</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>Video voltage level of black on Y, R-Y, B-Y</td>
+      <td>1.6</td>
+      <td>2.3</td>
+      <td>2.5</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>Video voltage level of sync on Y, R-Y, B-Y</td>
+      <td>1.2</td>
+      <td>1.8</td>
+      <td>2.0</td>
+      <td>V</td>
+    </tr>
+  </tbody>
+</table>
+<h4><br>
+TMS9929A only</h4>
+<table border="1">
+  <tbody>
+    <tr>
+      <th colspan="2">Parameter</th>
+      <th>Min</th>
+      <th>Typ</th>
+      <th>Max</th>
+      <th>Unit</th>
+    </tr>
+    <tr>
+      <td rowspan="2">Color burst video voltage level with<br>
+respect to voltage when no color</td>
+      <td>R-Y output</td>
+      <td>-</td>
+      <td>0.25</td>
+      <td>-</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>B-Y output</td>
+      <td>-</td>
+      <td>-0.25</td>
+      <td>-</td>
+      <td>V</td>
+    </tr>
+  </tbody>
+</table>
+<address><br>
+<br>
+Preliminary version. 3/31/99 Ok to release<br>
+Revision I. 5/22/99. Polished</address>
+<address>Revision II. 8/28/99. Added address masking in bitmap mode.
+Added
+mixed + illegal modes.<br>
+Revision III. 12/23/01. Corrected bit inversion is status register.</address>
+<center>
+<p><br>
+<a href="titechpages.htm">Back to the TI-99/4A Tech Pages</a></p>
+</center>
+</body>
+</html>

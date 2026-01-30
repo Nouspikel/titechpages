@@ -1,0 +1,342 @@
+************************************
+*  RAM usage with the p-code card  *
+************************************
+      by Anders Persson
+
+Workspace
+=========
+When running, the p-system uses several different workspaces. The main one used 
+is located at >8380. 
+Others used are >83A0, >83C0, >83E0 (GPLWS), >2896 and >28B6 (pseudo-interrupts WS).
+There may be others too, for special purposes.
+
+Main workspace (>8380)
+--------------
+R8  	is the p-code instruction pointer.
+R9  	is used as a frame pointer for activation records allocated on the stack.
+R10 	is the stack pointer.
+R11 	is the return link.
+R12 	contains the address of the PME instruction fetch routine.
+R13 	contains the Read Data address of the currently executing code
+	segment. Could be PGRMRD, VDPRD or 0 (for CPU RAM).
+R14 	Global data frame pointer for current segment.
+R15 	is a flag used to remember where the p-code currently interpreted is
+	located. 	 =0: CPU RAM    <0: VDP RAM    >0: GROM
+
+
+Scratch-pad RAM
+===============
+This is the fast 16-bit memory on the console board. 
+It's only 256 bytes in length but it does not generate wait states. 
+Most workspace reside in it. Some routines are copied here, if fast execution is required.
+
+8300-8344	Code for PME instruction decode
+***
+8380-839F	Main workspace
+ 8390		p-code Instruction pointer
+ 8392		Frame pointer for activaton records on stack
+ 8394		Stack ptr
+ 8398		Pointer to PME instruction fetching routine
+ 839A		Read data address (>9800, >8800, >0000 for cpu mem)
+ 839C		Global data pointer for current segment
+ 839E		Memory type flag (0: CPU, <0: VDP, >0: GROM) 	
+83A0-83BF	Secondary workspace
+83C0-83DF	Secondary workspace
+83E0-83FF	Secondary workspace
+
+
+Low memory expansion
+====================
+2000-277F  80 column screen.
+           Temporarily used for other purposes during power-up.
+2780       INTMEM   Interpreters memory pointer in VDP RAM. Initialized to 0DF8.
+2782       TOPMEM   Top memory pointer in VDP RAM. Initialized to 3EDF.
+2784-27B7  Sound data.
+***
+27D8-27E6  Sound data.
+***
+2808       Last sprite coincidence counter.
+280A-280C  Bit maps for moving sprites.
+***
+2810-281C  Copies of VDP register 1-7 (standard mode).
+           Used when initializing the p-code card.
+281E       VDP status copy.
+***
+2886       Cursor addressing flag.
+***
+288A       Keyboard buffer pointer.
+288C       Keyboard layout area pointer.
+288E       Screen blanking timer.
+2890       Stop flag. False=0, true=FFFF
+2892       Alpha lock flag.
+2894       Flush flag
+2896-28B4  Subsidary workspace.
+ 28A2      Key buffer mode flag. (FF40=empty, FF00=something, FF80=full)
+ 28A4      Key buffer store pointer  [0..31]
+ 28A6      Key buffer fetch pointer  [0..31]
+ 28AA      VDPWA (at least sometimes).
+28B6-28D4  "Interrupt" workspace.
+***
+2960       PAB pointer
+***
+2964-2982  Workspace
+2984       Index into interrupt address table.
+2986-29A2  CRU addresses of cards with interrupt routines. End marker=0000.
+ 29AA      Block number.
+ 29AC      Byte count.
+ 29AE      Buffer address.
+ 29B0      Drive number.
+ 29B2      Control parameter.
+***
+29A8-29B8  Data passed to I/O routines.
+***
+29DC-2A1C  PAB pointer table for units.
+***
+2A24-2A32  Register save area R0-R7.
+2A34       Save area.
+***
+2AA0-2AA4  KSCAN data for 83C6-83CA
+***
+2AAA-2AAC  Vector for "interrupt". (28B6 32DC)
+2AAE-2AB0  Vector for keyboard scanning and buffer storage (2896 41BA)
+
+(* Various PME data located at 2AB2-2AF6. Used for task switching and similar. *)
+
+2AB2       Current SIB pointer.                     (CURSIB)
+2AB4       Current Environment Record Pointer       (E_Rec_P)
+2AB6       Pointer to TIB at head of ready queue.   (READYQ)
+2AB8       Current Environment Vector Pointer       (E_Vec_P).
+2ABA       Current TIB pointer.                     (CURTSK)
+***
+2ABE       Current segment constant pool pointer (absolute).
+2AC0       Current segment constant pool pointer (relative).
+2AC3       Current procedure number (byte). (High byte not used?)
+***
+2ACC       P-code IPC save area. Used by the PME.
+***
+2ADC       Return address (R11) save area.
+***
+2AE2       Segment base. IPC is segment relative.
+2AE4       Routine dictionary pointer.
+***
+2AE8       PME flip indicator.
+***
+2AF2       Save area.
+***
+2AF8-2B12  'Segment ________ not found:'
+2B14-2B31  'Put volume _______ in unit #__'
+2B33-2B4F  'Press spacebar to continue...'
+***
+2BA4-2BA6  System clock (low,high).
+***
+2BB8       24 (Screen height).
+2BBA       40 (Screen width).
+2BBC       Code for arrow down.
+2BBD       Code for arrow up.
+2BBE       Code for arrow right.
+2BBF       Code for arrow left.
+2BC0       Code for FLUSH.
+2BC1       Code for etx.
+2BC2       Code for STOP.
+2BC3       Code for BREAK.
+2BC4       Code for editor unknown character?
+2BC5       Code for backspace.
+2BC6       Code for escape.
+2BC7       Code for line delete.
+2BC8       Code for etx.
+2BC9       ?
+2BCA       Code for alpha lock.
+***
+2BD0-2BEA  TIB for main task.
+***
+2BFC-2C1C  Corresponding drive number (byte) for blocked units.
+***
+2C20-2C60  Table with pointers for different units.
+ 2C20      0000     #0  (Reserved)
+ 2C22      2C68     #1  CONSOLE
+ 2C24      2C68     #2  SYSTERM
+ 2C26      0000     #3  (Graphic) Reserved for Terak microcomputers.
+ 2C28      2C70     #4  Diskette name
+ 2C2A      2C70     #5  Diskette name
+ 2C2C      2C80     #6  PRINTER
+ 2C2E      2C80     #7  REMIN
+ 2C30      2C80     #8  REMOUT
+ 2C32      2C70     #9  Diskette name
+ 2C34      0000     #10 (Diskette name)
+ 2C36      0000     #11 (Diskette name)
+ 2C38      0000     #12 (Diskette name)
+ 2C3A      2C70     #13 Assigned to unit loaded from tape.
+ 2C3C      2C70     #14 OS
+ 2C3E      2C70     #15
+   ...and so on...
+ 2C5C      2C70     #30
+ 2C5E      2C88     #31 TAPE
+ 2C60      2C78     #32 TP
+***
+           (* Addresses in secondary ROM page *)
+2C68-2C6E  538E 547E 5270 5360  (Computer console)
+2C70-2C76  5796 5740 568C 5652  (Blocked devices)
+2C78-2C7E  0000 59FA 59CA 0000  (Thermal printer)
+2C80-2C86  5ABE 5AD8 5AB4 0000  (RS232 card)
+2C88-2C8E  5B68 5B22 5B10 0000  (Tape)
+2C90-2C93  Sound data.
+***
+2CAC       DSR validation indicator  (AA).
+***
+2CB0-2CBC  Copies of VDP register 1-7.
+2CBE       Pointer to 80 column screen memory.
+2CC0       Current line.
+2CC2       Current column.
+2CC4       Current 80 col address.
+2CC6       Screen width.
+2CC8       Screen height.
+2CCA       Current screen window.
+2CCC       Number of bytes on 23 lines.
+***
+2CD0       Autorepeat counter
+2CD2       Keyscan limitation counter. (Key buffering isn't done on every
+           interrupt.)
+2CD4       Keyscan limitation value.
+***
+2CFA-      Some table.
+***
+2D20-      Some table.
+***
+2D92-2DB0  Bit masks for general use.
+2DB2-2FB0  Address table for p-code interpreter. Opcode is a word index.
+***
+2FFE-3016  Code which resets the computer and branches to the normal OS.
+3018-3024  Code calling something in secondary page on card.
+3026-308C  Table with pointers to some of the keywords in the next table. 
+		Each pointer is followed by a value.
+ 3026      AND      2
+ 302A      BEGIN    1
+ 302E      CASE     2
+ 3032      DEFINITI 4
+ 3036      ELSE     3
+ 303A      FOR      4
+ 303E      GOTO     1
+ 3042      @@@@@@@@ 1
+ 3046      IF       4
+ 304A      @@@@@@@@ 1
+ 304E      @@@@@@@@ 1
+ 3052      LABEL    1
+ 3056      MOD      1
+ 305A      NOT      1
+ 305E      OF       2
+ 3062      PACKED   4
+ 3066      @@@@@@@@ 1
+ 306A      RECORD   2
+ 306E      SEPARATE 3
+ 3072      THEN     3
+ 3076      UNIT     3
+ 307A      VAR      1
+ 307E      WHILE    2
+ 3082      @@@@@@@@ 1
+ 3086      @@@@@@@@ 1
+ 308A      @@@@@@@@ 1
+           Data for IDSEARCH.
+308E       '@@@@@@@@' 000F  Unknown identifier code
+3098       'AND     ' 2702
+30A2       'ARRAY   ' 2C0F
+30AC       'BEGIN   ' 130F
+30B6       'CASE    ' 150F
+30C0       'CONST   ' 1C0F
+30CA       'DEFINITI' 000F
+30D4       'DIV     ' 2703
+30DE       'DO      ' 060F
+30E8       'DOWNTO  ' 080F
+30F2       'ELSE    ' 0D0F
+30FC       'END     ' 090F
+3106       'EXTERNAL' 350F
+3110       'FOR     ' 180F
+311A       'FILE    ' 2E0F
+3124       'FORWARD ' 220F
+312E       'FUNCTION' 200F
+3138       'GOTO    ' 1A0F
+3142       'IF      ' 140F
+314C       'IMPLEMEN' 340F
+3156       'IN      ' 290E
+3160       'INTERFAC' 330F
+316A       'LABEL   ' 1B0F
+3174       'MOD     ' 2704
+317E       'NOT     ' 260F
+3188       'OF      ' 0B0F
+3192       'OR      ' 2807
+319C       'PACKED  ' 2B0F
+31A6       'PROCEDUR' 1F0F
+31B0       'PROCESS ' 380F
+31BA       'PROGRAM ' 210F
+31C4       'RECORD  ' 2D0F
+31CE       'REPEAT  ' 160F
+31D8       'SEPARATE' 360F
+31E2       'SET     ' 2A0F
+31EC       'SEGMENT ' 210F
+31F6       'THEN    ' 0C0F
+3200       'TO      ' 070F
+320A       'TYPE    ' 1D0F
+3214       'UNIT    ' 320F
+321E       'UNTIL   ' 0A0F
+3228       'USES    ' 310F
+3232       'VAR     ' 1E0F
+323C       'WHILE   ' 170F
+3246       'WITH    ' 190F
+3250-3296  Code for PME instruction decode. Used when p-code is in mapped memory, 		i.e. VDP RAM or GROM.
+3298-32DA  Code for PME kernel.Used when interpreted code is in CPU RAM. The code 		portions above are transferred to RAM PAD (8300-8344) when executing for 		speed reasons.
+32DC-337C  Code for simulated interrupts.
+           The p-system always runs wih interrupts disabled. 				 		Interrupt service is provided by reading the interrupt request as an 			ordinary I/O bit. If it's active, this code is executed. The I/O bit is 		tested after every taken (p-code) JUMP instruction, and also during 			various output tasks. Both vertical blanking and external interrupts are 		serviced.
+337E-34AA  Code for some kind of I/O.
+34AC-34C2  Code...
+34C4-34DA  Code...
+34DC-34EC  Code...
+34EE-34FE  Code...
+3500-3508  Pops two values, pushes zero and fetches next p-code.
+350A-350E  Pops one value, then next p-code.
+3510-352A  Code... Turns on normal page and some more things.
+352C-353A  Code which switches in alternate p-code ROM page.
+353C-354A  Code for normal page. Sometimes entered @3540.
+354C-355C  Code...
+355E-3566  Code giving normal page and then run-time error (unknown instr.).
+3568-357E  Code erasing the 80 column screen memory.
+3580-38FC  Kernel global data area.
+  3600-3607  Prefix volume name (string[7]).
+  3608-360F  Root volume name   (string[7]).
+  3610       System date.
+             packed record
+               month:1..12;   (* 4 bits *)
+               date :1..31;   (* 5 bits *)
+               year :0..99;   (* 7 bits *)
+             end;
+  ***
+  3614-3616  Heap_Info.lock      :semaphore;
+  3618       Heap_Info.HeapTop   :MemPtr;
+  361A       Heap_Info.TopMark   :MemPtr;
+  361C-361E  Task_Info.Task_Done :semaphore;
+  3620-3622  Task_Info.Lock      :semaphore;
+  3624       Task_Info.N_Tasks   :integer;
+  3626           1 (decimal constants)
+  3628          10
+  362A         100
+  362C        1000
+  362E       10000
+  ***
+  3696-3820  Table with name and type of units #0..#32.
+             record
+               volume_id   :string[7];
+               is_blocked  :boolean;
+               no_of_blocks:integer;(* maxint if not blocked *)
+             end;
+  3822-3839  File name for the assembler. Type is string[23].
+  383A-3851  File name for the compiler.
+  3852-3869  File name for the editor.
+  386A-3881  File name for the filer.
+  3882-3899  File name for the linker.
+  ***
+  38CA-38E1  File name for the library text file (usually '*USERLIB.TEXT').
+  ***
+  38FA       '99' when running.
+             'GO' when stopped because e.g. stack overflow.
+             'NO' when stopped by H(alt.
+             The p-system doesn't start on reset if this location contains 'NO'.
+  38FC       '/4' when running.
+***

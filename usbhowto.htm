@@ -1,0 +1,1164 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+  <title></title>
+  <meta name="Author" content="ThN">
+  <meta name="GENERATOR"
+ content="Mozilla/3.04Gold (Win95; U) [Netscape]">
+</head>
+<body>
+<h1 align="center"><a
+ href="http://www.nouspikel.com/ti99/titechpages.htm"><img
+ src="logo.jpg" style="border: 0px solid ; height: 33px; width: 95px;"
+ title="Back to main index" alt=""></a></h1>
+<h1>Building the USB-SM card</h1>
+<p><b>Materials<br>
+</b><a href="#materials">Components<br>
+</a><a href="#PCB">Printed circuit board</a></p>
+<p><b>Soldering<br>
+</b><a href="#Soldering">Toaster oven<br>
+</a><a href="#manual%20soldering">Manually<br>
+</a><a href="#Pictorial">Pictorial guide</a></p>
+<p><b>Building it<br>
+</b><a href="#building%20it">Step-wise strategy<br>
+</a><a href="#Picture">Annotated picture<br>
+</a><a href="#numbering">Components numbering</a></p>
+<h4><font color="#ff0000">Legal disclaimer. Read this first.</font></h4>
+<p><font size="-2">The contents of this webpage are for educative
+purposes
+only. I'm not an electrical engineer, I have little knowledge of
+electronics
+and therefore cannot guaranty that the device described in this
+document
+as an USB-SmartMedia interface card will function properly. In fact, it
+probably won't. It may even cause damage to your computer. And quite
+possibly
+catch on fire and burn your house to ashes, sending toxic fumes in the
+whole neighbourhood. Actually, it may even kill you. So if you know
+where
+your interest it, don't build it! Don't even think of it. Furthermore,
+building the aforementionned device may constitute a copyright
+violation,
+an infringement on FCC regulations, a federal crime or whatever it is
+called
+in the country you live in. You have been warned! By reading this page
+further and/or building the electronic device described herein, you
+agree
+on taking whole legal and moral responsability for any disapointment,
+loss
+of data, damage, accident, catastrophe, or apocalypse that this device
+may directly or indirectly cause or favor. And if you were thinking of
+suing me, forget it. I may have an MD but I'm only a scientist: I don't
+have any money.</font></p>
+<p><font size="-2">The design detailed below is copyrighted by me,
+Thierry&nbsp;Nouspikel,
+till the end of time or 50 years after my death, whichever occurs
+first.
+I grant you the right (but not the exclusive rights) to produce and
+even
+market as many of these as you want, as long as you understand that I
+take
+no responsability for it. If you market them, be sure to include my
+copyright
+and a link to the present webpage. </font></p>
+<h2><br>
+<a name="materials"></a>Bill of materials</h2>
+<h3><a name="components"></a>Components</h3>
+<p>I order all components from two suppliers: Arrow (<a
+ href="http://www.arrow.com">www.arrow.com</a>)
+or Digikey (<a href="http://www.digikey.com">www.digikey.com</a>).
+Prices
+are of spring 2003. Arrow is cheaper than Digikey, but their search
+engine
+is a nightmare unless you know exactly what you want. The 74LS are a
+bit
+cheaper than their advanced 74ALS counterpart, but not by much, so I
+generally
+went for the ALS series (except for the 74LS125, because I wasn't 100%
+sure an ALS was ok). </p>
+<p>Most chips are SOIC surface-mount packages, but there are a few TSOP
+(e.g.the SRAM). The resistors and capacitors are all 0805 packages.</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>#</th>
+      <th>Component</th>
+      <th>Arrow</th>
+      <th>Digikey</th>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>ISP1161A1<br>
+(or ISP1161A or ISAP1161) </td>
+      <td>ISP1161A1BD-S $11.74<br>
+ISP1161ABD-S $11.74</td>
+      <td>not available</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>StrataFlash 8M<br>
+or 4M</td>
+      <td>not available</td>
+      <td>835921-ND $33.03<br>
+827726-ND $17.51</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>SRAM 512K</td>
+      <td>M68Z512W-70NC1 $5.61</td>
+      <td>428-1493-ND $7.50 (not tested)</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>74(A)LS245</td>
+      <td>SN74ALS245ADW $0.19</td>
+      <td>296-1125-1-ND $0.48</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>74(A)LS138</td>
+      <td>SN74ALS138AD $0.28</td>
+      <td>296-14714-1-ND $0.56</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>74(A)LS139</td>
+      <td>SN74ALS139D $0.19</td>
+      <td>296-14715-1-ND $0.72</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>74LS125</td>
+      <td>SN74LS125AD $0.23</td>
+      <td>296-14715-1-ND $0.48</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>74(A)LS688</td>
+      <td>SN74ALS688DW $2.52</td>
+      <td>non-stock item</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>74(A)LS133</td>
+      <td>DM74ALS133M $0.19</td>
+      <td>non-stock item</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>74(A)LS259</td>
+      <td>SN74ALS259D $1.57</td>
+      <td>296-14729-1-ND $1.93</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>74(A)LS251</td>
+      <td>SN74ALS251D $0.16</td>
+      <td>not available</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>74(A)LS32</td>
+      <td>SN74ALS32D $0.17</td>
+      <td>296-1127-1-ND $0.49</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>74(A)LS08</td>
+      <td>SN74ALS08D $0.16</td>
+      <td>296-1123-1-ND $0.49</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>74(A)LS175</td>
+      <td>DM74ALS175M $0.19</td>
+      <td>296-14721-1-ND $0.64</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>74(A)LS04</td>
+      <td>SN74ALS04BD $0.10</td>
+      <td>296-1122-1-ND $0.49</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>74(A)LS74</td>
+      <td>SN74ALS74AD $0.11</td>
+      <td>296-1130-5-ND $0.49</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>74F543</td>
+      <td>74F543SC $0.61</td>
+      <td>296-14821-1-ND $1.05</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>5V regulator 1.5A</td>
+      <td>?</td>
+      <td>296-12396-1-ND $0.72</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>dual MOSFET -30V -4.4A</td>
+      <td>?</td>
+      <td>ZXMP3A17DN8CT-ND $1.97</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>electolytic cap 47 uF </td>
+      <td>?</td>
+      <td>4070PHCT-ND $0.49</td>
+    </tr>
+    <tr>
+      <td>40</td>
+      <td>ceramic cap100 nF</td>
+      <td>?</td>
+      <td>311-1141-1-ND $0.84 (for 10)</td>
+    </tr>
+    <tr>
+      <td>10</td>
+      <td>ceramic cap 47 pF</td>
+      <td>?</td>
+      <td>BC1264CT-ND $0.63 (for 10)</td>
+    </tr>
+    <tr>
+      <td>10</td>
+      <td>ceramic cap 18 pF</td>
+      <td>?</td>
+      <td>311-1101-1-ND $0.75 (for 10)</td>
+    </tr>
+    <tr>
+      <td>10</td>
+      <td>ceramic cap 1 nF</td>
+      <td>?</td>
+      <td>311-1127-1-ND $0.66 (for 10)</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>Resistor network 22 Ohm</td>
+      <td>?</td>
+      <td>767-143-R22-ND $0.66</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>Resistor network 4.7 kOhm</td>
+      <td>?</td>
+      <td>767-143-R4.7K-ND $0.66</td>
+    </tr>
+    <tr>
+      <td>10</td>
+      <td>Resistor 47 kOhm</td>
+      <td>?</td>
+      <td>311-47KACT-ND $0.76 (for 10)</td>
+    </tr>
+    <tr>
+      <td>10</td>
+      <td>Resistor 4.7 kOhm</td>
+      <td>?</td>
+      <td>311-4.7KACT-ND $0.76 (for 10)</td>
+    </tr>
+    <tr>
+      <td>10</td>
+      <td>Resistor 1.5 kOhm </td>
+      <td>?</td>
+      <td>311-1.5KACT-ND $0.76 (for 10)</td>
+    </tr>
+    <tr>
+      <td>10</td>
+      <td>Resistor 470 Ohm</td>
+      <td>?</td>
+      <td>311-470ACT-ND $0.76 (for 10)</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>Crystal 6.0 MHz 18 pF</td>
+      <td>?</td>
+      <td>300-6112-1-ND $1.13</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>LEDs</td>
+      <td>?</td>
+      <td>MV63539MP7-ND $0.49</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>Dual USB-A connector</td>
+      <td>?</td>
+      <td>ED90002-ND $1.93</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>USB-B connector</td>
+      <td>?</td>
+      <td>ED90003-ND $1.23</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>SP3T switch</td>
+      <td>?</td>
+      <td>EG2485-ND $0.82</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>DIP-switch 6x</td>
+      <td>?</td>
+      <td>CKN1290-ND $1.98</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>Heat sink </td>
+      <td>?</td>
+      <td>294-1035-ND $1.50</td>
+    </tr>
+  </tbody>
+</table>
+<p>You will need a few more components for the SmartMedia part of the
+board.
+You can dispense with those if you are only interested in the USB part,
+this will save you about $6.50... Note that the switch is not necessary
+if you go for the single-voltage connector (but then you won't be able
+to use the old 5 volts Smartmedia cards).</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>#</th>
+      <th>Components</th>
+      <th>Arrow</th>
+      <th>Digikey</th>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>74LVT245</td>
+      <td>74LVT245D $0.26 </td>
+      <td>296-8651-1-ND $1.35</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>3.3V voltage regulator </td>
+      <td>?</td>
+      <td>296-13424-1-ND $0.56</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>Connector 5V/3.3V<br>
+or 3.3V only</td>
+      <td>?<br>
+?</td>
+      <td>H2319-ND $4.99<br>
+H2339-ND $4.39</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>SPDT switch</td>
+      <td>?</td>
+      <td>EG1906-ND $.0.71</td>
+    </tr>
+  </tbody>
+</table>
+<p><br>
+If you are 100% sure that your board will never be used with a Myarc
+Geneve,
+you can save a couple more dollars by not buying the DPDT switch, nor
+the
+74ALS138 decoder. You will need to hardwire the switch position to
+"TI",
+by connecting the two middle connections to their respective left
+connections.
+Similarly, the two left connections of the main switch should be wired
+together, but this time you still need to install the switch. Like this:</p>
+<pre>     TI    Gen             Off Gen    TI<br>      o--o  o               o--o  o    o<br>      o--o  o<br>    SW4 (not here)          SW2 (installed)</pre>
+<p>If you want your board to be usable both with a TI-99/4A and a
+Geneve,
+you should also buy and install the following components:</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th># </th>
+      <th>Components </th>
+      <th>Arrow </th>
+      <th>Digikey </th>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>74ALS138</td>
+      <td>SN74ALS138AD $0.28 </td>
+      <td>296-14714-1-ND $0.56 </td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>DPDT switch </td>
+      <td>?</td>
+      <td>EG1940-ND $0.82</td>
+    </tr>
+  </tbody>
+</table>
+<p>Note that the onboard circuitery assumes that you have the "GenMod"
+modification installed on your Geneve. This modification implements two
+extra address lines for paging memory. The USB-SM card will answer to
+the
+extended address &gt;174000, which corresponds to page &gt;BA. If you
+don't
+have GenMod you are in trouble, because the two extra address lines are
+left "floating" in the PE-box, so the USB-SM card won't answer
+to any address! Fortunately this is easy to cure, by just soldering two
+extra 4.7 K resistors.</p>
+<ul>
+  <li>First, locate the 74ASL138 named IC23 in the lower left part of
+the
+board, close the to PE-box connections. </li>
+  <li>Solder one of your spare 4.7K resistor to pin #8 (bottom left),
+and
+the other end of the resistor to pin #4 with a small piece of insulated
+wire.</li>
+  <li>Solder another 4.7K resistor to pin #16 (upper right), and the
+other
+end of the resistor to pin #6 with a small piece of insulated wire.
+Done!</li>
+</ul>
+<pre>      <font color="#ff0000">,---------------,<br></font>      <font
+ color="#ff0000">|</font>   <u>IC23 </u>   <u> </u>   <font
+ color="#ff0000">|</font>    <br>      <font color="#ff0000">|</font> [|1  16|][<u>R</u>]<font
+ color="#ff0000">--'<br></font>      <font color="#ff0000">|</font> [|2  15|]<br>      <font
+ color="#ff0000">|</font> [|3  14|]<br>  <font color="#0000ff">,---</font><font
+ color="#ff0000">|</font><font color="#0000ff">-</font>[|4  13|]<br>  <font
+ color="#0000ff">|</font>   <font color="#ff0000">|</font> [|5  12|]<br>  <font
+ color="#0000ff">|</font>   <font color="#ff0000">'-</font>[|6  11|]<br>  <font
+ color="#0000ff">|</font>   <u> </u> [|7  10|]<br>  <font
+ color="#0000ff">'--</font>[<u>R</u>][|<u>8  19</u>|] </pre>
+<p>The nice thing is that this makes your PE-box "GenMod-compatible",
+i.e. if you have other cards requiring GenMod, you won't need to modify
+them: the above modification will assign the proper values for page
+&gt;BA
+to the extra address lines within the PE-box. If you ever install
+GenMod
+on your Geneve, just cut off the two pieces of wire that you soldered
+above.</p>
+<h3><br>
+<a name="PCB"></a>Printed circuit board</h3>
+<p>Here you have the choice between etching the board yourself, or
+ordering
+one. I made the first prototype with a photo-etching kit that I bought
+from <a href="http://www.web-tronics.com">www.web-tronics.com</a>,
+cat#
+416K (I also bought a 6"x9" double-sided board cat# 660, and
+an exposure lamp cat# 416X which wasn't really required since the resin
+is so damn light-sensitive anyhow). Anyway, the results weren't too
+great,
+and then I toasted the board by trying to solder the chips with a
+toaster
+oven... So my second prototype was ordered from a professional maker...</p>
+<p>If you want to etch the board yourself, contact me and I'll send you
+a postscript file containing the PCB layout for you to print on
+overhead
+transparencies. Once it's etched, you'll need to cut it in the proper
+shape.
+I used a rotatory tool with a cutting disk on it, but a jigsaw may be
+just
+as convenient. Your next step will be to drill the board, to this end I
+got cheap refurbished drill bits from "<a
+ href="http://shop.store.yahoo.com/drillcity/">Drill
+Bit City</a>". Since there is no way you can plate the inside of the
+holes, you will need to feed a small length of wire inside each via
+(i.e.
+holes that connect traces on either side of the board), then solder the
+wire to the pads on both side.</p>
+<p>There are many outfits that will make a professional quality PCB for
+you. You will need to send them the files included within <a
+ href="usb11.zip">this
+zip file</a> (about 56 kB). Make sure you read the 'readme.txt' file
+that
+identifies the individual files. I ordered my second prototype board
+from
+Advanced Circuits at <a href="http://www.4pcb.com">www.4pcb.com</a>
+They
+charged me $33 for one board (plus $15 S&amp;H), which is reasonnable
+given
+the great job they did (and I even got the T-shirt). Furthermore, they
+have a free design-checking website at <a href="http://www.freedfm.com">www.freedfm.com</a>
+They'll even send you a notepad and a PCB-made coaster if you use their
+site (if you don't want the coaster, send it to me so I'll have a set
+:).
+This being said, you might be able to find a better deal elsewhere,
+especially
+if you order a small batch.</p>
+<h2><br>
+<a name="Soldering"></a>Soldering components</h2>
+<p>Once you have the bare board, you need to populate it, i.e. to
+solder
+the surface-mount chips onto it.</p>
+<p>For general instructions on setting up your workplace and how to
+solder,
+refer to my <a href="howto.htm#Tools">"how to" page</a>. Below
+are specific instructions for soldering surface mount chips.</p>
+<h3>Toaster oven soldering</h3>
+<p>I tried a quick-and-easy method with my first prototype: Kester
+solder
+paste and an old toaster oven. It worked well, but there were several
+problems:</p>
+<ul>
+  <li>This solder paste is quite expensive ($42 at Digikey) and it
+doesn't
+keep for more than a few weeks.</li>
+  <li>The toaster oven cannot be used for food afterwards, due to
+potential
+contamination with lead...</li>
+  <li>The oven I used didn't have a good temperature control, and I
+ended
+up toasting my board! So get an oven thermometer and watch it closely.</li>
+  <li>Some components contain plastic (e.g. the connectors and
+switches)
+and must therefore be soldered by hand anyhow. I'm not sure about the
+solder
+mask and silkscreen legends that commercial PCB outlets add to their
+boards...</li>
+</ul>
+<h4>Materials required</h4>
+<ul>
+  <li>Kester solder paste (Digikey cat # KE512-ND, $42.00, but Radio
+Shack
+has a cheaper version). It comes in a standard 10 ml syringe, but the
+plunger
+and needle are not included. Any piece of rod will make a good plunger,
+but for the needle the lenght and sharp bevel of medical needles are a
+problem. I customized one by cutting a gauge 18 (pink) needle to 1/4
+inch.
+Cut it with a file, so you won't crush it and make sure the bore is
+round
+and smooth.</li>
+  <li>A good quality toaster oven. </li>
+  <li>An oven thermometer.</li>
+  <li>Good quality tweezers and/or small forceps.</li>
+  <li>A strong magnifier, preferably on a stand.</li>
+</ul>
+<h4>Oven soldering</h4>
+<p>The big advantage of this method is that it's so easy to do. Refer
+to
+<a href="http://www.seattlerobotics.org/encoder/200006/oven_art.htm">this
+site</a> for illustrations and detailed explanations. Below is a brief
+outline of the method. Please refer to the 'manual soldering' section
+for
+chip orientation, and for the final check for no-connects and solder
+bridges
+(these are fixed with a soldering iron, by the way).</p>
+<p>First, you may want to pre-bake all chips for at least an hour at 95
+`C (200 `F) just in case they might contain moisture (which could pop
+the
+chip).</p>
+<p>Then just lay a small line of solder across all pads and install the
+chip on top of it. Ensure that it's properly aligned, but you don't
+have
+to be too anal retentive about it, as the chip will center itself once
+the solder is melted. If you mess up, wipe out the solder paste with a
+wet paper towel and try again. </p>
+<p>Place the board in a pre-warmed toaster oven and bake as follows:</p>
+<ul>
+  <li>4 minutes at 95 `C (200 `F) for thermal equilibration.</li>
+  <ul>
+    <li>About 2 minutes ramping time..</li>
+  </ul>
+  <li>2 minutes at 160 `C (325 `F) to melt the solder.</li>
+  <ul>
+    <li>About 2 minutes ramping time...</li>
+  </ul>
+  <li>20 seconds at 230 `C (450 `F) to ensure good solder joints.
+Vibrate
+the oven briefly, to center the chips.</li>
+  <li>Cool down with door ajar. About 5 minutes ramping down to 95 `C
+(200
+`F)</li>
+</ul>
+<p>Be sure to constantly monitor the temperature with the oven
+thermometer.
+My oven overshot after the 20 secs at 230`C and I ended up burning my
+first
+prototype board...</p>
+<p>So, for the second prototype, I decided to to all the soldering by
+hand
+and it went quite smoothly. It takes longer, but then again I was in no
+hurry.</p>
+<h3><br>
+<a name="manual soldering"></a>Hand soldering</h3>
+<h4>Materials required</h4>
+<ul>
+  <li>A soldering iron with a fine bit. Note that some soft iron bits
+can
+be sharpen with a strong knife, the way my grand-dad used to sharpen
+its
+drawing pencils.</li>
+  <li>Eutectic solder (63:37) in fine coils, the finer the better. I
+used
+0.2" (Digikey cat # EB1064-ND), but I whish I had bought 0.15"
+for the ISP1161. I like water-soluble flux, so I can clean up the board
+afterwards and distinguish solder bridges from flux deposits.</li>
+  <li>Desoldering braid.</li>
+  <li>Good quality tweezers and/or small forceps.</li>
+  <li>A strong magnifier, preferably on a stand.</li>
+  <li>A light table. I made one by placing a sheet of transparent
+plastic
+on two bricks, with a light bulb under it (see picture below).</li>
+  <li>A continuity tester, or a voltmeter with a continuity function
+(i.e.
+it beeps when current passes between the probles).</li>
+</ul>
+<p><br>
+Manual soldering involves three steps: positionning the chip, soldering
+it, and checking your work.</p>
+<h4><br>
+Positionning the chip</h4>
+<p>First, cross-check orientation. The top of the chip is generally
+marked
+with a white band, or a notch. Sometimes, there is a small dimple (the
+memory chips have two dimples, but one is very shallow and should be
+disregarded).
+On the USB-SM board, most chips are installed in the same orientation,
+with the "top" of the chip towards the top of the card, away
+from the PE-box connector. There are a few horizontal chips (the '245s)
+and these have their "top" to the back of the card, towards the
+USB ports. Finally, the three memory chips and one accompanying
+74ALS259
+are installed upside-down, i.e. with their top toward the PE-box
+connector.
+As a general rule, the writing on the chip should match the one on the
+board.</p>
+<p>The capacitors and resistors have no special orientation. You might
+just want to install the resistors so that one can read their markings.
+One notable exception is the big electrolytic capacitor: this one has a
+groove on the positive side, which must face the back side of the board
+(i.e. towards the USB connectors). You will notice that the small
+capacitors
+are not labelled, neither is the tape that's holding them. I suggest
+that
+you label that tape as soon as you open the package, so that you won't
+mix up various capacitances...</p>
+<p>To determine the orientation of a LED, hold it in front of a light
+source.
+You will see that the inside contains two electrode: one small and one
+larger. The larger electrode should go where the <tt>&gt;|</tt> symbol
+is printed on the board. For the main LED this is the bottom hole, for
+the optional LED at the back of the card, it is the upper hole.</p>
+<p>To position a chip, lay it on top of the corresponding imprint on
+the
+board. With your solering iron, briefly touch the bottom right and the
+upper left pin, for about 1 second. This should melt the small amount
+of
+solder coating the board, and "anchor" the chip in place. Realize
+that the chip is not properly soldered yet: all we did was to hold it
+in
+place. N.B. if you made your board yourself, or if you ordered a
+gold-coated
+board, you'll have to deposit a minute amount of solder on these two
+pads
+before you install the chip.</p>
+<p>Make sure the chip is properly aligned. The easiest way is to
+illuminate
+the board from under: you will immediately see if the pins are properly
+sitting on the pads. Do not satisfy yourself with anything less than
+100%
+perfect alignement. At this point it's very easy to correct mistakes:
+touch
+the anchored pin(s) with the soldering iron to melt the solder, and
+move
+the chip. Once it's fully soldered, missalignements become a nightmare,
+so take your time. This is especially true for the ISP1161 chip: make
+sure
+all four sides are absolutely perfectly aligned.</p>
+<h4><br>
+Soldering the chip</h4>
+<p>For the '74ALS' series and memory chips, my favorite method is place
+the solder wire along the right side of the chip, touching all the
+pins.
+The end of the wire should be flush with the last pin. Touch this last
+pin with your soldering iron: this will cause the solder to melt upto
+the
+next pin. Briefly touch your iron to the pad in front of the first pin,
+to ensure that the solder will flow on both the pin and the pad. Then
+repeat
+this "chewing away" procedure with the second pin, the third,
+etc, finishing with the one you have anchored. Repeat the process on
+the
+other side. With a bit of practice, soldering a chip in this way takes
+less than a minute (but don't rush it: this is not a race).</p>
+<p>For the minuscule resistors and capacitors, I find it easier to
+deposit
+a clump of solder on one pad, to grab the component with tweezers, and
+to shove one end into the molten solder. Then solder the other end as
+described
+above. Finally, come back to the first end, and touch your soldering
+iron
+the the point where the component meets the pad. You will note that
+there
+is a 100 nF cap very close to each chip, I found it easier to solder
+the
+cap first, then the chip.</p>
+<p><a name="ISP1161 soldering"></a>Soldering the ISP1161 is a bit more
+difficult, because the pins are so close that solder bridges tend to
+appear
+frequently. This is why it's nice to have really narrow solder coils.
+Another
+solution is to use solder paste: since it's applied cold, you can
+always
+wipe away any excess. Then you melt it by touching each pin with the
+soldering
+iron, at the point where it contacts the pad. Note that Radio Shack
+sells
+solder paste (not Kester's) for a more reasonnable price than Digikey...</p>
+<p>When installing the connectors and switches, you will note that they
+have little "tabs" that should be insert into dedicated holes
+in the PCB, then folded down. This is meant so that mechanical stress
+is
+not applied to the electrical connections. Make very sure that folding
+these tabs does not place them in contact with a signal trace (you may
+have to bend some outwards, e.g. for the USB-A connector). Just to be
+on
+the safe side, I also soldered each tab to its hole. The SmartMedia
+connector
+has two plastic knobs that must fit into two small holes in the PCB.
+Make
+sure you also solder the large pins at the front: this will provide
+additional
+stability.</p>
+<h4><br>
+Checking</h4>
+<p>Once the component is soldered, you must check that is was properly
+done. There are two potential problems: no-connects and solder bridges.
+</p>
+<p>In a no-connect, the solder wasn't properly spread on both the pin
+and
+the pad (or it wasn't hot enough) and it does not make contact. To
+detect
+these, take a continuity tester (a function available in most
+multimeters)
+and touch one electrode to the top of the pin, the other to the pad,
+away
+from the solder. If there is a no-connect, you can often solve the
+problem
+by just touching your soldering iron to the point where the pin meets
+the
+pad. Sometimes, you may have to add a bit of solder.</p>
+<p>Solder bridges form when there was too much solder and it formed a
+bead
+in between adjacent pins. These are easy to detect by transparency,
+holding
+the board in front of a light source. You can also use the continuity
+tester,
+but be aware that some adjacent pins may be connected to the same
+signal
+by design. So if you don't see any apparant bridge, check the
+schematics.
+To clear a solder bridge, place the desoldering braid over it, then
+touch
+your soldering iron to the braid for 2-3 seconds on top of the bridge:
+the braid should "drink" the excess solder. Make sure you didn't
+create a no-connect in the process...</p>
+<p>When installing capacitors, be aware that all the 100 pF are
+installed
+in the same manner, across the power supply lines. So it is critical
+that
+you check for shortcuts every time you solder one of these. If you
+solder
+them all and then do the check, you will never know which one is the
+culprit!
+In fact, as a general rule, check each chip while installing it.</p>
+<h3><br>
+<a name="Pictorial"></a>Pictorial guide</h3>
+<p>Click on any image to enlarge it.</p>
+<h4>Soldering a capacitor (or resistor)</h4>
+<table cellpadding="10">
+  <tbody>
+    <tr>
+      <td align="left">
+      <center>
+      <p><a href="solder1.jpg"><img src="sol1.jpg" height="114"
+ width="190"></a></p>
+      </center>
+      <p>Deposit a blob of solder on one pad.</p>
+      </td>
+      <td>
+      <center>
+      <p><a href="solder2.jpg"><img src="sol2.jpg" height="128"
+ width="99"></a></p>
+      </center>
+      <p>Position the cap in the molten solder.</p>
+      </td>
+      <td>
+      <center>
+      <p><a href="solder3.jpg"><img src="sol3.jpg" height="127"
+ width="119"></a></p>
+      </center>
+      <p>Put solder on the other side (or both).</p>
+      </td>
+      <td>
+      <center>
+      <p><a href="solder4.jpg"><img src="sol4.jpg" height="125"
+ width="131"></a></p>
+      </center>
+      <p>Check for shortcuts.</p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h4>Soldering a TTL or memory chip</h4>
+<table cellpadding="10">
+  <tbody>
+    <tr>
+      <td>
+      <center>
+      <p><a href="solder5.jpg"><img src="sol5.jpg" height="126"
+ width="174"></a></p>
+      </center>
+      <p>Deposit the barest amount of solder on top right pad.</p>
+      </td>
+      <td>
+      <center>
+      <p><a href="solder6.jpg"><img src="sol6.jpg" height="124"
+ width="163"></a></p>
+      </center>
+      <p>Position the chip while melting solder on this pad.</p>
+      </td>
+      <td>
+      <center>
+      <p><a href="solder7.jpg"><img src="sol7.jpg" height="126"
+ width="116"></a></p>
+      </center>
+      <p>Verify alignment with back light.</p>
+      </td>
+      <td>
+      <center>
+      <p><a href="solder8.jpg"><img src="sol8.jpg" height="125"
+ width="190"></a></p>
+      </center>
+      <p>Solder bottom left pad.<br>
+Verify alignment again.</p>
+      </td>
+    </tr>
+    <tr>
+      <td>
+      <center>
+      <p><a href="solder9.jpg"><img src="sol9.jpg" height="124"
+ width="147"></a></p>
+      </center>
+      <p>Solder all other pads.</p>
+      </td>
+      <td>
+      <center>
+      <p><a href="solder13.jpg"><img src="sol13.jpg" height="124"
+ width="155"></a></p>
+      </center>
+      <p>Check for shortcuts (also check with back light).</p>
+      </td>
+      <td>
+      <center>
+      <p><a href="solder14.jpg"><img src="sol14.jpg" height="87"
+ width="189"></a></p>
+      </center>
+      <p>Check for connection (of course, it helps to know which goes
+where...).</p>
+      </td>
+      <td><br>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h4>Correcting potential problems:</h4>
+<table cellpadding="10">
+  <tbody>
+    <tr>
+      <td>
+      <center>
+      <p><a href="solder10.jpg"><img src="sol10.jpg" height="124"
+ width="169"></a></p>
+      </center>
+      <p>No connect.<br>
+Remedy: add more solder.</p>
+      </td>
+      <td>
+      <center>
+      <p><a href="solder11.jpg"><img src="sol11.jpg" height="125"
+ width="120"></a></p>
+      </center>
+      <p>Solder bridge (shortcut).</p>
+      </td>
+      <td>
+      <center>
+      <p><a href="solder12.jpg"><img src="sol12.jpg" height="124"
+ width="129"></a></p>
+      </center>
+      <p>Removing a bridge with desoldering braid.</p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h4>Soldering the ISP1161</h4>
+<p>The principle is the same as for TTL chips: deposit solder on one
+pad,
+anchor the chip in it, verify the alignment (tip: use a light table),
+then
+solder the opposite pad. Soldering the remaining pins is made easier by
+using solder paste, as you can better control the amount: you need very
+little.</p>
+<table cellpadding="10">
+  <tbody>
+    <tr>
+      <td>
+      <center>
+      <p><a href="solder15.jpg"><img src="sol15.jpg" height="126"
+ width="140"></a></p>
+      </center>
+      <p>A makeshift light table<br>
+(to check alignment).</p>
+      </td>
+      <td>
+      <center>
+      <p><a href="solder16.jpg"><img src="sol16.jpg" height="116"
+ width="191"></a></p>
+      </center>
+      <p>Depositing very little solder paste<br>
+with a pin and a toothpick..</p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h2><br>
+<a name="building it"></a>Building your board</h2>
+<p>My suggestion is that you build the board stepwise and check it
+after
+each step.</p>
+<h4><br>
+Step zero: setting up</h4>
+<p>First, get into the proper mindset: this is gonna be a lot of fun,
+so
+don't rush it. There is no need to finish your board in one afternoon,
+not even in one week-end (although it's feasible). So take your time,
+put
+on some soft music, and take frequent breaks. I know it's adictive
+("Ok,
+just one more chip and I stop"), but it's better to take a pause long
+before you back aches, your eyes burn or your hands begin to shake. If
+you're the kind who enjoys building model galleons or solving
+2000-piece
+jigsaw puzzles, you know what I mean.</p>
+<p>Second, get the proper tools. There is nothing like inadequate tools
+to turn a heap of fun into a complete nightmare. You need good
+tweezers,
+I don't care how much you have to pay for these: you need them. You
+also
+need eutectic, narrow coil solder and a decent soldering iron. A strong
+magnifier, preferably with a stand, will help a lot. And you also need
+a continuity tester, or a multimeter with such a function.</p>
+<p>Now, let's get started: To be on the safe side, begin each test by
+removing
+all cards from your PE-box, including the connection card (you'll need
+to remove a screw at the back of the PE-box to free that one).</p>
+<h4><br>
+Step one: power supply</h4>
+<p>First, install only the voltage regulators (Q1, Q2), the 47 uF
+capacitor
+(C46), and the 100 nF caps that are near the regulators (C34, C35).
+Also
+install the heat sink (HS1), preferably using heat-conducing paste. </p>
+<p>Then place the card in the PE-box and turn power on for 3 seconds.
+Turn
+power-off and verify that the regulators are not hot. Turn power on
+again,
+for a minute or two. Make sure there is no smoke, nor "burnt"
+smell. During that time, verify the voltages. You can place the
+negative
+electrode of your voltmeter on the bottom plate of the PE-box. A
+convenient
+place to test the voltage is where the voltage-selection switch for the
+SmartMedia card (SW3) will be. The connections are even labelled "+5V"
+and "3.3V" over there.</p>
+<h4><br>
+Step two: CRU logic</h4>
+<p>Install the four 74ALS245 (IC1, IC2, IC3, IC4), the 74ALS688 (IC13),
+the adjacent 74ALS138 (IC14), the first 74ALS259 (IC16), their
+respective
+100 nF caps (C1,C2,C3, C4, C13, C14, C16), the main LED (LED1) and its
+470 Ohms resitor (R1), the DIP-switch (SW1, all switches open) and its
+4.7K resistor network (R14, it looks like a chip, only pale blue). </p>
+<p>Again, place the card in the PE-box and turn power on for a short
+time:
+none of the chips should become hot. Now you can put the connection
+card
+back in place, then power-up your PE-box and your console. Using a
+debugger
+such as the MiniMemory's EasyBug, toggle CRU bit 0 at address &gt;1F00:
+the LED should shine.</p>
+<h4><br>
+Step three: memory</h4>
+<p>For the next step, install the remaining 74ALS chips (including
+their
+100 nF caps), the master switch (SW2), the three memory chips (IC26,
+IC27,
+IC28) and the pull-up resistors for the Flash-EEPROM (R11 = 4.7K, R12 =
+47K). Leave the USB controller and its circuitery for later, ditto for
+the Smartmedia circuitery and its 74LVT245 chips. </p>
+<p>Again, do a smoke test before you connect your console. Make sure
+the
+master switch is toggled to the ground ("TI" position) and SW4
+towards the "TI" position (unless you're using a Geneve, of course).
+Toggle CRU bit &gt;1F00 until the LED shines, then access memory at
+&gt;4000.
+The StrataFlash should read as &gt;FF all the way to &gt;4FFF, then
+random
+values will appear in the SRAM domain at &gt;5000 to &gt;5FFF. </p>
+<p>Make sure you can write anything you want at &gt;5000 and above,
+indicating
+that the SRAMs are ok. Then write &gt;90 at &gt;4001, this places the
+StrataFlash
+in "read chip ID" mode, and you should read back the manufacturer
+code (&gt;89), chip ID, etc. Writing &gt;FF at an odd-numbered address
+should return the EEPROM to standard reading mode.</p>
+<p>You may also want to write arbitrary data to the area &gt;5FF0-5FFF.
+Then set CRU bit &gt;1FF2 to 1: your values should disappear because
+this
+area now maps to the still-missing ISP1161.</p>
+<h4><br>
+Step four: SmartMedia circuitery</h4>
+<p>Next, install the SmartMedia connector (CN4), the two 74LVT245
+buffers
+(IC24, IC25) and their bypass caps (C24, C25), the 1.5K pull-up
+resistors
+(R3 to R6) and the voltage selection switch (SW3).You don't need the
+switch
+if you intend to use only 3.3 volts cards. In this case, solder a piece
+of wire between the middle switch hole and the left one (labelled 3.3V).</p>
+<p>Try and read back CRU bits &gt;1FFA and see if it toggles when there
+is a SmartMedia card into the connector. The golden contacts on the
+SmartMedia
+card should face the board when the card is inserted (i.e. the left of
+the PE-box).</p>
+<p>Then set CRU bits &gt;1FF0 and &gt;1FF2 to 1, and CRU bit &gt;1FF4
+to
+'0'. Write &gt;70 at address &gt;4FFC: you should read something like
+&gt;C0
+at &gt;4FF0.</p>
+<h4><br>
+Step five: USB circuitery</h4>
+<p>Finally, install the ISP1161 chip (IC29): by now you should have a
+lot
+of experience with soldering, but see <a href="#ISP1161%20soldering">above</a>
+for soldering tips with this extra-small chip. Also install the USB
+connectors
+(CN2, CN3), and all the remaining components: MOSFET (Q3), resistors,
+capacitors,
+crystal (XTAL1), etc. The second LED (LED2) is optional, so is the 1.5K
+pull-up to 3.3 volts (R7).</p>
+<p>To test the chip, set CRU bits &gt;1FF0 and &gt;1FF2 to '1' then
+write
+&gt;B5 at address &gt;5FFF. You should read &gt;61 out of 5FF4.</p>
+<h3><br>
+<a name="Picture"></a>Picture</h3>
+<p>Here is a picture of the final product, version 1.5. If you are
+curious,
+I also have a picture of version 1.1, <a href="usbsm.jpg">here</a>.</p>
+<p><img src="usbsm11.jpg" alt="USB/SM card v1.5 Annotated picture"
+ height="347" width="551"><br>
+</p>
+<p><b>1161</b>: ISP1161 USB controller.<br>
+<b>EEPROM</b>: StrataFlash 8 megabytes (upside down).<br>
+<b>SRAM</b>: Two 512 Kbytes SRAM (upside down).</p>
+<p><b>688</b>: 74ALS688 comparator, 8 bits.<br>
+<b>543</b>: 74F543 registered transceivers (2).<br>
+<b>259</b>: 74ALS259 addressable latch (3 for CRU output. One is upside
+down).<br>
+<b>251</b>: 74ALS251 encoder 8-to-1 (CRU input).<br>
+<b>245</b>: 74ALS245 transceivers (4).<br>
+<b>175</b>: 74LAS175 quad latch.<br>
+<b>139</b>: 74ALS139 dual decoder 2-to-4.<br>
+<b>138</b>: 74ALS138 decoder 3-to-8 (3).<br>
+<b>133</b>: 74ALS133 NAND gate, 13 inputs.<br>
+<b>125</b>: 74LS125 tri-state buffer.<br>
+<b>74</b>: 74LAS74 duad flip-flop.<br>
+<b>32</b>: 74ALS32 quad OR gates (2).<br>
+<b>08</b>: 74LAS08 duad AND gates.<br>
+<b>04</b>: 74LAS04 hex inverters.<br>
+<br>
+<b>LVT</b>: 74LVT245 transceivers, 3.3 volts (2).<br>
+<b>Q1</b>: voltage regulator, +5 volts.<br>
+<b>Q2:</b> voltage regulator, +3.3 volts.<br>
+<b>Q3</b>: dual MOSFET.<br>
+<b>XTAL</b>: Crystal, 6 MHz</p>
+<p><b>LED1</b> and <b>2</b>: Light emmiting diodes.<br>
+<b>R13</b>: Resistor network, 7x 22 ohms<br>
+<b>R14</b>: Resistor network, 7x 4.7 kiloOhms</p>
+<p><b>SW1</b>: 6x DIP-switch (CRU address, write protections)<br>
+<b>SW2</b>: SP3T switch (TI-99/4A / Geneve / Off).<br>
+<b>SW3</b>: SPDT switch (SmartMedia voltage: 5 / 3.3 volts)<br>
+<b>SW2</b>: DPDT switch (TI-99/4A / Geneve ).<br>
+<br>
+<b>USB A</b>: Two USB downstream ports.<br>
+<b>USB B</b>: One USB upstream port.<br>
+<b>SmartMedia</b>: SmartMedia card connector.</p>
+<h3><br>
+<a name="numbering"></a>Components numbering</h3>
+<p>IC1: 74ALS245<br>
+IC2: 74ALS245<br>
+IC3: 74ALS245<br>
+IC4: 74ALS245<br>
+IC5: 74LS125<br>
+IC6: 74F543<br>
+IC7: 74F543<br>
+IC8: 74ALS138<br>
+IC9: 74ALS139<br>
+IC10: 74ALS133<br>
+IC11: 74ALS32<br>
+IC12: 74ALS32<br>
+IC13: 74ALS688<br>
+IC14: 74ALS138<br>
+IC15: 74ALS251<br>
+IC16: 74ALS259<br>
+IC17: 74ALS259<br>
+IC18: 74ALS259<br>
+IC19: 74ALS08<br>
+IC20: 74ALS04<br>
+IC21: 74ALS175<br>
+IC22: 74ALS74<br>
+IC23: 74ALS138 (Geneve)<br>
+IC24: 74LVT245<br>
+IC25: 74LVT245<br>
+IC26: StrataFlash DA28F640J5A150<br>
+IC27: 512K SRAM (e.g. M68Z512W-70NC)<br>
+IC28: 512K SRAM<br>
+IC29: USB controller ISP1161</p>
+<p>Q1: 5V voltage regulator TL780-05CKTER<br>
+Q2: 3.3V voltage regulator UA78M33CDCYR<br>
+Q3: Double MOSFET ZXMP3A17</p>
+<p>SW1: 6x DIP switch<br>
+SW2: SP3T switch<br>
+SW3: SPDT switch<br>
+SW4: DPDT switch</p>
+<p>XTAL1: 6 MHz crystal, 18 pF</p>
+<p>C1 to C35: ceramic capacitors 100 nF<br>
+C36 to C41: ceramic capacitors 47 pF<br>
+C42,C43: ceramic capacitors 18 pF<br>
+C44,C45: ceramic capacitors 1 nF<br>
+C46: electrolytic capacitor 47 uF</p>
+<p>R1,R2: resistors 470 Ohms<br>
+R3 to R9: resistors 1.5 kOhms<br>
+R10, R11: resistors 4.7 kOhms<br>
+R12: resistor 47 Kohms<br>
+R13: resistor network, 7 x 22 Ohms<br>
+R14: resistor network, 7 x 4.7 kOhms</p>
+<p>CN2: 2x USB-A connector<br>
+CN3: USB-B connector<br>
+CN4: SmartMedia connector</p>
+<p>LED1: Amber light-emiting diode<br>
+LED2: Any color you fancy</p>
+<p>HS1: Heat sink</p>
+<address>Revision 1. 6/24/03<br>
+Revision 2. 6/30/03 Added picture and legal disclaimer.</address>
+<address>Revision 3. 10/1/03 Updated for board version 1.3<br>
+Revision 4. 11/24/03 Added pictorial guide. Updated for version 1.5<br>
+Revision 5. 12/15/03 Added instructions for Geneve without GenMod</address>
+<p><br>
+<br>
+<a href="usb.htm">Back to the USB-SM page</a></p>
+<center>
+<p><a href="titechpages.htm">Back to the TI-99/4A Tech Pages</a>
+</p>
+</center>
+</body>
+</html>

@@ -1,0 +1,353 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+  <title></title>
+  <meta name="Author" content="">
+  <meta name="GENERATOR"
+ content="Mozilla/3.04Gold (Win95; U) [Netscape]">
+</head>
+<body>
+<h1 align="center"><a
+ href="http://www.nouspikel.com/ti99/titechpages.htm"><img
+ src="logo.jpg" style="border: 0px solid ; height: 33px; width: 95px;"
+ title="Back to main index" alt=""></a></h1>
+<h1>TTL chips</h1>
+<p><a href="ttl.htm#7400">74LS00</a> Quad 2-input NAND gates<br>
+<a href="#7404">74LS04</a> Hex inveter<br>
+<a href="#7405">74LS05</a> Hex inverters, open collector<br>
+<a href="#7408">74LS08</a> Quad 2-input AND gates<br>
+<a href="#7421">74LS21</a> Dual 4-input AND gates<br>
+<a href="#7432">74LS32</a> Quad 2-input OR gates<br>
+<a href="#7474">74LS74</a> Dual D flip-flop<br>
+<a href="#7485">74LS85</a> 4-bit comparator<br>
+<a href="#74121">74LS121</a> One-shot<br>
+<a href="#74123">74LS123</a> Dual retriggerable one-shot<br>
+<a href="#74125">74LS125</a> Quad buffers, 3-state<br>
+<a href="#74133">74LS133</a> 13-inputs NAND gate<br>
+<a href="#74138">74LS138</a> 1-of-8 decoder<br>
+<a href="#74139">74LS139</a> Dual 1-of-4 decoder<br>
+<a href="#74154">74LS154</a> 1-of-16 decoder<br>
+<a href="#74156">74LS156</a> 2-of-8 decoder, open collector<br>
+<a href="#74175">74LS175</a> 4-bit D flip-flop with complementary
+outputs
+and reset.<br>
+<a href="#74194">74LS194</a> 4-bit universal shift register<br>
+<a href="#74244">74LS244</a> Dual 4-bit buffers, 3-state<br>
+<a href="#74245">74LS245</a> 8-bit bus transceiver, 3-state<br>
+<a href="#74251">74LS251</a> 8-to-1 multiplexer, 3-state<br>
+<a href="#74259">74LS259</a> 1-of-8 addressable latch<br>
+<a href="#74273">74LS273</a> 8-bit D flip-flop, 3-state<br>
+<a href="#74373">74LS373</a> 8-bit transparent latch, 3-state<br>
+<a href="#74543">74F543</a> 8-bit transceiver with latches, 3-states.<br>
+<a href="#74688">74LS688</a> 8-bit identity comparator</p>
+<p><b>Non TTL chips<br>
+</b><a href="#78T05">78T05</a> Voltage regulator +5V, 1 Amp<br>
+<a href="#78L05">78L05</a> Voltage regulator +5V, 100 mAmp<br>
+<a href="#78L05">78L12</a> Voltage regulator +12V, 100 mAmp<br>
+<a href="#79L05">79L05 </a>Voltage regulator -5V, 100 mAmp<br>
+</p>
+<p>For information on the pinouts of TTL, CMOS and many other chips,
+see
+"The Giant Internet IC Masturbator" at <a
+ href="http://www.kingswood-consulting.co.uk/giicm/">http://www.kingswood-consulting.co.uk/giicm/</a>
+or "The Chip Directory" at <a
+ href="http://www.hitex.com/chipdir/chipdir.htm">http://www.hitex.com/chipdir/chipdir.htm</a></p>
+<h2><br>
+<a name="7400"></a>74LS00</h2>
+<pre>Quad 2-input NAND gates. <br><br>    +---+--+---+             +---+---*---+           __<br> 1A |1  +--+ 14| VCC         | A | B |/Y |      /Y = AB<br> 1B |2       13| 4B          +===+===*===+<br>/1Y |3       12| 4A          | 0 | 0 | 1 |<br> 2A |4  7400 11| /4Y         | 0 | 1 | 1 |<br> 2B |5       10| 3B          | 1 | 0 | 1 |<br>/2Y |6        9| 3A          | 1 | 1 | 0 |<br>GND |7        8| /3Y         +---+---*---+<br>    +----------+</pre>
+<h2><a name="7404"></a>74LS04</h2>
+<p>Hex inverters. </p>
+<pre>    +---+--+---+          +---*---+ _ <br> A1 |1  +--+ 14| Vcc      | A |Y* | Y* = A <br>Y1* |2       13| A6       +===*===+ <br> A2 |3       12| Y6*      | 0 | Z | <br>Y2* |4   74  11| A5       | 1 | 0 | <br> A3 |5   04  10| Y5*      +---*---+ <br>Y3* |6        9| A4 <br>GND |7        8| Y4* <br>    +----------+</pre>
+<p>When a A input pin is high, the corresponding Y output pin is low.
+When
+A is low, the corresponding Y is high impedence.</p>
+<h2><br>
+<a name="7405"></a>74LS05</h2>
+<p>Hex open-collector inverters. </p>
+<pre>    +---+--+---+          +---*---+ _ <br> A1 |1  +--+ 14| Vcc      | A |Y* | Y* = A <br>Y1* |2       13| A6       +===*===+ <br> A2 |3       12| Y6*      | 0 | Z | <br>Y2* |4   74  11| A5       | 1 | 0 | <br> A3 |5   05  10| Y5*      +---*---+ <br>Y3* |6        9| A4 <br>GND |7        8| Y4* <br>    +----------+</pre>
+<p>When a A input pin is high, the corresponding Y output pin is
+connected
+to GND (ground). When A is low, the corresponding Y is not connected
+(high
+impedence, i.e neither low nor high).</p>
+<h2><br>
+<a name="7408"></a>74LS08</h2>
+<p>Quad 2-input AND gates. </p>
+<pre>    +---+--+---+                +---+---*---+ <br> A1 |1  +--+ 14| VCC            | A | B | Y |   Y = A and B <br> B1 |2       13| B4             +===+===*===+ <br> Y1 |3       12| A4             | 0 | 0 | 0 | <br> A2 |4  74   11| Y4             | 0 | 1 | 0 | <br> B2 |5  08   10| B3             | 1 | 0 | 0 | <br> Y2 |6        9| A3             | 1 | 1 | 1 | <br>GND |7        8| Y3             +---+---*---+ <br>    +----------+ </pre>
+<p>An output Yn is high if (and only if) both its inputs An and Bn are
+high.</p>
+<h2><br>
+<a name="7421"></a>74LS21</h2>
+<p>Dual 4-input AND gates. </p>
+<pre>    +---+--+---+                   +---+---+---+---*---+ <br> A1 |1  +--+ 14| VCC               | A | B | C | D | Y |  Y = A and B and C and D <br> B1 |2       13| D2                +===+===+===+===*===+   <br>    |3       12| C2                | 0 | X | X | X | 0 | <br> C1 |4   74  11|                   | 1 | 0 | X | X | 0 | <br> D1 |5   21  10| B2                | 1 | 1 | 0 | X | 0 | <br> Y1 |6        9| A2                | 1 | 1 | 1 | 0 | 0 | <br>GND |7        8| Y2                | 1 | 1 | 1 | 1 | 1 | <br>    +----------+                   +---+---+---+---*---+ </pre>
+<p>An output Yn is only high when all its inputs An, Bn, Cn and Dn are
+high.</p>
+<h2><br>
+<a name="7432"></a>74LS32</h2>
+<p>Quad 2-input OR gates. </p>
+<pre>    +---+--+---+                    +---+---*---+ <br> A1 |1  +--+ 14| VCC                | A | B | Y | Y = A or B <br> B1 |2       13| B4                 +===+===*===+ <br> Y1 |3       12| A4                 | 0 | 0 | 0 | <br> A2 |4   74  11| Y4                 | 0 | 1 | 1 | <br> B2 |5   32  10| B3                 | 1 | 0 | 1 | <br> Y2 |6        9| A3                 | 1 | 1 | 1 | <br>GND |7        8| Y3                 +---+---*---+ <br>    +----------+ </pre>
+<p>An output Yn is high if at least one of its inputs An or Bn is high.</p>
+<h2><br>
+<br>
+<a name="7474"></a>74LS74</h2>
+<p>Dual D flip-flop with set and reset. </p>
+<pre>      +---+--+---+           +---+---+----+----*---+---+ <br>1CLR* |1  +--+ 14| Vcc       | D |CLK|PR* |CLR*| Q |Q* | <br>   1D |2       13| 2CLR*     +===+===+====+====*===+===+ <br> 1CLK |3       12| 2D        | X | X |  0 |  0 | 1 | 1 | <br> 1PR* |4  7474 11| 2CLK      | X | X |  0 |  1 | 1 | 0 | <br>   1Q |5       10| 2PR*      | X | X |  1 |  0 | 0 | 1 | <br>  1Q* |6        9| 2Q        | 0 | / |  1 |  1 | 0 | 1 | <br>  GND |7        8| 2Q*       | 1 | / |  1 |  1 | 1 | 1 | <br>      +----------+           | X |!/ |  1 |  1 | - | - | <br>                             +---+---+----+----*---+---+ </pre>
+<p>When a rising edge occurs on the CLK input, the content of the D
+input
+is latched onto the Q output. The inverted state is presented on Q*.
+The
+situation remains unchanged until the next rising edge on CLK.</p>
+<p>But this only occurs if both PR* and CLR* are high. If PR* is low, Q
+is high and Q* is low. If CLR* is low, Q is low and Q* is high. If both
+PR* and CLR* are low, Q and Q* are high.</p>
+<h2><br>
+<a name="7485"></a>74LS85</h2>
+<p>4-bit noninverting magnitude comparator with cascade inputs. </p>
+<pre>     +---+--+---+ <br>  B3 |1  +--+ 16| VCC <br>IA&lt;B |2       15| A3 <br>IA=B |3       14| B2 <br>IA&gt;B |4       13| A2 <br>OA&gt;B |5   74  12| A1 <br>OA=B |6   85  11| B1 <br>OA&lt;B |7       10| A0 <br> GND |8        9| B0 <br>     +----------+ </pre>
+<p>The 4-bit value on A1-A4 is compared to that on B1-B4. The output
+OA=B
+is high if they are equal. The output OA&lt;B is high if A1-A4 is lower
+than B1-B4. The output OA&gt;B is high if A1-A4 is higher than B1-B4.</p>
+<p>The result is affected by the cascading inputs IA=B, IA&lt;B, and
+IA&gt;B
+that are used to connect another comparator dealing with more
+significant
+bits. If IA&lt;B is high the result will be A&lt;B. If IA&gt;B is high,
+the result will be A&gt;B. It's only when IA=B is high that the values
+of A1-A4 and B1-B4 become relevant.</p>
+<h2><br>
+<a name="74121"></a>74LS121</h2>
+<p>Monostable multivibrator with Schmitt-trigger inputs. <br>
+Programmable output pulse width from 40 ns to 20 seconds.</p>
+<pre>     +---+--+---+ <br>  Q* |1  +--+ 14| VCC <br>     |2       13| <br>  A* |3   74  12| <br>  B* |4  121  11| RC<br>   C |5       10| C <br>   Q |6        9| Rint <br> GND |7        8| <br>     +----------+ </pre>
+<p>Initially the Q output is low and Q* is high. For a pulse to occur
+A*
+and B* must be low and C must be high. When this condition is met, a
+square
+pulse is triggered on the ouputs (i.e. Q becomes temporarily high, Q*
+temporarily
+low). For another pulse to occur one of the inputs should change and
+then
+come back to the triggering condition. </p>
+<p>The length of the pulse is determined by external components: a
+resistor
+connecting RC and Vcc, and a capacitor connecting C and RC. I'm not
+sure
+what Rint is used for, it may be an alternative to the external
+resistor
+used by connecting it to RC?</p>
+<h2><br>
+<a name="74123"></a>74123</h2>
+<p>Dual retriggerable monostable multivibrators with overriding reset.
+</p>
+<pre>       +---+--+---+ <br>   1A* |1  +--+ 16| Vcc <br>    1B |2       15| 1RC<br> 1Clr* |3       14| 1C<br>   1Q* |4   74  13| 1Q <br>    2Q |5  123  12| 2Q* <br>    2C |6       11| 2Clr*<br>   2RC |7       10| 2B <br>   GND |8        9| 2A* <br>       +----------+ </pre>
+<p>Initially the Q outputs are low and the Q* are high. When A* gets
+low
+and/or B gets high, a square pulse is triggered on the ouputs (i.e. Q
+becomes
+temporarily high, Q* temporarily low). The length of the pulse is
+determined
+by external components: a resistor connecting RC and Vcc, and a
+capacitor
+connecting C and RC.</p>
+<p>The pulse length can be increase indefinitely if falling edges keep
+occuring on A* during the pulse (or rising edges on B). The pulse can
+be
+interrupted (or prevented) by a low level on CLR*.</p>
+<h2><br>
+<a name="74125"></a>74LS125</h2>
+<p>Quad 3-state noninverting buffer with active low enables. </p>
+<pre>     +---+--+---+                +---+---*---+ <br>OE1* |1  +--+ 14| VCC            | A |OE*| Y | <br>  A1 |2       13| OE4*           +===+===*===+ <br>  Y1 |3   74  12| A4             | 0 | 0 | 0 | <br>OE2* |4  125  11| Y4             | 1 | 0 | 1 | <br>  A2 |5       10| OE3*           | X | 1 | Z | <br>  Y2 |6        9| A3             +---+---*---+<br> GND |7        8| Y3 <br>     +----------+ </pre>
+<p>When an OEn* (output enable) input is low, the content of its
+associated
+input An is copied onto the output Yn.<br>
+When OEn* is high, the corresponding Yn is inhigh impedace state (i.e.
+isolated, neither high nor low).</p>
+<h2><br>
+<a name="74133"></a>74LS133</h2>
+<p>13-input NAND gate. </p>
+<pre>    +---+--+---+                 _____________<br>  A |1  +--+ 16| VCC        Y* = ABCDEFGHIJKLM<br>  B |2       15| M<br>  C |3       14| L<br>  D |4   74  13| K<br>  E |5  133  12| J<br>  F |6       11| I<br>  G |7       10| H<br>GND |8        9| Y*<br>    +----------+</pre>
+<p>The output Y* is low if all inputs A through M are high. Otherwise,
+Y* is high.</p>
+<h2><br>
+<a name="74138"></a>74LS138</h2>
+<p>1-of-8 inverting decoder/demultiplexer. </p>
+<pre>     +---+--+---+                +---+----+----+---+---+---*---+---+---+---+ <br>  S0 |1  +--+ 16| Vcc            | G1|G2A*|G2B*| S2|S1 | S0|Y0*|Y1*|...|Y7*| <br>  S1 |2       15| Y0*            +===+====+====+===+===+===*===+===+===+===+ <br>  S2 |3       14| Y1*            | 0 | X  | X  | X | X | X | 1 | 1 | 1 | 1 | <br>G2A* |4  74   13| Y2*            | 1 | 1  | X  | X | X | X | 1 | 1 | 1 | 1 | <br>G2B* |5  138  12| Y3*            | 1 | 0  | 1  | X | X | X | 1 | 1 | 1 | 1 | <br>  G1 |6       11| Y4*            | 1 | 0  | 0  | 0 | 0 | 0 | 0 | 1 | 1 | 1 | <br> Y7* |7       10| Y5*            | 1 | 0  | 0  | 0 | 0 | 1 | 1 | 0 | 1 | 1 | <br> GND |8        9| Y6*            | 1 | 0  | 0  | . | . | . | 1 | 1 | . | 1 | <br>     +----------+                | 1 | 0  | 0  | 1 | 1 | 1 | 1 | 1 | 1 | 0 | <br>                                 +---+----+----+---+---+---*---+---+---+---+ </pre>
+<p>G1, G2A and G2B are enabling inputs: for one Y output to be active
+(i.e.
+low) G1 must be high, and both G2A and G2B must be low. Which output is
+then low depends on the value of the 3 selection inputs S0, S1 and S2.</p>
+<h2><br>
+<a name="74139"></a>74LS139</h2>
+<p>Dual 1-of-4 inverting decoder/demultiplexer. </p>
+<pre>     +---+--+---+            +---+---+---*---+---+---+---+<br> 1G* |1  +--+ 16| VCC        | G*| S1| S0|Y0*|Y1*|Y2*|Y3*|<br> 1S0 |2       15| 2G*        +===+===+===*===+===+===+===+<br> 1S1 |3       14| 2S0        | 1 | X | X | 1 | 1 | 1 | 1 |<br>1Y0* |4   74  13| 2S1        | 0 | 0 | 0 | 0 | 1 | 1 | 1 |<br>1Y1* |5  139  12| 2Y0*       | 0 | 0 | 1 | 1 | 0 | 1 | 1 |<br>1Y2* |6       11| 2Y1*       | 0 | 1 | 0 | 1 | 1 | 0 | 1 |<br>1Y3* |7       10| 2Y2*       | 0 | 1 | 1 | 1 | 1 | 1 | 0 |<br> GND |8        9| 2Y3*       +---+---+---*---+---+---+---+<br>     +----------+</pre>
+<p>The chip contains two independent 2-to-4 decoders. 1G* enables the
+first
+one when low. This makes one of the 1Y outputs go low, which one it is
+depends on 1S0 and 1S1. 2*, 2S0 and 2S2 play the same role for the 2Y
+outputs.</p>
+<h2><br>
+<a name="74154"></a>74LS154</h2>
+<p>1-of-16 inverting decoder/demultiplexer. </p>
+<pre>     +---+--+---+ <br> Y0* |1  +--+ 24| VCC <br> Y1* |2       23| S0 <br> Y2* |3       22| S1 <br> Y3* |4       21| S2 <br> Y4* |5       20| S3 <br> Y5* |6   74  19| EN2* <br> Y6* |7  154  18| EN1* <br> Y7* |8       17| Y15* <br> Y8* |9       16| Y14* <br> Y9* |10      15| Y13* <br>Y10* |11      14| Y12* <br> GND |12      13| Y11* <br>     +----------+ </pre>
+<p>When either EN1* or EN2* (or both) is high, all outputs Y0*-Y15* are
+high.<br>
+When both EN1* and EN2* are low, one of the outputs is low. The inputs
+S0-S4 determine which one: 1000 is Y0*, 0100 is Y1*... 1111 is Y7*.</p>
+<h2><br>
+<a name="74156"></a>74LS156</h2>
+<p>2-of-8 open-collector inverting decoder/demultiplexer with separate
+enables. </p>
+<pre>      +---+--+---+ <br> 1GA* |1  +--+ 16| VCC <br> 1GB* |2       15| 2GA* <br>   S1 |3       14| 2GB*<br> 1Y3* |4   74  13| S0 <br> 1Y2* |5  156  12| 2Y3* <br> 1Y1* |6       11| 2Y2* <br> 1Y0* |7       10| 2Y1* <br>  GND |8        9| 2Y0* <br>      +----------+ </pre>
+<p>When both 1GA* and 1GB* are low, one of the outputs 1Y0* to 1Y3* is
+low. S0 and S1 determine which it is: 00 = 1Y0*, 10=1Y1*, 01=1Y2*, and
+11=1Y3*. The other outputs are high. Similarly, 2GA* and 2GB* enable
+one
+of the outputs 2Y0* to 2Y3*, when both of them are low. Otherwise, all
+outputs are high.</p>
+<h2><br>
+<a name="74175"></a>74175</h2>
+<p>4-bit D flip-flop with complementary outputs and reset.</p>
+<pre>     +---+--+---+            +----+---+---*---+---+<br>RST* |1  +--+ 16| VCC        |RST*|CLK| D | Q |Q* |<br>  Q1 |2       15| Q4         +====+===+===*===+===+<br> Q1* |3       14| Q4*        |  0 | X | X | 0 | 1 |<br>  D1 |4   74  13| D4         |  1 | / | 0 | 0 | 1 |<br>  D2 |5  175  12| D3         |  1 | / | 1 | 1 | 0 |<br> *Q2 |6       11| Q3*        |  1 |!/ | X | - | - |<br>  Q2 |7       10| Q3         +----+---+---*---+---+<br> GND |8        9| CLK<br>     +----------+</pre>
+<p>The device latches the values of D1 through D4 when the CLK pin goes
+from low to high. The data the remains stable on Q1 through Q4, and its
+inverse on Q1* through Q4*. Bringing the RST* pin low will reset all Qn
+outputs to '0' and all Qn* outputs to '1'.</p>
+<h2><br>
+<a name="74194"></a>74LS194</h2>
+<p>4-bit bidirectional universal shift register with asynchronous
+reset.
+</p>
+<pre>     +---+--+---+            +---+---*---------------+<br>RST* |1  +--+ 16| VCC        | S1| S0| Function      |<br>  SR |2       15| QA         +===+===*===============+<br>   A |3       14| QB         | 0 | 0 | Hold          |<br>   B |4   74  13| QC         | 0 | 1 | Shift right   |<br>   C |5  194  12| QD         | 1 | 0 | Shift left    |<br>   D |6       11| Ck         | 1 | 1 | Parallel load |<br>  SL |7       10| S1         +---+---*---------------+<br> GND |8        9| S0<br>     +----------+</pre>
+<p>When RST* goes low, all Qn outputs go low immediately and stay so as
+long as Rst* is low. Other operations only happen the moment Ck goes
+from
+low to high. The operation depends on the status of S0 and S1:</p>
+<p>If both are low, nothing happens.<br>
+If both are high, the contents of the inputs A through D are copied to
+the outputs QA through QD.<br>
+If S1 is low and S0 is high, the register shifts to the right: QD=QC,
+QC=QB,
+QB=QA, QA=SrD.<br>
+If S1 is high and S0 is low, the register shifts to the left: QA=QB,
+QB=QC,
+QC=QD, QD=SrL.</p>
+<h2><br>
+<a name="74244"></a>74LS244</h2>
+<p>Dual 4-bit 3-state noninverting buffer/line driver. </p>
+<pre>     +---+--+---+ <br>OE1* |1  +--+ 20| Vcc <br>  A0 |2       19| OE2* <br>  Y7 |3       18| Y0 <br>  A1 |4       17| A7 <br>  Y6 |5   74  16| Y1 <br>  A2 |6  244  15| A6 <br>  Y5 |7       14| Y2 <br>  A3 |8       13| A5 <br>  Y4 |9       12| Y3 <br> GND |10      11| A4 <br>     +----------+</pre>
+<p>The values of the inputs A0 through A7 are copied to the outputs Y0
+through Y7 respectively. When OE1* is low, Y0 through Y3 are in "high
+impedence" state, i.e. isolated, neither low nor high. When OE2* is
+low, Y4 through Y7 are in high impedence.</p>
+<h2><br>
+<a name="74245"></a>74LS245</h2>
+<p>8-bit 3-state noninverting bus transceiver. </p>
+<pre>    +---+--+---+           +---+---*---+---+ <br>DIR |1  +--+ 20| Vcc       |EN*|DIR| A | B | <br> A1 |2       19| EN*       +===+===*===+===+ <br> A2 |3       18| B1        | 1 | X | Z | Z | <br> A3 |4       17| B2        | 0 | 0 | B | Z | <br> A4 |5   74  16| B3        | 0 | 1 | Z | A | <br> A5 |6  245  15| B4        +---+---*---+---+ <br> A6 |7       14| B5 <br> A7 |8       13| B6        Z = high impedence <br> A8 |9       12| B7 <br>GND |10      11| B8 <br>    +----------+</pre>
+<p>When DIR is high, the A pins are inputs and their values are copied
+on the corresponding B pins. When DIR is low, it's the opposite: the A
+pins are outputs and their value depends on that of the corresponding
+input
+B pin. When EN* (enable) is low, all A and B pins are in "high
+impedence"
+state, i.e. isolated.</p>
+<h2><br>
+<a name="74251"></a>74LS251</h2>
+<p>8-to-1 line 3-state data selector/multiplexer with complementary
+outputs.
+</p>
+<pre>    +---+--+---+<br> A3 |1  +--+ 16| VCC<br> A2 |2       15| A4<br> A1 |3       14| A5<br> A0 |4   74  13| A6<br>  Y |5  251  12| A7 <br> Y* |6       11| S0 <br>EN* |7       10| S1 <br>GND |8        9| S2 <br>    +----------+ </pre>
+<p>When EN* is low, the content of one of the inputs A0-A7 is copied
+onto
+Y, and its inverted value on Y*. The input selection is achieved by
+S0-S2:
+000 is A0, 100 is A1... 111 is A7.<br>
+When EN* is high, all the outputs are in high impedance state (i.e.
+isolated).</p>
+<h2><br>
+<a name="74259"></a>74LS259</h2>
+<p>1-of-8 addressable latch with reset. </p>
+<pre>    +---+--+---+            +---+----*--------------------+ <br> S0 |1  +--+ 16| VCC        |EN*|RST*| Function           | <br> S1 |2       15| RST*       +===+====*====================+ <br> S2 |3       14| EN*        | 0 | 0  | 1-of-8 demultiplex | <br> Q0 |4    74 13| D          | 0 | 1  | addressable latch  | <br> Q1 |5   259 12| Q7         | 1 | 0  | reset              | <br> Q2 |6       11| Q6         | 1 | 1  | hold               | <br> Q3 |7       10| Q5         +---+----*--------------------+ <br>GND |8        9| Q4<br>    +----------+ </pre>
+<p>When EN* is low, the value of the input D is copied onto one of the
+outputs Q0-Q7. The output selection is achieved by the inputs S0-S2:
+000
+is Q0, 100 is Q1... 111 is Q7. When EN* is high, the status of Q0-Q7
+remains
+unchanged not matter what happens to D.</p>
+<p>Bringing RST* low resets all output to 0.</p>
+<h2><br>
+<a name="74273"></a>74LS273</h2>
+<p>8-bit 3-state D flip-flop with reset. </p>
+<pre>     +---+--+---+              +----+---+---*---+ <br>RST* |1  +--+ 20| Vcc          |RST*|CLK| D | Q | <br>  Q0 |2       19| Q4           +====+===+===*===+ <br>  D0 |3       18| D4           | 0  | X | X | 0 | <br>  D1 |4       17| D5           | 1  | / | 0 | 0 | <br>  Q1 |5   74  16| Q5           | 1  | / | 1 | 1 | <br>  Q2 |6  273  15| Q6           +----+---+---*---+ <br>  D2 |7       14| D6 <br>  D3 |8       13| D7 <br>  Q3 |9       12| Q7 <br> GND |10      11| CLK <br>     +----------+</pre>
+<p>When CLK (clock) goes from low to high, the values present on D0
+through
+D7 are latched and output on Q0 through Q7 respectively. The Q outputs
+will remain unchanged until the next time CLK goes from low to high, no
+matter what happens to the D inputs. The active low RST* pin resets the
+chip and forces all outputs to low.</p>
+<h2><br>
+<a name="74373"></a>74LS373</h2>
+<p>8-bit 3-state transparent latch. </p>
+<pre>    +---+--+---+                    +---+---+---*---+ <br>OE* |1  +--+ 20| VCC                |OE*| LE| D | Q | <br> Q1 |2       19| Q8                 +===+===+===*===+ <br> D1 |3       18| D8                 | 1 | X | X | Z | <br> D2 |4       17| D7                 | 0 | 0 | X | - | <br> Q2 |5   74  16| Q7                 | 0 | 1 | 0 | 0 | <br> Q3 |6  373  15| Q6                 | 0 | 1 | 1 | 1 | <br> D3 |7       14| D6                 +---+---+---*---+ <br> D4 |8       13| D5 <br> Q4 |9       12| Q5 <br>GND |10      11| LE <br>    +----------+ </pre>
+<p>When LE (latch enable) is high, the values present on D0 through D7
+appear on the outputs Q0 through Q7 respectively. When LE is loe, the Q
+outputs remain unchanged no matter what happens to the D inputs. </p>
+<p>If OE* (output enable) is high all the outputs Q0-Q7 are in high
+impedance
+state (i.e. isolated).</p>
+<h2><br>
+<a name="74543"></a>74F543</h2>
+<p>8-bit 3-state noninverting registered transceiver. </p>
+<pre>      +---+--+---+<br>LEBA* |1  +--+ 24| VCC<br>OEBA* |2       23| CEBA*<br>   A0 |3       22| B0<br>   A1 |4       21| B1<br>   A2 |5       20| B2<br>   A3 |6   74  19| B3<br>   A4 |7  543  18| B4<br>   A5 |8       17| B5<br>   A6 |9       16| B6<br>   A7 |10      15| B7<br>CEAB* |11      14| LEAB*<br>  GND |12      13| OEAB*<br>      +----------+</pre>
+<p>This transceiver has the ability to transfer a byte from A0-A7 to
+B0-B7,
+or the opposite. In each direction, the input byte can be latched for
+later
+use. </p>
+<p>When low, CEAB* enables the chip in the A to B direction. Under
+these
+conditions, OEAB* enables data output from the B port. If LEAB* is low,
+this data is the byte present on the A port. If LEAB* is high the B
+port
+outputs the data that was present on A the last time LEAB* was low
+(i.e.
+it remembers it). When either CEAB* or OEAB* is high (or both), the B
+outputs
+are in high-impedance state.</p>
+<p>CEBA*, OEBA* and LEBA* play the same role in the B to A direction.</p>
+<h2><br>
+<a name="74688"></a>74LS688</h2>
+<p>8-bit inverting identity comparator with enable. </p>
+<pre>    +---+--+---+<br> G* |1  +--+ 20| VCC<br> A0 |2       19| A=B*<br> B0 |3       18| B7<br> A1 |4       17| A7<br> B1 |5   74  16| B6<br> A2 |6  688  15| A6<br> B2 |7       14| B5<br> A3 |8       13| A5<br> B3 |9       12| B4<br>GND |10      11| A4<br>    +----------+</pre>
+<p>When G* is low, the chip is enable and the sole output A=B* will be
+low if each Ax input is identical to the corresponding Bx input. In
+other
+words, the chip tells you if the 8-bit number placed on A0-A7 is the
+same
+as the one placed on B0-B7.</p>
+<h2><br>
+<a name="78T05"></a>78T05</h2>
+<p>5 volts, 1 Amp positive power supply regulator Vin must be between 8
+and 40 volts. </p>
+<p>TO 220 package</p>
+<pre>+---+ &lt;--Metal tab <br>+===+ Branded face to you <br>| ##| <br>+++++ 1: Vin <br> |||  2: GND <br> |||  3: Vout<br>1 2 3</pre>
+<h2><br>
+<br>
+<a name="78L05"></a>78L05, 78L08, 78L12</h2>
+<p>Fixed voltage 100mA positive power supply regulator. Vin must exceed
+Vout by at least 3V, but may not exceed 40V. </p>
+<p>TO 92 package</p>
+<pre>+---+ Flat face to you <br>| ##| <br>+++++ 1: Vout <br> |||  2: GND <br> |||  3: Vin <br>1 2 3</pre>
+<h2><br>
+<a name="79L05"></a>79L05, 79L08, 79L12</h2>
+<p>Fixed voltage 100mA negative power supply regulator. Vin must exceed
+Vout by at least -3V, but may not exceed -40V. </p>
+<p>TO 92 package</p>
+<pre>+---+ Flat face to you <br>| ##| <br>+++++ 1: GND <br> |||  2: Vin <br> |||  3: Vout <br>1 2 3</pre>
+<center>
+<p><br>
+<br>
+<a href="titechpages.htm">Back to the TI-99/4A Tech Pages</a></p>
+</center>
+</body>
+</html>

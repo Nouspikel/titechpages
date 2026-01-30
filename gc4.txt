@@ -1,0 +1,402 @@
+*==============================================================================*
+* 9900 assembly routines loaded in low memory expansion from >2700 to >38FF    *
+* These routine are stored in ROM at addresses >4E00-5FFF                      *
+*------------------------------------------------------------------------------*
+       AORG >2700
+*
+WREG   BSS  32           main workspace regs
+A2720  BSS  14           address / file name buffer
+WREG1  BSS  32           workspace for dsrlnk
+WREG2  BSS  32           workspace for other subroutines
+WREG3  BSS  32           workspace for gpl + 9900 loaders
+A278E  BSS  2            |
+A2790  BSS  2            |file name / record buffer
+A2792  BSS  76           |
+A27DE  BSS  2            dsr cru
+A27E0  BSS  2            dsr address
+A27E2  BSS  2            dsr name length
+A27E4  BSS  2            dsr name pointer
+A27E6  BSS  2            dsr occurence
+       BSS  6
+A27EE  BSS  2            address of first byte >12 in groms
+*
+A27F0  DATA >1E00        mem cru
+A27F2  DATA >9800        mem base
+A27F4  DATA A2C44        char pats ptr
+A27F6  DATA >0000        checksum
+A27F8  DATA >0000        address of status in pab
+*-------------------------------------------------------------------------------
+LOADFL B    @LOADGR      gpl entry: load file
+*-------------------------------------------------------------------------------
+GRAM   SBZ  0            call gram entry
+       MOV  12,@A27F0    save cru+base
+       MOV  13,@A27F2
+LDMENU LWPI WREG         gpl entry: loader menu
+       BL   @FIND12      find first >12 in groms
+       BL   @CLSC
+       BL   @VINIT       init vdp
+RESTRT BL   @CLSC
+       BL   @FRAME
+       LI   4,>000A      display loader menu
+       LI   1,MENU1
+A2828  BL   @PROMPT
+       DEC  4            10 lines
+       JNE  A2828
+A2830  LI   5,>0001      input 1 char
+       LI   3,>0231
+       BL   @INPUT
+       CB   1,@H0D
+       JL   LDMENU       f6: restart
+       JEQ  A2848        <enter>
+       BLWP @>0000       f9: reset
+A2848  MOV  3,0
+       CLR  1
+       BLWP @VSBR        get digit entered
+       CI   1,>3100
+       JL   A2830        <1: loop
+       CI   1,>3700
+       JH   A2830        >7: loop
+       SLA  1,4
+       SRL  1,11
+       MOV  @A2866(1),1  subprogram address
+       B    *1           branch to it
+*
+A2866  TEXT 'HM'
+       DATA SUB1         load (g)ram with program
+       DATA SUB2         load gram with asm-file
+       DATA SUB3         load ram with asm-file
+       DATA SUB4         load grom 0-2
+       DATA SUB5         save grom
+       DATA SUB6         save rom
+       DATA SUB7         load file
+*-------------------------------------------------------------------------------
+HEXNUM MOV  11,10        display hex number
+       LI   2,>0004      ------------------
+A287C  MOV  6,1
+       BL   @HEXDG
+       SLA  6,4
+       DEC  2
+       JNE  A287C        4 digits
+       B    *10
+*
+HEXDG  SRL  1,12         display hex digit
+       AI   1,>0030      -----------------
+       CI   1,>0039
+       JLE  A289A
+       AI   1,>0007      A-F
+A289A  SWPB 1
+       BLWP @VSBW
+       INC  0
+       B    *11
+*-------------------------------------------------------------------------------
+MENU1  DATA >0002
+       BYTE >1C
+       TEXT '*     GRAM-CARD '
+A28B7  TEXT 'LOADER     *'
+       BYTE >00
+       DATA >0063
+       BYTE >1A
+       TEXT '1 LOAD (G)RAM WITH PROGRAM'
+       BYTE >00
+       DATA >00A3
+       BYTE >19
+       TEXT '2 LOAD GRAM WITH ASM-FILE'
+       DATA >00E3
+       BYTE >18
+       TEXT '3 LOAD RAM WITH ASM-FILE'
+       DATA >0123
+       BYTE >0F
+       TEXT '4 LOAD GROM 0-2'
+       DATA >0163
+       BYTE >0B
+       TEXT '5 SAVE GR0M'
+       DATA >01A3
+       BYTE >0A
+       TEXT '6 SAVE R0M'
+       BYTE 0
+       DATA >01E3
+       BYTE >0B
+       TEXT '7 LOAD-FILE'
+       DATA >02E9
+       BYTE >0E,>1E
+       TEXT ' by H. Martin'
+       BYTE 0
+       DATA >0223
+       BYTE >0C
+       TEXT 'YOUR CHOICE:'
+       BYTE 0
+*
+A2978  DATA >0263
+       BYTE >06
+       TEXT 'START:'
+       BYTE 0
+A2982  DATA >0272
+       BYTE >04
+       TEXT 'END:'
+       BYTE 0
+A298A  DATA >02A3
+       BYTE >0A
+       TEXT 'FILE-NAME:'
+       BYTE 0
+A2998  DATA >02A3
+       BYTE >1A
+       TEXT 'I/O ERROR                 '
+       BYTE 0
+A29B6  DATA >02A3
+       BYTE >1A
+       TEXT 'LOADER-ERROR              '
+       BYTE 0
+A29D4  DATA >02C5
+       BYTE >11
+       TEXT 'COMMAND COMPLETED'
+*
+A29E8  DATA >0500        program file pab
+       DATA >0C00
+       DATA >0000
+       DATA >2900
+*
+A29F0  DATA >0005
+A29F2  DATA >0004        df80 file pab
+       DATA >0C00
+       DATA >5050
+*
+A29F8  DATA >0000        status address
+A29FA  DATA >0000
+*-------------------------------------------------------------------------------
+INHEX  MOV  11,9         input hex number
+A29FE  LI   5,>0004      ----------------
+       MOV  5,2
+       LI   1,>2000
+       MOV  3,0
+       BLWP @VRBW        clear field
+       CLR  7            result in r7
+       BL   @INPUT
+       MOV  1,15         save last key code
+       MOV  0,5          last char
+       MOV  3,0          line beg
+       LI   1,A2720      buffer
+       S    3,5          line size
+       LI   2,>0004
+       BLWP @VMBR        read number
+       MOV  5,2
+A2A2A  CLR  0
+       MOV  2,2
+       JEQ  A2A5C        end
+       SLA  7,4
+       MOVB *1+,0
+       CI   0,>4600
+       JH   A29FE        >F restart
+       CI   0,>4000
+       JH   A2A4C        A-F
+       CI   0,>3000
+       JL   A29FE        <0 restart
+       CI   0,>3900
+       JH   A29FE        >9 restart
+A2A4C  SLA  0,4
+       JOC  A2A54        digit 0-9
+       AI   0,>9000      letter A-F
+A2A54  SRL  0,12
+       A    0,7          update number
+       DEC  2            next digit
+       JMP  A2A2A
+A2A5C  B    *9
+*-------------------------------------------------------------------------------
+A2A5E  LI   1,>1000      horiz repeat: char >10
+       BLWP @VRBW        number of times in r2
+       A    2,0
+       B    *11
+*
+A2A6A  LI   1,>1100      vert repeat: char >11
+A2A6E  BLWP @VSBW        number of times in r2
+       AI   0,>0020
+       DEC  2
+       JNE  A2A6E
+       B    *11
+*
+FRAME  MOV  11,10        draw frame
+       LI   0,>0022      ----------
+       LI   1,>1300
+       BLWP @VSBW        ul corner
+       INC  0
+       LI   2,>001A
+       BL   @A2A5E       upper border
+       LI   1,>1200
+       BLWP @VSBW        ur corner
+       AI   0,>0020
+       LI   2,>0011
+       BL   @A2A6A       left border
+       LI   0,>0042
+       LI   2,>0011
+       BL   @A2A6A       right border
+       LI   0,>0242
+       LI   1,>0E00
+       BLWP @VSBW        left crossing
+       INC  0
+       LI   2,>001A
+       BL   @A2A5E       separation
+       LI   1,>0F00
+       BLWP @VSBW        right crossing
+       AI   0,>0020
+       LI   2,>0004
+       BL   @A2A6A       extend right border
+       LI   0,>0262
+       LI   2,>0004
+       BL   @A2A6A       extend left border
+       LI   1,>1500
+       BLWP @VSBW        ll corner
+       INC  0
+       LI   2,>001A
+       BL   @A2A5E       lower border
+       LI   1,>1400
+       BLWP @VSBW        lr corner
+       B    *10
+*-------------------------------------------------------------------------------
+CLSC   CLR  0            clear screen
+       LI   1,'  '       ------------
+       LI   2,>0300
+       BLWP @VRBW
+       B    *11
+*-------------------------------------------------------------------------------
+PROMPT MOV  *1+,0        display message
+       MOVB *1+,2        ---------------
+       SRL  2,8
+       BLWP @VMBW        write message
+       A    2,1          next message
+       MOV  1,3
+       ANDI 3,>0001
+       A    3,1          even address
+       B    *11
+*-------------------------------------------------------------------------------
+INPUT  MOV  11,10        input text
+       MOV  3,0          ---------- beg of line
+       A    3,5          end of line
+       CLR  2
+       CLR  @>8374
+A2B38  LI   1,>001F      set cursor
+       BLWP @VSBR        and current char
+       BL   @BLINK
+A2B44  INC  2
+       CI   2,>0180      delay for cursor blink
+       JNE  A2B50
+       BL   @BLINK
+A2B50  LIMI >0002        interrupts accepted
+       LIMI >0000
+       BLWP @KSCAN
+       MOVB @>837C,4
+       COC  @A2B8E,4
+       JNE  A2B44        no key pressed: loop
+       LI   1,>0020
+       MOVB @>8375,1     get key code
+       CI   1,>2100
+       JL   A2B96
+       CI   1,>7F00
+       JH   A2B96
+       C    0,5          char 33-127
+       JL   A2B84
+       BL   @BLINK       end of line
+A2B82  JMP  A2B38
+A2B84  BLWP @VSBW        echo char on screen
+       INC  0            next screen address
+       CLR  2            reset delay
+       JMP  A2B38        loop
+*
+A2B8E  DATA >2000
+A2B90  BYTE >08
+       BYTE >0A
+H0D    BYTE >0D
+A2B93  BYTE >0F
+A2B94  BYTE >0C,>00
+*
+A2B96  CB   1,@A2B90     <-
+       JNE  A2BAE
+       BL   @BLINK       cursor off
+       C    0,3
+       JEQ  A2B82        at line beg: loop
+       DEC  0            previous
+       SWPB 1            new cursor
+       BL   @BLINK
+       JMP  A2B38        loop
+*
+A2BAE  CB   1,@H0D       <enter>
+       JEQ  A2BC6
+       CB   1,@A2B93     f9
+       JEQ  A2BC6
+       CB   1,@A2B94     f6
+       JEQ  A2BC6
+       BL   @BLINK       unrecognised: loop
+       JMP  A2B82
+*
+A2BC6  BL   @BLINK       cursor off
+       SLA  1,8          last key code
+       B    *10          end
+*
+BLINK  CLR  2            change cursor
+       SWPB 1            -------------
+       BLWP @VSBW
+       B    *11
+*-------------------------------------------------------------------------------
+VINIT  LI   1,A2CD4      init vdp mem
+A2BDC  MOV  *1+,0        ------------
+       JEQ  A2BE6
+       BLWP @VWTR        init vdp regs 1-7
+       JMP  A2BDC
+A2BE6  LI   0,>0300      no sprites
+       LI   1,>D000
+       BLWP @VDBW
+       LI   0,>0380      set color for chars 0-23
+       LI   1,>9400      light red on dark blue
+       LI   2,>0003
+       BLWP @VRBW
+       A    2,0          set color for chars 24-240
+       LI   2,>001B
+       LI   1,>F400      white on dark blue
+       BLWP @VRBW
+       LI   0,>0400      clr vdp mem >0400-1400
+       CLR  1
+       LI   2,>1000
+       BLWP @VRBW
+       LI   1,>0900      load upper case char pats
+       MOV  1,@>834A
+       BLWP @GPLLNK
+       DATA >0018
+       BLWP @GPLLNK      load lower case char pats
+       DATA >004A
+       LI   0,>0870      load char 14-31 pats
+       LI   1,A2C44
+       LI   2,>0090
+       BLWP @VMBW
+       B    *11
+*
+A2C44  DATA >1818,>1C1F,>1F1C,>1818          char 14
+       DATA >1818,>38F8,>F838,>1818               15
+       DATA >0000,>00FF,>FF00,>0000               16
+       DATA >1818,>1818,>1818,>1818               17
+       DATA >0000,>00F0,>F838,>1818               18
+       DATA >0000,>000F,>1F1C,>1818               19
+       DATA >1818,>38F8,>F000,>0000               20
+       DATA >1818,>1C1F,>0F00,>0000               21
+       DATA >1818,>3CFF,>FF00,>0000               22
+       DATA >0000,>00FF,>FF3C,>1818               23
+       DATA 0,0,0,0
+       DATA 0,0,0,0
+       DATA 0,0,0,0
+       DATA 0,0,0,0
+       DATA 0,0,0,0
+       DATA 0,0,0,0
+       DATA >3C42,>99A1,>A199,>423C          char 30
+       DATA >3C3C,>2424,>2424,>3C3C               31
+A2CD4  DATA >01E0,>0200,>030E,>0401,>0506,>0600,>0701,0    vdp regs
+*
+A2CE4  DATA >0263
+       BYTE >06
+       TEXT 'CRU-A:'
+       BYTE 0
+A2CEE  DATA >0270
+       BYTE >07
+       TEXT 'GRAM-A:'
+A2CF8  DATA >0272
+       BYTE >05
+       TEXT 'BANK:'
+*-------------------------------------------------------------------------------
+       COPY "DSK1.GRAM5/S"
+       COPY "DSK1.GRAM6/S"

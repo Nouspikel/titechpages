@@ -1,0 +1,435 @@
+*=========================================================
+*                                   subprograms
+G6B3E DATA  G6B47,G6B82             ===========
+      STRI  'INIT'
+G6B47 DATA  G6B50,G6BD8
+      STRI  'LOAD'
+G6B50 DATA  G6B59,G6CF4
+      STRI  'LINK'
+G6B59 DATA  G6B62,G6C6F
+      STRI  'PEEK'
+G6B62 DATA  G6B6C,G6C6A
+      STRI  'PEEKV'
+G6B6C DATA  G6B76,G6BD3
+      STRI  'POKEV'
+G6B76 DATA  >0000,G6DFE
+      STRI  'CHARPAT'
+*---------------------------------------------------------
+*                                   init
+G6B82 OR    >08,@>8348              ====
+      DADD  >0005,@>832C            token pointer
+      CALL  G@G6B96                 load 9900 subs
+      BR    G@G6DED                 return
+*
+G6B8E DCEQ  >A55A,@>2000            check if program
+      BS    G@G6BBD
+G6B96 CALL  G@G6504                 check low mem
+      ST    >03,@>834A              load 9900 subs
+      DST   G7000,@>834C            --------------
+G6BA0 MOVE  >0004,G@>0000(@>4C),@>834E
+      DADD  >0004,@>834C
+      MOVE  @>834E,G@>0000(@>4C),@>0000(@>50)
+      DADD  @>834E,@>834C
+      DEC   @>834A
+      BR    G@G6BA0
+      BR    G@G6549                 wipe file , rtn
+G6BBD RTN
+*                                   skip sub name
+G6BBE CLR   @>834A                  -------------
+      ST    V*>832C,@>834B size
+      DADD  @>834A,@>832C
+      DINC  @>832C                  e o name
+      XML   >1B                     next token
+      CEQ   >B7,@>8342
+      BR    G@G6EF3                 not ( incor statement
+      XML   >1B                     next token
+      RTN
+*---------------------------------------------------------
+*PA
+*                                   pokev
+G6BD3 OR    >01,@>8348              =====
+      BR    G@G6BDD                 load
+G6BD8 DCLR  @>8348                  ====
+      OR    >08,@>8348
+G6BDD CALL  G@G6BBE                 skip sub name
+G6BE0 PARS  >B6                     address
+      CEQ   >65,@>834C
+      BS    G@G6C29                 string: file
+      XML   >12                     real->integer
+      CEQ   >03,@>8354
+      BS    G@G6F07                 number too big
+      DST   @>834A,@>8304           save adress
+G6BF1 CEQ   >B3,@>8342
+      BR    G@G6DE8                 no , => exit
+      XML   >1B                     get next token
+      PARS  >B6                     data
+      CEQ   >65,@>834C
+      BR    G@G6C05
+      DCZ   @>8350                  string
+      BS    G@G6C61                 empty: new addr
+      BR    G@G6F11                 bad argument
+G6C05 XML   >12                     real->int
+      CEQ   >03,@>8354
+      BS    G@G6F07                 number too big
+      CLOG  >01,@>8348
+      BS    G@G6C17
+      ST    @>834B,V*>8304          write to vdp
+      BR    G@G6C24
+G6C17 DSUB  >8300,@>8304            write to cpu
+      ST    @>834B,@>8300(@>04)
+      DADD  >8300,@>8304
+G6C24 DINC  @>8304                  next addr
+      B     G@G6BF1
+G6C29 DCZ   @>8350                  load file
+      BS    G@G6C61                 empty: new addr
+      CLOG  >01,@>8348
+      BR    G@G6F0C                 string-number err
+      DST   @>8350,@>830C
+      DADD  >005A,@>830C
+      XML   >17                     assign var
+      CALL  G@G6B8E                 load 9900 subs
+      CALL  G@>0038                 get space
+      XML   >18                     pop value from stack
+      CALL  G@G63FE                 clear 70 bytes
+      CALL  G@G63C3                 copy file name
+      ST    >60,V@>0008(@>1C)       screen offset
+      ST    >04,V@>0001(@>1C)       df input
+      DADD  @>831C,@>8350
+      DADD  >000A,@>8350
+      DST   @>8350,V@>0002(@>1C)    buffer
+      BR    G@G6826
+G6C61 CEQ   >B3,@>8342
+      BR    G@G6DE8                 no , => exit
+      XML   >1B                     next token
+      BR    G@G6BE0                 loop
+*---------------------------------------------------------
+*PA
+*                                   peekv
+G6C6A OR    >01,@>8348              =====
+      BR    G@G6C71                 peek
+G6C6F DCLR  @>8348                  ====
+G6C71 CALL  G@G6BBE                 skip sub name
+G6C74 PARS  >B6                     address
+      CEQ   >65,@>834C
+      BS    G@G6C98                 string
+      XML   >12                     real->integer
+      CEQ   >03,@>8354
+      BS    G@G6F07                 number too big
+      DST   @>834A,@>8304           save address
+      CEQ   >B3,@>8342
+      BR    G@G6DE8                 no , => exit
+G6C8A XML   >1B                     get next token
+      CEQ   >C7,@>8342              data
+      BR    G@G6CA5
+      PARS  >B6                     'string'
+      CEQ   >65,@>834C
+      BR    G@G6CA5
+G6C98 DCZ   @>8350                  string
+      BR    G@G6F0C                 empty: err
+      CEQ   >B3,@>8342
+      BR    G@G6DE8                 no , => exit
+      XML   >1B                     next token
+      BR    G@G6C74                 new address
+G6CA5 CHE   >80,@>8342
+      BS    G@G6DE8                 instr => exit
+      XML   >13                     get symbol addr
+      XML   >14                     get symb value
+      XML   >17                     put it on stack
+      CLOG  >01,@>8348
+      BS    G@G6CBB
+      ST    V*>8304,@>835D          read from vdp
+      BR    G@G6CC8
+G6CBB DSUB  >8300,@>8304            read from cpu mem
+      ST    @>8300(@>04),@>835D
+      DADD  >8300,@>8304
+G6CC8 CALL  G@G6DF6                 clear 4A-51
+      CZ    @>835D
+      BS    G@G6CE8                 =0
+      ST    >40,@>834A              exponent 0
+      CLR   @>835C
+      DIV   >64,@>835C
+      ST    @>835C,@>834B           div by 100
+      ST    @>835D,@>834C           remainder
+      CZ    @>834B
+      BR    G@G6CE6                 >100
+      EX    @>834B,@>834C           result in 4C
+      BR    G@G6CE8
+G6CE6 INC   @>834A                  inc exponent
+G6CE8 XML   >15                     assign variable
+      CEQ   >B3,@>8342
+      BR    G@G6DE8                 no , => exit
+      DINC  @>8304                  next address
+      B     G@G6C8A                 one more
+*---------------------------------------------------------
+*PA
+*                                   link
+G6CF4 OR    >08,@>8348              ====
+      CALL  G@G6BBE                 skip sub name
+      CALL  G@G6504                 check mem
+      DCEQ  >A55A,@>2000
+      BR    G@G6EEE                 prog not found
+      OR    >08,@>8348
+      DST   @>836E,@>8310           value stack ptr
+      PARS  >B6                     parse program name
+      CEQ   >65,@>834C
+      BR    G@G6F0C                 string-number err
+      CH    >06,@>8351
+      BS    G@G6F11                 size > 6 bad argum
+      XML   >17                     push value on stack
+      CLR   @>8312                  # of params
+      DST   >9D0A,@>8316            >200A: list of params types
+G6D1F CEQ   >B6,@>8342
+      BS    G@G6DC1                 char ) => start
+      CEQ   >B3,@>8342
+      BR    G@G6EF3                 incorrect statement
+      DST   @>832C,@>8322           char , => param
+      XML   >1B                     next token
+      CHE   >80,@>8342
+      BS    G@G6D84                 instruction
+      CALL  G@G6DF6                 clear 4A-51
+      XML   >13                     get symbol addr
+      CLOG  >40,V*>834A
+      BR    G@G6D84
+      CEQ   >B3,@>8342
+      BS    G@G6D9D                 next token is ,
+      CEQ   >B6,@>8342
+      BS    G@G6D9D                 next token is )
+      CEQ   >B7,@>8342
+      BS    G@G6D54                 next token is (
+      CHE   >80,@>8342
+      BS    G@G6D84                 next token is an instruction
+      BR    G@G6EF3                 incorrect statement
+G6D54 XML   >1B                     get next token
+      CEQ   >B6,@>8342
+      BS    G@G6D67                 it's )
+      CEQ   >B3,@>8342
+      BS    G@G6D54                 it's ,
+      DDEC  @>832C                  back to previous token
+      ST    >B7,@>8342              make it a )
+      BR    G@G6D9D
+G6D67 XML   >1B                     get next token
+      CLOG  >80,V*>834A
+      BR    G@G6D76
+      ST    >04,@>8300(@>16)
+      BR    G@G6D7B
+G6D76 ST    >05,@>8300(@>16)
+G6D7B DST   @>834A,@>834E
+      DADD  >0006,@>834E
+      BR    G@G6DB4
+G6D84 DST   @>8322,@>832C           token pointer
+      XML   >1B                     next token
+      PARS  >B6
+      CEQ   >65,@>834C
+      BR    G@G6D97
+      ST    >01,@>8300(@>16)        string
+      BR    G@G6D9B
+G6D97 CLR   @>8300(@>16)            number
+G6D9B BR    G@G6DB4
+G6D9D XML   >14                     get symbol value
+*PA
+      CHE   >B8,@>8342
+      BS    G@G6D84                 token is & :loop
+      CZ    @>834C
+      BR    G@G6DAF
+      ST    >02,@>8300(@>16)        numeric variable
+      BR    G@G6DB4
+G6DAF ST    >03,@>8300(@>16)        string variable
+G6DB4 INC   @>8312
+      CH    >10,@>8312              max 10 param
+      BS    G@G6F11                 bad argum
+      DINC  @>8316
+      XML   >17                     push on stack
+      BR    G@G6D1F
+*
+G6DC1 ST    >20,@>834A              blank 4A-4E
+      MOVE  >0005,@>834A,@>834B
+      MOVE  >0004,V@>000C(@>10),@>8300 address of link name in VDP mem
+      DCZ   @>8302
+      BS    G@G688E                 none
+G6DD4 MOVE  @>8302,V*>8300,@>834A   copy name to scratch-pad
+      DST   @>8302,@>8350           name length
+      BR    G@G688E
+*---------------------------------------------------------
+*
+G6DDE DCH   @>8310,@>836E
+      BR    G@G6DE8
+*
+G6DE3 XML   >18                     pop from stack
+      B     G@G6DDE
+*                                   exit
+G6DE8 CEQ   >B6,@>8342              ----
+      BR    G@G6EF3                 no ) incor statement
+G6DED XML   >1B                     next token
+      CZ    @>8342
+      BR    G@G6EF3                 incorrect statement
+      CALL  G@>0012                 00 ret to basic
+*
+G6DF6 CLR   @>834A                  clear >4A-51
+      MOVE  >0007,@>834A,@>834B
+      RTN
+*---------------------------------------------------------
+*PA
+*                                   charpat
+G6DFE CALL  G@G6BBE                 =======
+G6E01 PARS  >B6                     skip sub name
+      CEQ   >65,@>834C
+      BS    G@G6F0C                 string-number err
+      XML   >12                     real->int
+      CEQ   >03,@>8354
+      BS    G@G6F07                 number too big
+      DCGTE >0020,@>834A
+      BR    G@G6F11                 bad arg if <32
+      DCGT  >009F,@>834A
+      BS    G@G6F11                 bad arg if >159
+      DSLL  >0003,@>834A
+      DST   >0300,@>8310
+      DADD  @>834A,@>8310           address in vdp
+      DST   >0010,@>830C
+      CALL  G@>0038                 get 16 bytes free
+      DST   @>831C,@>8312           save pointer
+      ST    >08,@>8304              8 bytes
+G6E33 ST    V*>8310,@>8300
+      DSRL  >0004,@>8300            first nibble
+      ADD   >30,@>8300              to ascii
+      CGT   >39,@>8300
+      BR    G@G6E46
+      ADD   >07,@>8300              A-F
+G6E46 SRL   >04,@>8301              second nibble
+      ADD   >30,@>8301              to ascii
+      CGT   >39,@>8301
+      BR    G@G6E54
+      ADD   >07,@>8301              A-F
+G6E54 DST   @>8300,V*>8312
+G6E58 DINC  @>8310                  next vdp byte
+      DINCT @>8312                  next 2 chars
+      DEC   @>8304
+      BR    G@G6E33                 loop
+      XML   >1B                     next token
+      CHE   >80,@>8342
+      BS    G@G6EF3                 incorrect statement
+      XML   >13                     get symbol addr
+      XML   >14                     get symbol value
+      XML   >17                     push it on stack
+      CEQ   >65,@>834C
+      BR    G@G6F0C                 string-number err
+      DST   >001C,@>834A            string exp flag
+      DST   @>831C,@>834E           vdp address
+      DST   >0010,@>8350            size
+      XML   >15                     assign var
+      CEQ   >B3,@>8342
+      BR    G@G6DE8                 no , => exit
+      XML   >1B                     next token
+      BR    G@G6E01                 one more char
+*---------------------------------------------------------
+*PA
+*                                   error handling
+G6E88 DECT  @>8373                  --------------
+      CHE   >08,@>8322
+      BR    G@G6F4D                 1-7: io error
+      CHE   >0F,@>8322
+      BS    G@G6E97
+      CALL  G@G69B0                 8-14: close pab
+G6E97 CH    >21,@>8322
+      BS    G@G6F48                 >33: unknown
+      SUB   >08,@>8322
+      CASE  @>8322
+      BR    G@G6ED5                 8
+      BR    G@G6EF3                 9
+      BR    G@G6EDA                 10
+      BR    G@G6EDF                 11
+      BR    G@G6EE4                 12
+      BR    G@G6EE9                 13
+      BR    G@G6EF3                 14
+      BR    G@G6EEE                 15
+      BR    G@G6EF3                 16
+      BR    G@G6EF8                 17
+      BR    G@G6EFD                 18
+      BR    G@G6F02                 19
+      BR    G@G6F07                 20
+      BR    G@G6F0C                 21
+      BR    G@G6F11                 22
+      BR    G@G6F16                 23
+      BR    G@G6F1B                 24
+      BR    G@G6F20                 25
+      BR    G@G6F25                 26
+      BR    G@G6F2A                 27
+      BR    G@G6F54                 28
+      BR    G@G6F2F                 29
+      BR    G@G6F34                 30
+      BR    G@G6F39                 31
+      BR    G@G6F3E                 32
+      BR    G@G6ED5                 33
+G6ED5 CALL  G@>001C                 error routine
+      DATA  >2049                   33, 8: memory full
+G6EDA CALL  G@>001C
+      DATA  G6F59                   10: illegal tag
+G6EDF CALL  G@>001C
+      DATA  G6F65                   11: checksum error
+G6EE4 CALL  G@>001C
+      DATA  G6F74                   12: duplicate def
+G6EE9 CALL  G@>001C
+      DATA  G6F89                   13: unresolved ref
+G6EEE CALL  G@>001C
+      DATA  G6F9E                   15: prog not found
+G6EF3 CALL  G@>001C
+      DATA  >202C                   9,14,16: incorrect statement
+G6EF8 CALL  G@>001C
+      DATA  >2040                   17: bad name
+G6EFD CALL  G@>001C
+      DATA  >2055                   18: can't continue
+G6F02 CALL  G@>001C
+      DATA  >2064                   19: bad value
+G6F07 CALL  G@>001C
+      DATA  >206E                   20: number too big
+G6F0C CALL  G@>001C
+      DATA  >207D                   21: string number mismatch
+G6F11 CALL  G@>001C
+      DATA  >2094                   22: bad argument
+G6F16 CALL  G@>001C
+      DATA  >20A1                   23: bad subscript
+*PA
+G6F1B CALL  G@>001C
+      DATA  >20AF                   24: name conflict
+G6F20 CALL  G@>001C
+      DATA  >20BD                   25: can't do that
+G6F25 CALL  G@>001C
+      DATA  >20D9                   26: bad line number
+G6F2A CALL  G@>001C
+      DATA  >20F9                   27: for-next error
+G6F2F CALL  G@>001C
+      DATA  >211D                   29: file error
+G6F34 CALL  G@>001C
+      DATA  >2128                   30: input error
+G6F39 CALL  G@>001C
+      DATA  >2134                   31: data error
+G6F3E CALL  G@>001C
+      DATA  >213F                   32: line too long
+G6F43 CALL  G@>001C
+      DATA  G6FB0                   no mem expansion (called by G6922)
+G6F48 CALL  G@>001C
+      DATA  G6FC4                   33+: unknown err
+G6F4D DST   @>831C,@>8304
+      DSUB  >0004,@>8304
+G6F54 CALL  G@>001C
+      DATA  >2113                   1-7,28: i/o error
+*
+      BIAS  >60                     add basic bias
+G6F59 STRI  'ILLEGAL TAG'
+G6F65 STRI  'CHECKSUM ERROR'
+G6F74 STRI  'DUPLICATE DEFINITION'
+G6F89 STRI  'UNRESOLVED REFERENCE'
+G6F9E STRI  'PROGRAM NOT FOUND'
+G6FB0 STRI  'NO MEMORY EXPANSION'
+G6FC4 STRI  'UNKNOWN ERROR CODE'
+*---------------------------------------------------------
+*                                   load (c) def
+G6FD7 CALL  G@G6504                 ------------
+      MOVE  >0008,G@G6FE2,V@>0850
+      RTN
+G6FE2 DATA  >3C42,>99A1,>A199,>423C
+*
+G6FEA DATA  0,0,0,0,0,0,0,0,0,0,0   up to G6FFF
+*
+* Assembly language routines are stored hereafter
+*
+      END

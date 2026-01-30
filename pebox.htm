@@ -1,0 +1,904 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+  <title>pebox.htm</title>
+  <meta http-equiv="Content-Type"
+ content="text/html; charset=iso-8859-1">
+  <meta name="GENERATOR"
+ content="Mozilla/3.04Gold (Win95; U) [Netscape]">
+</head>
+<body>
+<h1 align="center"><a
+ href="http://www.nouspikel.com/ti99/titechpages.htm"><img
+ src="logo.jpg" style="border: 0px solid ; height: 33px; width: 95px;"
+ title="Back to main index" alt=""></a></h1>
+<h1>The peripheral expansion box</h1>
+<p>This very bulky piece of hardware is meant to support upto eight
+peripheral
+cards that will enhance the capabilities of the TI-99/4A console. It
+has
+its own power supply, which provides each card with the necessary power
+for a +5V, a +12V and a -12V (possibly -5V, with a large heat sink...)
+voltage regulator. </p>
+<p>It is connected to the console side port via a 38-connection cable
+that
+ends up in a peripheral card. And here goes one of the eight available
+slot. For some reason, the cable does not carry all lines available on
+the console side port (even though some of them are present in the
+PE-box
+bus). </p>
+<p>The PE-box is a ventilated unit, and is designed to cool the
+peripheral
+cards when the lid is close. The manual specifies that proper
+ventilation
+cannot be insured if the lid is left open. </p>
+<p>The front pannel has little glass window in front of each card slot.
+A card can thus use an onboard LED to signal the user that it is in
+use.
+It may be usefull for troubleshooting purposes, but I suspect it was
+mainly
+meant to look cool... Here is a <a href="pebox1.JPG">picture</a> (not
+mine).</p>
+<p>The PE-box also has room for a disk drive unit and provides it with
+power. This drive of course requires a controller card. The original
+card
+by TI could also control two more disk drives, to be intalled
+externally
+(with their own power supply). Later on, some third parties offered
+slim
+units that would allow to fit two disk drives in the space originally
+meant
+for one. </p>
+<p><a href="#Power%20supply">Power supply</a> <br>
+<a href="#Internal%20bus">Internal bus</a> </p>
+<p><b>The connection card<br>
+</b><a href="#Signal%20buffering">Signals buffering</a> <br>
+<a href="#Bus%20multiplexing">Bus multiplexing</a> <br>
+<a href="#Fixing%20firehose">Fixing the firehose cable</a></p>
+<p><b>A typical peripheral card<br>
+</b><a href="#Typical%20card">General design<br>
+</a><a href="#ROM%20types">ROM types</a> <br>
+<a href="#In%20circuit">In-circuit programming<br>
+</a><a href="#ROM%20paging">ROM paging</a> </p>
+<h2><br>
+<a name="Power supply"></a>Power supply</h2>
+<p>The PE-box provides unregulated power, meant to be used by voltage
+regulators
+intalled on each card. Typically, these would be a 78x05 (+5V) , a
+78x12
+(+12V) or a 79x12 (-12V). According to the specs, these regulators need
+an input voltage at least 3V in excess of the required output voltage.
+Therefore, the PE-box supplies them with +16V, -16V and +8V. Note that
+if you need -5V, you could use a 79x05 and feed it with the -16V
+supply.
+This would just mean that you need a really big heat sink, since this
+regulator
+is going to dissipate a lot of power... </p>
+<h2><br>
+<br>
+<a name="Internal bus"></a>Internal bus</h2>
+<p>The PE-box connect each card to a xxx-lines internal bus. Some of
+the
+lines on the bus are meant for production purposes and are held high in
+the PE-box. Supposedly, the card manufacturing machines used them to
+burn
+EPROMs or test the card. Here is a <a href="pebox2.JPG">picture</a> of
+the inside (not mine).</p>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 59&nbsp;&nbsp;&nbsp;&nbsp; Left&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 1&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Front ===================== Rear<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 60&nbsp;&nbsp;&nbsp; Right&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 2</pre>
+<pre>&nbsp;#&nbsp; Name&nbsp;&nbsp; I/O&nbsp;&nbsp; Use&nbsp;<br>--&nbsp; -----&nbsp; ---&nbsp;&nbsp; --------------------------------------------&nbsp;<br>&nbsp;1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Power supply for a +5V 3-T voltage regulator (about +8V)&nbsp;<br>&nbsp;2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Ditto&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;3&nbsp; GND&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;4&nbsp; READYA&nbsp; &lt;&nbsp;&nbsp;&nbsp;&nbsp; System ready (goes to READY, 10K pull-up to +5V) A low level puts the cpu on hold.<br>&nbsp;5&nbsp; GND&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;6&nbsp; RESET*&nbsp; &gt;&nbsp;&nbsp;&nbsp;&nbsp; System reset (active low)&nbsp;<br>&nbsp;7&nbsp; GND&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;8&nbsp; SCLK&nbsp;&nbsp;&nbsp; nc&nbsp;&nbsp; System clock (not connected in interface card)&nbsp;<br>&nbsp;9&nbsp; LCP*&nbsp;&nbsp;&nbsp; nc&nbsp;&nbsp; CPU indicator 1=TI99 0=2nd generation (not connected in interface card)&nbsp;<br>10&nbsp; AUDIO&nbsp;&nbsp; &lt;&nbsp;&nbsp;&nbsp; Input audio (to AUDIOIN in console)&nbsp;<br>11&nbsp; RDBENA* &lt;&nbsp;&nbsp;&nbsp; Active low: enable flex cable data bus drivers (1K pull-up)&nbsp;<br>12&nbsp; PCBEN&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp; PCB enable for burn-in (always High)&nbsp;<br>13&nbsp; HOLD*&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp; Active low CPU hold request (always High)&nbsp;<br>14&nbsp; IAQHA&nbsp;&nbsp; nc&nbsp;&nbsp; IAQ [or] HOLDA (logical or)&nbsp;<br>15&nbsp; SENILA* H&nbsp;&nbsp;&nbsp; Interrupt level A sense enable (always High)&nbsp;<br>16&nbsp; SENILB* H&nbsp;&nbsp;&nbsp; Interrupt level B sense enable (always High)&nbsp;<br>17&nbsp; INTA*&nbsp;&nbsp; &lt;&nbsp;&nbsp;&nbsp; Interrupt level A (active low, goes to EXTINT*)&nbsp;<br>18&nbsp; LOAD*&nbsp;&nbsp; nc&nbsp;&nbsp; Unmaskable interrupt (not carried by interface cable/card)&nbsp;<br>19&nbsp; D7&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &lt;&gt;&nbsp;&nbsp; Data bus, bit 7 (least significant)&nbsp;<br>20&nbsp; GND&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>21&nbsp; D5&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &lt;&gt;&nbsp;&nbsp;&nbsp;&nbsp;<br>22&nbsp; D6&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &lt;&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>23&nbsp; D3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &lt;&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>24&nbsp; D4&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &lt;&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>25&nbsp; D1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &lt;&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>26&nbsp; D2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &lt;&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>27&nbsp; GND&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>28&nbsp; D0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &lt;&gt;&nbsp;&nbsp; Data bus, bit 0 (most significant)&nbsp;<br>29&nbsp; A14&nbsp;&nbsp;&nbsp;&nbsp; &gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>30&nbsp; A15&nbsp;&nbsp;&nbsp;&nbsp; &gt;&nbsp;&nbsp;&nbsp; Address bus, lsb. Also CRU output bit.&nbsp;<br>31&nbsp; A12&nbsp;&nbsp;&nbsp;&nbsp; &gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>32&nbsp; A13&nbsp;&nbsp;&nbsp;&nbsp; &gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>33&nbsp; A10&nbsp;&nbsp;&nbsp;&nbsp; &gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>34&nbsp; A11&nbsp;&nbsp;&nbsp;&nbsp; &gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>35&nbsp; A8&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>36&nbsp; A9&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>37&nbsp; A6&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>38&nbsp; A7&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>39&nbsp; A4&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>40&nbsp; A5&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>41&nbsp; A2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>42&nbsp; A3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>43&nbsp; A0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &gt;&nbsp;&nbsp;&nbsp; Address but, bit 0 (most significant)<br>44&nbsp; A1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>45&nbsp; AMB&nbsp;&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp; Extra address bit (always High)<br>46&nbsp; AMA&nbsp;&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp; Extra address bit (always High)<br>47&nbsp; GND&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>48&nbsp; AMC&nbsp;&nbsp;&nbsp;&nbsp; H&nbsp;&nbsp;&nbsp; Extra address bit (always High)<br>49&nbsp; GND&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>50&nbsp; CLKOUT* &gt;&nbsp;&nbsp;&nbsp; Inverted PHI3 clock, from TIM9904 clock generator<br>51&nbsp; CRUCLK* &gt;&nbsp;&nbsp;&nbsp; Inverted CRU clock, from TMS9900 CRUCLK pin<br>52&nbsp; DBIN&nbsp;&nbsp;&nbsp; &gt;&nbsp;&nbsp;&nbsp; Active high = read memory. Drives the data bus buffers.<br>53&nbsp; GND&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>54&nbsp; WE*&nbsp;&nbsp;&nbsp;&nbsp; &gt;&nbsp;&nbsp;&nbsp; Write Enable pulse (derived from TMS9900 WE* pin)<br>55&nbsp; CRUIN&nbsp;&nbsp; &lt;&nbsp;&nbsp;&nbsp; CRU input bit to TMS9900<br>56&nbsp; MEMEN*&nbsp; &gt;&nbsp;&nbsp;&nbsp; Memory access enable (active low)&nbsp;<br>57&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Power supply for a -12 Volts 3-T voltage regulator (about -16V)&nbsp;<br>58&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Ditto&nbsp;<br>59&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Power suppy for a +12 Volts 3-T voltage regulator (about +16V)&nbsp;<br>60&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Ditto</pre>
+<p>Here is the same info, arranged as on the connector:</p>
+<pre>          REAR<br>     +8V  1||2   +8V<br>     GND  3||4   READY<br>     GND  5||6   RESET*<br>     GND  7||8   (nc)<br>     (nc) 9||10  AUDIO<br> RDBENA* 11||12  (high)<br>  (high) 13||14  (nc)<br>  (high) 15||16  (high)<br>  INTA*  17||18  (nc)<br>     D7  19||20  GND  <br>     D5  21||22  D6<br>     D3  23||24  D4<br>     D1  25||26  D2<br>    GND  27||28  D0<br>    A14  29||30  A15/CRUOUT<br>    A12  31||32  A13<br>    A10  33||34  A11<br>     A8  35||36  A9<br>     A6  37||38  A7   <br>     A4  39||40  A5<br>     A2  41||42  A3<br>     A0  43||44  A1<br>  (high) 45||46  (high) <br>    GND  47||48  (high)<br>    GND  49||50  CLKOUT*<br>CRUCLK*  51||52  DBIN<br>    GND  53||54  WE*<br>  CRUIN  55||56  MEMEN*<br>   -16V  57||58  -16V<br>   +16V  59||60  +16V<br>         FRONT</pre>
+<h2><br>
+<br>
+<a name="Connection card"></a>The connection card</h2>
+<p>The main purpose of the connection card is to buffer signals to or
+from
+the console, before to send them out on the PE-box bus. The buffers are
+74LS244 TTLs, except for the data bus that requires a bidirectional
+transceiver
+74LS245. The console end of the cable also contains a 74LS245 chip to
+buffer
+the data bus once more. Nevertheless, the TI specs insist that each
+card
+must rebuffer all signal from or to the PE-box bus. </p>
+<p>The LED in the front of the connection card is turned on by DBIN
+(high
+= on). Thus, it will shine for reading operations, and shut off for
+writing
+operations. The end result is that it twinkles when the bus is active.
+</p>
+<p>Here is a picture of the <a href="pebox3.jpg">card</a>, and one of
+the
+<a href="pebox4.jpg">connector</a> on the console side of the cable.</p>
+<h4><a name="Signal buffering"></a>Signal buffering</h4>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>                   +5V    :      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;                         <br>  <font
+ color="#ff0000">Console</font>          |      :   <font
+ color="#ff0000">Side connector</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   &nbsp;<font
+ color="#ff0000">Cable</font>       <font color="#ff0000">Connection card</font>        <font
+ color="#ff0000">PE-box bus</font>  <br>                   R 4.7K :                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;                                     ................<br>          100 Ohms |      :Pin #   &nbsp;&nbsp;&nbsp;                         &nbsp;                        :<br>   Load*-----WWW---+------[13      &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;       Wire&nbsp;#             &nbsp;&nbsp; &nbsp;       Pin #:     <br>   CRUIN-----WWW----------[33]--------------------------1----------------------------[55]---CRUIN <br> Extint*-----WWW----------[ 4]-------------------------41----------------------------[17]---IntA*  <br> AudioIn------------------[44]-------------------------39----------------------------[10]---AudioIn  <br>Ready---------------------[12]-------------------------40---------------+------------[ 4]---Ready<br>Hold/IAQ-----WWW----------[41     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;                   &nbsp; &nbsp;        '--WWW---+5V    :  <br>    SBE*------------------[2       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;                                10K          :  &nbsp; &nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   '367&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;  &nbsp;  &nbsp;  '244        :<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +----+&nbsp;&nbsp;&nbsp;&nbsp;     :     47 Ohms                                    +----+       :<br>&nbsp;&nbsp;&nbsp;&nbsp;A13----|&nbsp;&nbsp;&nbsp; |---------[15]---WWW-------------------23------------------|17 3|----[32]---A13<br>&nbsp;&nbsp;&nbsp;&nbsp; A9----|&nbsp;&nbsp;&nbsp; |---------[18]---WWW-------------------19------------------|8 12|----[36]---A9<br>&nbsp;&nbsp;&nbsp;&nbsp; A8----|&nbsp;&nbsp;&nbsp; |---------[14]---WWW-------------------18------------------|6 14|----[35]---A8<br>&nbsp; &nbsp;&nbsp;&nbsp;A7----|&nbsp;&nbsp;&nbsp; |---------[17]---WWW-------------------17------------------|4 16|----[38]---A7<br>&nbsp;&nbsp;&nbsp; &nbsp;A6----|&nbsp;&nbsp;&nbsp; |---------[29]---WWW-------------------16------------------|2 18|----[37]---A6<br>&nbsp;&nbsp;&nbsp;&nbsp;A14----|&nbsp;&nbsp;&nbsp; |---------[16]---WWW-------------------24------,&nbsp;    &nbsp;,----|15 5|----[31]---A12<br>&nbsp;&nbsp;  Gnd----|EN* |         :                                    |     |,----|13 7|----[34]---A11<br>  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +----+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  :                                    |     ||,---|11 9|----[33]---A10<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; '367          :                                    |     |||   +----+       :<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +----+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :     47 Ohms                        |     |||                :<br>&nbsp;&nbsp;&nbsp; A12----|&nbsp;&nbsp;&nbsp; |---------[11]---WWW-------------------22------|-----'||                :<br>&nbsp;&nbsp;&nbsp;&nbsp;A11----|&nbsp;&nbsp;&nbsp; |---------[ 8]---WWW-------------------21------|------'|    '244        :<br>&nbsp;&nbsp;&nbsp;&nbsp;A10----|&nbsp;&nbsp;&nbsp; |---------[ 6]---WWW-------------------20------|-------'   +----+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;&nbsp;&nbsp;<br>&nbsp; &nbsp;&nbsp;&nbsp;A5----|&nbsp;&nbsp;&nbsp; |---------[ 5]---WWW-------------------15------|-----------|17 3|----[40]---A5<br>&nbsp; &nbsp;&nbsp;&nbsp;A4----|&nbsp;&nbsp;&nbsp; |---------[ 7]---WWW-------------------14------|-----------|15 5|----[39]---A4&nbsp;<br>&nbsp; &nbsp;&nbsp;&nbsp;A3----|&nbsp;&nbsp;&nbsp; |---------[10]---WWW-------------------13------|-----------|13 7|----[42]---A3<br>&nbsp;&nbsp;&nbsp;&nbsp;Gnd----|EN* |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:                                    | ,---------|11 9|----[56]---Memen*<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +----+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:                                    | |,--------|4 16|----[41]---A2&nbsp;&nbsp;&nbsp;&nbsp;<br>Memen*--------------------[32]---WWW--------------------2------|-'|,-------|6 14|----[44]---A1<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  '244 &nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:                                    |  ||,------|8 12|----[43]---A0<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +----+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:    &nbsp;47 Ohms                        |  |||,-----|2 18|-+--[52]---DBIN<br>&nbsp; &nbsp;&nbsp;&nbsp;A2----|    |---------[20]---WWW-------------------12------|--'|||     +----+ |     :<br>&nbsp; &nbsp;&nbsp;&nbsp;A1----|    |---------[30]---WWW-------------------11------|---'||      '244  |     :<br>&nbsp; &nbsp;&nbsp;&nbsp;A0----|    |---------[31]---WWW-------------------10------|----'|     +----+ |     :<br>&nbsp; &nbsp;&nbsp;A15----|&nbsp;&nbsp;&nbsp; |---WWW---[19]-------------------------26------|-----|-----|4 16|-|--[30]---A15<br>&nbsp;&nbsp;Phi3*----|&nbsp;&nbsp;&nbsp; |---WWW---[24]--------------------------6------|-----|-----|13 7|-|--[50]---Phi3*<br>&nbsp;&nbsp;&nbsp; WE*----|&nbsp;&nbsp;&nbsp; |---WWW---[26]--------------------------4------|-----|-----|6 14|-|--[54]---WE*&nbsp;&nbsp;&nbsp;<br>CRUCLK*----|&nbsp;&nbsp;&nbsp; |---WWW---[22]--------------------------5------|-----|-----|8 12|-|--[51]---CRUCLK*<br>   MBE*----|&nbsp;&nbsp;&nbsp; |---------[28&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;                       '-----|-----|2 18|-|--[29]---A14<br>&nbsp;&nbsp;&nbsp;&nbsp;Gnd----|EN* |&nbsp;52 Ohms :       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;                           |,----|3 17|-|-+[11]--RDBENA*<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +----+&nbsp;&nbsp;       :  &nbsp;&nbsp;&nbsp;47 Ohms                              ||,---|5 15|-|-+   :<br>   Reset-------------+----[ 3]---WWW-------------------36------------|||---|11 9|-|-|-[6]---Reset<br>          +5V---WWW--'    : &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;                                 |||   +----+ | R 1K:<br>                4.7K      :     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;                             ||| +5V      | |   :<br>        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;          :      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;                            ||| '-|&gt;|-\| | +5V :<br>                      &nbsp;&nbsp;  :       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;47 Ohms                      |||   100  |-+     :<br>  DBIN--------------------[ 9]-+----------WWW-----------6------------'|| ,-WWW-/| |    8]---SClk<br>&nbsp;        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;     &nbsp;&nbsp;:    |&nbsp;&nbsp;'245&nbsp;&nbsp;&nbsp;&nbsp;                            ||Gnd       |    9]---SCP*<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;     :    | +----+&nbsp;&nbsp;                             ||   +----+ |   14]---IAQHA<br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;    :    | | OE*|----------------43-----WWW-----''---|OE* | |   18]---LOAD*<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;    :    '-|DIR |  47 Ohms               47 Ohms     | DIR|-'     :  <br>    D0--------------------[37]---|18 2|---WWW----------28------------WWW---|18 2|----[28]---D0&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp; D1--------------------[40]---|17 3|---WWW----------29------------WWW---|17 3|----[25]---D1&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp; D2--------------------[39]---|16 4|---WWW----------30------------WWW---|16 4|----[26]---D2&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp; D3--------------------[42]---|15 5|---WWW----------31------------WWW---|15 5|----[23]---D3&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;D4--------------------[35]---|14 6|---WWW----------33------------WWW---|14 6|----[24]---D4&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;D5--------------------[38]---|13 7|---WWW----------34------------WWW---|13 7|----[21]---D5&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;D6--------------------[36]---|12 8|---WWW----------35------------WWW---|12 8|----[22]---D6&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp; D7--------------------[34]---|13 9|---WWW----------36------------WWW---|13 9|----[19]---D7&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: &nbsp;&nbsp;   | Vcc|-,&nbsp;                         &nbsp; &nbsp;     +----+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :<br>&nbsp;      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;:&nbsp;&nbsp;&nbsp;&nbsp;  +----+ |                         &nbsp; &nbsp;             ,--[ 3]---Gnd <br>   -5V--------------------[43           |        &nbsp; &nbsp;  &nbsp;                        &nbsp; &nbsp;+--[ 5]---Gnd  <br>   +5V--------------------[1            |                &nbsp; &nbsp;                      +--[ 7]---Gnd <br>   Gnd--------------------[21]--,       |                        &nbsp; &nbsp;&nbsp;             +--[20]---Gnd  <br>   Gnd--------------------[23]--+================3=7=9=25=27=32=37================+--[27]---Gnd<br>   Gnd--------------------[25]--+       |                         &nbsp; &nbsp;&nbsp;            +--[47]---Gnd<br>   Gnd--------------------[27]--'       |                            &nbsp; &nbsp;&nbsp;         +--[48]---Gnd   <br>                         &nbsp;:&nbsp;&nbsp;           |                         &nbsp; &nbsp;&nbsp;            '--[53]---Gnd<br>..........................:&nbsp;&nbsp;           |                         &nbsp; &nbsp;&nbsp;                59]---Unreg +16<br>                         &nbsp; &nbsp;&nbsp;           |                         &nbsp; &nbsp;&nbsp;                60]---Unreg +16 &nbsp;<br>                         &nbsp; &nbsp;&nbsp;           |                         &nbsp; &nbsp;&nbsp;                57]---Unreg -16<br>                         &nbsp; &nbsp;&nbsp;           |                         &nbsp; &nbsp;&nbsp;                58]---Unreg -16<br>                         &nbsp; &nbsp;&nbsp;           |       ,-----42-44-------------+---------+--[ 1]---Unreg +8V <br>                         &nbsp;  &nbsp;   ,-------'       |                 &nbsp; &nbsp;&nbsp;  |         '--[ 2]---Unreg +8V &nbsp;<br>                         &nbsp;      |&nbsp;&nbsp;&nbsp;&nbsp; 78M05&nbsp;&nbsp;   |         &nbsp;&nbsp;&nbsp;          &nbsp;|&nbsp; ,---WWW---[12]---PCBEN*&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;+--------+&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;             |  +---WWW---[13]---HOLD*   &nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   &nbsp;&nbsp;   &nbsp;,-+--|Vout&nbsp;Vin|-+-+              &nbsp; &nbsp;&nbsp;     |  +---WWW---[15]---SENILA<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   &nbsp;     |&nbsp;|&nbsp;&nbsp;|&nbsp;&nbsp;Comm&nbsp; |&nbsp;| |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   &nbsp;&nbsp;     |  +---WWW---[16]---SENILB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;     22 uF&nbsp;= =  +---+----+&nbsp;= = 22 uF&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;     |  +---WWW---[45]---AMA<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;    0.1 uF |&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| |&nbsp;0.1 uF&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;         |  +---WWW---[46]---AMB<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;         Gnd&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Gnd&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Gnd&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;     |  +---WWW---[48]---AMC<br>                         &nbsp; &nbsp;&nbsp;                                     &nbsp; &nbsp;&nbsp;  |&nbsp; |  47 Ohms &nbsp;:...............<br>                        &nbsp; &nbsp;&nbsp;                                     &nbsp; &nbsp;&nbsp;   | +5V    78M05        <br>                         &nbsp; &nbsp;&nbsp;                                     &nbsp; &nbsp;&nbsp;  |     +--------+&nbsp;         to<br>                         &nbsp; &nbsp;&nbsp;                                     &nbsp; &nbsp;&nbsp;  +-+---|Vin&nbsp;Vout|-+-+--+5V all<br>                         &nbsp; &nbsp;&nbsp;                                     &nbsp; &nbsp;&nbsp;  | |&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;Comm  | | |&nbsp;&nbsp;&nbsp;   chips<br>                         &nbsp; &nbsp;&nbsp;                                     22 uF = =&nbsp;&nbsp;&nbsp;+---+----+&nbsp;= = 22 uF&nbsp;&nbsp; &nbsp; &nbsp;<br>&nbsp;                         &nbsp; &nbsp;&nbsp;                                   0.1 uF | |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;|&nbsp;0.1 uF&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;                         &nbsp; &nbsp;&nbsp;                                      Gnd&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Gnd&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Gnd&nbsp; &nbsp;&nbsp;  <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p><br>
+Most of the lines are buffered (or generated) by TTLs inside the
+TI-99/4A
+console. In addition, the data bus D0-D7 is buffered in the connector
+itself.
+The connector "black box" contains a 74LS245 buffer and a 78M05
+voltage regulator powered by the PE-box. It also contains 47 Ohm serial
+resistors placed within many lines (D0-D7, A0-A14, Reset, DBIN and
+Memen*).</p>
+<p>Most signals are buffered again in the connection card: the 16
+address
+lines A0-A15, DBIN, Memen*, WE*, CLRCLK*, RESET*, CLKOUT*. As
+mentionned
+above, D0-D7 are buffered again by a second 74LS245 onboard the card,
+after
+another set of 47 Ohm serial resistors. The direction of both 74LS245
+buffers
+is set automatically by the DBIN line. However, the peripheral card is
+responsible for activating these buffers when it needs them. This is
+done
+by lowering the dedicated RDBENA* line which is connected to the OE*
+pin
+of each 74LS245 (but not to the console side port). </p>
+<p>You will have noted that all input signals are left unbuffered:
+CRUIN,
+INTA*, AUDIOIN, READY. Maybe so that the peripheral card has the option
+to leave them in high-impedence state? Of these, only READY has a 10 K
+pull-up resistor in the connection card.</p>
+<p>The "for production line only" pins AMA, AMB, AMC, SENILA*,
+SENILB*, PCBEN, HOLD* are pulled up to +5 Volts by 47 Ohms resistors.
+These
+would be really hard to pull down! Anyway, most third party cards
+ignore
+them. The TI disk controller card on the other hand makes use of
+several,
+posssibly for test procedures on the production line. </p>
+<p>The PE-Box lines SClk, SCP*, IAQHA, and LOAD* are not even connected
+to the connection card.</p>
+<p>Similarly, some lines present on the console side port are not part
+of the cable. These "lost" lines are: <br>
+<b>SBE*</b> Output line which is low to signal an access to the speech
+synthesizer (address &gt;9000-97FF). We can dispense with that one. <br>
+<b>MBE*</b> Output line which is low to signal an access to the card
+ROMs
+(address in &gt;4000-5FFF). This one would spare us the need for a
+74LS138
+decoder! <br>
+<b>IAQ</b> Interrupt acknowledged by the CPU. Not very usefull anyhow
+except
+possibly for a debugger card.<br>
+<b>LOAD*</b> Input line used to send an unmaskable interrupt to the
+CPU.
+This could have been really usefull, too bad! </p>
+<h4><br>
+<a name="Bus multiplexing"></a>Bus multiplexing</h4>
+<p>You probably have realised that the PE-box is byte-oriented: it has
+16 address lines and 8 data lines (as opposed to 15 address pins and 16
+data pins on the TMS9900 CPU). I always wondered why TI decided to
+cripple
+their system in such a way. Probably because most peripherals in the
+early
+eighties were byte-oriented. Or maybe it was just to save a few lines
+in
+the connection cable? Or else, just to copy IBM and make the same
+mistake
+they did with the PC XT??</p>
+<p>Anyhow, what it means is that the data bus has to be multiplexed.
+This
+is achieved by a small logic circuit inside the TI console: any memory
+access to the range &gt;2000-7FFF and &gt;A000-FFFF is multiplexed. The
+least significant byte (odd address, D8-D15) is passed first, and this
+is signaled by a high level on the additional address line A15. For
+input
+operations, this byte is latched into the console by a 74LS373 D-type
+latch.
+Then the multiplexer puts the CPU on hold (with the READY line) and
+places
+the most significant byte on the data bus (even address, D0-D7), which
+is signaled by a low level on A15. The operation will only be completed
+after 4 clock cycles on Phi3*, by releasing the block on the TMS9900. </p>
+<p>Concretely, this means several drawbacks: </p>
+<li>It is impossible to access only one byte: each read/write
+instruction
+actually consists in two read/write cycles, one for the odd byte and
+one
+for the even byte.</li>
+<li>While dealing with the second byte, the CPU is put on hold. Thus
+all
+peripheral access is of the 4 wait-state type.</li>
+<li>As the TMS9900 has a 16-bit data bus, it never deals with single
+bytes.
+Even an instruction like MOVB actually writes a 16-bit word. To avoid
+erasing
+the lower byte, the CPU reads the word first, changes the most
+significant
+byte and rewrites the whole word. For peripheral card it means that
+every
+write operations (4 wait cycles) is preceded by a read operation to the
+same pair of addresses (4 more wait cycles).</li>
+<p>If you wanted to use a peripheral with a 16-bit data bus, you could
+use the circuit below to de-multiplex the PE-box data bus. It is
+similar
+to the multiplexing circuit in the console, with a few modifications
+(tested
+by yours truly: works fine).</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>                                                     74LS245          <br>                                     Even byte     &nbsp; +------+&nbsp;        <br>&nbsp;                               ,-------------------&gt;|B0&nbsp; A0|&lt;----------&gt;D15  <br>                              ,-|-------------------&gt;|B1&nbsp; A1|&lt;----------&gt;D14<br>&nbsp;                           ,-|-|-------------------&gt;|B2&nbsp; A2|&lt;----------&gt;D13<br>&nbsp;                         ,-|-|-|-------------------&gt;|B3&nbsp; A3|&lt;----------&gt;D12<br>&nbsp;                       ,-|-|-|-|-------------------&gt;|B4&nbsp; A4|&lt;----------&gt;D11<br>&nbsp;                     ,-|-|-|-|-|-------------------&gt;|B5&nbsp; A5|&lt;----------&gt;D10<br>&nbsp;                   ,-|-|-|-|-|-|-------------------&gt;|B6&nbsp; A6|&lt;----------&gt;D9<br>&nbsp;                 ,-|-|-|-|-|-|-|-------------------&gt;|B7  A7|&lt;----------&gt;D8<br>                  | | | | | | | | A15&gt;-------,     ,-|G* DIR|----&lt;DBIN<br>                  | | | | | | | | CardSel*&gt;--=)&gt;---' +------+&nbsp;&nbsp;<br>&nbsp;&nbsp;                | | | | | | | |           74LS32                   <br>                  | | | | | | | |                                    <font
+ color="#ed181e">Peripheral</font> <br> <font color="#ed181e">PE-Box</font>           | | | | | | | |            74LS373                 <font
+ color="#ed181e">16-bit bus</font><b> <br></b><font color="#ed181e"> 8-bit bus</font>        | | | | | | | |         &nbsp;  +------+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;D0&lt;-------------|-|-|-|-|-|-|-+-----------&gt;|D0 &nbsp;Q0|--+----------------&gt;D7<br>&nbsp;&nbsp;D1&lt;-------------|-|-|-|-|-|-+-|-----------&gt;|D1 &nbsp;Q1|--|-+--------------&gt;D6<br>&nbsp;&nbsp;D2&lt;-------------|-|-|-|-|-+-|-|-----------&gt;|D2 &nbsp;Q2|--|-|-+------------&gt;D5<br>&nbsp;&nbsp;D3&lt;-------------|-|-|-|-+-|-|-|-----------&gt;|D3 &nbsp;Q3|--|-|-|-+----------&gt;D4<br>&nbsp; D4&lt;-------------|-|-|-+-|-|-|-|-----------&gt;|D4 &nbsp;Q4|--|-|-|-|-+--------&gt;D3<br>&nbsp;&nbsp;D5&lt;-------------|-|-+-|-|-|-|-|-----------&gt;|D5 &nbsp;Q5|--|-|-|-|-|-+------&gt;D2<br>&nbsp;&nbsp;D6&lt;-------------|-+-|-|-|-|-|-|-----------&gt;|D6 &nbsp;Q6|--|-|-|-|-|-|-+----&gt;D1<br>&nbsp;&nbsp;D7&lt;-------------+-|-|-|-|-|-|-|-----------&gt;|D7  Q7|--|-|-|-|-|-|-|-+--&gt;D0&nbsp;<br>                  | | | | | | | | Odd byte   |OE* LE|  | | | | | | | | <br>                  | | | | | | | |        &nbsp;   +------+&nbsp; | | | | | | | |<br>                  | | | | | | | |              |   |   | | | | | | | |<br>                  | | | | | | | |   74LS244    |   |   | | | | | | | |<br>                  | | | | | | | | &nbsp; +------+&nbsp;  |   |   | | | | | | | |<br>&nbsp;                 | | | | | | | '---|Y0&nbsp; A0|&lt;--|---|---' | | | | | | |<br>                  | | | | | | '-----|Y1&nbsp; A1|&lt;--|---|-----' | | | | | |<br>&nbsp;                 | | | | | '-------|Y2&nbsp; A2|&lt;--|---|-------' | | | | |<br>&nbsp;                 | | | | '---------|Y3&nbsp; A3|&lt;--|---|---------' | | | |<br>&nbsp;                 | | | '-----------|Y4&nbsp; A4|&lt;--|---|-----------' | | |<br>&nbsp;                 | | '-------------|Y5&nbsp; A5|&lt;--|---|-------------' | |<br>&nbsp;                 | '---------------|Y6&nbsp; A6|&lt;--|---|---------------' |<br>&nbsp;                 '-----------------|Y7  A7|&lt;--|---|-----------------'<br>                                    |G1*G2*|   |   |<br>                                  &nbsp; +------+&nbsp;  |&nbsp;  |        74LS04     <br>                                      |  |     |   |     ,---o&lt;|---WE*<br>                           74LS139    '--+     |   '--(|=----------A15<br>                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +------+&nbsp;   &nbsp;&nbsp;|&nbsp;&nbsp;&nbsp; &nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;74LS08&nbsp;&nbsp;&nbsp;&nbsp;<br>               A15&gt;-------&gt;|S0 Y3*|------'     |&nbsp;  <br>               DBIN&gt;------&gt;|S1 Y0*|------------'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;                          |   Y1*|-nc<br>              CardSel*&gt;---&gt;|G* Y2*|-nc<br>                    &nbsp;&nbsp;  &nbsp;&nbsp; +------+&nbsp;&nbsp;</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>CardSel* is an active low selection signal generated by your
+interface
+card (see below).<br>
+The '245 is activated by CardSel*, only when A15 is low, i.e. for the
+even
+(most significant) byte. Its direction is set by DBIN.<br>
+The '244 is active when both A15 and DBIN are high, i.e. when reading
+an
+odd (least significant) byte.<br>
+The '373 is only addressed by writing operations. It latches the odd
+byte
+when A15 is high and WE* low, and outputs it to the 16-bit bus when A15
+and DBIN are low , thereby reconstituting the 16-bit bus as the
+TI-99/4A
+sends the even byte.<br>
+NB The 8-bit bus is numbered the way TI does, i.e. D0 is the most
+significant
+bit. The 16-bit bus is numbered like everyone else does, i.e. D15 is
+the
+most significant bit.</p>
+<h3><a name="Fixing firehose"></a>Fixing the "firehose" cable</h3>
+<p>The most delicate part of the PE-box is probably the connection
+cable
+(aka "firehose"): it's easy to bend and/or bang it, and it may
+eventually become defective. Not to worry though: it can easily be
+replaced.</p>
+<h4>Symptoms</h4>
+<p>Depending on which line was broken, the symptoms may vay quite a
+bit.
+For instance, I had one case when the console would boot by itself, but
+crash when the connection cable was plugged in (even with the PB-Box
+off,
+even with the card out of the PE-Box). </p>
+<p>If it boots, you can check the data and address busses with the
+Easy-Bug
+function of the Mini-memory, or CALL LOAD and CALL PEEK in Extended
+Basic:
+write &gt;FF (i.e. 255) and &gt;00 at addresses &gt;3333 (13107) and
+&gt;CCCC
+(-13108). Then check if the data is ok, and if it was written at the
+right
+place.</p>
+<p>If the memory expansion works but you cannot select any other
+peripheral
+card, then it's probably the CRUCLK line that broke.</p>
+<p>A key symptom may be that the problem comes and goes as you fumble
+with
+the cable, bend it, stretch it, etc. This points toward a broken wire
+inside
+the cable.</p>
+<h4>Differential diagnostic</h4>
+<li>Poor contact on the side port (or inside the PE-Box). Oxidation is
+our #1 ennemy with 20-years old hardware.</li>
+<li>Broken wire inside the connection cable.</li>
+<li>Dead chip on the connection card, or the side connector.</li>
+<h4>Repair</h4>
+<p>First, make sure the problem is not bad connnections in the side
+port.
+Get a contact cleaner spray and clean the console side port and the
+firehose
+connector. While you are at it, remove the connection card from the
+PE-box
+and clean its contacts, as well as its slot in the PE-box (heck, clean
+ALL slots in the PE-box)..</p>
+<p>If this does not solve the problem, a wire may be broken, or a chip
+may be defective. Let's first check the cable.</p>
+<li>Remove the connection card from the PE-Box (remove the one screw
+that
+keeps it in).</li>
+<li>Open its metal case: remove the two handles by force, then remove
+the
+4 screws. The label can stay and serve as a hinge.</li>
+<li>Unscrew the plastic brace across the end of the cable.</li>
+<li>Remove the metal braces that are under so as to expose the cable
+terminals.</li>
+<li>At the console-end of the cable, remove the 4 screws that keep the
+black connector closed, then take the small board out of its metal
+casing.</li>
+<p>Refer to these pictures to identify the components on the <a
+ href="pebox3.jpg">card</a>,
+and on the <a href="pebox4.jpg">connection board</a>. Now you are
+ready
+to test the cable (we couldn't do it without dismantelling the cable,
+because
+of the resistors and buffer chips). Flip both boards upside down, so
+you
+can access the pins from under. Using a continuity tester, make sure
+current
+goes from each pin on the console end of the cable, to its
+corresponding
+pin on the card side. If you already know which line is bad, refer to
+the
+<a href="#Signal%20buffering">above schematic</a> to locate its wire
+and
+test it directly. Remember that the problem may come and go as you move
+the cable.</p>
+<p>If everything looks ok, then is may be that a given buffer chip is
+dead.
+These are very common and cheap TTLs, so you should not have any
+problem
+buying a spare. Then just unsolder the original (using a soldering
+pump),
+and solder back the new chip.</p>
+<p>Replacing the cable is not much harder: </p>
+<li>First obtain about 5 feet of 44-wire flat cable.</li>
+<li>Remove the brace on the cable, at the console-end.</li>
+<li>On each board, mark the same side of the cable, so you know how to
+put back the new one. The cable should have colored stripes, which
+makes
+it easy to know which side is which.</li>
+<li>Disconnect the cable at each end. This is a bit tricky: it requires
+lifting the little platic cover that's over the end of the cable. You
+cannot
+remove it completely though, because it's partly wrapped around the
+cable:
+you will need to slide it off the end of the cable. Then just peel the
+cable off the pins.</li>
+<li>Tape your new cable to one end of the old one, using strong
+electrical
+tape.</li>
+<li>Pull the other end of the flat cable out of the firehose, bringing
+the new cable along. Make sure you do not remove the steel cable inside
+(it's here to absorb any tension applied to the firehose). Also, take
+care
+not to peel away the shielding layer inside the firehose. Tip: this is
+easier to do for two people, one at each end of the firehose.</li>
+<li>Now fasten the cable at each end, refering to your marks for proper
+orientation. Slide the connector lid over the tip of the cable, the
+press
+the cable over the connectors. You may need pliers, or a wise, to close
+the lid tight. The goal is to cause the cutting ends of the pins to
+bite
+through the plastic, into each copper wire.</li>
+<p>Repeat your point-to-point tests, to make sure that the new cable
+makes
+proper contacts everywhere. If so, you can put everything back together:</p>
+<li>Fasten back the plastic brace across the console end of the cable,
+trapping the steel cable in. Then install the metal and plastic boxes.
+Tip: one side of the metal box has holes, into which the plastic box
+inserts
+small bulges. The other side should be braced agains the back of the
+first
+one. The goal is that both metal lips are flushed with the card-edge
+connector.</li>
+<li>Place the metal braces back on the connection card: one has two
+pins
+that go through the board. The other has slots to accomodate these
+pins.
+Push it forward, so that it locks the pins.</li>
+<li>Fasten the plastic brace across the cable, the steel cable, and the
+top metal brace.</li>
+<li>Put the card back in its metal case, if desired (the case is not
+really
+necessary). Install the card inside the PE-Box and make sure everything
+works as intended.</li>
+<h2><br>
+<a name="Typical card"></a>A typical peripheral card</h2>
+<p>In case you want to design your own peripheral cards, there are a
+few
+common features that should be present on each and every card. The
+schematic
+below represents a typical card, but you don't have to adopt all my
+design
+choices (especially since I did not test all of them yet!). If you need
+help about a chip, have a look at my <a href="ttl.htm">TTL chips</a>
+page.</p>
+<p><u>Power supply.</u> <br>
+Typically, you would use a 78L05 connected to the +8V power line.If you
+need more current than the 100 mAmps delivered by the "L" version,
+you could use a 7805 (1 Amp), a 78T05 (3 Amp) or a 78H05 (5 Amp). By
+all
+means, use a heat sink. <br>
+If you need +12V, you may similarly use a 78L12, a 7812, a 78T12 or a
+78H12.<br>
+Negative voltages can be derived from the -16V supply, via 79x12 or
+79x05
+regulators.</p>
+<p><u>Bus buffering</u> <br>
+The address lines require two 74LS244 buffers. The extra CPU output
+lines
+require a third one. <br>
+The data bus is buffered by a 74LS245, with the DIR pin driven by DBIN
+(high = read cycle) and the EN* pin driven by RDBENA*. <br>
+The extra TMS9900 input lines (if you are using them) can be buffered
+by
+74LS125. This way, you can keep them in high impedance state when your
+card is not accessed.</p>
+<p><u>CRU logic</u> <br>
+As described in the <a href="cru.htm">page </a>on CRU, you'll need a
+74LS259
+for CRU ouput from the TMS9900, and a 74LS251 for CRU input operations.
+It is generally good practice to echo each bit from the '259 to the
+'251,
+unless you have a need for specialised input bits. In addition, some
+selection
+logic is needed: a 74LS85 does a pretty neat job, as it allows the user
+to select the CRU address of the card with a DIP switch (tested: works
+fine). In this schematic, I also included a master switch (accessible
+from
+the back of the PE-pox) so that the user can shut off the card if
+necessary.
+</p>
+<p><u>ROM selection logic</u> <br>
+A 74LS138 decoder can be used to detect memory accesses in the range of
+the card ROM, &gt;4000-5FFF. The G2A* active low selection input is
+driven
+by MEMEN*, so that the card only reacts to memory operations. I also
+included
+a master switch (which may or may not be the same as the one for the
+CRU)
+connected to G2B*: when the switch is open the card is never selected.
+Finally, the G1 enabling input of the decoder is controlled by CRU bit
+0, so that the card will only answer when it is enabled via the CRU.
+You
+may want to use that bit to enable/disable other important functions on
+your card: in this exemple all it does is to enable the data bus. </p>
+<p>Of course, nowadays many people would use a GAL (programmable logic)
+to implement the selection logic, both for ROM and CRU... </p>
+<p><u>Card light<br>
+</u>The LED is generally driven by CRU bit 0, but that's up to you. </p>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; '244&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +----+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   SRAM (8K)<br>&nbsp;&nbsp;&nbsp;&nbsp; A0&gt;---|&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-------------+&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; '138&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; A4&gt;---&gt;|A11&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +----+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; D7|&lt;----&gt;D0<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; A0&gt;---|S2&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp;&nbsp; | .&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; . |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; A1&gt;---|S1&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp;&nbsp; | .&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; . |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; A2&gt;---|S0&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; A15&gt;---&gt;|A0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; D0|&lt;----&gt;D7&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp; A7&gt;---|&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | Y2*|----+---------&gt;|CE*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Gnd--|EN* |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +----+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MEMEN*&gt;---&gt;|G2A*|&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; '244&nbsp;&nbsp;&nbsp; +5V---WWW--+---&gt;|G2B*|&nbsp;&nbsp;&nbsp; |&nbsp; WR*&gt;---&gt;|WE*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +----+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 10K&nbsp; | ,-&gt;|G1&nbsp; |&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |<br>&nbsp;&nbsp;&nbsp;&nbsp; A8&gt;---|&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; Gnd--o o-+ |&nbsp; +----+&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-------------+&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; '-----&gt;CardSel*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LED&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; '-------------+-----------------|&lt;|------+5V<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-----+&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-----+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RESET*---&gt;|RST&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |<br>&nbsp;&nbsp;&nbsp;&nbsp; A15&gt;--|&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; A12&gt;---&gt;|S2 Q0|-----+-----&gt;|D0&nbsp;&nbsp; |&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Gnd--|EN* |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; A13&gt;---&gt;|S1 Q1|-----------&gt;|D1&nbsp;&nbsp; |&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +----+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; A14&gt;---&gt;|S0 Q2|-----------&gt;|D2&nbsp;&nbsp; |&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; '244&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; Q3|-----------&gt;|D3&nbsp;&nbsp; |&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +----+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; A15&gt;---&gt;|D&nbsp; Q4|-----------&gt;|D4&nbsp;&nbsp; |&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'32   |&nbsp;&nbsp; Q5|-----------&gt;|D5&nbsp;&nbsp; |&nbsp;<br>&nbsp;MEMEN*&gt;---|&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;CRUCLK*&gt;--=)&gt;--&gt;|EN Q6|-----------&gt;|D6&nbsp;&nbsp; |&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp; WE*&gt;---|&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| &nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; Q7|-----------&gt;|D7 EN|--,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>CRUCLK*&gt;---|&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| &nbsp;&nbsp;&nbsp;&nbsp; +-----+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-----+&nbsp; |&nbsp;&nbsp;&nbsp;<br>CLKOUT*&gt;---|&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'----------------------,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;<br>&nbsp;RESET*&gt;---|&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-----+&nbsp; '04&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;<br>&nbsp;&nbsp; DBIN&gt;---|&nbsp;&nbsp;&nbsp; |---,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp; A=B|--|&gt;o---+-----------'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Gnd--|EN* |&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; A3&gt;---&gt;|A=B&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 10K&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +----+&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; A4&gt;---&gt;|A1 B1|------+---WWW---+-+5V&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; '245&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; A5&gt;---&gt;|A2 B2|-----+|---WWW---+&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +----+&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; A6&gt;---&gt;|A3 B3|----+||---WWW---+&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | DIR|&lt;--'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; A7&gt;---&gt;|A4 B4|---+|||---WWW---'&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp; D0&lt;---&gt;|&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10K&nbsp; Gnd--&gt;|A&lt;B&nbsp; |&nbsp;&nbsp; ||||&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; +5V-WWW---+---&gt;|A&gt;B&nbsp; |&nbsp;&nbsp; oooo&nbsp; DIP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; +-----+&nbsp;&nbsp; oooo&nbsp; switch&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; Gnd--o o--'&nbsp;&nbsp;&nbsp;&nbsp; '85&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ||||<br>&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ++++-Gnd<br>&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp; D7&lt;---&gt;|&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | OE*|&lt;--,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +----+&nbsp;&nbsp; |&nbsp;&nbsp; ,----------&lt; CardSel*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>RDBENA*&lt;------------+---&lt;|--Gnd<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; '125&nbsp;&nbsp;<br>                             &nbsp;&nbsp;&nbsp;&nbsp; 78L05&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; All chips<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +----------+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +5V&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-----+<br>+8V--------------------+-------|Vin&nbsp;&nbsp; Vout|---+-----... --+------|Vcc&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; Gnd&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; = 22 uF +----------+&nbsp;&nbsp; = 0.1 uF&nbsp;&nbsp;&nbsp; =0.1uF |&nbsp;&nbsp;&nbsp;&nbsp; |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Gnd&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Gnd&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Gnd&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; '------|Vss&nbsp; |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-----+</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h4><br>
+<a name="ROM types"></a>ROM types</h4>
+<p>When it comes to choosing a memory chip to install the card DSRs in,
+you have several choices: </p>
+<li>ROM are Read-Only Memories. They are manufactured with a given
+content,
+that cannot be altered. Obviously, you can't buy these!</li>
+<li>PROMs are programmable Read-Only Memories. They come filled with
+binary
+"1", i.e. each byte contains &gt;FF. You can program a bit to
+"0", but this operation is irreversible: zeros cannot be converted
+to ones. The programming operation generally requires a special
+programming
+device. </li>
+<li>EPROM are erasable PROMs with an expensive quartz window that
+allows
+you to erase them with UV light, in case you want to modify their
+contents.
+Most EPROMs also come in OTP version (one-time programmable), without
+the
+quartz window. The idea is to use the erasable device for your
+prototype
+and then the OTP for mass production.</li>
+<li>EEPROM are EPROM that can be erased electrically, one byte at a
+time
+(which takes a long time as erasing operations are very slow).</li>
+<li>FLASH are EEPROMs that can be erased sector-wise, e.g. you can
+erase
+1K at a time. This is much faster, hence their name, but the drawback
+is
+that you cannot modify individual bytes.</li>
+<li>SRAM (static RAM) are way easier to use that DRAMs (dynamic RAM)
+although
+more expensive. And they can be written to without any problems,
+contrarily
+to EEPROMs or FLASHes. Of course, they loose all data when the power
+goes
+off, but you can prevent this by supplying them with a small lithium
+battery.
+This is what was done in the <a href="mm_mod.htm#Hardware">Mini-memory</a>
+cartridge: the upper 4K are persistent RAM. </li>
+<p>Price is of course a consideration, but nowadays memory becomes
+cheaper
+and cheaper, at least at the scale of the TI-99/4A. Therefore, our
+choice
+is basically down to EEPROMs or SRAM, possibly FLASH. These can easily
+be mail-ordered from several places on the Web (Digikey, Jameco,
+Mouser,
+etc). For your information, here is a comparative table I came up with,
+after only an hour surfing the net. You could fill in the blanks, with
+a little more hunting...</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Size</th>
+      <th>EPROM</th>
+      <th>EEPROM</th>
+      <th>FLASH</th>
+      <th>SRAM</th>
+    </tr>
+    <tr>
+      <td>1 K</td>
+      <td>2708 <br>
+Intel $3.95</td>
+      <td>.</td>
+      <td>.</td>
+      <td>.</td>
+    </tr>
+    <tr>
+      <td>2 K</td>
+      <td>2716<br>
+Intel $3.95</td>
+      <td>M28C16A<br>
+STM $2.95
+      <p>AT28C16<br>
+Atmel $3.55</p>
+      </td>
+      <td>.</td>
+      <td>M48Z9229PCI <br>
+STM (+battery) $7.30
+      <p>TMM2016APP <br>
+$1.09</p>
+      </td>
+    </tr>
+    <tr>
+      <td>4 K</td>
+      <td>NM27C32<br>
+National $4.05</td>
+      <td>.</td>
+      <td>.</td>
+      <td>.</td>
+    </tr>
+    <tr>
+      <td>8 K </td>
+      <td>27LV64-20P<br>
+Microchip $3.10</td>
+      <td>KM28C64-25<br>
+Samsung $2.95
+      <p>AT28C64A-20<br>
+Atmel $5.05</p>
+      </td>
+      <td>.</td>
+      <td>HM6264LP <br>
+Hitachi $2.29
+      <p>M48Z1810PCI <br>
+STM (+battery) $11.26</p>
+      </td>
+    </tr>
+    <tr>
+      <td>16 K </td>
+      <td>27C128-200<br>
+Thompson $2.95</td>
+      <td>.</td>
+      <td>.</td>
+      <td>.</td>
+    </tr>
+    <tr>
+      <td>32 K</td>
+      <td>AM27C256-150C<br>
+AMD $4.49</td>
+      <td>AT28C256-150<br>
+Atmel $6.95</td>
+      <td>M28F256A-15B <br>
+Thompson</td>
+      <td>43256BCZ-70<br>
+NEC $1.61
+      <p>HM62256LB-12<br>
+Hitachi $2.09</p>
+      </td>
+    </tr>
+    <tr>
+      <td>64 K</td>
+      <td>AM27C512-150DC <br>
+AMD $3.85</td>
+      <td>.</td>
+      <td>M28512-90 (+12V)<br>
+Thompson $5.50</td>
+      <td>.</td>
+    </tr>
+    <tr>
+      <td>128 K </td>
+      <td>AM27C010-150DC<br>
+AMD $4.68</td>
+      <td>AT28C010-120<br>
+Atmel $225.20 !<br>
+      </td>
+      <td>AM29F010-120PC<br>
+AMD $5.0</td>
+      <td>431000ACZ70L<br>
+NEC $2.52
+      <p>HM628128LB-85<br>
+Hitachi $11.95 </p>
+      </td>
+    </tr>
+    <tr>
+      <td>256 K </td>
+      <td>AM27C020-120DC<br>
+AMD $4.95</td>
+      <td>.</td>
+      <td>AM28F020-150JC<br>
+AMD $15.00</td>
+      <td>TC59V2001STI-10EL<br>
+$7.41</td>
+    </tr>
+    <tr>
+      <td>512 K </td>
+      <td>AM27C040-120JC<br>
+AMD $5.95</td>
+      <td>AT28C040-200<br>
+Atmel $978.60 !</td>
+      <td>AM29F040-120JC <br>
+AMD $12.88</td>
+      <td>434008ELA17 <br>
+NEC $13.42</td>
+    </tr>
+    <tr>
+      <td>1 Meg </td>
+      <td>.</td>
+      <td>.</td>
+      <td>AM29F080-120EC <br>
+AMD $19.63</td>
+      <td>.</td>
+    </tr>
+    <tr>
+      <td>2 Meg </td>
+      <td>.</td>
+      <td>.</td>
+      <td>AM29F016B-120EC <br>
+AMD $20.50</td>
+      <td>.</td>
+    </tr>
+  </tbody>
+</table>
+<p>Notes:</p>
+<li>The price does not only depend on the size, but also on the speed
+of
+the memory. Since the TI-99/4A is extremely slow (400 ns), we can go
+ahead
+and buy the slowest and cheapest chip. </li>
+<li>Some retailers take a larger benefit margin than others (see
+Arrow's
+crazy prices for the AT28C020 and AT28C40). So you may be able to find
+a better deal than what is indicated in this table. </li>
+<li>Pay attention to the package when you order: is it DIP (dual in
+line)
+or surface mount (tiny chips very hard to handle)?</li>
+<p><br>
+</p>
+<h4><a name="In circuit"></a>In-circuit programming</h4>
+<p>Rather than using an expensive EEPROM programmer, it would be nice
+to
+install an EEPROM (or a FLASH) so that it can be programmed while
+inside
+the PE-box. Traditionnally, writing and erasing is done by applying a
+programming
+voltage (+12V, +13V, +25V, etc) on a given pin. This could be
+implemented
+on a peripheral card with a +12V voltage regulator, whose output is
+applied
+to the programming pin of the EEPROM via a PNP transistor, controlled
+by
+a CRU bit for instance. </p>
+<p>But there is a better solution: you can now find FLASH and EEPROM
+memories
+that have a built-in voltage converter. That is, they only need the
+regular
++5V applied to Vcc. FLASH generally have a protection against spurious
+writings: to program or to erase them, you must first send an
+"unlocking
+sequence" (kind of a password). This is a slight annoyance for us,
+since the TI-99/4A won't write a single byte in 8-bit memory. We saw
+above
+that it will perform 4 access operations: first reading a pair of
+addresses,
+then writing to them. This will mess up the unlocking sequence and
+prevent
+us from writing to the chip. Unless we add extra hardware to accept
+only
+the relevant write cycle and filter the other three: such a circuit
+could
+be enabled by a CRU bit, so as not to disturb regular ROM reading
+operations
+(see below).</p>
+<p>Unlike FLASH, then +5V EEPROM generally don't require an unlocking
+sequence,
+but writing a byte will stall the chip for a moment, while the internal
+logic is writting it. So again we will need some kind of circuitery to
+access odd and even bytes independently. </p>
+<p>A simple solution would be to have two memory chips: one for odd
+bytes
+and one for even bytes. The chips can be piggy-backed, with all their
+corresponding
+pins connected together except for the CE* pins. These are driven by
+the
+CardSel line combined by OR gates with either A15 (even bytes) or the
+inverse
+of A15 (odd bytes).</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>                                        2x FLASH/EEPROM<br>WE*&gt;-------------------,                 +-----------+ <br>            '04        | '32             |           |-+  <br>Bit1&gt;---+---|&gt;o--------==)&gt;--------------|WE*     An | |&lt;---Bit n<br>        |                                |         . | |    .    <br>        |                                |         . | |    .  <br>DBIN&gt;---'==|)--,                         |         . | |    .<br>          '08  |  '32                    |        A12| |&lt;---Bit 2<br>CardSel*&gt;------'==)&gt;---+---,             |        A11| |&lt;---A3   <br>                       |   |             |         . | |    .<br>                       |   |             |         . | |    .<br>                       |   |  '32        |         . | |    .<br>          ,----------------'==)&gt;---------|CE*      A0| |&lt;---A14<br>A15&gt;------+            |                 +-----------+ |<br>          '----|&gt;o-----'==)&gt;--------------|CE*         |           <br>               '04        '32             +------------+        </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>In this circuit I also filtered the WE* line by combining it with
+the
+inverse of CRU bit 1. This provides a write-protection mechanism: you
+can
+only write to the memory if CRU bit 1 is set to 1. Note that all CRU
+bits
+are 0 at power-up time, so the memory will be write-protected by
+default.
+For the opposite behaviour, remove the 74LS04 inverter.</p>
+<p>CRU bit 1 also serves to prevent read operations, when set to 1.
+This
+is only required for chips that have an unlocking sequence: it prevents
+the read operation that comes along with each write in the TI-99/4A
+system,
+from messing up the unlocking sequence. If you are using EEPROMs that
+have
+no unlocking sequence, CardSel* can be directly combined with A15 and
+not-A15.</p>
+<p>Finally, additional CRU bits could be used to page the memory, so as
+to implement more than 8 Kbytes.</p>
+<p>The controlling software could be something like this:</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>* Routine to send an unlocking sequence to two FLASHs and program a word <br>* Address in R0, word in R1</pre>
+      <pre>SELPAG LI   R12,&gt;1x00        CRU address of our card<br>       SBO  0                Enable access<br>       SBO  1                Enable writing, disable reading<br>       LI   R2,&gt;AA55         Unlocking code<br>       MOVB R2,@&gt;4AAA        This is address &gt;0555 in the chips<br>       SWPB R2<br>       MOVB R2,@&gt;555A        Now it's unlocked<br>       LI   R2,&gt;A000         Command "program byte"<br>       MOVB R2,@&gt;4AAA        Send command<br>       MOVB R0,*R1           Write the byte<br>       SBZ  1                Enable reading, disable writing<br>       SBZ  0                Disable card<br>       B    *R11</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>This example assumes that the unlocking sequence is the following: </p>
+<ol>
+  <li>write &gt;AA to address &gt;0555</li>
+  <li>write &gt;55 to address &gt;0AAA</li>
+  <li>send a command code (&gt;90 to write)</li>
+  <li>write the byte.</li>
+</ol>
+<p>Remember that there are two chips, (one for odd bytes, one for even
+bytes) so the addresses need to be multiplied by two and become
+&gt;0AAA
+and &gt;1554 respectively. To which we add &gt;4000, which is the
+address
+of the card. </p>
+<p>If you don't like the idea of having two FLASH chips to implement
+only
+8K of memory, here is an alternative: a circuit that lets you access
+only
+even bytes (or only odd bytes) at will.</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>                                         FLASH/EEPROM <br>           '32       '08    '32         +-----------+<br>DBIN&gt;------==)&gt;-----==|)----==)&gt;-------&gt;|CE*      An|&lt;---CRU bit n<br>           |        |       |           |        ...|    ...<br>A15&gt;-------'        |       |           |        A13|&lt;---CRU bit 3<br>                    |       |           |           |<br>CRU bit 1&gt;----------'       |           |        A12|&lt;---A3<br>                            |           |        ...|   ...<br>CardSel* &gt;------------------'           |         A1|&lt;---A14<br>                                        |           |<br>                                        |         A0|&lt;---&lt;(==----&lt;A15<br>                                        |           |       |<br>                                        +-----------+       '----&lt;CRU bit 2 </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<li>When either DBIN is high (reading) or A15 is high (access to odd
+addresses)
+the output of the 74LS32 OR gate is high and will prevent access to the
+FLASH.</li>
+<li>The circuit is enabled by CRU bit 1, with the help of a 74LS08 AND
+gate: the bit must be one for the output to reflect the OR gate.
+Otherwise
+it is always low. (If you don't want to use an AND gate, you can
+replace
+it with an OR having inverters on both inputs and on the output).</li>
+<li>The second OR gate filters the active low card selection signal
+applied
+to the FLASH: if the output of the AND gate is high, so will be CE* and
+the FLASH won't react to this memory cycle.</li>
+<li>Since this circuit only enables access to even bytes, we need a way
+to select odd addresses in the FLASH: CRU bit 2 is used to force up the
+A0 flash input, no matter what A15 is.</li>
+<p>The FLASH programming routine should be modified accordingly:</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>* Crude FLASH-writing routine<br>* Assumes a source pointer in R1, and the destination address in R2</pre>
+      <pre>FLASHW LI   R12,&gt;1x00       CRU address of your card<br>       SBO  0               Enable card<br>       SBO  1               Enable filtering circuit<br>LP1    LI   R0,&gt;AA55        Unlocking bytes<br>       MOVB R0,@&gt;4555       That's address &gt;0555 on the FLASH<br>       SWPB R0<br>       SBO  2               Make next address odd<br>       MOVB R0,@&gt;4AAA       That's address &gt;0AAA on the FLASH<br>       LI   R0,&gt;9000        Command byte for "write"<br>       MOVB R0,@&gt;4AAA       Send it<br>       COC  @H0001,R2       Check if destination address is odd or even<br>       JEQ  SK1             Odd<br>       SBZ  2               Even: stop forcing last address bit high<br>SK1    MOVB *R1+,*R2+       Write byte in FLASH<br>       SBZ  2               Enable A15 again<br>       B    @WAIT           Wait a while (optionally, check FLASH status)</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p><br>
+</p>
+<h4><a name="ROM paging"></a>ROM paging</h4>
+<p>What if you need more than 8K of ROM in your card? Well, nothing
+prevents
+you from installing a larger EEPROM/FLASH: these are quite cheap
+nowadays.
+But you'll just need some sort of switching mechanism to page the
+memory
+into the &gt;4000-5FFF bank. One way to do it is to drive the extra
+address
+lines with CRU bitsas demonstrated in he circuit above. </p>
+<p>Another way is to use a 74LS273 latch to store a page number. This
+chip
+can latch 8 bits, so you'll have a maximum of 256 pages. This comes to
+256 * 8K = 2 Megs of ROM. This should be enough...</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>                                    74'273            EEPROM/SRAM (2 megs)<br>                                   +------+           +----------+<br>                            A14---&gt;|D0  Q0|----------&gt;|A12       |<br>                             .     |      |           | .        |<br>                             .     |      |           | .        |<br>                             .     |      |           | .        |<br>                            A7----&gt;|D7  Q7|----------&gt;|A19       |<br>                                   |      |    A4----&gt;|A11       |<br>CardSel*------------------,        |      |    ...    |...       |<br>WE*--------------,       ,===)&gt;---&gt;|CLK   |    A15---&gt;|A0        |<br>CRU bit 3--|&gt;o---'==)&gt;---'         |      |           |          |<br>                        RESET*----&gt;|RST*  |           |          |  <br>                                   +------+           +----------+</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>To avoid the problems due to data bus multiplexing, this design uses
+of a commonly used TI trick: latching a value in the 74LS273 is done by
+writing to an address in the range &gt;4000-5FFF. Bits A7-A14 of the
+address
+bus are latched by the pulse on the WE* line, and make up the new
+A12-A19
+for the memory chip (we cannot latch A15 since it is automatically
+toggled
+by the multiplexer). Of course, we don't have to use all eight bits:
+even
+if we latch eight, only those that we need will be connected to the
+memory
+chip. </p>
+<p>CRU bit 3 is used to enable latching at will. This is only necessary
+if you plan to write to this memory , e.g to program a FLASH/EEPROM, or
+if you are using static RAM. If you are using a pure ROM, you can
+assume
+that it will never be written to and dispense with CRU bit 3: every
+write
+operation is considered as a page selection.</p>
+<p>The RESET* line insures that page 0 will always be selected at
+power-up
+time. That's required if you want to place a <a href="headers.htm">standard
+header</a> in your card ROM.</p>
+<p>The control software would look like this:</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>* Routine to latch an address and select a page in the memory chip<br>* Page number is expected in R0 (range 0-256)</pre>
+      <pre>SELPAG LI   R12,&gt;1x00        CRU address of our card<br>       SBO  0                Enable access<br>       SBO  3                Enable latching (if installed)<br>       SLA  R0,1             To use A7-A14, instead of A8-A15<br>       MOVB *R0,*R0          What we write doesn't matter, the address does <br>       SBZ  3                Disable latching<br>       B    *R11</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<address><br>
+Revision 1. 3/24/99 OK to release</address>
+<address>Revision 2. 3/30/99. Polishing</address>
+<address>Revision 3. 8/16/99. Corrected stupid mistakes in the
+discussion
+bus multiplexing. Added de-mpx schematic.<br>
+Revision 4. 5/3/00. Simplified in-circuit programming (using two
+chips).
+Added price table.<br>
+Revision 5. 5/14/00. Corrected a timing problem in the demultiplexer.</address>
+<address>Revision 6. 8/16/00. Added links to pictures.<br>
+Revision 7. 1/21/02. Added schematics of the cable/card.<br>
+Revision 8. 1/27/02. Added pictures of connection card.</address>
+<center>
+<p><br>
+<a href="titechpages.htm">Back to the TI-99/4A Tech Pages</a></p>
+</center>
+<p><br>
+</p>
+</body>
+</html>

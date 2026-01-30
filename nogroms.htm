@@ -1,0 +1,163 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+  <title>eeproms</title>
+  <meta http-equiv="Content-Type"
+ content="text/html; charset=iso-8859-1">
+  <meta name="Author" content="Thierry Nouspikel">
+  <meta name="GENERATOR"
+ content="Mozilla/3.04Gold (Win95; U) [Netscape]">
+</head>
+<body>
+<h1 align="center"><a
+ href="http://www.nouspikel.com/ti99/titechpages.htm"><img
+ src="logo.jpg" style="border: 0px solid ; height: 33px; width: 95px;"
+ title="Back to main index" alt=""></a></h1>
+<h1>Disabling the GROMs</h1>
+<p>Some Gram cards, like the german 128K GramKarte or the HSGPL card,
+have
+the ability to emulate the console GROMs. Because the data bus drivers
+for the side connector are stronger than real GROMs, the card will
+allways
+override console or cartridge GROMs. However, there is a risk that this
+will end up damaging the GROMs (although it never happened to me).</p>
+<p>The obvious solution is to remove the console GROMs. (Note that this
+will only work with the HSGPL card, since it's the only one with GROM
+address
+readback.With the German GramKarte you must leave at least one GROM in
+the console to keep track of the current address.)</p>
+<p>However, removing the GROMs has several drawbacks:. </p>
+<li>The console becomes unbootable without a PE-box with a HSGPL card
+in
+it.</li>
+<li>If anything gets corrupted in the card EEPROM memory, the console
+may
+not boot.</li>
+<p>To overcome these problems, I suggest a very simple solution:
+install
+a switch that will disable console and cartrige GROMs so you can use
+your
+HSGPL card instead. By just toggling the switch you can go back to the
+original GROMs.</p>
+<p><a href="#How">How does it work<br>
+</a><a href="#Doit">Installing the switch<br>
+</a><a href="#Testing">Testing</a></p>
+<h3><br>
+<a name="How"></a>How does it work?</h3>
+<p>The chip that generate the GROM selection signal is a 74LS03
+open-collector
+NAND gate. Its active-high output is then inverted by a 74LS04 to
+provide
+the active-low GS* selection signal. It also gates the GREADY line and
+prevents it from stalling the CPU when the GROMs are not addressed
+(GROMs
+set GREADY as "not ready" by default).</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>74LS138           1K             <br>+-----+        ,--<font
+ color="#ff0000">WWW---+5V</font>      4.7K<br>|  Y7*|--,     |              ,--WWW---+5V<br>|  Y6*|--=|)o--+---+----,     |<br>|     | 74LS03     |   ,=|)o--+------Hold* <br>|     |            |   |<br>|     |            |   '--o&lt;|---GREADY<br>|     |            |<br>|     |            '--|&gt;o-------GS*<br>+-----+             74LS04</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>Since the 74LS03 has open-collector outputs, it needs a pull-up
+resistor
+to +5V. We are going to install an SPDT&nbsp;(single-pole
+dual-terminal)
+switch to toggle this resistor between pull-up and pull-down. In the
+latter
+position, GROMs cannot be selected any more!</p>
+<h3><br>
+<a name="Doit"></a>Installing the switch</h3>
+<li>Open your TI-44/4A console, refer to my <a href="surgery.htm">console
+surgery page</a> for detailed intructions.<br>
+</li>
+<li>Locate R503, the resistor we want. It's a 1 kiloOhm resistor, so
+the
+color code is: brown, black, red. You'll find two such resistors in the
+back right corner of the motherboard. One is outside the metal case, we
+don't want it. The next resistor inwards is the one we want:</li>
+<pre> ,-,<font color="#ff0000">-</font>  ,-,<font color="#ff0000">-</font>    ===|<br> | |   | |     ===| Side connector<br> | |   | |     ===|<br> | |   | |     <u>===</u>|<br><font
+ color="#ff0000">+</font>'-'  <font color="#ff0000">+</font>'-'    |    notch<br> ,-,<font
+ color="#ff0000">-</font>  ,-,<font color="#ff0000">-</font>   '-----,<br> | |   | |   , <font
+ color="#0000ff">,</font><font color="#ff0000">&lt;-</font>, | <font
+ color="#ff0000">&lt;-</font> Cut this end<br> | |   | | , R <font
+ color="#0000ff">R</font>  R | attach wire to it<br> | |   | | R ' '  ' |<br><font
+ color="#ff0000">+</font>'-'  <font color="#ff0000">+</font>'-' '        | Get +5V from any <font
+ color="#ff0000">+<br></font>        --R--       | ground from any <font
+ color="#ff0000">-<br></font>                    |<br>---------------,    |<br>               |  <u> O</u>|<br>               |<u>O</u>|</pre>
+<li>Cut the end of the resistor that's away from the board edge, close
+to the notch near the side port. Leave the stump of the resistor in the
+board, as it must bring current from one side of the board to the other.<br>
+</li>
+<li>Solder a length of wire to the free end of the resistor. Carefully
+isolate the connection with electrical tape, so it won't make contact
+with
+anything on the board. Here is a <a href="nogroms.jpg">picture</a>. <br>
+</li>
+<li>The other end of the wire should go the the middle connection of
+the
+switch (the pole). <br>
+</li>
+<li>Connect one switch terminal to +5V, the other to ground. You will
+find
++5V at the upper right pin of any 74LSxxx chip, and ground almost
+everywhere,
+for instance at the bottom left pin of any 74LSxxx chip ("up"
+is where the notch is on a 74LS chip).</li>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ,--------Resistor<br>Ground ----------o 0_o---------- +5V</pre>
+<p>When the switch is on the left, GROMs are disabled. When it's on the
+right, GROMs work as usual.</p>
+<li>Drill a hole in the plastic casing of the console and mount the
+switch
+in it (see <a href="switches.jpg">picture</a>).<br>
+</li>
+<li>Close your console.</li>
+<h3><br>
+<a name="Testing"></a>Testing</h3>
+<p>The easiest way to ensure that the switch works is with my RIP
+debugger.
+You can try other debuggers, but many won't work because they call the
+keyboard scanning routine in the console ROMs and this routine gets the
+ascii codes from the console GROMs. RIP does its own keyboard scanning
+and is thus independent of the console GROMs and ROMs. It can be
+downloaded
+from <a href="download.htm#rip">here</a>.</p>
+<p>To load and run RIP from Extended Basic, type:</p>
+<p>CALL&nbsp;INIT<br>
+CALL&nbsp;LOAD("DSK1.RIP/O")<br>
+CALL&nbsp;LINK("RIP")</p>
+<p>From Editor/Assembler, use option 3 to load RIP/O, then run program
+"RIP".</p>
+<li>Press Fctn-8 three times to select G-memory. Enter address 0 and
+press
+enter. You should see the contents of the first console GROM: &gt;AA 02
+00 00 etc.</li>
+<li>Now toggle the switch and press Fctn-4 and Fctn-6 to move up and
+down
+memory. You should only see zeros now.</li>
+<li>Toggle the switch back, press Fctn-4 or Fctn-6 and watch the GROM
+reappear.<br>
+</li>
+<li>Press Fctn-8 and enter address 6000, the address of the cartridge
+that
+you have plugged in. Toggle the switch and verify that the cartridge
+GROMs
+are equally disabled (NB cartridge ROMs are not!).<br>
+</li>
+<li>Toggle the switch back to the position where the console GROMs are
+enabled. Press and hold Fctn= for a short while to exit RIP.</li>
+<address><br>
+Revision 1. 4/27/02&nbsp; Preliminary.<br>
+Revision 2. 4/29/02 OK to release.<br>
+<br>
+<br>
+</address>
+<center>
+<p><a href="titechpages.htm">Back to the TI-99/4A Tech Pages</a>
+</p>
+</center>
+</body>
+</html>

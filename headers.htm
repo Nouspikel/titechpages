@@ -1,0 +1,1328 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+  <title></title>
+  <meta name="Author" content="">
+  <meta name="GENERATOR"
+ content="User-Agent: Mozilla/3.04Gold (Macintosh; I; PPC)">
+</head>
+<body>
+<h1 align="center"><a
+ href="http://www.nouspikel.com/ti99/titechpages.htm"><img
+ src="logo.jpg" style="border: 0px solid ; height: 33px; width: 95px;"
+ title="" alt=""></a></h1>
+<h1><a name="Header"></a>Standard headers</h1>
+<p><a href="#header%20intro">Introduction<br>
+</a><a href="#header%20summary">Structure summary</a></p>
+<p><b>Power-up routines<br>
+</b><a href="#power-up">Introduction<br>
+</a><a href="#call%20power-up">Calling<br>
+</a><a href="#return%20power-up">Returning</a></p>
+<p><b>Programs<br>
+</b><a href="#Programs">Introduction<br>
+</a><a href="#Call%20programs">Calling<br>
+</a><a href="#Exit%20program">Exiting</a></p>
+<p><b>Subprograms<br>
+</b><a href="#Subprograms">Introduction<br>
+</a><a href="#call%20subprogram">Calling<br>
+</a><a href="#Return%20subprogram">Return<br>
+</a><a href="#Subprogram%20parameters">Parameter passing<br>
+</a><a href="#Subprograms%20return%20values">Returning values</a></p>
+<p><b>DSRs<br>
+</b><a href="#DSRs">Introduction<br>
+</a><a href="#DSR%20call">Calling<br>
+</a><a href="#DSR%20return">Returning<br>
+</a><a href="#PAB">Parameter passing: PABs</a></p>
+<p><b><a href="#ISR">ISRs</a></b></p>
+<p><b><a href="#Foreign%20language%20translators">Foreign language
+translators</a></b></p>
+<p><b>Programming examples<br>
+</b><a href="xml191a.txt">XML &gt;19</a>: the card ROM scanner<br>
+<a href="xml191a.txt">XML &gt;1A</a>: the GROM scanner<br>
+<a href="#crude%20way">Calling XMLs</a>: the crude way<br>
+<a href="#GPLLNK">Calling GPL and XML</a>: the smooth way<br>
+<a href="#string%20alloc">String allocation routine<br>
+</a><a href="#passing%20params">Passing parameters from Basic<br>
+</a><a href="#returning%20values">Returning values to Basic</a></p>
+<h2><br>
+<a name="header intro"></a>Introduction</h2>
+<p>Standard headers can be located either in peripheral cards ROM, in
+GROMs
+or in cartridge ROM. In peripheral cards, the header always appear at
+address
+&gt;4000. In cartridge ROM it maps at &gt;6000 and can only contain
+programs.
+In GROMs there can be a header at the following addresses: &gt;0000,
+&gt;2000,
+&gt;4000, &gt;6000, &gt;8000, &gt;A000, &gt;C000, and &gt;E000 in GROM
+memory. If a header is present at any of these addresses, the first
+byte
+must be &gt;AA to to tell the scanning routines there is a header here.</p>
+<p>Headers contains lists of programs, subprograms, power-up routines,
+DSRs and ISRs. Lists are organised as chains of linked items: each item
+begins with a word pointing to the next item in the list. The word is
+&gt;0000
+for the last item in the list.</p>
+<p><b>Power-up</b> routines are executed when you reset the TI-99/4A,
+before
+the user can press a key to leave the main title screen. They can be
+found
+in GROMs or peripheral card ROMs, but not in cartridge ROM.</p>
+<p><b>Programs </b>are what appear on the main menu, after the user
+left
+the title screen: "Press 1 for TI Basic", etc. Programs can be
+located in GROMs or in cartridge ROMs, but not in peripheral cards. At
+some point in time, Texas Instruments modified the system so that
+programs
+in ROM won't appear on the main menu: according to which version you
+have,
+your console may or may not pick them up.</p>
+<p><b>Subprograms </b>are routines that provide a service to the user.
+For instance, all Basic CALLs are subprograms. But subprograms can also
+be called from assembly languages. They can be found in GROMs or
+peripheral
+card ROMs, but not in cartridge ROM.</p>
+<p><b>DSRs </b>(Device Service Routines) are special subprograms that
+deal
+with files. In Basic, they are called by file operations, and can also
+be called from assembly. They can be found in GROMs or peripheral card
+ROMs, but not in cartridge ROM.</p>
+<p><b>ISRs </b>(Interrupt Service Routines) are called when an
+interrupt
+was received that did not come from the video-processor. They can only
+be located in peripheral card ROMs.</p>
+<p>Finally, the GROM header at &gt;6000 in base &gt;9800 can have two <b>foreign
+language translators</b>, used to translate the title screen and the
+main
+menu, respectively.</p>
+<p>In summary: <br>
+Peripheral cards ROMs cannot contain programs, nor translators.<br>
+GROMs cannot contain ISRs.<br>
+Cartridge ROMs can only contain programs.</p>
+<h3><br>
+<a name="header summary"></a>Standard header summary</h3>
+<table border="2" cellspacing="2" cellpadding="2">
+  <tbody>
+    <tr>
+      <th>Bytes</th>
+      <th width="45%">Content</th>
+      <td width="45%"><br>
+      </td>
+    </tr>
+    <tr>
+      <td>&gt;x000</td>
+      <td width="45%">&gt;AA indicates a standard header</td>
+      <td width="45%"><br>
+      </td>
+    </tr>
+    <tr>
+      <td>&gt;x001</td>
+      <td width="45%">Version number</td>
+      <td width="45%"><br>
+      </td>
+    </tr>
+    <tr>
+      <td>&gt;0xx2</td>
+      <td width="45%">Number of programs (optional)</td>
+      <td width="45%"><br>
+      </td>
+    </tr>
+    <tr>
+      <td>&gt;x003</td>
+      <td width="45%">Not used</td>
+      <td width="45%"><br>
+      </td>
+    </tr>
+    <tr>
+      <td>&gt;x004</td>
+      <td colspan="2" width="90%">Pointer to power-up list (&gt;0000 if
+none)</td>
+    </tr>
+    <tr>
+      <td>&gt;x006</td>
+      <td colspan="2" width="90%">Pointer to program list (&gt;0000 if
+none)</td>
+    </tr>
+    <tr>
+      <td>&gt;x008</td>
+      <td colspan="2" width="90%">Pointer the DSR list (&gt;0000 if
+none)</td>
+    </tr>
+    <tr>
+      <td>&gt;x00A</td>
+      <td colspan="2" width="90%">Pointer to subprogram list (&gt;0000
+if none)</td>
+    </tr>
+  </tbody>
+</table>
+<p><u>Program, subprogram and DSR lists:</u></p>
+<pre>Link to next item --+<br>Address             |<br>Name length         |<br>Name                |<br>+-------------------+<br>|<br>V<br>Link to next item: &gt;0000<br>Address<br>Name length<br>Name</pre>
+<p><u>Power-up and ISR lists:</u></p>
+<pre>Link to next item --+<br>Address             |<br>+-------------------+<br>|<br>V<br>Link to next item: &gt;0000<br>Address<br></pre>
+<h4>Exemple</h4>
+<table bgcolor="#dadada">
+  <tbody>
+    <tr>
+      <td>
+      <pre>&gt;4000: &gt;AA          Standard header<br>&gt;4001: &gt;01          Version 1<br>&gt;4002: &gt;00          No programs allowed in peripheral card ROMs<br>&gt;4003: &gt;00<br>&gt;4004: &gt;4010        Ptr to power-up list<br>&gt;4006: &gt;0000        Ptr to program list (none)<br>&gt;4008: &gt;4018        Ptr to subprogram list<br>&gt;400A: &gt;4030        Ptr to DSR list<br>&gt;400C: &gt;4040        Ptr to ISR list</pre>
+      <pre>&gt;4010: &gt;0000        Link to next power-up (no more)<br>&gt;4012: &gt;4100        Address of power-up routine</pre>
+      <pre>&gt;4018: &gt;4022        Link to next subprogram<br>&gt;401A: &gt;4200        Address of this subprogram<br>&gt;401C: &gt;04          Name length<br>&gt;401D: "SUB1"       Subprogram name<br>&gt;4021: &gt;00          Align on even boundary<br>&gt;4022: &gt;0000        No more subprograms<br>&gt;4024: &gt;4220        Address of this subprogram<br>&gt;4026: &gt;01          Name length<br>&gt;4027: &gt;B3          Subprogram name</pre>
+      <pre>&gt;4030: &gt;403A        Link to next DSR<br>&gt;4032: &gt;4300        Address of this DSR<br>&gt;4034: &gt;05          Name length<br>&gt;4035: "MYDSR"      DSR name<br>&gt;403A: &gt;4044        Link to next DSR<br>&gt;403C: &gt;4300        Address of this DSR (same as above)<br>&gt;403E: &gt;05          Name length<br>&gt;403F: "DUMMY"      DSR name<br>&gt;4044: &gt;4022        Trick: subprogram &gt;B3 can also be accessed as a DSR<br>&gt;4046: &gt;4440        Address of this DSR<br>&gt;4048: &gt;01          Name length<br>&gt;4049: &gt;04          DSR name</pre>
+      <pre>&gt;4050: &gt;0000        Link to next ISR (no more)<br>&gt;4012: &gt;4800        Address of ISR routine</pre>
+      <pre>&gt;4100: ...          Power-up routine<br>       B   *R11     Must return like that</pre>
+      <pre>&gt;4200: ...          SUB1 subprogram<br>       INCT R11     Found and executed<br>       B    *R11</pre>
+      <pre>&gt;4220: ...           &gt;B3 subprogram / DSR<br>       INCT R11<br>       B    *R11</pre>
+      <pre>&gt;4300: ...           MYDSR and DUMMY DSRs<br>       INCT R11<br>       B    *R11 </pre>
+      <pre>&gt;4440: ...          &gt;04 DSR<br>       INCT R11<br>       B    *R11</pre>
+      <pre>&gt;4800  ...          ISR<br>       TB   2       Check if interrupt came from this card (e.g using CRU bit 2)<br>       JEQ  NOTME   Nope: return immediately<br>       ...          Yep: process interrupt<br>NOTME  B    *R11    Return</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h2><br>
+<a name="power-up"></a>Power-up routines</h2>
+<p>As the name indicates, a power-up routine is executed at power-up
+time,
+i.e. just after the TI copyright screen has been displayed, before
+checking
+if the user has pressed a key. These routines are meant to initialize
+the
+card: the one on the interface card sets the PIO port as output, the
+one
+on the disk controller reserves room in the VDP memory, etc. They could
+also be used to take over control of the TI and prevent the user to go
+to the main menu. Some third party disk controllers have this annoying
+habit.</p>
+<p>The main power-up program is located in the console GROMs, at
+address
+&gt;0020. It performs the following actions:</p>
+<ul>
+  <li>Empty the sound list and stop all sound generators.</li>
+  <li>Load default values (found in GROM) into VDP registers.</li>
+  <li>Clear scratch-pad addresses &gt;8300-8371 and &gt;8382-83CA.</li>
+  <li>Reset CRU bits 3 to 10 in the TMS9901 (no interrupts for keyboard
+input
+lines), as well as bit 16 (unconnected output) and 24 (audio gate off).
+Set CRU bits 1 and 2 (VDP interrupts and external interrupts allowed)
+and
+bits 22 and 23 (cassette motors).</li>
+  <li>Generate a beep.</li>
+  <li>Determine the size of the VDP memory (4K, 8K or 16K). Set the 16K
+flag
+accordingly in VDP register 1 and byte &gt;83FD.</li>
+  <li>Clears VDP addresses 0 to &gt;1000. Loads a color table at
+&gt;0380-039F,
+the standard character set (chars 32-96) at &gt;0900-0AFF, and the TI
+logo
+in characters 1 to 11 at &gt;0808-0857.</li>
+  <li>Clear the screen.</li>
+  <li>Scan the keyboard in all possible modes (5 down to 1). Ignore the
+results.</li>
+  <li>Build the title screen.</li>
+  <li>Search for power-up routines and calls each and everyone of them.</li>
+</ul>
+<h3><br>
+<a name="call power-up"></a>Calling power-up routines</h3>
+<p>The power-up searching routine uses XML &gt;19 to scan ROMs and XML
+&gt;1A to scan GROMs. It branches to each power up routine it finds,
+whether
+in assembly or in GPL. Routines are called in the following order:</p>
+<ul>
+  <li>Power up routines in peripheral card ROMs are executed first, in
+the
+order of their CRU base, from &gt;1000 to &gt;1F00. If there is more
+than
+one routine per card, they are called in the order of their appearance
+in the routine list.</li>
+  <li>Then routines in GROMs installed at base &gt;9800 are called,
+starting
+with GROM &gt;0000 (none) and walking byte steps of &gt;2000 to GROM
+&gt;E000.
+If there is more than one routine in a GROM, they are called in the
+reverse
+order of their appearance in the list. </li>
+  <li>Finally, if GROM &gt;6000 at base &gt;9800 has a negative version
+number
+(bit &gt;80 set in byte &gt;6001), the GPL routine at &gt;6010 is
+called.
+This is meant to install a foreign language translator for the title
+screen
+("Texas Instruments Home computer. Ready - Press any key to begin").
+Some cartridges use that trick to auto-start without waiting for the
+user
+to press a key and enter the main menu. Others just use a power-up
+routine
+for that purpose.</li>
+</ul>
+<h3><br>
+<a name="return power-up"></a>Returning from a power-up routine</h3>
+<p>Assembly language power-up routines should return with B *R11 in
+assembly.</p>
+<p>It is also possible to return with INCT R11, B *R11 but this will
+prevent
+further scanning of peripheral cards for power-up routines. It will not
+however prevent GPL power-up routines from being called.</p>
+<p>Things are a little more complicated in GPL as the main program does
+not branch to power-up routines directly. Instead the addresses of all
+power-up routine located are saved on the data stack (whose base is not
+at its usual location, but at &gt;8300, to allow for more storage
+space).
+To branch to the next power-up routine on the list, one must therefore
+transfer its address to the subroutine stack:</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>DONE   DST   *&gt;8372,*&gt;8373        Transfer address from data stack to sub stack<br>       DECT  @&gt;8372               Update pointer<br>       RTN                        This will branch to the next routine</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>If you wanted to shortcut the process and prevent the main program
+from
+calling other power-up routines, you should keep searching the data
+stack
+until you find an address that is in GROM 0 (i.e. with an address
+smaller
+than &gt;1800). This will be the address at which the main routine
+continues
+(normally &gt;019F, but it may change according to the GROM version),
+just
+branch to it as described above.</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>       DCLR  &gt;83D0               This must be done to prevent scanning from resuming<br>L1     DCH   &gt;1800,*&gt;8372        Is address in GROM 0?<br>       BS    DONE                Yes: branch to it<br>       DECT  *&gt;8372              Point to next address<br>       BR    L1                  and try again</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h2><br>
+<br>
+<a name="Programs"></a>Programs</h2>
+<p>A program is what appears on the main menu, after you left the TI
+copyright
+screen: "Press 1 for TI-Basic, 2 for Whatever". </p>
+<p>There is no limit to the length of a program name, except that it
+should
+fit on one screen line, if you want the main menu to look nice. This
+being
+said, nothing prevents you to call your program "<tt>PROTECTING&nbsp;YOUR&nbsp;WORLD&nbsp;FROM&nbsp;THE&nbsp;ATTACK&nbsp;OF&nbsp;THE&nbsp;GOULISH
+DEMONS&nbsp;OF&nbsp;THE&nbsp;LEGIONS&nbsp;OF&nbsp;CHAOS</tt>" (except
+good taste, may be...). However, if another program is found after
+yours,
+its name will overwrite the third line of your program name. </p>
+<p>Note that at this point only the standard character set has been
+loaded
+in VDP memory (unless you loaded another one with a power-up routine).
+Therefore you can only use characters 32 to 96 in your program name,
+i.e.
+no lower case.</p>
+<h3><br>
+<a name="Call programs"></a>Calling a program</h3>
+<p>The main power-up program lists the programs it finds in the
+following
+order:</p>
+<ul>
+  <li>Program in catridge ROMs (at &gt;6000 in CPU memory) are listed
+first.
+If there is more than one program in the ROM header, they are listed in
+the reverse order of their appearance in the list. Note: at some point
+Texas Instruments disabled this feature to prevent third parties from
+selling
+pure ROM cartridges (and how mean is that?). Depending on the GROM
+version
+in your console, it may or may not be present: version 2.2 draws the
+line.</li>
+  <li>Programs in GROMs at base &gt;9800 are then listed in the order
+of
+the GROMs: &gt;0000 (none), &gt;2000 (<tt>TI BASIC</tt>), &gt;4000 (no
+header), &gt;6000, etc upto &gt;E000. If there is more than one program
+in a header, they are listed in the reverse order of their appearance
+in
+the program list.</li>
+  <li>If the GROM at &gt;6000 in the current base has a valid header
+with
+a negative version number (bit &gt;80 set in &gt;6001), the program
+immediately
+branches at GROM address &gt;6013. This is meant to implement a foreign
+language translation routine that can translate the menu that was just
+built (most probably, it will just change "PRESS" and "FOR"
+as translating program names would be quite tricky). Some cartridges
+use
+that trick to auto-start without letting the user select a program from
+the main menu.</li>
+  <li>The main program compares the content of GROM addresses
+&gt;6000-601D
+using base &gt;9800 and base &gt;9804. If a difference is detected, it
+adds a program called "REVIEW MODULE&nbsp;LIBRARY" at the end
+of the list. In fact, this is not a real program: it just re-enters the
+menu building routine. If the user selects this option, it will list
+the
+ROM programs again, then the GROM programs but this time using base
+&gt;9804.
+The next time it will use base &gt;9808, etc upto &gt;983C. If a base
+does
+not yield valid headers, it is just skipped. Note that theoretically
+there
+could be GROM ports that map higher than that (upto &gt;9BFC), but they
+won't be scanned for programs, DSR, or subprograms.</li>
+  <li>If no program at all was detected, you'll see a message saying
+"Insert
+cartridge". In this case, any key you may press is considered as
+invalid:
+you must insert a cartridge, which will reset the TI-99/4A. Note that
+this
+situation should normally never occur since the "<tt>TI BASIC</tt>"
+program is always present in the console GROMs (that map under any
+base).</li>
+  <li>If there are more than 9 programs, the names of program 10 and
+above
+will not appear on screen. Instead they'll be written in the color
+table
+and pattern table, which is likely to mess up the display... However,
+the
+programs can still be selected using the keys that follow "9"
+in the ASCII list (: ; &lt; = &gt; ? @ A B C etc).</li>
+</ul>
+<p>Once the user has selected a program, the system performs the
+following
+actions:</p>
+<ul>
+  <li>Beep.</li>
+  <li>Clear the screen.</li>
+  <li>Clear the VDP from address &gt;1000 to the address found in word
+&gt;8370-8371
+(highest free address in VDP mem).</li>
+  <li>Clear the scratch-pad addresses &gt;8300-836F, &gt;8374, and
+&gt;8382-83C0.</li>
+  <li>Load the same color in the whole color table (&gt;17: black on
+cyan).</li>
+  <li>Branch to the program using <tt>XML &gt;F0</tt> (vector in
+&gt;8300)
+for assembly programs in cartridge ROMs and a dummy <tt>RTN </tt>instruction
+for GPL programs in GROM.</li>
+</ul>
+<h3><br>
+<a name="Exit program"></a>Program termination</h3>
+<p>A program is not supposed to return to the caller: upon completion
+it
+typically resets the TI-99/4A. This is achieved by <tt>BLWP @&gt;0000</tt>
+in assembly and by <tt>EXIT </tt>in GPL.</p>
+<h2><br>
+<br>
+<a name="Subprograms"></a>Subprograms</h2>
+<p>A subprogram is what you call with the Basic instruction CALL. They
+can also be called from assembly or any other language. Theoretically
+there
+is not limit to the length of a subprogram name, but TI-Basic and the
+console
+GROM DSRLNK routine (G@&gt;0010) set a limit of 7 characters (probably
+because they save the name into the scratch-pad area at &gt;834A-8351).</p>
+<h3><br>
+<a name="call subprogram"></a>Calling a subprogram</h3>
+<p>The calling convention is that the subprogram name (with a leading
+lenght
+byte) should be placed in VDP memory, with word &gt;8356-57 pointing at
+the length byte. Then DSRLNK&nbsp;can be called from GPL with <tt>CALL
+G@&gt;0010</tt>. </p>
+<li>This routine first scans the peripheral card ROMs in the order if
+their
+CRU addresses, by calling XML &gt;19. </li>
+<li>It then repeatedly calls XML &gt;1A to scan the GROMs at base
+&gt;9800,
+starting with GROM &gt;0000, then &gt;2000, etc upto &gt;E000. </li>
+<li>It then repeats the process with bases &gt;9804, &gt;9808, upto
+&gt;983C.</li>
+<p>If you're curious, here is a <a href="xml191a.txt">disassembly </a>of
+XML &gt;19 and XML &gt;1A</p>
+<p>Unfortunately XML &gt;19 and XML &gt;1A cannot be called from
+assembly
+since they return to the GPL interpreter. Therefore most assembly
+language
+package provide a custom DSRLNK routine that will search the card ROMs.
+The editor/assembler cartridge also provides an XMLLNK routine and a
+GPLLNK
+routine that will allow the programmer to call G@&gt;0010. But that's
+because
+it's a GPL cartridge and it contains an XML instruction to return to
+the
+assembly caller. </p>
+<p><a name="crude way"></a>There are ways around this drawback though.
+Here is a fairly crude one:</p>
+<table bgcolor="#dadada">
+  <tbody>
+    <tr>
+      <td>
+      <pre>* This routine messes up the GPL interpreter<br>* so that it can call XML &gt;19<br>* It expects: the sub name in &gt;834A-&gt;8351, name lenght in &gt;8354-55<br>* &gt;836D should contain &gt;0A for subprograms, &gt;08 for DSRs<br>* It returns by skipping a word if the sub/DSR was found.</pre>
+      <pre>TXML19 MOV  @&gt;83FA,R9      Save GROM base<br>       LI   R0,&gt;0041       Points to a byte containg &gt;0A<br>       MOV  R0,@&gt;83FA      Screw up GROM base</pre>
+      <pre>       MOV  @&gt;83C4,R12     Save interrupts hook <br>       LI   R0,RETPT       Our return point<br>       MOV  R0,@&gt;83C4      Set it as ISR hook</pre>
+      <pre>       MOVB  @&gt;8373,R7      Save sub stack ptr</pre>
+      <pre>       CLR  @&gt;83D0         To search all cards<br>*      LI   R0,&gt;1700       (Alternatively: start from that card)<br>*      MOV  R0,@&gt;83D0      <br>*      LI   R0,&gt;xxxx       (and that link in sub/DSR list)<br>*      MOV  R0,@&gt;83D2      (should point at "next link" word of first sub) </pre>
+      <pre>       LWPI &gt;83E0          GPL workspace<br>       B    @&gt;0AC0         Call XML &gt;19<br>*      MOV  @&gt;0CFC,R1      (Safer ?) Get address of XML table 1 <br>*      MOV  @&gt;0012(R1),R1  Get vector for XML &gt;19<br>*      B    *R1            Call it</pre>
+      <pre>RETPT  LWPI WREGS          Back to our workspace<br>       MOV  R9,@&gt;83FA      Restore GROM base<br>       MOV  R12,@&gt;83C4     Restore ISR hook<br>       CB   @&gt;8373,R7      XML &gt;19 does DECT @&gt;8373 if sub was found<br>       JEQ  NOTFND         Not found<br>       MOVB R7,@&gt;8373      Restore initial value<br>       INCT R11            Flag: we found it<br>NOTFND B    *R11           Return to caller</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>What this routine does is to change the GROM base used by the GPL
+interpreter
+to fetch the next opcode. It changes it to an address in ROM that
+contain
+byte &gt;0A, which corresponds to the GPL instruction GT (it could also
+be &gt;09, &gt;0C or &gt;0D. Just make sure the byte address is lower
+than
+&gt;9800).</p>
+<p>Then it installs an ISR hook and calls XML &gt;19 which will scan
+card
+ROMs for the subprogram or the DSR we want to call. Whether it was
+found
+or not, XML &gt;19 returns to the GPL interpreter. Since the "GROM
+base" now points at a &gt;0A byte, the interpreter will endlessly
+execute a GT instructions. I chose GT because it's pretty harmless and
+1-byte long.</p>
+<p>As the interpreter enables interrupts between each instruction, our
+hook is prone to be branched at sooner or later. We then perform some
+clean
+up to restore the interpreter in its normal state. Finally we check
+whether
+the subprogram (or the DSR) was found.</p>
+<p><br>
+<a name="GPLLNK"></a>Now, here is a more subtle way. It implements a
+GPLLNK
+routine that allow an assembly language program to call a GPL routine.
+It makes use of carefully selected bytes in the console GROMs to
+simulate
+an XML instruction and regain control once the GPL routine returns.</p>
+<table bgcolor="#dadada">
+  <tbody>
+    <tr>
+      <td>
+      <pre>* These routines are used to call GPL and return to assembly<br><br>DUMXML DATA &gt;36B8           This address may vary: check your GROMs<br>ADRXML&nbsp;DATA &gt;3FF6           and adjust this value accordingly<br>BYTE00 DATA &gt;0003           Address of a &gt;00 byte in GROM (should be OK)</pre>
+      <pre>* This routine calls a GPL subroutine that returns with RTN or RTNC<br>* It expects the subroutine address in a data word following the call<br>GPLLNK DATA WREGS,GPLNK1   </pre>
+      <pre>GPLNK1 LI   R1,&gt;8373        Subroutine stack ptr<br>       MOVB *R1,@WREGS+3    Put it in R1: now pointing at top of stack <br>       INCT R1              Next free spot<br>       MOV  @DUMXML,*R1+    Push "return" address (dummy XML in GROMs)<br>       MOV  *R14+,*R1       Push desired address<br>       JMP  SK1             Common part with GPLG10</pre>
+      <pre>* This routine emulates a CALL G@&gt;0010. <br>* It is used to call a GPL subprogram/DSR that returns with CALL G@&gt;0012<br>* It expects the GROM base in a first data word (if 0, it gets it from &gt;83FA)<br>* and a GROM address in a second data word<br>GPLG10 DATA WREGS,GPLNK2    </pre>
+      <pre>GPLNK2 LI   R1,&gt;8373        Subroutine stack ptr<br>       MOVB *R1,@WREGS+3    Put it in R1: now pointing at top of stack <br>       INCT R1              Next free spot<br>       MOV  @DUMXML,*R1+    Push "return" address (dummy XML in GROMs)<br>       MOV  *R14+,*R1       Push GROM base<br>       JNE  SK4             Is it &gt;0000?<br>       MOV  @&gt;83FA,*R1      Yes: use current base (from GPL R9)<br>SK4    C    *R1+,*R1+       Skip a word<br>       MOV  *R14+,*R1       Then push address: this emulates G@&gt;0010<br><br>SK1    MOVB @WREGS+3,@&gt;8373 Update stack ptr<br>       MOV  @ADRXML,R1      Address of the dummy XML vector<br>       MOV  *R1,R2          Save its content<br>       LI   R11,GPLRT       Our real return point<br>       MOV  R11,*R1         Place it in the XML table<br>       LWPI &gt;83E0           Switch to GPL workspace<br>       S    R9,R9           Opcode &gt;00 (i.e. RTN)<br>       B    @&gt;0016          To GPL interpreter with opcode in R9, msb</pre>
+      <pre>* This routine calls an XML that returns to the GPL interpreter<br>* It expects the XML number is a data word following the call<br>* Alternatively, that word may contain the address to branch at<br>GPLXML DATA WREGS,XMLNK2   Calls an XML that returns to the GPL interpreter </pre>
+      <pre>XMLNK2 LI   R1,&gt;8373        Subroutine stack ptr<br>       MOVB *R1,@WREGS+3    Put it in R1: now pointing at top of stack <br>       INCT R1              Next free spot<br>       MOV  @DUMXML,*R1     Push "return" address (dummy XML in GROMs)<br>       MOVB @WREGS+3,@&gt;8373 Update stack ptr<br>       MOV  @&gt;83FA,R2       Get current GROM base<br>       AI   R2,&gt;0402        Make it GROM set address port<br>       MOVB @BYTE00,*R2     Address of a &gt;00 byte in GROM<br>       MOVB @BYTE00+1,*R2   Now, next instruction will be a RTN<br>       MOV  @ADRXML,R1      Address of the dummy XML vector<br>       MOV  *R1,R2          Save its content<br>       LI   R11,GPLRT       Our real return point<br>       MOV  R11,*R1         Place it in the XML table<br>       JMP  SK2             Common part with XMLLNK<br><br>* This routine calls an XML that returns to the caller<br>* It expects the XML number is a data word following the call<br>* Alternatively, that word may contain the address to branch at<br>XMLLNK DATA WREGS,XMLNK1</pre>
+      <pre>XMLNK1 CLR  R1              No need to restore anything<br>SK2    MOV  *R14+,@&gt;83E4    Put data word in GPL R2       <br>       LWPI &gt;83E0           Switch to GPL workspace<br>       MOVB R2,R2           Is first byte of data &gt;00<br>       JNE  SK3             No: direct branch to an address<br>       MOV&nbsp; R2,R1           Yes: get address from XML tables<br>       SRL  R1,4<br>       SLA  R1,1            Isolate table number<br>       SLA  R2,12<br>       SRL  R2,11           Isolate routine number<br>       A    @&gt;0CFA(R1),R2   Address in table<br>       MOV  *R2,R2          Get vector<br>SK3    BL   *R2             Call XML<br>GPLRT  LWPI WREGS           GPL will return here: switch to our workspace <br>       MOV  R2,*R1          Restore the data we modified<br>       RTWP                 And that's it<br></pre>
+      <pre>* Calling examples<br>      BLWP @GPLLNK<br>      DATA&nbsp;&gt;002A           Call the LOG subroutine</pre>
+      <pre>      BLWP @GPLG10<br>      DATA &gt;0000,&gt;37BF     Call SCREEN</pre>
+      <pre>      BLWP @XMLLNK<br>      DATA &gt;0012           Convert floting point to integer</pre>
+      <pre>      BLWP @GPLXML<br>      DATA &gt;0019           Scan cards for a subprogram (returns to GPL)</pre>
+      <pre>      BLWP @GPLXML<br>      DATA &gt;0AC2           Alternate entry point into XML &gt;19 (skip CLR R1)</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>GPLLNK first places a dummy return address on the subroutine stack.
+This is the address of a &gt;0F byte in the console GROMs. It will be
+interpreted
+as <tt>XML </tt>by the GPL interpreter, and the next byte will be
+used
+to find the address where to branch. This may vary according to the
+GROM
+version, that's why I put these values in data words. In my console
+GROM
+address &gt;36B8 contains &gt;0F4B which corresponds to XML &gt;4B and
+will get the vector from address &gt;3FF6 (the XML table 4 starts at
+&gt;3FE0).
+GPLLNK replaces this word with its return point.</p>
+<p>It also places the desired GPL address on the subroutine stack and
+finally
+branches to the GPL interpreter using the special entry point &gt;0016
+which expects R9 msb to contain an opcode. In our case, this opcode
+will
+be &gt;00, which codes for a <tt>RTN </tt>instruction. The GPL
+interpreter
+will therefore "return" to the address we just placed on the
+stack, which is the GPL routine we want to call. (I used <tt>S R9,R9</tt>
+instead of <tt>CLR R9</tt> because entry point &gt;0016 branches to a <tt>JLT</tt>
+that must not be taken for RTN).</p>
+<p>If this routine returns with <tt>RTN</tt>, the GPL interpreter will
+just branch to the pseudo <tt>XML &gt;4B</tt> instruction in GROM, and
+this will return control to our GPLLNK routine. </p>
+<p>An alternate subroutine, GPLG10 is provided to emulate a call to
+G@&gt;0010,
+which the the GPL equivalent of DSRLNK. It saves the GROM base on the
+stack
+together with the return address. Subprograms called in this way return
+with <tt>CALL G@&gt;0012</tt> which fetches the base and the address
+from
+the stack (all TI-Basic subprograms and DSR do so).</p>
+<p>XMLLNK emulates an XML instruction and calls an assembly language
+subroutine.
+It is assumed that this routine will return to the caller.
+Unfortunately
+many XMLs in the console ROM don't bother to save the return address
+and
+just branch to the GPL interpreter.</p>
+<p>GPLXML it therefore provided to call an XML that returns to the GPL
+intepreter, and nevertheless regain control afterwards. As it modifies
+the current GROM/GRAM address, you may want to save this address first,
+and restore it afterwards.</p>
+<p><br>
+And now that we can call GPL routines, let's scan for subprograms the
+way
+TI-Basic does: by calling DSRLNK at &gt;0010 in the console GROM. There
+is only one problem: DSRLNK expects a byte of data after the call:
+&gt;08
+for DSR and &gt;0A for subroutines. Since we are not calling it with a
+<tt>CALL </tt>from GPL, the <tt>FETC @&gt;836D</tt> instruction will
+return
+a dummy value. Therefore, OURLNK enters DSRLNK by skipping the <tt>FETC
+</tt>instruction, with the proper value already placed in &gt;836D.
+Unfortunately
+address &gt;0010 only contains a branch instruction to the real start
+point
+of the routine. We'll have to get the branch first, to be able to
+change
+the entry point.</p>
+<table bgcolor="#dadada">
+  <tbody>
+    <tr>
+      <td>
+      <pre>* This routine makes use of GPLLNK to call G@&gt;0010 which scans<br>* all card ROMs and all GROMs for the subroutine/DSR we want<br>* It expects the name of the sub/DSR in VDP memory (with leading lenght byte)<br>* Word &gt;8356 should point at the length byte<br>* Byte &gt;836D should contain &gt;08 for DSRs and &gt;0A for subroutines<br>OURLNK LI   R9,&gt;9C02      GROM set address port<br>       LI   R0,&gt;0010      Address of the GROM DSRLNK routine<br>       MOVB R0,*R9        Set this address<br>       SWPB R0<br>       MOVB R0,*R9<br>       AI   R9,&gt;FBFE      Now it becomes the GROM base<br>       MOVB *R9,R0        Get first byte of address<br>       SWPB R0<br>       MOVB *R9,R0        Get second byte<br>       SWPB R0<br>       ANDI R0,&gt;1FFF      Remove the BR opcode (&gt;40)<br>       INCT R0            Skips FETC @&gt;836D (since we can't put data in GROM)<br>       MOV  R0,@WHERE<br>       MOV  R9,@GBASE<br>       BLWP @GPLG10       Because subprograms return with CALL G@&gt;0012 <br>GBASE  DATA&nbsp;0<br>WHERE  DATA 0             Enter G@&gt;0010 directly (cause we can't FETC @&gt;836D)</pre>
+      <pre>       MOVB @&gt;837C,R1     Upon return: See if subprogram was found<br>       SLA  R1,3          by testing Cnd bit<br>       JOC  NOFND<br>       INCT R11           Skip word if it was found<br>NOFND  B    *R11</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h4><br>
+Situation upon entry in a subprogram</h4>
+<p>Assembly subprogram called with XML &gt;19 or an equivalent routine
+are entered with the GPL worskpace &gt;83E0. The following values can
+be
+expected:</p>
+<p>R1: Number of times the subprogram was called (normally 1).<br>
+R9: Address of the subprogram<br>
+R11: Return address (to keep scanning)<br>
+R12: CRU base address of the card.<br>
+&gt;83D0-D1: CRU base address of the card<br>
+&gt;83D2-D3: link to next subprogram in the header</p>
+<p>The most usefull are R1 and R12. They allow the possiblility of
+installing
+several identical cards in the PE-Box, each with a different CRU
+address
+(generally DIP-switch selected). The subprogram can use R12 to know the
+CRU of the card it is in and R1 to know how many cards were found
+before.
+The <a href="rs232c.htm#RomDSR">RS232/PIO card</a> works this way.</p>
+<p>GPL subprograms will find similar informations in the scratch-pad:</p>
+<p>&gt;836C: Number of times the subprogram was called<br>
+&gt;83D0-D1: GROM base (normally &gt;9800)<br>
+&gt;83D2-D3: link to next subprogram in the header</p>
+<h3><br>
+<a name="Return subprogram"></a>Returning from a subprogram</h3>
+<p>Assembly language subprogram typically return with::</p>
+<table bgcolor="#dadada">
+  <tbody>
+    <tr>
+      <td>
+      <pre>       INCT R11<br>       B    *R11             </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>This prevents the scanning routine (XML &gt;19 or a clone of it)
+from
+scanning further cards for the same subprogram. Unless of course this
+is
+precisely what you want to do. In this case, just return with:</p>
+<table bgcolor="#dadada">
+  <tbody>
+    <tr>
+      <td>
+      <pre>       B    *R11            </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>GPL subprogram often return with:</p>
+<table bgcolor="#dadada">
+  <tbody>
+    <tr>
+      <td>
+      <pre>        CALL G@&gt;0012      </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>since they can expect to have been called by the GPL DSRLNK routine
+located at &gt;0010 in the console GROM.</p>
+<h3><br>
+<a name="Subprogram parameters"></a>Passing parameters to a subprogram</h3>
+<p>Contrarily to DSRs, there is no conventions as how to pass
+parameters
+to a subprogram. It depends on the language from which it is called. As
+a consequence, you'll probably have to write several versions of your
+subprogram,
+one for each language it can be called from (or at least have different
+entry points). For instance, the disk controller card contains a
+subprogram
+called "FILES" to be called from TI-Basic and an almost equivalent
+one called &gt;16 to be called from assembly (the only difference is
+that
+you can have upto 16 files in assembly, but only 9 in Basic).</p>
+<h4><br>
+Subprograms called from assembly</h4>
+<p>If the caller is assembly language, the parameters are generally
+passed
+on the scratch-pad (so as not to depend from the presence of a memory
+expansion
+card). Convenient addresses for that purpose are &gt;834A-8353. If
+that's
+not enough space, you could pass a pointer to a VDP memory address in
+these
+bytes. Byte &gt;8350 is often used to return an error code: &gt;00
+means
+no error, other values indicate an error.</p>
+<p>Which means you should provide the user with a good doc, so that
+he/she
+knows how to call your subprogram. Don't forget to explain the error
+codes,
+if any.</p>
+<p>Example: </p>
+<p>The disk controller card subroutine &gt;12 (file protect/unprotect)
+expects the following parameters.<br>
+&gt;834C: drive number, from &gt;01 to &gt;03<br>
+&gt;834D: protection code: &gt;00 = unprotect, &gt;FF = protect<br>
+&gt;834E-834F: an address in VDP memory where to find a 10-characters
+filename.<br>
+It returns an error code in &gt;8350 if something went wrong.</p>
+<h4><br>
+Subprograms called from Basic</h4>
+<p>Things get really messy when parameters must be passed from Basic or
+Extended basic. That's because the CALL statement does not perform any
+parameter passing. Therefore, your call must parse the Basic statement
+to extract the parameter specifications. If these are variables you
+must
+then get their values from the Basic symbol table. That's not easy to
+do,
+to say the least.</p>
+<p>Let me first mention a simple trick that makes the programer's life
+easier, but puts some burden on the user. Just tell the user to pass
+parameters
+after the subprogram name, separating them with a dot. For instance:<br>
+CALL MYSUB.A=0.TEST2.UNLOCK</p>
+<p>That's somewhat annoying for the user because CALLs cannot be placed
+in a variable: CALL A$ is not allowed. Therefore the user must enter a
+different line for each desired value of a parameter. In the above
+example,
+it A can have 16 different values, it means a ON A GOTO to 16 different
+CALL MYSUB.A=, each with a different value of A...</p>
+<p>The user will certainly prefer this kind of syntax:<br>
+CALL MYSUB(A,"TEST2",U$,512)<br>
+But now the burden is on you!</p>
+<p>First you must parse the basic statement, looking for parameters.
+Basic
+codewords are not stored as such in memory: to save place they are
+converted
+to 1-byte tokens. For instance, the above statement is encoded as:</p>
+<pre><u>VDP address  Token/bytes  Meaning                          <br></u>&gt;37B4        &gt;17          Line size<br>&gt;37B5        &gt;9D          CALL<br>&gt;37B6        &gt;C8          Unquoted string<br>&gt;37B7        &gt;05          String length<br>&gt;37B8        MYSUB        The name is of course not encoded<br>&gt;37BD        &gt;B7          (<br>&gt;37BE        A            Variable names are not encoded<br>&gt;37BF        &gt;B3          ,<br>&gt;37C0        &gt;C7          Quoted string "..."<br>&gt;37C1        &gt;05          String length<br>&gt;37C2        TEST2        Content of the string<br>&gt;37C7        &gt;B3          ,<br>&gt;37C8        U$           Another variable<br>&gt;37CA        &gt;B3          ,<br>&gt;37CB        &gt;C8          Unquoted string<br>&gt;37CC        512          Numeric constants are passed as strings<br>&gt;37CF        &gt;B6          )<br>&gt;37D0        &gt;00          End-of-line mark</pre>
+<p>You'll find a pointer to the current token in word &gt;832C, and the
+last processed token is copied in byte &gt;8342. In this example, it
+will
+be the &gt;C8 token following the CALL and &gt;832C will contain
+&gt;37B7.</p>
+<p>TI-Basic programs can be stored in VDP memory or in GRAM. To know
+where
+it is, test byte &gt;8389: if it's &gt;00 the program is in VDP memory,
+otherwise it's in GRAM. Extended basic programs can't be in GRAM but
+they
+can be stored in the high memory expansion, if it's present. In this
+case,
+a non-zero value in byte &gt;8389 means that the program is in the
+memory
+expansion.</p>
+<p>A convenient way to avoid all this hassle is to use XML &gt;1B: it
+will
+get the next token (or character) from the adequate memory, put it in
+&gt;8342
+and increment &gt;832C accordingly.</p>
+<p>But first, you must skip the name of your subprogram (easy: you know
+it's 5 chars long, so just add 5 to &gt;832C). Then make sure there is
+a parenthesis, fetch each parameter, check for commas and for the
+closed
+parenthesis. If you're using GPL, a<tt> PARS &gt;B6</tt> instruction
+comes
+handy for this job. Finally you must return with &gt;00 in &gt;8342
+otherwise
+Basic will complain. </p>
+<p>But wait, when I said "fetch parameters" I kind of overlooked
+several problems.</p>
+<p>If the parameter is a <b>string constant</b> ("TEST2" in the
+example above), no problems: just use it as it is. Almost, that is: the
+user may have the bad idea to concatenate two string constants with the
+&amp; operator (e.g. "TEST"&amp;"2"). You must therefore
+test for this situation: the token for &amp; is &gt;B8.</p>
+<p>If its a <b>numeric constant</b> (512 in the example), you'll have
+to
+convert it to a number. That can be easy if your subprogram accept only
+a limited range of values (e.g. 0 to 9: just fetch the first character
+and substract &gt;30 from it). If that's not the case, you have to use
+a string-to-number conversion routine. Fortunately, there is one the
+the
+console ROM: XML &gt;11 and that one can be called from assembly. Place
+the address of the string in &gt;8356 and call XML &gt;11. You'll find
+the result in floating point format in &gt;834A-8352. If an error
+occurs,
+it will be announced in byte &gt;8354. You'll also find the sign in
+&gt;8375
+(&gt;00 positive, &gt;FF negative) and the exponent in &gt;8376, if you
+have a need for these.</p>
+<p>And what about <b>variables</b>? Oh boy, that's where it becomes
+really
+complicated. You must first call XML &gt;13 that will search the Basic
+symbol table for the variable whose name is pointed at by &gt;832C. If
+it finds the variable, it places its address in the Basic value stack
+in
+word &gt;834A-834B. However, if it does not find it, it returns to the
+GPL interpreter to announce an error in Basic!</p>
+<p><a name="question"></a>Now you must get the value of that variable.
+This is achieved by XML &gt;14: it dumps the value stack entry for the
+variable pointed at by &gt;834A-834B into bytes &gt;834A-8351. When it
+returns, you'll find a pointer to the value (in VDP memory) in word
+&gt;834E.
+But first you must test byte &gt;834C: it will be &gt;00 for a numeric
+variable and &gt;65 for a string variable. You may also test &gt;834D:
+it contains the number of dimensions for array variables (&gt;00 of its
+not an array). For non-array string variables, you'll find the length
+of
+the string in word &gt;8350. I'm not sure it's the case for string
+arrays.
+<a href="feedback.htm#questions">Anyone</a>?</p>
+<p>Oh, and don't forget that here also the user may have used the
+concatenation
+operator &amp; to combine several string variables: you'll have to get
+each and everyone of them using the above method. Of course, you could
+just forbid the use of this operator and return with a syntax error...</p>
+<p>Finally, you may want to <b>convert floating point</b> numbers to
+integers.
+This can be done with XML &gt;12. It will place the result in word
+&gt;834A-834B
+and the error code in &gt;8354 (&gt;03 if the number is not in the
+range
+-32768 to +32767). A quick trick though: if a floating point number is
+zero, the first word (in &gt;834A) will be &gt;0000, so no conversion
+is
+necessary.</p>
+<p>Ok, will you remember all this? Well, I warned you: parameter
+passing
+is a mess with subprograms.</p>
+<p>And just to depress you a little more: I'm not sure XML &gt;13 and
+XML
+&gt;14 apply to Extended Basic (in fact I think they don't...).</p>
+<p><a name="passing params"></a>Ok, here is an example of parameter
+passing
+to a GPL subprogram called from Basic</p>
+<table bgcolor="#dadada">
+  <tbody>
+    <tr>
+      <td>
+      <pre>* This GPL snippet illustrate parameter passing from Basic to a subprogram<br>* It is supposed to be called with CALL TEST(123,A$), the A$ being optional</pre>
+      <pre>MYSUB  CLR   @&gt;834A             Skip our subprogram name in the basic program <br>       ST    V*&gt;832C,@&gt;834B     Get size byte, make it a word<br>       DINC  @&gt;832C             Skip size byte<br>       DADD  @&gt;834A,@&gt;832C      Skip subprogram name<br>       XML   &gt;1B                Get next token<br>       CEQ   &gt;B7,@&gt;8342         Is it ( ?<br>       BR    ERRIS              No: incorrect statement</pre>
+      <pre>       XML   &gt;1B                Get next token<br>       PARS  &gt;B6                Parse to next param or the &gt;B6 (closed parenthesis) <br>       CEQ   &gt;65,@&gt;834C         Is it a string<br>       BS    ERRSN              Yes: string-number mismatch<br>       XML   &gt;12                Make it an integer<br>       DST   @&gt;834A,....        Use it</pre>
+      <pre>       CEQ   &gt;B3,@&gt;8342         Is next token a , ?<br>       BR    NOCOMA<br>       XML   &gt;1B                Get next token (we could also have used PARS &gt;B6)<br>       XML   &gt;13                Get symbol address in value stack<br>       XML   &gt;14                Get entry from value stack<br>       CEQ   &gt;65,@&gt;834C         Is it a string ?<br>       BR    ERRSN              No: string number mismatch<br>       MOVE  @&gt;8350,V*&gt;834E,... Get string, use it</pre>
+      <pre>NOCOMA CEQ   &gt;B6,@&gt;8342         Is there a ) ?<br>       BR    ERRIS              No: "Incorrect statement" error <br>       XML   &gt;1B                Get next token<br>       CZ    @&gt;8342             Is it &gt;00 (end-of-statement)<br>       BR    ERR1               No: error (optional: CALL does it anyway)<br>       CALL  G@&gt;0012            Return to caller (i.e. Basic) </pre>
+      <pre>ERRSN  CALL  G@&gt;001C            Call error routine (returns to Basic)<br>       BYTE  &gt;20,&gt;7D            "String-number mismatch" in console GROM     </pre>
+      <pre>ERRIS  CALL  G@&gt;001C            Call error routine (returns to Basic)<br>       BYTE  &gt;20,&gt;2C            "Incorrect statement" in console GROM     </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h3><br>
+<a name="Subprograms return values"></a>Subprograms returning values</h3>
+<p>Here again it's easy for subprograms called from assembly: just
+place
+the value (or a pointer to it) in the scratch-pad.</p>
+<p>Things are more complicated in Basic, mainly because of string
+variables.
+If you want to return a string, you cannot be sure that it will fit in
+the memory currently allocated for the string variable. Most probably
+it
+won't, as the user will call your subprogram with an empty string
+variable.
+You must therefore use XML &gt;15 to assign a value to a variable,
+whether
+string or number.</p>
+<p>To call XML &gt;15 you first make a copy of the variable entry in
+the
+value stack (as returned by XML &gt;14) at the top of the value stack.
+This is achieved by calling XML &gt;17.</p>
+<p>Then for <b>numeric variables</b>, just place the new floating
+point
+value on &gt;834A-8352 and call XML &gt;15: it will transfer the value
+in the proper memory location. Uh-oh, we have a problem here: there is
+no XML to convert an integer to a floating point number so you'll have
+to do it yourself!</p>
+<p><a name="string alloc"></a>For <b>string variables</b>, you must
+first
+get enough room for your string in the Basic string space. There is a
+GPL
+routine that does this: place the required number of bytes in
+&gt;830C-830D
+and <tt>CALL G@&gt;0038</tt>, the address of the allocated space will
+be
+returned in &gt;831C. You can easily call it from GPL, but if your
+subprogram
+is written in assembly language, this may be a problem. You could
+either
+use the <a href="#GPLLNK">GPLLNK </a>routine outlined above, or
+simulate
+G@&gt;0038 with an assembly routine.</p>
+<table bgcolor="#dadada">
+  <tbody>
+    <tr>
+      <td>
+      <pre>* This routine is an assembly version of the GPL routine &gt;0038 <br>* It allocates space for a string in the Basic string space<br>* It is less efficient than the GPL version as it does not<br>* perform garbage collection if there is not enough memory.<br>* The number of bytes to allocate should be in R2.<br>* The allocated address in VDP will be returned in R0.<br>* A memory full error can be detected with a JEQ.</pre>
+      <pre>STRSPA DATA WREGS,STRSP1</pre>
+      <pre>STRAP1 ORI  R15,&gt;2000     Set Eq bit<br>       MOV  @4(R13),R2    Get required string size<br>       MOV  R2,R1         Save it<br>       C    *R2,*R2+      We'll need 4 more bytes<br>       MOV  @&gt;831A,R4     String space address<br>       MOV  R4,R0         Save it for later<br>       S    R2,R4         The space is growing downwards<br>       MOV  @&gt;836E,R3     Basic value stack pointer<br>       AI   R3,&gt;0040      8*8 bytes must be free<br>       C    R4,R3         Do we have room enough?<br>       JLE  MFULL         No: memory full (or collect garbage and try again) <br>       <br>       SWPB R1            Put size byte in msb<br>       BLWP @VSBW         Put it in string space<br>       SWPB R1<br>       S    R1,R0         Adjust string space pointer<br>       MOV  R0,*R13       Return value into R0<br>       AI   R0,-4         Four more bytes needed <br>       MOV  R0,@&gt;831A     Save new pointer<br>       BLWP @VSBW         Write dummy value in first byte<br>       MOVB R1,@&gt;8C00     Clear next 2 bytes<br>       MOVB R1,@&gt;8C00<br>       SWPB R1<br>       MOVB R1,@&gt;8C00     Write size in 3rd byte<br>       ANDI R15,&gt;DFFF     Clear Equ bit to indicate success<br>MFULL  RTWP               Return with Equ bit set to indicate error<br>       </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>Now you can place your string in the VDP memory at the designated
+address.
+</p>
+<p>Then get the Basic variable entry by calling XML &gt;13 and XML
+&gt;14
+successively and push it again on the Basic value stack by calling XML
+&gt;17. </p>
+<p>Then modify it so that it points at your string in the string space.
+Finally call XML &gt;15 and that's it (wow).</p>
+<p><a name="returning values"></a>In summary, this is how to return
+variables
+from a GPL subprogram. All these XMLs can be called from assembly, so
+you
+should not have too many problems to come up with an equivalent version
+in assembly language. I'll leave it to you as an exercise.</p>
+<table bgcolor="#dadada">
+  <tbody>
+    <tr>
+      <td>
+      <pre>* This GPL&nbsp;routine demonstate how to return a value in a Basic string variable</pre>
+      <pre>SENDST DST   &gt;000E,@&gt;830C    Put string size here<br>       CALL  G@&gt;0038         Will return to Basic if a "memory full" error occurs</pre>
+      <pre>       MOVE  @&gt;830C,G@TESTRI,V*&gt;831C  Now put a string into that space </pre>
+      <pre>       XML   &gt;1B             Get first char of variable name (required by XML &gt;13)<br>       XML   &gt;13             Get next symbol (in Basic statement) address <br>       XML   &gt;14             Get its entry in the value stack<br>       XML   &gt;17             Make a new copy of it<br>       CEQ   &gt;65,@&gt;834C      (Optional) Make sure it's a string variable<br>       BR    ERRSN           If not, call "string-number mismatch" error</pre>
+      <pre>       DST   &gt;001C,@&gt;834A    New entry will be a string expression (flag &gt;001C)<br>       DST   @&gt;831C,@&gt;834E   Address of our string in the string space<br>       DST   &gt;000E,@&gt;8350    Put string size here<br>       XML   &gt;15             Assign string to string variable<br>       RTN</pre>
+      <pre>TESTRI TEXT 'THIS&nbsp;IS A TEST'</pre>
+      <pre>* This GPL routine demonstrates how to return a value in a Basic numeric variable </pre>
+      <pre>SENDNM XML   &gt;1B             Get first char of variable name<br>       XML   &gt;13             Get next symbol (in Basic statement) address <br>       XML   &gt;14             Get its entry in the value stack<br>       XML   &gt;17             Make a new copy of it<br>       CEQ   &gt;65,@&gt;834C      (Optional) Make sure it's not a string variable<br>       BS    ERRSN           If it is, call "string-number mismatch" error</pre>
+      <pre>       DST   &gt;4101,@&gt;834A    Now put a floating point number on &gt;834A-8451<br>       DST   &gt;2345,@&gt;834C<br>       DCLR  @&gt;834E<br>       DCLR  @&gt;8350</pre>
+      <pre>       XML   &gt;15             Assign it to the variable<br>       RTN</pre>
+      <pre>ERRSN  CALL  G@&gt;001C         Call error routine (returns to Basic)<br>       BYTE  &gt;20,&gt;7D         "String-number mismatch" in console GROM  </pre>
+      <pre>ERRIS  CALL  G@&gt;001C         Call error routine (returns to Basic)<br>       BYTE  &gt;20,&gt;2C         "Incorrect statement" in console GROM        </pre>
+      <pre>* This is a sample GPL subprogram using the two routines above.<br>* Call it from Basic with CALL TEST(A$,X), then print A$ and X.<br>TEST   DADD  &gt;0005,@&gt;831C    Length of "TEST", plus size byte<br>       XML   &gt;1B             Get next token<br>       CEQ   &gt;B7,@&gt;8342      Make sure there is a (<br>       BR    ERRIS<br>       CALL  SENDST          Send a test string<br>       CALL  SENDNM          Send a test number<br>       XML   &gt;1B             Get last token. Basic will make sure it's &gt;00<br>       CALL  G@&gt;0012         Return to Basic</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h2><br>
+<a name="DSRs"></a>DSRs</h2>
+<p>DSR stands for Device Service Routine. They are special subprograms
+meant to access custom functions provided by the card. You could call
+them
+"drivers" to follow the PC lingo. The main difference between
+DSRs and subprograms is that DSRs use the concept of files as a
+standard
+way of passing parameters. Therefore, in Basic DSRs are called by file
+operations (OPEN, CLOSE, PRINT, INPUT, DELETE, OLD, and SAVE). They can
+also be called from assembly, using a PAB to pass parameters to/from
+the
+DSR. DSR names can have from 1 to 7 characters.</p>
+<h3><a name="DSR call"></a>Calling a DSR</h3>
+<p>DSRs are called the same way as subprograms. Most of the time, the
+same
+scanning routine performs handles both types of calls: all it needs is
+a parameter to get the first link in a header. This parameter is
+&gt;0008
+for DSRs and &gt;000A for subprograms (see <a href="#header%20summary">structure
+of a header</a>, above).</p>
+<p>The situation upon entry in a DSR is therefore just the same as for
+subprograms.</p>
+<p>Most of the time, a DSR will be able to execute a variety of
+operations
+(open a file, close it, etc). The first byte in the PAB is used to pass
+an opcode, that specifies which operation is to be executed. DSRs are
+thus
+more complex that most regular subprograms, but paradoxically easier to
+use with Basic.</p>
+<h3><br>
+<a name="DSR return"></a>Returning from a DSR</h3>
+<p>Just like subprograms, assembly language DSRs typically return with::</p>
+<table bgcolor="#dadada">
+  <tbody>
+    <tr>
+      <td>
+      <pre>       INCT R11<br>       B    *R11             </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>This prevents the scanning routine from scanning further cards for
+the
+same subprogram. Unless of course this is precisely what you want to
+do.
+In this case, just return with:</p>
+<table bgcolor="#dadada">
+  <tbody>
+    <tr>
+      <td>
+      <pre>       B    *R11            </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>GROM DSRs, written in GPL, generally return with:</p>
+<table bgcolor="#dadada">
+  <tbody>
+    <tr>
+      <td>
+      <pre>        CALL G@&gt;0012      </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>since they can expect to have been called by CALL G@&gt;0010 or the
+assembly language equivalent of it.</p>
+<h3><br>
+<a name="PAB"></a>PAB: Peripheral Access Blocks</h3>
+<p>The convention to pass parameters to a DSR is to use a peripheral
+access
+block (PAB). This is a bunch of data, generally stored in the VDP
+memory,
+that is used to pass parameters to and from the called DSR or
+subprogram.
+A PAB has the following structure:</p>
+<table border="2" cellspacing="2" cellpadding="2">
+  <tbody>
+    <tr>
+      <th>Byte</th>
+      <th width="45%">Function.</th>
+      <td width="45%"><br>
+      </td>
+    </tr>
+    <tr>
+      <td>0</td>
+      <td width="45%">Opcode</td>
+      <td width="45%"><br>
+      </td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td width="45%">Err flag + File type</td>
+      <td width="45%"><br>
+      </td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td colspan="2" width="90%">VDP buffer address</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td width="45%">Record length</td>
+      <td width="45%"><br>
+      </td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td width="45%">Number of chars</td>
+      <td width="45%"><br>
+      </td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td colspan="2" width="90%">Rec # / file size</td>
+    </tr>
+    <tr>
+      <td>8</td>
+      <td width="45%">Bias / status</td>
+      <td width="45%"><br>
+      </td>
+    </tr>
+    <tr>
+      <td>9</td>
+      <td width="45%">Name size</td>
+      <td width="45%"><br>
+      </td>
+    </tr>
+    <tr>
+      <td>10+</td>
+      <td width="45%">DSR name</td>
+      <td width="45%"><br>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h4>Byte 0: Opcode</h4>
+<p>This byte is used to define the type of operation to be performed by
+the DSR. The standard opcodes for file operations are the following:</p>
+<dt>&gt;00 Open. Opens the file, reserves room in VDP memory to store
+data
+in.</dt>
+<dt>&gt;01 Close. Closes the file, frees the dedicated VDP memory area.</dt>
+<dt>&gt;02 Read. Input data from the file/peripheral.</dt>
+<dt>&gt;03 Write. Writes data to the file/peripheral.</dt>
+<dt>&gt;04 Rewind. Points at a given record (or at top of file).</dt>
+<dt>&gt;05 Load. Loads a memory image ("program") file.</dt>
+<dt>&gt;06 Save. Saves a memory image file.</dt>
+<dt>&gt;07 Delete. Removes a file from the storage unit.</dt>
+<dt>&gt;08 Scratch. Removes a given record from a file.</dt>
+<dt>&gt;09 Status. Returns informations about a file.</dt>
+<p>Some DSR accept other custom opcodes. For instance, the RS232 DSR
+accepts:</p>
+<p>&gt;80 Interrupts. A variant of Open that allows for interrupts upon
+reception of a char on a serial port.</p>
+<p>The Horizon Ramdisk supports several additional opcodes:</p>
+<p>&gt;0A Assembly. Loads and runs a memory-image assembly file.<br>
+&gt;0B Basic. Loads and runs an extended basic file.<br>
+&gt;0C Cartridge. Loads a memory image GPL file.<br>
+&gt;B0 Rambo. Selects a memory bank to be mapped at &gt;6000-7FFF.<br>
+&gt;80 to &gt;8C: same as &gt;00 to &gt;0C, but uses a buffer in CPU
+memory
+rather than in VDP memory.</p>
+<h4>Byte 1: Err/Type</h4>
+<p>The last 5 bits are used by the caller to define the file type.
+Typically
+used by Open only.</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Bit </th>
+      <th>Meaning</th>
+    </tr>
+    <tr>
+      <td>0</td>
+      <td rowspan="3">Error code</td>
+    </tr>
+    <tr>
+      <td>1</td>
+    </tr>
+    <tr>
+      <td>2</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>&gt;00: Fixed &gt;10: Variable</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>&gt;00: Display &gt;08: Internal</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td rowspan="2">&gt;00: Update &gt;04: Input<br>
+&gt;02: Output &gt;06: Append</td>
+    </tr>
+    <tr>
+      <td>6</td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td>&gt;00: Seq &gt;01: Relative</td>
+    </tr>
+  </tbody>
+</table>
+<p>The first 3 bits are used by the DSR to return an error code:</p>
+<dt><b>0 </b>(&gt;00): No error. I/O error 0 occurs when the calling
+subroutine
+could not find a matching DSR anywhere.</dt>
+<dt><b>1 </b>(&gt;20): Write protection. Attempt to write to a
+write-protected
+medium.</dt>
+<dt><b>2</b> (&gt;40): Bad attribute. File attributes in the PAB
+(Dis/Int,
+Var/Fix, Seq/Rel, rec lenght) don't match attributes on disk.</dt>
+<dt><b>3</b> (&gt;60): Illegal opcode. Unsupported or unknown opcode.</dt>
+<dt><b>4</b> (&gt;80): Memory full. There is no room to store the data
+or the file definition (e.g more than 127 files).</dt>
+<dt><b>5</b> (&gt;A0): Past end-of-file. Attempt to read past the end
+of
+the file.</dt>
+<dt><b>6</b> (&gt;C0): Device error. Something went wrong with the
+hardware.</dt>
+<dt><b>7</b> (&gt;E0): File error. Anything that do not fit in the
+above.</dt>
+<h4>Bytes 2-3: Buffer address</h4>
+<p>These two bytes point to a data buffer, generally in VDP memory.</p>
+<p>Read: write data from the file/peripheral into this buffer, record
+by
+record.<br>
+Write: take data from this buffer to write it on file, record by record.<br>
+Load: write data from the whole file/peripheral into this buffer in a
+single
+operation.<br>
+Save: take data from this buffer to write it on file in a single
+operation.</p>
+<h4>Byte 4: Record length</h4>
+<p>For "fixed" files, this is the absolute record length, in
+bytes. For "variable" files, it is the maximum allowable record
+length. This byte is not used for "program" files. </p>
+<p>Open: When this byte is &gt;00, replace it with the default record
+length.
+Else check if length is ok with that peripheral.<br>
+Read: Maximum number of bytes to transfer.</p>
+<h4>Byte 5: Number of chars</h4>
+<p>Read: how many bytes have been transfered from the peripheral to the
+memory buffer.<br>
+Write: how many bytes must be transfered to the peripheral.</p>
+<h4>Bytes 6-7: Rec # / File size</h4>
+<p>Rewind: point on that record, for next operation (must be Relative,
+unless record # is 0)<br>
+Scratch: delete that record.<br>
+Load: maximum number of bytes that can be loaded into the memory buffer.<br>
+Save: number of bytes to write to the file/peripheral.</p>
+<h4>Byte 8: Bias / Status</h4>
+<p>Basic uses this byte to specify a screen bias, i.e. a value to be
+added
+to each character in case the DSR wants to display an error message on
+screen (the Basic bias is &gt;60). This is typically not used as DSRs
+do
+not write directly on screen (the CS1 and CS2 DSRs are exceptions to
+this
+rule)..</p>
+<p>Status: Return the file status in that byte:</p>
+<table border="2" cellspacing="2" cellpadding="2">
+  <tbody>
+    <tr>
+      <th>Bit</th>
+      <th>Meaning when 0</th>
+      <th>Meaning when 1</th>
+    </tr>
+    <tr>
+      <td>0 </td>
+      <td>&gt;00: File exists</td>
+      <td>&gt;80:File not found</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>&gt;00: Unprotected</td>
+      <td>&gt;40: File/device protected</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td colspan="2">not used</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>&gt;00: Display</td>
+      <td>&gt;10: Internal</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>&gt;00: Non-program</td>
+      <td>&gt;08: Program</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>&gt;00: Fixed</td>
+      <td>&gt;04: Variable</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td>&gt;00: Enough space</td>
+      <td>&gt;02: Memory full</td>
+    </tr>
+    <tr>
+      <td>7 </td>
+      <td>&gt;00: Whithin file</td>
+      <td>&gt;01: End-of-file</td>
+    </tr>
+  </tbody>
+</table>
+<p>N.B. Some DSR return the status after each and every opcode (The
+Horizon
+Ramdisk does so), but that's not required by the TI specs.</p>
+<h4>Byte 9: Name length</h4>
+<p>The size in bytes of the DSR name, including file name and modifiers.</p>
+<h4>Byte 10+: DSR name</h4>
+<p>The DSR name should start from that byte. Valid DSR names must be
+1-7
+characters in lenght and should not contain decimal points. Exemples:
+DSK1,
+RS232/1.</p>
+<p>Additional parameters can be appended to the DSR name, using decimal
+points as separators. E.g. a filename DSK1.MYFILE or transmission
+parameters
+RS232.BA=4800.DA=8.CR.CH</p>
+<p>What comes after the first decimal point depends on the DSR and is
+not
+part of the PAB convention.</p>
+<h2><br>
+<br>
+<a name="ISR"></a>ISRs</h2>
+<p>Interrupt service routines (ISRs) only exist in peripheral card
+ROMs,
+since the GPL interpreter allows interrupts: a GPL ISR would thus
+almost
+certainly be interrupted by a VDP interrupt!. When the main ISR in the
+console ROM determines that an interrupt did not come from the VDP, nor
+from the TMS9901 timer, it assumes it came from a peripheral card. It
+then
+scans all CRU addresses from &gt;1000 to &gt;1F00 and branches to each
+and every ISR it finds in any card ROM. </p>
+<p>It is the responsability of the card's ISR to determine whether the
+interrupt came from that card or not. </p>
+<p>An ISR always returns with B *R11, so that the main ISR can scan
+other
+cards. If however you would like to make sure no other card will be
+scanned,
+here is how to return:</p>
+<table bgcolor="#dadada">
+  <tbody>
+    <tr>
+      <td>
+      <pre>       C    *R11+,*R11+     Increments R11 by 4: jumps out of the scanning loop<br>       LI   R0,&gt;1E00        This means SBZ 0<br>       LI   R1,&gt;045B        This means B *R11<br>       B    R0              Caution: not B *R0</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>We can easily jump out of the ISR scanning loop by incrementing R11
+by 4. However, this skips an <tt>SBZ 0</tt> instruction and results in
+leaving our card ROM "on", which most probably will crash the
+system. We must therefore execute this <tt>SBZ 0 </tt>ourselves. But
+this
+instruction cannot be placed in the card ROM since we won't be able to
+execute a program in there once the ROM is turned off. Therefore, the <tt>SBZ
+0</tt> and a <tt>B *R11</tt> are copied into the scratch-pad into R0
+and
+R1. We then continue execution of the program in our worspace, and
+execute
+these two instructions.</p>
+<h2><br>
+<a name="Foreign language translators"></a>Foreign language translators</h2>
+<p>There is one more feature for GROMs: if GROM &gt;6000 in base
+&gt;9800
+has a negative version numbe (i.e. bit 0 is &gt;80), then the power-up
+routine will branch at &gt;6010 just after is finished drawing the TI
+title
+screen. This was means to implement a foreign language translator, that
+would replace titles in english with titles in whatever language the
+cartridge
+provided. Some game cartridges use this trick to take over control of
+the
+TI-99/4A, just like some do with the power-up routines.</p>
+<p>After the user pressed a key and the main program menu is displayed,
+another translator kicks in. Its address is &gt;6013 in base &gt;9800.
+This leaves you only 3 bytes to install the first translator, but
+that's
+all you need for a <tt>B G@&gt;xxxx</tt> statement. This second
+translator
+is in charge of translating the words "PRESS" and "FOR"
+in the menu (it could possibly translate program name, but that would
+be
+quite a task...).</p>
+<address><br>
+Revision 1. 3/19/99 OK to release</address>
+<address>Revision 2. 5/28/99 Added "Headers" and "PAB"
+chapters.<br>
+Revision 3. 6/6/99 Completely modified. Added chapter on subprograms
+with
+calling examples, etc.</address>
+<center>
+<p><a href="titechpages.htm">Back to the TI-99/4A Tech Pages</a></p>
+</center>
+</body>
+</html>

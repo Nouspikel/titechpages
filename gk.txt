@@ -1,0 +1,279 @@
+*                                                                              *
+*    MODIFICATIONS OF ROS 8.14B FOR USE WITH THE GERMAN 128K GRAM-KARTE        *
+*    ------------------------------------------------------------------        *
+*                                                                              *
+*    Four modifications have been introduced:                                  *
+*                                                                              *
+*    - The power-up routine scans peripheral cards, looking for a subroutine   *
+*      called 'MODUL' (actually 'MOxxx') instead of 'PG' and returns card CRU. *
+*      This feature is 'transparent' for the user.                             *
+*                                                                              *
+*    - The Rambo operator opcode >B0 has been modified so that it is able to   *
+*      turn the gramcard banks off when selecting a rambo bank or turning it   *
+*      off. Gramcard banks will be turned on again (provided they were) when   *
+*      using >B0 to get the number of free pages (i.e. >834C = 0).             *
+*                                                                              *
+*    - The LD DSR and opcode >C now can load a module in Gram using various    *
+*      bases, the german Gram-karte typically uses >9800 and >9820.            *
+*      The user can specify the base to use in PAB+2 (normally data buffer).   *
+*      If it does not contain a valid base,  i.e. the first byte is not >98,   *
+*      the current base value is fetched at >83FA (GPL workspace R13).         *
+*      This is always the case with DSRr LD, for instance.                     *
+*                                                                              *
+*    - The 128K Gram-Karte can emulate upto 16 switchable RAM banks at >7000.  *
+*      Thus, the loading tag in the second byte of program files is not        *
+*      restricted to >09 and >0A, but can extend upto >18.                     *
+*                                                                              *
+*      Once loading is completed, the banks are turned off, not to interfere   *
+*      with the Rambo mode. However, if a Gram header was loaded with >A5 in   *
+*      its fourth byte (number of programs) banks are left on, for immediate   *
+*      use.                                                                    *
+*                                                                              *
+*    - I had to introduce a few 'byte-saving' modifications, here and there,   *
+*      in order to recover enough space to fit the modified code in the same   *
+*      memory area than the previous version.  They are also marked with a !   *
+*                                                                              *
+*                                                                              *
+*    ROS 8.14B can easily be mofified by loading PATCH/O with option 3,  and   *
+*    running the program corresponding to the Cru address of the ramdisk one   *
+*    wants to patch. Valid program names are CRU10 to  CRU17  (corresponding   *
+*    to cru adresses >1000 to >1700).                                          *
+*                                                                              *
+*    For subsequent versions, it may be necessary to update some of the  EQU   *
+*    shown below...                                                            *
+*                                                                              *
+*                                               Thierry Nouspikel  Dec. 1993   *
+*                                                                              *
+*------------------------------------------------------------------------------*
+PGRCRU EQU  >401C             Gram-card cru buffer
+PAB    EQU  >40A0             PAB buffer in ramdisk mem
+ZERO   EQU  >435D             Data '0'
+H2000  EQU  >4362             Data >2000
+H0100  EQU  >436C             Data >0100
+HFF00  EQU  >4370             Data >FF00
+FLAG   EQU  >4372             File count
+CRUVAL EQU  >4378             Buffer for cru value at exit time
+HA5    EQU  >437F             Data >A5
+H9800  EQU  >52A0             Data >9800
+CRUBUF EQU  >533E             Buffer to save ramdisk cru value
+FILBEG EQU  >513E             Point at first sector of file
+LOADPG EQU  >517A             Load program file
+ERROR  EQU  >51B6             Return with error
+RETURN EQU  >51C6             Return if ok
+OPCRTN EQU  >4B4A             Return address after opcode call
+BANKON EQU  >52FC             Cru value for exit with banks on
+BANKOF EQU  >5357             Cru value for exit with banks off
+RAMBOF EQU  >57F6             Address to quit rambo mode
+PAGES  EQU  >5898             Rambo pages cru
+CARTRI EQU  >52BE             Opcode >C0, cartridge loader
+RAMBO  EQU  >5800             Opcode >B0, block operator
+WREGS  EQU  >5874             Workspace for opcode >B0
+CARDID EQU  >5DF8             Name of a card-specific call
+*
+*-------------------------------------------------------------------------
+A52BA  B    @ERROR            Opcode >0C
+*                             ----------
+A52BE  LI   11,OPCRTN
+A52C2  MOV  11,@RETURN+6
+       CLR  @FLAG
+       MOVB @BANKOF,@CRUVAL
+       MOV  12,@CRUBUF
+       MOVB @H2000,@PAB+24    ! second space added later
+A52CA  BL   @FILBEG
+ 
+       MOV  *6+,9
+       JEQ  A535A
+       C    9,@HFF00
+       JEQ  A535A
+ 
+       CB   9,@HFF00
+       JEQ  A52F2
+       MOVB 9,9               ! was: CB 9,@HFF00+1
+       JNE  A52BA
+ 
+A52F2  CB   @>0004(6),@>4000
+       JNE  A5308
+       CB   @>0007(6),@HA5
+       JNE  A5308
+       MOVB @BANKON,@CRUVAL   ! exit with bank on
+ 
+A5308  MOV  @PGRCRU,12
+       JEQ  A5368
+       CLR  0                 ! cru for gram loading + bank switching
+       MOV  9,1
+       SB   1,1               ! was: ANDI 1,>00FF
+       CI   1,>0004
+       JL   A5368
+       LDCR 0,8               ! was placed after checking for bank tags
+       CI   1,>0008
+       JH   A5348
+       INCT 6
+       MOV  @PAB+2,8          ! get base
+       CB   8,@H9800          ! check if valid
+       JEQ  A5332             !
+       MOV  @>83FA,8          ! no: use current base
+A5332  AI   8,>0402           ! port = write address
+       MOVB *6+,*8            ! write address
+       MOVB *6+,*8            !
+       DECT 8                 ! port = write data
+       LI   12,>0000
+       BL   @LOADPG
+       MOVB *6+,*8
+       JMP  A5368
+ 
+A5348  CI   1,>0018           ! 16 ram banks allowed
+       JH   A5368             !
+       SLA  1,1               !
+       MOVB 1,@>5FEE(1)       ! switch
+A5354  LI   0,>90C2           ! cru for: write in bank/exit with bank off
+A5358  LDCR 0,8
+A535A  INCT 6
+       MOV  *6+,8
+       MOV  @CRUBUF,12
+       BL   @LOADPG
+       MOVB *6+,*8+
+ 
+A5368  MOV  @CRUBUF,12
+       ANDI 9,>FF00
+       JEQ  A5398             ! there was an useless ABS 9 here
+       LI   1,PAB+15
+A5376  CB   *1+,@H2000
+       JNE  A5376
+       ABS  @FLAG
+       JNE  A538C
+       MOVB @ZERO,@-1(1)
+       MOVB @H2000,*1+        ! add trailing space (was at beginning)
+A538C  DECT 1
+       AB   @H0100,*1
+       INC  @FLAG
+       JMP  A52CA
+ 
+A5398  MOV  @PGRCRU,12
+       JEQ  A53A2
+       LDCR @CRUVAL,8
+A53A2  MOV  @CRUBUF,12
+       B    @RETURN
+A53AA
+*
+*      ---------------        opcode >B0
+*                             ----------
+A5800  LWPI WREGS
+       MOV  *7,12             ! check if gram-card banks are on
+       JEQ  A5824             ! none installed
+       MOV  5,5               ! already checked ?
+       JNE  A5824             ! yes, skip
+       MOV  3,1               ! find a non-zero word
+A580E  MOV  *1,5              ! is it 0 ?
+       JNE  A5818             ! no: test if banks are on
+       A    4,1               ! yes: search further
+       JGT  A580E             ! >8000 reached ?
+       S    4,1               ! yes: test previous step
+A5818  SBO  1                 ! turn banks off
+       SBZ  4                 ! write protect them
+       C    *1,5              ! any change ?
+       JNE  A5822             ! yes: banks were on
+       SETO 12                ! no: banks were off
+A5822  MOV  12,5              ! save cru/flag
+A5824  MOV  *6,12             ! get ramdisk cru
+ 
+A5826  MOV  *14,1
+       JLT  A583C
+       JNE  A5840
+       MOV  12,1
+       MOV  5,12              ! gramcard cru
+       JEQ  A5838             ! not here
+       JLT  A5838             ! banks were off
+       SBZ  1                 ! turn banks on
+       SBO  4                 ! write enable
+A5838  MOV  1,12
+       A    10,*13
+A583C  CLR  *15
+       JMP  A5848
+ 
+A5840  C    1,10
+       JLE  A5858
+A5844  S    10,*14
+       SETO *15
+ 
+A5848  MOV  8,*9
+       CLR  5                 ! enable checking
+       LWPI >83E0
+       B    @RAMBOF
+ 
+       TEXT 'Th.N'            ! mind if i sign ?
+ 
+A5858  DEC  1
+       SLA  1,1
+       MOV  @PAGES(1),0
+       JEQ  A5844
+       MOV  0,*9
+       MOV  0,*14
+       MOV  12,*13
+       LDCR 0,0
+       CLR  *15
+       LWPI >83E0
+       INCT 11
+       B    *11
+*
+A5874  DATA 0,0,0
+       DATA >6000             ! r3: start of search
+       DATA >0200             ! r4: step value
+       DATA >0000             ! r5: cru buffer (-1: banks off)
+       DATA >83F8             ! r6: gpl workspace r12
+A5882
+*
+*
+*      ---------------        power-up routine
+*                             ----------------
+A5DF8  BYTE >05               ! call 'MODUL' is used to locate
+       TEXT 'MO'              ! the german 128K Gram-Card
+       BYTE >AA               !
+*
+*-------------------------------------------------------------------------------
+       DEF  CRU10,CRU11,CRU12,CRU13
+       DEF  CRU14,CRU15,CRU16,CRU17
+*
+CRU10  LI   12,>1000          possible ramdisk cru addresses
+       JMP  PATCH
+CRU11  LI   12,>1100
+       JMP  PATCH
+CRU12  LI   12,>1200
+       JMP  PATCH
+CRU13  LI   12,>1300
+       JMP  PATCH
+CRU14  LI   12,>1400
+       JMP  PATCH
+CRU15  LI   12,>1500
+       JMP  PATCH
+CRU16  LI   12,>1600
+       JMP  PATCH
+CRU17  LI   12,>1700
+PATCH  LI   0,>0001           turn ramdisk on
+       LDCR 0,0
+ 
+       LI   1,A5DF8           modify power-up subroutine
+       LI   2,CARDID
+       MOV  *1+,*2+
+       MOV  *1+,*2+
+ 
+       LI   1,A52BA           modify cartridge loader
+       LI   2,CARTRI-4
+       LI   0,A53AA-A52BA
+LP1    MOV  *1+,*2+
+       DECT 0
+       JGT  LP1
+ 
+       LI   0,>8001           select rambo page
+       LDCR 0,0
+ 
+       LI   1,A5800           modify opcode >B0
+       LI   2,RAMBO
+       LI   0,A5882-A5800
+LP2    MOV  *1+,*2+
+       DECT 0
+       JGT  LP2
+ 
+       LDCR 0,0               turn ramdisk off
+       B    *11               done
+*
+       END

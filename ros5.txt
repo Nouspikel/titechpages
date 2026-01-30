@@ -1,0 +1,412 @@
+*-------------------------------------------------------------------------
+*      subroutines for internal use
+*
+A53AA  CLR  @FLAG             put file ptr in alpha order
+A53AE  MOV  11,@A5422+2       ---------------------------
+A53B2  CLR  8
+       CLR  4
+A53B6  BL   @A545E            sector 1
+       A    8,6
+       MOV  *6,3
+       JNE  A53C6             no file
+       MOV  @HEADER,*6        put that one
+       JMP  A5422             done
+ 
+A53C6  INC  4                 current file #
+       MOV  3,6
+       BL   @A546A            point at file header
+       LI   1,FILNAM
+       LI   2,>000A
+       ABS  @FLAG             already removed?
+       JEQ  A53E8             no
+A53DC  CB   *1+,*6+           yes: compare names
+       JGT  A540A             comes before: next file
+       JLT  A540E             comes after: insert new file
+       DEC  2
+       JNE  A53DC             match: next char
+       JMP  A540A             same name: next file
+ 
+A53E8  CB   *1+,*6+           compare names (not found yet)
+       JNE  A540A             mismatch: next file
+       DEC  2
+       JNE  A53E8             next char
+       SETO @FLAG             found: delete it
+       BL   @A5426            remaining files
+       MOV  2,2
+       JEQ  A53FE             no more
+       DEC  2
+A53FE  MOV  @>0002(6),*6+     shift ptrs backwards
+       DEC  2
+       JOC  A53FE
+       CLR  *6                clear last pointer
+       JMP  A53B2             restart search
+ 
+A540A  INCT 8                 next file
+       JMP  A53B6
+ 
+A540E  BL   @A5426            remaining files
+       MOV  @HEADER,4         header's sector #
+A5416  MOV  *6,3
+       MOV  4,*6+             shift ptrs forwards
+       MOV  3,4
+       DEC  2                 one more
+       JNE  A5416             yes
+       MOV  4,*6              no: last
+A5422  B    @0000             return address varies
+*
+A5426  MOV  11,3              count remaining files
+       BL   @A545E            ---------------------
+A542C  LI   2,>0000           may vary: # files in drive
+       S    4,2               remaining files
+       A    8,6               update pointer
+       B    *3
+NBOFIL EQU  A542C+2           # of files in drive
+*
+A5436  LI   6,>5838           find sector in bitmap
+       MOV  @DRIVPA,7         ---------------------
+       CB   @H00,@PAGE0+1     drive page
+       JNE  A5448
+       SWPB 7
+A5448  LDCR 7,0               call first page
+       MOV  0,7               sector in r0
+       SRL  7,3
+       A    7,6               r6 point at bitmap byte
+       LI   7,>0080
+       ANDI 0,>0007
+       INC  0
+       SLA  7,0               r7 point at bitmap bit
+       B    *11
+*
+A545E  LI   6,>5900           point at sector 1
+       CLR  7                 -----------------
+       JMP  A547A
+*
+A5466  LI   6,>0000           point at sector in this word
+*                             ----------------------------
+A546A  MOV  6,7               point at sector in r6
+       SRL  7,3               ---------------------
+       SLA  7,3               r7: page #
+       S    7,6               sector in page
+       SLA  6,8
+       AI   6,>5800           r6: point in ram
+       SRL  7,2
+A547A  A    @DRIVPA,7         add first page in drive
+       CB   @H00,@PAGE0+1
+       JNE  A5488
+       SWPB 7
+A5488  LDCR 7,0               call page
+       B    *11
+HEADER EQU  A5466+2           header sector #
+*
+A548C  MOV  11,0              find file header
+       LI   8,>007E           ----------------
+       LI   2,>0040
+A5496  BL   @A545E            sector 1
+       A    8,6               start in the middle (faster)
+       MOV  *6,6
+       JEQ  A54CE             empty: search before
+       MOV  6,@HEADER         save sector #
+       BL   @A546A            point at it
+       LI   1,FILNAM
+       LI   4,>000A
+       MOV  6,3
+A54B2  CB   *3+,*1+           compare names
+       JNE  A54C8             mismatch
+       DEC  4
+       JNE  A54B2             next char
+       SRL  8,1
+       INC  8
+       MOV  8,@RANK           file rank in alpha list
+       SETO 8
+       INCT 0                 found: skip 1 instruction
+       B    *0
+A54C8  JH   A54CE             mismatch
+       A    2,8               search after
+       JMP  A54D0
+A54CE  S    2,8               search before
+A54D0  MOV  2,2
+       JEQ  A54DA             no change: end
+       SRL  2,2               halve offset
+       A    2,2               but never 1 (word pointers)
+       JMP  A5496
+A54DA  B    *0                not found
+*
+A54DC  MOV  11,0              count files
+       BL   @A545E            ----------- in sector 1
+       CLR  11
+A54E4  MOV  *6,*6+            one more?
+       JEQ  A54EC             no
+       INC  11                yes
+       JMP  A54E4
+A54EC  MOV  11,@NBOFIL        save # of files
+       B    *0
+*
+A54F2  CLR  @>834C            set pad for sbr call  code 0
+A54F6  MOVB @DRIVNB+1,@>834C  --------------------
+       MOVB @H60,@>8350       file parameters pointer
+       CLR  @>8362            first sector = 0
+       B    *11
+*
+A5508  MOVB @PABRLN,1         set record length
+       JNE  A5524             ----------------- already done
+       MOVB @PABSTA,2         status
+       LI   1,>5000           default length = 80
+       COC  @H8000,2
+       JEQ  A5520             no found: default
+       MOVB @>0011(6),1       old rec length
+A5520  MOVB 1,@PABRLN         set record length
+A5524  B    *11
+*
+A5526  MOVB @H0800,*8+        write floating point #
+       LI   3,>834A           ---------------------- size = 8
+       MOV  2,2               # in r2 (range 0-9999)
+       JEQ  A5550             zero
+       MOVB @H4000,*3+        exponent 0 (i.e. >40)
+       CLR  1
+       LI   0,100
+       DIV  0,1               divide by 100
+       MOV  1,1               larger than 100?
+       JEQ  A554C             no
+       AB   @H0100,@-1(3)     increment exponent
+       SWPB 1
+       MOVB 1,*3+             save first two bcd #
+A554C  SWPB 2
+       MOVB 2,*3+             save next two bcd #
+A5550  LI   0,>834A
+       LI   2,>0008
+       ABS  @FLAG
+       JEQ  A5560
+       NEG  *0                negate #
+A5560  C    0,3               write # to data buffer
+       JEQ  A556A
+       MOVB *0+,*8+           next byte
+       DEC  2
+       JMP  A5560
+A556A  MOVB 2,*8+             clear remaining bytes
+       DEC  2
+       JNE  A556A
+       B    *11
+*
+A5572  LI   8,>0000           point at open file
+       MOV  *8,3              ------------------
+       B    *11
+OPENPT EQU  A5572+2           current open file pointer
+*
+A557A  MOV  11,@A55A6+2       point at wanted record
+       MOVB @PABRLN,0         ----------------------
+       SRL  0,8               rec length
+       BL   @A5466            point at file header
+       MOVB @>000D(6),2       # of rec/sector
+       SRL  2,8
+       CLR  3
+       MOV  @PABREC,4         record #
+       DIV  2,3               sector with that record in r3
+       MPY  0,4               offset in r5
+       BL   @A5670            find sector in file (in r3)
+       MOV  4,6
+       JEQ  A55AA             not in file
+       BL   @A546A            point at it
+       A    5,6               point at record beginning
+A55A6  B    @0000             return address may vary
+ 
+A55AA  BL   @A4B92            close file
+       B    @A4B52            error
+*
+A55B2  MOV  11,@A5638+2       add 1 sector to file
+       BL   @A5466            --------------------
+       AI   6,>001C           point at cluster list in header
+       MOV  6,8
+       BL   @A56B0            empty ?
+       JEQ  A5608             yes
+A55C6  AI   6,>0003           next cluster
+       BL   @A56B0            eo list ?
+       JNE  A55C6             no: next cluster
+       AI   6,-3              point at last cluster
+       MOV  6,10
+       BL   @A569C            read cluster def
+       MOV  2,3               offset
+       AI   6,-5              previous cluster
+       C    6,8
+       JLE  A55F0             none: skip
+       MOVB *6+,0             o1 s3
+       SRL  0,8
+       MOVB *6+,0             o3 o2
+       SRL  0,4               previous offset
+       S    0,2               size of current
+       DEC  2
+A55F0  INC  2
+       MOV  1,8               starting sector in cluster
+       A    2,1               first sector after cluster
+       MOV  1,0
+       BL   @A5436            find it in bimap
+       MOVB *6,0
+       CZC  7,0               is it free
+       JEQ  A561C             yes: add it to cluster
+       AI   10,>0003          one more cluster
+       JMP  A560C
+ 
+A5608  MOV  6,10              no clusters
+       SETO 3                 offset will be 0
+A560C  BL   @A563C            find a free sector
+       MOV  1,8               found ?
+       JNE  A561C             yes
+       BL   @A4B92            no: close file
+       B    @A4B5E            mem full error
+ 
+A561C  MOV  1,0
+       BL   @A5436            find sector in bitmap
+       SOCB 7,*6              mark it as used
+       BL   @A5466            point at file header
+       INC  3                 one more sector in cluster
+       BL   @A572E            write cluster def
+       BL   @A5466            point at file header
+       AI   6,>000E
+       INC  *6                one more sector used
+A5638  B    @0000             return address may vary
+*
+A563C  LI   6,>5838           find first free sector
+       MOV  @DRIVPA,7         ----------------------
+       CB   @H00,@PAGE0+1
+       JNE  A564E
+       SWPB 7
+A564E  LDCR 7,0               call drive's first page
+       CLR  1                 r1: counter
+       JMP  A5658
+A5654  DEC  2                 next bit
+       JNE  A5660
+A5658  MOV  *6+,0             next word
+       SWPB 0
+       LI   2,>0010
+A5660  SRL  0,1               check
+       JNC  A566E             free
+       INC  1                 count
+       C    1,@DRIVSZ         max size reached?
+       JLT  A5654             no: continue
+       CLR  1                 yes: flag
+A566E  B    *11               r1: # of then 1rst free sector
+*
+A5670  AI   6,>001C           file sector -> disk sector
+       MOV  3,4               --------------------------
+A5676  MOVB *6+,1             s2 s1  0  0
+       SRL  1,8
+       MOVB *6+,2             o1 s3
+       MOVB 2,1               o1 s3 s2 s1
+       SLA  1,4
+       SRL  1,4               s3 s2 s1
+       SRL  2,8
+       MOVB *6+,2             o3 o2 o1 s3
+       SRL  2,4                  o3 o2 o1
+       C    2,3               compare with required offset
+       JLT  A5690             not yet: next cluster
+       A    1,4               ok: calc sector #
+A568E  B    *11               done
+A5690  MOV  1,4
+       JEQ  A568E             eof: return
+       MOV  3,4
+       S    2,4
+       DEC  4                 remaining sectors
+       JMP  A5676
+*
+A569C  MOVB *6+,1             read cluster def
+       SRL  1,8    s2 s1      ----------------
+       MOVB *6+,2             o1 s3
+       MOVB 2,1
+       SLA  1,4               s3 s2 s1
+       SRL  1,4
+       SRL  2,8
+       MOVB *6+,2             o3 o2 o1
+       SRL  2,4               cumulated offset in r2
+       B    *11               starting sector in r1
+*
+A56B0  MOVB *6,0              end of cluster list ?
+       SRL  0,8               ---------------------
+       MOVB @>0001(6),0       get sector #
+       MOV  0,0               test it
+       B    *11
+*
+A56BC  AI   6,>000E           reset cluster list
+       CLR  *6+               ------------------
+       INCT 6                 reset # of sector used
+       CLR  *6                and eof offset
+       AI   6,>000A           point at clusters list
+A56CA  MOVB *6,0
+       SRL  0,8
+       MOVB @>0001(6),0       get starting sector #
+       MOV  0,0
+       JEQ  A568E             0= end of list
+       MOVB @H00,*6+          clear cluster
+       MOVB @H00,*6+
+       MOVB @H00,*6+
+       JMP  A56CA             next cluster
+*
+A56E4  MOV  *11+,@A571C       update bitmap
+       MOV  11,@A572A+2       ------------- save operation+return
+       LI   8,>001C
+A56F0  BL   @A5466            point at file header
+       A    8,6               cluster list ptr
+       BL   @A569C            get sector + offset
+       MOV  1,1
+       JEQ  A572A             past eof: return
+       CI   8,>001C
+       JEQ  A5714             first cluster
+       AI   6,-5              previous cluster
+       MOVB *6+,0             o1 s3
+       SRL  0,8
+       MOVB *6+,0             o3 o2 o1 s3
+       SRL  0,4               offset of previous cluster
+       S    0,2               size of current cluster
+       DEC  2
+A5714  INC  2
+A5716  MOV  1,0
+       BL   @A5436            find sector in bitmap
+A571C  SZCB 7,*6              free it/ mark it
+       INC  1
+       DEC  2
+       JNE  A5716             next sector
+       AI   8,>0003
+       JMP  A56F0             next cluster
+A572A  B    @0000             return address may vary
+*
+A572E  SWPB 8                 write cluster def (r8 sect, r3 off)
+       MOVB 8,*10+            ----------------- s2 s1
+       SLA  3,4               o1 o2 o3 0
+       A    3,8               s2 s1 0  s3
+       SWPB 8
+       MOVB 8,*10+            o1 s3
+       MOVB 3,*10+            o3 o2
+       B    *11
+*
+*
+A573E  LDCR @PAGE0,0          LD loader
+       B    @A5CDC            ==
+*
+A5746  LDCR @PAGE0,0          page 0, regular mode
+       B    @A5CFE
+*
+*
+A574E  MOV  @>83D2,0          user dsr
+*                             ========
+A5752  MOV  0,1               interrupt
+       MOV  @>000E(1),1       ========= link in r0
+A5758  LDCR @A57F4,0          page 0, rambo mode
+       B    *1                vector (default A57F6)
+*
+       DATA 0,0,0,0,0,0,0,0,0,0,0,0
+       DATA 0,0,0,0,0,0,0,0,0,0,0,0
+       DATA 0,0,0,0,0,0,0,0,0,0,0,0
+       DATA 0,0,0,0,0,0,0,0,0,0,0,0
+       DATA 0,0,0,0,0,0,0,0,0,0,0,0
+       DATA 0,0,0,0,0,0,0,0,0,0,0,0
+ 
+A57EE  DATA >0000             no more sbr
+A57F0  DATA A57FC
+       BYTE >01,>B0           rambo switcher
+*
+A57F4  DATA >8001             cru value for rambo mode
+*
+A57F6  LDCR @PAGE0,0          page 0, regular mode
+       B    *11               return
+*
+A57FC  LDCR @A57F4,0          page 0, rambo mode
+*
+*page-limit---------page-limit---------------page-limit---------page-limit

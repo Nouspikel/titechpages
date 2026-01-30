@@ -1,0 +1,530 @@
+**********************************
+* AVL TREE MANAGEMENT ROUTINES
+* ----------------------------
+* c) 2000, Thierry Nouspikel
+*---------------------------------
+* AVL trees are balanced binary trees. They are very usefull for fast searches
+* in a dictionnary-type database. You can search 1000 items with only 10
+* comparisons, a million with 20, a billion with 30, etc.
+*
+* Each item in the tree has two pointers: one to an greater item, one to a
+* smaller item (any or both can be null).
+*             D
+*           /   \
+*          B     F
+*         / \   / \
+*        A   C E   G
+*
+* Its easy to prebuild such trees (put middle item at top, then 1/4 and 3/4 at
+* level two, etc). The trouble begin when the user should be allowed to add and
+* remove items at will. Suppose a user introduces items in alphabetical order:
+* A,B,C,D, etc.              A
+* The tree becomes a chain    \
+*                              B
+* Bye-bye fast searches!        \
+*                                C etc
+*
+* AVL trees are designed to prevent this situation from happening. Each node
+* contains a balance factor indicating whether the tree is heavier on the right
+* the left or well-balanced. An imbalance or +1 / -1 is unavoidable, but nothing
+* more should be tolerated. If this happens after an insertion/deletion, the
+* tree must be reorganised to restore a propre balance.
+*
+*-----------------------------------------------------------
+* Node structure:
+*
+*      DATA key               Key after which nodes are sorted (or ptr to it)
+*      DATA left-link         Points to smaller node or >0000 if none
+*      DATA right-link        Points to greater node or >0000 if none
+*      BYTE balance           Balance factor (-1 / 0 / +1)
+*      BYTE lcount            Number of items in the left branch (optional)
+*
+KEY    EQU  0
+LEFT   EQU  2
+RIGHT  EQU  4
+BAL    EQU  6
+LCNT   EQU  7
+NSIZE  EQU  8                 node size
+*=================================
+       DEF  TEST
+ 
+TEST   LWPI WREGS
+       LI   4,'A '
+       BL   @INSERT
+       LI   4,'B '
+       BL   @INSERT
+       LI   4,'C '
+       BL   @INSERT
+       LI   4,'D '
+       BL   @INSERT
+       LI   4,'E '
+       BL   @INSERT
+       LI   4,'F '
+       BL   @INSERT
+       LI   4,'G '
+       BL   @INSERT
+       LI   4,'H '
+       BL   @INSERT
+       LI   4,'I '
+       BL   @INSERT
+ 
+       LI   0,4
+       BL   @INDEX
+       NOP
+       BL   @RANK
+ 
+OK     LWPI >20BA
+       B    *11
+*
+*---------------------------------
+* Data area
+*---------------------------------
+H00    BYTE >00               constants
+H01    BYTE >01
+HFF    BYTE >FF
+       EVEN
+*
+ROOT   DATA 0,0,0,0           root of tree
+ 
+WREGS  DATA 0,1,2,3,4,5,6,7,8 our workspace
+       DATA 0,10,11,MEM,13,14,15
+ 
+STACK  DATA ROOT,>0001        trace-back stack
+       BSS  80                20-level deep: 1 million nodes
+*
+*=================================
+* Routines to be provided by calling program
+*=================================
+*
+*---------------------------------
+* Allocate space for a node
+* Size in R0, address into R1.
+*---------------------------------
+NEW    MOV  12,1              here: from a stack, ptr in R12
+       A    0,12              update ptr (no check for overflow)
+       B    *11
+*
+*---------------------------------
+* Reclaim space after deletion
+* Size in R0, address into R1.
+*---------------------------------
+FREE   B    *11               don't bother for this demo
+*
+*---------------------------------
+* Compare two keys, return with result in status
+* Values in R4 and *R5. OR: ptr to values.
+*---------------------------------
+COMP   C    4,*5              here: let's compare values
+       B    *11
+*
+*==================================
+* Basic user-callable routines
+*==================================
+* They make use of a stack for recursivity.
+* Stack ptr is in R8. Bottom of stack contains a ptr to the root.
+*
+*---------------------------------
+* Find greatest node in a (sub)tree
+* Starting from node in R5, return ptr in R5
+*---------------------------------
+MAX    MOV  5,*8+             save node ptr in stack
+       MOVB @BAL(5),*8+       and its balance
+       MOVB @H00,*8+          no link yet
+       MOV  @RIGHT(5),0       always go to the right
+       JEQ  SK7               no more: we are done
+       MOVB @H01,@-1(8)       flag: we went to the right
+       MOV  0,5               keep going
+       JMP  MAX
+SK7    B    *11               found
+*
+*---------------------------------
+* Find smallest node in a subtree, keep track of our path
+* Starting from node in R5, return ptr in R5
+*---------------------------------
+MIN    MOV  5,*8+             save node ptr in stack
+       MOVB @BAL(5),*8+       and its balance
+       MOVB @H00,*8+          no link yet
+       MOV  @LEFT(5),0        always go to the left
+       JEQ  SK7               no more: we are done
+       MOVB @HFF,@-1(8)       flag: we went to the left
+       MOV  0,5               keep going
+       JMP  MIN
+*
+*---------------------------------
+* Find next inorder node (call after FIND, MIN or MAX)
+* Current node in R5, route in stack, stack ptr in R8
+* Ptr to node into R5, skip JMP if found
+*---------------------------------
+NEXT   MOV  @RIGHT(5),0       get current node's right child
+       JEQ  LP6               none: up one level
+       MOVB @H01,@-1(8)       change flag: we are going to the right
+       INCT 11                we found one
+       MOV  0,5               return this node or ...
+       B    @MIN              the smallest item in its right branch
+ 
+LP6    AI   8,-4              one level up
+       CI   8,STACK+4         root  reached?
+       JLE  SK2               yes: no more found
+       MOV  @-4(8),5          get last item on stack
+       CB   @-1(8),@H01       did we go right from it ?
+       JEQ  LP6               yes: then we already returned it
+       INCT 11                no: return this node
+SK2    B    *11
+*
+*---------------------------------
+* Find previous inorder node (call after FIND, MIN or MAX)
+* Current node in R5, route in stack, stack ptr in R8
+* Ptr to node into R5, skip JMP if found
+*---------------------------------
+PREV   MOV  @LEFT(5),0        get current node's left child
+       JEQ  LP7               none: up one level
+       MOVB @HFF,@-1(8)       change flag: we are going to the left
+       INCT 11                we found one
+       MOV  0,5               return this node or ...
+       B    @MAX              the largest item in its left branch
+ 
+LP7    AI   8,-4              one level up
+       CI   8,STACK+4         root  reached?
+       JLE  SK2               yes: no more found
+       MOV  @-4(8),5          get last item on stack
+       CB   @-1(8),@HFF       did we go left from it ?
+       JEQ  LP7               yes: then we already returned it
+       INCT 11                no: return this node
+       B    *11
+*
+*---------------------------------
+* Search for a key, keep trace of our path
+* Value to find (or ptr to it) in R4
+* Ptr to node into R5, skip JMP if found
+*---------------------------------
+FIND   MOV  11,10
+       LI   8,STACK+4         memorize our route on a stack
+       MOV  @ROOT+4,5         start from top of tree
+ 
+LP2    JEQ  SK6               not found
+       MOV  5,*8+             save node ptr
+       MOV  @BAL(5),*8+       save balance
+ 
+       BL   @COMP             compare current node with wanted value
+       JGT  SK4               value is greater
+       JLT  SK5               value is smaller
+       INCT 10                we  found it, skip jump
+SK6    B    *10
+ 
+SK4    MOVB @H01,@-1(8)       leave flag: we went to the right
+       MOV  @RIGHT(5),5       go right
+       JMP  LP2
+ 
+SK5    MOVB @HFF,@-1(8)       leave flag: we went to the left
+       MOV  @LEFT(5),5        go left
+       JMP  LP2
+*
+*---------------------------------
+* Insert a node into the tree.
+* New key value in R4. Ptr to new node into R5
+*---------------------------------
+INSERT MOV  11,9
+       BL   @FIND             look for value in existing nodes
+       JMP  SK8
+       B    *9                we found it: error (optional)
+ 
+SK8    LI   0,NSIZE           node size
+       BL   @NEW              get memory space for node
+       MOV  1,2               save ptr
+       MOV  4,*1+             save data
+       CLR  *1+               clear links
+       CLR  *1+
+       CLR  *1+               reset balance + count
+       BL   @INCNT            ajust counts upstream
+ 
+       AI   8,-4
+       MOV  *8,5              get parent ptr
+       MOVB @3(8),0           where did we go ?
+       JLT  SK9
+       MOV  2,@RIGHT(5)       insert at right of parent
+       JMP  SKA
+SK9    MOV  2,@LEFT(5)        insert at left of parent
+SKA    AB   @BAL(5),0         update parent balance
+       JMP  SK23              balanced (one leaf on each side): done
+ 
+LP3    CI   8,STACK+4         did we reach top of tree?
+       JLE  SK17              yes: done
+       AI   8,-4              back up one level
+       MOV  *8,5              get node ptr
+       MOV  @2(8),0           and its balance
+       AB   @3(8),0           tree became heavier on the side we went
+ 
+SK23   MOVB 0,@BAL(5)         update balance
+       JLT  SKB               tilted on the left
+       JGT  SKC               tilted on the right
+SK17   B    *9                balanced: done
+ 
+SKC    CI   0,>01FF           node is heavy on the right
+       JLE  LP3               still ok, but see what will happen upstream
+       MOV  @RIGHT(5),6       get heavy child
+       MOV  @BAL(6),0         check its balance
+       JLT  SKD               it's heavy on the other side: rotate twice
+       BL   @ROTLL            rotate left once
+       B    *9                and we are done
+ 
+SKD    BL   @ROTLR            rotate left, then right
+       B    *9
+ 
+SKB    CI   0,>FF00           node is heavy on the left
+       JHE  LP3               still ok, but  see what happens above
+       MOV  @LEFT(5),6        get heavy child
+       MOV  @BAL(6),0         check its balance
+       JGT  SK11              it's heavy on the other side: rotate twice
+       BL   @ROTRR            rotate right once
+       B    *9                
+ 
+SK11   BL   @ROTRL            rotate rigth, then left
+       B    *9
+
+*---------------------------------                            
+* Remove a node from tree. Key value in R4                    
+*---------------------------------                            
+REMOVE MOV  11,9                                                
+       BL   @FIND             look for value in existing nodes  
+       B    *9                not found (optionally: issue error)
+       MOV  5,1
+       BL   @FREE             delete it from memory
+       MOV  5,1               save node ptr
+       AI   8,-4              ignore this node, in stack (deleted)
+ 
+LP5    AI   8,-4              move one step up
+       MOV  *8,5              get parent
+       MOV  @LEFT(1),6        get left child
+       JNE  SK20
+       MOV  @RIGHT(1),6       none: get right child, if none node is a leaf
+SK21   BL   @DECNT            update counts upstream
+       CLR  0
+       MOVB @3(8),0           where did we go ?
+       NEG  0
+       JGT  SK18              left
+       MOV  6,@RIGHT(5)       replace in parent link (or clear it)
+       JMP  SK24              check effect upstream
+SK18   MOV  6,@LEFT(5)        ditto, if we went to the left
+SK24   AB   @BAL(5),0         update parent balance
+       JMP  SK1A
+ 
+SK20   MOV  @RIGHT(1),6       child found at left, get other side
+       JEQ  SK21              node is a branch
+ 
+       MOV  5,7               node is a tree (has two children)
+       MOV  @RIGHT(1),5       means we can't delete it like that
+       C    *8+,*8+           keep parent in traceback stack
+       MOV  8,2               remember this position, we'll modify it later
+       INCT 8                 don't know yet what it will be
+       MOVB @H01,@-1(8)       we'll go to the right to find successor
+       BL   @MIN              find node successor (smallest item on its right)
+       MOV  5,*2              put its pointer in stack
+       MOV  @LEFT(1),@LEFT(5) swap data with it (or: just swap keys)
+       CLR  @LEFT(1)          successor cannot have smaller child
+       MOV  @RIGHT(5),0
+       MOV  @RIGHT(1),@RIGHT(5)
+       MOV  0,@RIGHT(1)
+       MOV  @BAL(5),0
+       MOV  @BAL(1),@BAL(5)
+       MOV  0,@BAL(1)
+       C    1,@RIGHT(7)       check were we went from parent
+       JNE  SK22
+       MOV  5,@RIGHT(7)       substitute successor in parent link
+       JMP  LP5               now remove node from successor's position
+SK22   MOV  5,@LEFT(7)        ditto, if we went left
+       JMP  LP5
+ 
+LP4    CI   8,STACK+4         did we reach top of tree?
+       JLE  SK1F              yes: done
+       AI   8,-4              back up one level
+       MOV  *8,5              get node ptr
+       MOV  @2(8),0           and its balance
+       SB   @3(8),0           tree became lighter on the side we went
+ 
+SK1A   MOVB 0,@BAL(5)         update balance
+       JLT  SK1B              tilted on the left
+       JGT  SK1C              tilted on the right
+       JMP  LP4               balanced: see effects above (tree shortened)
+ 
+SK1C   CI   0,>01FF           node is heavy on the right
+       JLE  SK1F              still ok, done (one branch shortened, were equal)
+       MOV  @RIGHT(5),6       get heavy child
+       MOV  @BAL(6),0         check its balance
+       JLT  SK1D              it's heavy on the other side: rotate twice
+       BL   @ROTLL            rotate left once
+       JEQ  LP4               if balanced: continue upstream
+SK1F   B    *9                else we are done
+ 
+SK1D   BL   @ROTLR            rotate left, then right
+       JMP  LP4               check effect upstream
+ 
+SK1B   CI   0,>FF00           node is heavy on the left
+       JHE  SK1F              still ok, done
+       MOV  @LEFT(5),6        get heavy child
+       MOV  @BAL(6),0         check its balance
+       JGT  SK1E              it's heavy on the other side: rotate twice
+       BL   @ROTRR            rotate right once
+       JEQ  LP4               if balanced: one level up
+       B    *9                else we are done
+ 
+SK1E   BL   @ROTRL            rotate rigth, then left
+       JMP  LP4               see what it does at upper levels
+*
+*---------------------------------                               A          B
+* Rotate left once. Parent in R5, child in R6                   / \  ==>   / \
+*---------------------------------                             a   B      A  b2
+ROTLL  MOV  @LEFT(6),0        memorize left grand-child           / \    / \
+       MOV  5,@LEFT(6)        put parent at left of child        b1 b2  a  b1
+       MOV  0,@RIGHT(5)       and grand-child at right of parent
+ 
+       AB   @LCNT(5),@LCNT(6) adjust left count in child
+       AB   @H01,@LCNT(6)     now becomes parent
+ 
+       LI   0,>FF00           new balance will shift to the left
+SK15   AB   @BAL(6),0         adjust balances after single rotation
+       MOVB 0,@BAL(6)         child decremented or incremented
+       NEG  0
+       MOVB 0,@BAL(5)         parent is invert of child
+       MOV  6,7               grand-child is now at top
+ 
+SK16   MOV  @-4(8),1          get ancestor
+       MOVB  @-1(8),0         which side did we go ?
+       JLT  SK14
+       MOV  7,@RIGHT(1)       update link to this level
+       JMP  SKE
+SK14   MOV  7,@LEFT(1)        ditto, if we went on the other side
+SKE    MOVB @BAL(6),0         test balance of top node
+       B    *11
+*
+*---------------------------------                                B        A
+* Rotate right once. Parent in R5, child in R6                   / \  ==> / \
+*---------------------------------                              A   b    a1  B
+ROTRR  MOV  @RIGHT(6),0       memorize right grand-child       / \          / \
+       MOV  5,@RIGHT(6)       put parent at right of child   a1  a2        a2  b
+       MOV  0,@LEFT(5)        and grand-child at left of parent
+ 
+       SB   @LCNT(6),@LCNT(5) adjust left count in parent
+       SB   @H01,@LCNT(5)     now becomes child
+ 
+       LI   0,>0100           balance will shift to the right
+       JMP  SK15
+*
+*---------------------------------                             A          B
+* Rotate left-right. Parent in R5, child in R6                / \   ==>  / \
+*---------------------------------                           a   C      A    C
+ROTLR  MOV  @LEFT(6),7         get left grand-child             / \    / \  / \
+       MOV  @LEFT(7),@RIGHT(5) put its left at right of parent B   c  a  b1 b2 c
+       MOV  @RIGHT(7),@LEFT(6) its right at left of child     / \
+       MOV  5,@LEFT(7)         parent will be at its left    b1  b2
+       MOV  6,@RIGHT(7)        child at its right
+ 
+       SB   @LCNT(7),@LCNT(6)  adjust left count in child
+       SB   @H01,@LCNT(6)      now lost the grand-child
+       AB   @LCNT(5),@LCNT(7)  adjust left count in grand-child
+       AB   @H01,@LCNT(7)      now becomes parent
+ 
+SK12   MOVB @H00,@BAL(6)       adjust balances after dobble rotation
+       MOVB @BAL(7),0          get grand-child balance
+       NEG  0
+       JGT  SKF
+       JLT  SK10
+       MOVB @H00,@BAL(5)       grand-child was balanced: all 3 are now
+       MOVB @H00,@BAL(7)
+       JMP  SK16               update link in ancestor
+ 
+SKF    MOVB 0,@BAL(7)          grand-child balance was -1, now it's +1
+       MOVB @H00,@BAL(5)       parent is now balanced
+       JMP  SK16               update link in ancestor
+ 
+SK10   MOVB @H00,@BAL(7)       grand-child balance was +1, now it's 0
+       MOVB 0,@BAL(5)          but parent becomes -1
+       JMP  SK16               update link in ancestor
+*
+*---------------------------------                                  C  ==> same
+* Rotate right-left. Parent in R5, child in R6                     / \     as
+*---------------------------------                                A   c   above
+ROTRL  MOV  @RIGHT(6),7        get right grand-child             / \
+       MOV  @LEFT(7),@RIGHT(6) put its left at right of child   a   B
+       MOV  @RIGHT(7),@LEFT(7) its right at left of parent         / \
+       MOV  5,@RIGHT(7)        parent will be at its right        b1  b2
+       MOV  6,@LEFT(7)         child at its left
+ 
+       AB   @LCNT(6),@LCNT(7)  adjust left count for grand-child
+       AB   @H01,@LCNT(7)      now becomes parent
+       SB   @LCNT(7),@LCNT(5)  adjust left count in parent
+       SB   @H01,@LCNT(5)      now becomes child
+ 
+       JMP  SK12               update balance (same as above!)
+*
+*---------------------------------
+* Find a node from its inorder rank (in R0)
+* Return node ptr in R5, skip JMP if found
+*---------------------------------
+INDEX  MOV  @ROOT+4,5         start from top
+       SLA  0,8               only 256 nodes in this demo
+       LI   8,STACK+4         memorize our route on a stack
+ 
+LP1    MOV  5,*8+             save node ptr
+       MOV  @BAL(5),*8+       save balance
+       CB   0,@LCNT(5)        compare to count
+       JL   SK25
+       JH   SK26
+       INCT 11                we found it (index start from 0)
+       B    *11               skip jump on return
+ 
+SK25   MOVB @HFF,@-1(8)       we must go to the left
+       MOV  @LEFT(5),5        get node ptr
+       JNE  LP1
+       B    *11               no link (should never happen)
+ 
+SK26   MOVB @H01,@-1(8)       we must go to the right
+       SB   @LCNT(5),0        we leave all these behind us: decount them
+       SB   @H01,0            plus current node
+       MOV  @RIGHT(5),5       get node ptr
+       JNE  LP1
+       B    *11               no more: number too big
+ 
+*---------------------------------
+* Return inorder rank for node in R5, into R0.
+* Route in stack, stack ptr in R8
+*---------------------------------
+RANK   CLR  0                 init counter
+       MOV  @ROOT+4,5         start from top of tree
+ 
+LP8    MOVB @LCNT(5),1        get # of items in left subtree
+       SRL  1,8               max 255 in this demo
+       A    1,0               add to total
+ 
+LPA    AI   8,-4              one level up
+       CI   8,STACK+4         root  reached?
+       JLE  SK27              yes: we are done
+       MOV  @-4(8),5          get previous item on stack
+       CB   @-1(8),@H01       did we go to the right from it?
+       JNE  LPA               no: ignore this node
+       INC  0                 yes: then we must count this node
+       JMP  LP8               and its left subtree
+ 
+SK27   B    *11
+*
+*---------------------------------
+* Update left-count after insertion/deletion
+* Route in stack, stack ptr in R8
+*---------------------------------
+INCNT  LI   0,>0100           increment count after insertion
+       JMP  SK29
+ 
+DECNT  LI   0,>FFFF           decrement count after deletion
+SK29   MOV  8,1               we want to keep R8 intact
+ 
+LP9    AI   1,-4              one level up
+       CI   1,STACK+4         root  reached?
+       JLE  SK27              yes: we are done
+       CB   @-1(1),@HFF       did we go left from there?
+       JNE  LP9               no: count unchanged in this node
+       MOV  @-4(1),2          get node ptr
+       AB   0,@LCNT(2)        update its count
+       JMP  LP9               keep going
+ 
+MEM    DATA 0                  were we'll put the nodes
+*
+       END

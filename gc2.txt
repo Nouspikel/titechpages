@@ -1,0 +1,39 @@
+*==============================================================================*
+* Gram header for basic program copied in gram memory at G@>6000               *
+* -----------------------------                                                *
+* It starts the program and after execution display "press any key" so that    *
+* error messages can be read.                                                  *
+* This program is stored in ROM at address >4B00-4B53                          *
+*==============================================================================*
+M6000 DATA  >AA01                            header, version 1
+      DATA  >0100                            1 program
+      DATA  >0000                            no power up
+      DATA  M6010                            program pointer
+      DATA  >0000                            no dsr
+      DATA  >0000                            no subprogram
+      DATA  >0000                            no interrupt
+      DATA  >0000
+*
+M6010 DATA  >0000                            program header
+      DATA  M6020
+M6014 STRI  'TEST'                           module name (max 10 chars)
+M6019 BYTE  0,0,0,0,0,0,0
+*
+M6020 CALL  G@>001E                          begin execution of basic
+M6023 DATA  >0000,>0000                      line number / program addresses
+      CALL  G@>4D00                          scroll
+      CALL  G@>4D00                          scroll
+      CALL  G@>4012                          close all open files
+      FMT
+      SCRO  >60                              display
+      ROW   >17
+      COL   >02
+      HTEX  'PRESS ANY KEY TO RESET'
+      FEND
+M604F SCAN                                   wait for key pressed
+      BR    G@M604F
+      EXIT                                   reset
+*
+      BYTE 0
+*
+      END

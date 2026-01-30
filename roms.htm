@@ -1,0 +1,682 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+  <title></title>
+  <meta name="Author" content="">
+  <meta name="GENERATOR"
+ content="Mozilla/3.04Gold (Win95; U) [Netscape]">
+</head>
+<body>
+<h1 align="center"><a
+ href="http://www.nouspikel.com/ti99/titechpages.htm"><img
+ src="logo.jpg" style="border: 0px solid ; height: 33px; width: 95px;"
+ title="Back to main index" alt=""></a></h1>
+<h1>Console ROMs</h1>
+<p>The TI-99/4A console contains two 4K ROMs that correspond to
+addresses
+&gt;0000 to &gt;1FFF. One of them holds the even-address bytes, the
+other
+the odd-address bytes. Together they allow for full 16-bit access from
+the TMS9900 CPU. </p>
+<p><a href="#Pinout">Pinout<br>
+</a><a href="#Contents">Content</a></p>
+<h2><a name="Pinout"></a>Pinout</h2>
+<pre>         +----+--+----+ <br>      A7 |1 o  T    24| Vcc              TMS 4732 / 2352<br>      A6 |2    M    23| A8<br>      A5 |3    S    22| A9<br>      A4 |4    4    21| CS2* <br>      A3 |5    7    20| CS1*<br>      A2 |6    3    19| A10<br>      A1 |7    2    18| A11<br>      A0 |8    /    17| D7 <br>      D0 |9    2    16| D6 <br>      D1 |10   3    15| D5 <br>      D2 |11   5    14| D4 <br>     Vss |12   2    13| D3 <br>         +------------+</pre>
+<p><u>Power supply<br>
+</u><b>Vcc </b>+5V<br>
+<b>Vss </b>Ground</p>
+<p><br>
+<u>CPU interface<br>
+</u><b>A0-A11</b> Address bus. Connected to the address bus, lines A3
+to
+A14 in the console.<br>
+<b>D0-D7</b> Data bus. In the TI-99/4A, one chip is connected to lines
+D0 to D7, the second chip to lines D8-D15.</p>
+<p><b>CS1*</b> Chip select. In the TI-99/4A, active (low) when memory
+in
+the range &gt;0000-1FFF is accessed. The selection is performed by a
+74LS138
+decoder, with A0, A1 and A2 as inputs, and MEMEN* as enabling input
+G2A*.
+Output Y0* is connected to CS1* of both ROM chips via a 1K resistor.<br>
+<b>CS2*</b> Chip select. Ditto. Hardwired to ground in the TI-99/4A..</p>
+<h2><br>
+<a name="Contents"></a>Contents</h2>
+<p>The TMS9900 microprocessor uses the beginning of its address space
+for
+special purposes. The console ROMs contain the adequate values for
+(some
+of) these features.</p>
+<p>Address &gt;0000: vector for power-up (WS = &gt;83E0, PC = &gt;0024)</p>
+<p>Addresses &gt;0000 to &gt;003F contain vectors for interrupts levels
+0 to 15. In the TI-99/4A, all interrupts are hard-wired as level 1, so
+only this vector is relevant. Nevertheless, a vector for level 2 is
+also
+present (and level 0 is the same as power-up).<br>
+Address &gt;0004: Interrupt vector 1 (WS = &gt;83C0, PC = &gt;0900)<br>
+Address &gt;0008: Interrupt vector 2 (WS = &gt;83C0, PC = &gt;0A92)</p>
+<p>Addresses &gt;0040 to &gt;007F contain vectors for the 16 XOP
+opcodes.
+Only the first two are implemented for sure, although some console
+carry
+a third one. The remaining addresses contain assembly language, which
+may
+or may not result in meaningfull vectors (see discussion of the <a
+ href="tms9900.htm#XOP">XOP
+instruction </a>in my TMS9900 page).<br>
+Address &gt;0040: XOP0 (WS = &gt;280A, PC = &gt;0C1C) Calls a
+never-released
+extended GPL card (i.e. crashes)<br>
+Address &gt;0044: XOP1 (WS = &gt;FFD8, PC = &gt;FFF8) User defined
+operation.<br>
+Address &gt;0048: XOP2 (WS = &gt;83A0, PC = &gt;8300). User-defined
+operation.
+Not on all consoles!.</p>
+<p>After these special addresses, the console ROMs mainly contain:</p>
+<p>The <a href="gpl.htm">GPL</a> interpreter,<br>
+The <a href="keyboard.htm#Built-in">keyboard scanning routine</a>,<br>
+The <a href="ints.htm#ISR">interrupt service routine</a>,<br>
+Routines that scan the GROM and card ROM headers for subprograms, DSR,
+etc.<br>
+Some <a href="reals.htm#routines">mathematical</a> subroutines (many
+others
+are in GROM),<br>
+Low-level routines for <a href="cassette.htm#ROM%20routines">cassette</a>
+operations (DSRs are in GROM).</p>
+<p>Here is a more detailed description of the ROM contents. For a
+commented
+listing, see Heiner Martin's book: TI-99/4A Intern (<a
+ href="http://99er.hispeed.com/files/tiintern.pdf">pdf
+560k</a>).</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Address</th>
+      <th>Contents</th>
+    </tr>
+    <tr>
+      <td>&gt;0000</td>
+      <td>Power up vector (&gt;83E0, &gt;0024).</td>
+    </tr>
+    <tr>
+      <td>&gt;0004</td>
+      <td>Level 1 interrupt vector (&gt;83C0, &gt;0900)</td>
+    </tr>
+    <tr>
+      <td>&gt;0008</td>
+      <td>Level 2 interrupt vector (&gt;83C0, &gt;0A92. Not used)</td>
+    </tr>
+    <tr>
+      <td>&gt;000C</td>
+      <td>CPU clock speed (&gt;28 or &gt;30) and header mark (&gt;AA) .</td>
+    </tr>
+    <tr>
+      <td>&gt;000E</td>
+      <td>Address of the keyboard scanning routine (&gt;02B2).</td>
+    </tr>
+    <tr>
+      <td>&gt;0016</td>
+      <td>Alternate entry point into the GPL interpreter (with an
+opcode in R9).</td>
+    </tr>
+    <tr>
+      <td>&gt;001C</td>
+      <td>Alternate entry point into the GPL interpreter (with no
+interrupts).</td>
+    </tr>
+    <tr>
+      <td>&gt;0020</td>
+      <td>Address of the routine that tests the &lt;Clear&gt; key
+(&gt;04B2).</td>
+    </tr>
+    <tr>
+      <td>&gt;0024</td>
+      <td>Entry point into the GPL interpreter at power-up time.</td>
+    </tr>
+    <tr>
+      <td>&gt;0036</td>
+      <td>Return from the (unreleased) extended-GPL board.</td>
+    </tr>
+    <tr>
+      <td>&gt;0040</td>
+      <td>Vectors for XOP0 (&gt;280A, &gt;0C1C).</td>
+    </tr>
+    <tr>
+      <td>&gt;0044</td>
+      <td>Vectors for XOP1 (&gt;FFD8, &gt;FFF8).</td>
+    </tr>
+    <tr>
+      <td>&gt;0048</td>
+      <td>Vectors for XOP2 (&gt;83A0, &gt;8300). Absent on some
+consoles.</td>
+    </tr>
+    <tr>
+      <td>&gt;004E</td>
+      <td>Interpretation of GPL opcode SWGR.</td>
+    </tr>
+    <tr>
+      <td>&gt;0060</td>
+      <td>Alternate entry point into theGPL interpreter (with an
+address in R6).</td>
+    </tr>
+    <tr>
+      <td>&gt;0070</td>
+      <td>Main entry point into the GPL interpreter.</td>
+    </tr>
+    <tr>
+      <td>&gt;0086</td>
+      <td>Dispatch of the standard GPL opcodes (&gt;80 to &gt;FF).</td>
+    </tr>
+    <tr>
+      <td>&gt;00CC</td>
+      <td>Interpretation of GPL opcodes CGE, CH, CHE, CGT, CLOG, CZ,
+CEQ, CARRY,
+OVF, H, GT,<br>
+B, BS, BR, ABS, NEG, CLR, INV, FETCH, CASE, PUSH, DECT, INCT, INC, SUB,
+DEC, ADD,<br>
+AND, OR, XOR, ST, EX, SRA, SLL, SRL, SRC, MPY, and DIV (see <a
+ href="#GPL%20table">table</a>
+below).</td>
+    </tr>
+    <tr>
+      <td>&gt;0270</td>
+      <td>Dispatch of the special GPL opcodes (&gt;00 to &gt;1F).</td>
+    </tr>
+    <tr>
+      <td>&gt;027A</td>
+      <td>Interpretation of GPL opcodes RAND, BACK, SCAN.</td>
+    </tr>
+    <tr>
+      <td>&gt;02B2</td>
+      <td>Keyboard scanning routine.</td>
+    </tr>
+    <tr>
+      <td>&gt;04B2</td>
+      <td>Test &lt;Clear&gt; key (Fctn-4).</td>
+    </tr>
+    <tr>
+      <td>&gt;04DE</td>
+      <td>Subinterpreter for GPL opcodes FMT, VCHA, HCHA, VTEX, HTEX,
+IROW, ICOL,
+RPTB,<br>
+FEND, LOOP, ROW, COL, SCRO, HTEX (see <a href="#GPL%20table">table</a>
+below).</td>
+    </tr>
+    <tr>
+      <td>&gt;05A2</td>
+      <td>Interpretation of GPL opcodes ALL, I/O, XML, MOVE, COINC,
+RTGR, RTN,
+RTNC, CALL,<br>
+PUSH, and various subroutines used by the interpreter (see <a
+ href="#GPL%20table">table</a>
+below).</td>
+    </tr>
+    <tr>
+      <td>&gt;0900</td>
+      <td>Interrupt service routine. &gt;0918: Peripheral cards
+interrupts. &gt;094A:
+VDP interrupts. </td>
+    </tr>
+    <tr>
+      <td>&gt;0AC0</td>
+      <td>SROM (XML &gt;19). Search card ROMs for subprograms, DSRs, or
+power-up
+routines (= DSRLNK).</td>
+    </tr>
+    <tr>
+      <td>&gt;0B24</td>
+      <td>SGROM (XML &gt;1A). Search GROMs for subprograms, DSRs, or
+power-up
+routines.</td>
+    </tr>
+    <tr>
+      <td>&gt;0C0C</td>
+      <td>Common entry point for extended-GPL opcodes.</td>
+    </tr>
+    <tr>
+      <td>&gt;0C1C</td>
+      <td>Entry points to the never-released extended-GPL board (XOP 0).</td>
+    </tr>
+    <tr>
+      <td>&gt;0C36</td>
+      <td>Jump tables for the GPL interpreter.</td>
+    </tr>
+    <tr>
+      <td>&gt;0CFA</td>
+      <td>XML master table (i.e. address of other tables).</td>
+    </tr>
+    <tr>
+      <td>&gt;0D1A</td>
+      <td>FLTAB: jump table for XML &gt;0x.</td>
+    </tr>
+    <tr>
+      <td>&gt;0D3A</td>
+      <td>FCOMP (XML &gt;0A). Floating point comparison.</td>
+    </tr>
+    <tr>
+      <td>&gt;0D46</td>
+      <td>SCOMP (XML &gt;0F). Comparison in stack.</td>
+    </tr>
+    <tr>
+      <td>&gt;0D74</td>
+      <td>SSUB (XML &gt;0C). Substraction in stack.</td>
+    </tr>
+    <tr>
+      <td>&gt;0D7C</td>
+      <td>FSUB (XML &gt;07). Floating point substraction.</td>
+    </tr>
+    <tr>
+      <td>&gt;0D80</td>
+      <td>FADD (XML &gt;06). Floating point addition.</td>
+    </tr>
+    <tr>
+      <td>&gt;0D84</td>
+      <td>SADD (XML &gt;0B). Addition in stack.</td>
+    </tr>
+    <tr>
+      <td>&gt;0E88</td>
+      <td>FMUL (XML &gt;08). Floating point multiplication.</td>
+    </tr>
+    <tr>
+      <td>&gt;0E8C</td>
+      <td>SMUL (XML &gt;0D). Multiplication in stack.</td>
+    </tr>
+    <tr>
+      <td>&gt;0F54</td>
+      <td>ROUND1 (XML &gt;01). Rounds real number to 14 digits.</td>
+    </tr>
+    <tr>
+      <td>&gt;0F4A</td>
+      <td>STST (XML &gt;03). Store status after comparing a real number
+to zero.</td>
+    </tr>
+    <tr>
+      <td>&gt;0FB2</td>
+      <td>ROUND (XML &gt;02). Round a real number with specified number
+of bytes
+in &gt;8354. </td>
+    </tr>
+    <tr>
+      <td>&gt;0FC2</td>
+      <td>OVEXP (XML &gt;04). React to overflow/underflow (according to
+sign
+of &gt;8376).</td>
+    </tr>
+    <tr>
+      <td>&gt;0FCC</td>
+      <td>OV (XML &gt;05). React to overflow.</td>
+    </tr>
+    <tr>
+      <td>&gt;0FF4</td>
+      <td>FDIV (XML &gt;09). Floating point division.</td>
+    </tr>
+    <tr>
+      <td>&gt;0FF8</td>
+      <td>SDIV (XML &gt;0E). Division in stack.</td>
+    </tr>
+    <tr>
+      <td>&gt;11A2</td>
+      <td>CSNGR(XML &gt;11) CSN from a string in GROM or VDP.</td>
+    </tr>
+    <tr>
+      <td>&gt;11AE</td>
+      <td>CSN (XML &gt;10). Convert a string to a real number (and
+round it if
+needed).</td>
+    </tr>
+    <tr>
+      <td>&gt;12A0</td>
+      <td>Jump table for XML &gt;1x.</td>
+    </tr>
+    <tr>
+      <td>&gt;12B8</td>
+      <td>CFI (XML &gt;12). Convert a floating point number to an
+integer.</td>
+    </tr>
+    <tr>
+      <td>&gt;1346</td>
+      <td>Cassette write (GPL opcode I/O 4).</td>
+    </tr>
+    <tr>
+      <td>&gt;1404</td>
+      <td>Interrupt service routine used during cassette operations
+(meant for
+TMS9901 timer interrupts only). </td>
+    </tr>
+    <tr>
+      <td>&gt;1426</td>
+      <td>Cassette verify (GPL opcode I/O 6).</td>
+    </tr>
+    <tr>
+      <td>&gt;142E</td>
+      <td>Cassette read (GPL opcode I/O 5).</td>
+    </tr>
+    <tr>
+      <td>&gt;15D6</td>
+      <td>SCHSYM (XML &gt;16). Search a Basic variable by name .</td>
+    </tr>
+    <tr>
+      <td>&gt;163C</td>
+      <td>Entry points for XML &gt;17 (&gt;163C), XML &gt;15
+(&gt;1642), XML
+&gt;13 (&gt;1648) and XML &gt;14 (&gt;164E).</td>
+    </tr>
+    <tr>
+      <td>&gt;1670</td>
+      <td>SMB (XML &gt;14). Get the value of a Basic variable.</td>
+    </tr>
+    <tr>
+      <td>&gt;176A</td>
+      <td>SYM (XML &gt;13). Search the symbol table for a variable
+named in a
+Basic statement.</td>
+    </tr>
+    <tr>
+      <td>&gt;1788</td>
+      <td>ASSIGNV (XML &gt;15). Assigns value to a Basic variable.</td>
+    </tr>
+    <tr>
+      <td>&gt;1868</td>
+      <td>PGMCH (XML &gt;1B). Get next Basic token.</td>
+    </tr>
+    <tr>
+      <td>&gt;18C8</td>
+      <td>Interpretation of GPL opcode PARSE.</td>
+    </tr>
+    <tr>
+      <td>&gt;1920</td>
+      <td>Interpretation of GPL opcode CONT.</td>
+    </tr>
+    <tr>
+      <td>&gt;1968</td>
+      <td>Interpretation of GPL opcode EXEC.</td>
+    </tr>
+    <tr>
+      <td>&gt;19E6</td>
+      <td>EXEC entry points for DEF, DIM, DATA, REM, OPTION.</td>
+    </tr>
+    <tr>
+      <td>&gt;19F0</td>
+      <td>Interpretation of GPL opcode RTNB.</td>
+    </tr>
+    <tr>
+      <td>&gt;1A2C</td>
+      <td>EXEC entry points for "error 0", END, STOP, unquated string
+(from PARSE), GO, ON, GOSUB, GOTO, <br>
+RETURN, IF, LET, NEXT.</td>
+    </tr>
+    <tr>
+      <td>&gt;1C9C</td>
+      <td>Jump <a href="basic.htm">table</a> for EXEC.</td>
+    </tr>
+    <tr>
+      <td>&gt;1CE2</td>
+      <td>Jump <a href="basic.htm">table</a> for PARSE.</td>
+    </tr>
+    <tr>
+      <td>&gt;1DE2</td>
+      <td>Jump <a href="basic.htm">table</a> for CONT.</td>
+    </tr>
+    <tr>
+      <td>&gt;1D3E</td>
+      <td>CONT entry points for: ( ) = + - * / ^ </td>
+    </tr>
+    <tr>
+      <td>&gt;1E4A</td>
+      <td>Various subroutines for use by the Basic interpreter.</td>
+    </tr>
+    <tr>
+      <td>&gt;1EAA</td>
+      <td>VPUSHG (XML &gt;17). Pushes data (symbol description) on
+Basic value
+stack. <br>
+Alternate entry at &gt;1E9C, returns with CONT.</td>
+    </tr>
+    <tr>
+      <td>&gt;1F2E</td>
+      <td>VPOP (XML &gt;18). Pops data (symbol description) from the
+Basic value
+stack</td>
+    </tr>
+    <tr>
+      <td>&gt;1F7E</td>
+      <td>Various subroutines used by the Basic interpreter.</td>
+    </tr>
+    <tr>
+      <td>&gt;1FFC</td>
+      <td>ROM checksum (&gt;2A61, &gt;A38A).</td>
+    </tr>
+  </tbody>
+</table>
+<p><a name="GPL table"></a>Detailed table of GPL interpreter routines</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Address </th>
+      <th>Opcode</th>
+      <th>Address </th>
+      <th>Opcode</th>
+      <th>Address </th>
+      <th>Opcode</th>
+    </tr>
+    <tr>
+      <td>&gt;0024</td>
+      <td>EXIT</td>
+      <td>&gt;019A</td>
+      <td>XOR</td>
+      <td>&gt;05C8</td>
+      <td>I/O</td>
+    </tr>
+    <tr>
+      <td>&gt;004E</td>
+      <td>SWGR</td>
+      <td>&gt;019E</td>
+      <td>ST</td>
+      <td>&gt;05D6</td>
+      <td>I/O sound</td>
+    </tr>
+    <tr>
+      <td>&gt;00CC</td>
+      <td>CGTE</td>
+      <td>&gt;01A2</td>
+      <td>EX</td>
+      <td>&gt;05E8</td>
+      <td>I/O cru in</td>
+    </tr>
+    <tr>
+      <td>&gt;00D6</td>
+      <td>CH</td>
+      <td>&gt;01B0</td>
+      <td>SRA</td>
+      <td>&gt;05EA</td>
+      <td>I/O cru out</td>
+    </tr>
+    <tr>
+      <td>&gt;00DA</td>
+      <td>CHE</td>
+      <td>&gt;01B4</td>
+      <td>SLL</td>
+      <td>&gt;0608</td>
+      <td>XML</td>
+    </tr>
+    <tr>
+      <td>&gt;00DE</td>
+      <td>CGT</td>
+      <td>&gt;01B8</td>
+      <td>SRL</td>
+      <td>&gt;061E</td>
+      <td>MOVE</td>
+    </tr>
+    <tr>
+      <td>&gt;00E2</td>
+      <td>CLOG</td>
+      <td>&gt;01C2</td>
+      <td>SRC</td>
+      <td>&gt;06D2</td>
+      <td>COIN</td>
+    </tr>
+    <tr>
+      <td>&gt;00EA</td>
+      <td>CZ</td>
+      <td>&gt;01CE</td>
+      <td>MPY</td>
+      <td>&gt;07AA</td>
+      <td>Arguments decoding</td>
+    </tr>
+    <tr>
+      <td>&gt;00EC</td>
+      <td>CEQ</td>
+      <td>&gt;01EA</td>
+      <td>DIV</td>
+      <td>&gt;082C</td>
+      <td>RTGR</td>
+    </tr>
+    <tr>
+      <td>&gt;00F4</td>
+      <td>CAR, OVF, HIGH, GT </td>
+      <td>&gt;017A</td>
+      <td>RND</td>
+      <td>&gt;0838</td>
+      <td>RTN</td>
+    </tr>
+    <tr>
+      <td>&gt;0104</td>
+      <td>B</td>
+      <td>&gt;029E</td>
+      <td>BACK</td>
+      <td>&gt;083E</td>
+      <td>RTNC</td>
+    </tr>
+    <tr>
+      <td>&gt;010E</td>
+      <td>BS</td>
+      <td>&gt;02AE</td>
+      <td>SCAN</td>
+      <td>&gt;0842</td>
+      <td>Pop address from substack</td>
+    </tr>
+    <tr>
+      <td>&gt;011A</td>
+      <td>BR</td>
+      <td>&gt;04DE</td>
+      <td>FMT Subinterpreter</td>
+      <td>&gt;085A</td>
+      <td>CALL</td>
+    </tr>
+    <tr>
+      <td>&gt;0136</td>
+      <td>ABS</td>
+      <td>&gt;0502</td>
+      <td>Fmt VCHA</td>
+      <td>&gt;0864</td>
+      <td>Push address on stack </td>
+    </tr>
+    <tr>
+      <td>&gt;013A</td>
+      <td>NEG</td>
+      <td>&gt;0504</td>
+      <td>Fmt HCHA</td>
+      <td>&gt;0880</td>
+      <td>Set screen ptr to write</td>
+    </tr>
+    <tr>
+      <td>&gt;013E</td>
+      <td>CLR</td>
+      <td>&gt;0508</td>
+      <td>Fmt VTEX</td>
+      <td>&gt;0884</td>
+      <td>Set screen ptr to read</td>
+    </tr>
+    <tr>
+      <td>&gt;0140</td>
+      <td>INV</td>
+      <td>&gt;050A</td>
+      <td>Fmt HTEX</td>
+      <td>&gt;08AA</td>
+      <td>Set address in multicolor mode </td>
+    </tr>
+    <tr>
+      <td>&gt;0144</td>
+      <td>FETC</td>
+      <td>&gt;0532</td>
+      <td>Fmt IROW</td>
+      <td>&gt;0C0C</td>
+      <td>Extended-GPL opcodes</td>
+    </tr>
+    <tr>
+      <td>&gt;0162</td>
+      <td>CASE</td>
+      <td>&gt;0534</td>
+      <td>Fmt ICOL</td>
+      <td>&gt;0C1A</td>
+      <td>Extended-GPL opcode &gt;1F </td>
+    </tr>
+    <tr>
+      <td>&gt;016E</td>
+      <td>PUSH</td>
+      <td>&gt;053A</td>
+      <td>Fmt RPTB</td>
+      <td>&gt;1346</td>
+      <td>I/O cassette write</td>
+    </tr>
+    <tr>
+      <td>&gt;0182</td>
+      <td>DECT</td>
+      <td>&gt;0550</td>
+      <td>Fmt LOOP, FEND</td>
+      <td>&gt;1426</td>
+      <td>I/O cassette verify</td>
+    </tr>
+    <tr>
+      <td>&gt;0184</td>
+      <td>INCT</td>
+      <td>&gt;0584</td>
+      <td>Fmt ROW, COL </td>
+      <td>&gt;142E</td>
+      <td>I/O cassette read</td>
+    </tr>
+    <tr>
+      <td>&gt;0186</td>
+      <td>INC, SUB</td>
+      <td>&gt;058E</td>
+      <td>Fmt SCRO </td>
+      <td>&gt;18C8</td>
+      <td>PARS</td>
+    </tr>
+    <tr>
+      <td>&gt;0188</td>
+      <td>DEC, ADD</td>
+      <td>&gt;0596</td>
+      <td>Fmt HSTR</td>
+      <td>&gt;1920</td>
+      <td>CONT</td>
+    </tr>
+    <tr>
+      <td>&gt;0190</td>
+      <td>AND</td>
+      <td>&gt;05A2</td>
+      <td>ALL</td>
+      <td>&gt;1968</td>
+      <td>EXEC</td>
+    </tr>
+    <tr>
+      <td>&gt;0196</td>
+      <td>OR</td>
+      <td>&nbsp;</td>
+      <td>&nbsp;</td>
+      <td>&gt;19F0</td>
+      <td>RTB</td>
+    </tr>
+  </tbody>
+</table>
+<address><br>
+Revision 1. 3/2/00 Preliminary.<br>
+Revision 2. 3/4/00 OK to release.<br>
+<br>
+</address>
+<center>
+<p><a href="titechpages.htm">Back to the TI-99/4A Tech
+Pages</a></p>
+</center>
+</body>
+</html>

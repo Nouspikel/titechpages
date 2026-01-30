@@ -1,0 +1,155 @@
+* Disassembly of the console XML >19 and XML >1A
+*===============================================
+
+*----------------------------------------------------------------------------
+* XML >19 searches for a power-up routine (>04), a DSR (>08) or a subprogram (>0A)
+* in the card ROMs at >4000 + byte found in >836D
+* The target name should be in >834A-8350, its size in >8354
+*----------------------------------------------------------------------------
+XML19  CLR  R1
+       MOV  @>83D0,R12             Are we continuing from before?
+       JNE  A0AF8                  Yes
+       LI   R12,>0F00              No: start from CRU >1000
+A0ACC  MOV  R12,R12                Console CRU? 
+       JEQ  A0AD2                  Yes
+       SBZ  0                      Turn previous card off
+A0AD2  AI   R12,>0100              Next CRU base
+       CLR  @>83D0                 None found yet
+       CI   R12,>2000              Did we try all cards?
+       JEQ  A0B20                  Yes: exit
+       MOV  R12,@>83D0             Save current CRU tested
+       SBO  0                      Turn card ROM on
+       LI   R2,>4000
+       CB   *R2,@>000D             Is first byte >AA ?
+       JNE  A0ACC                  No: skip that card
+       AB   @>836D,@>83E5          Add offset to R2
+       JMP  A0AFE
+
+A0AF8  MOV  @>83D2,R2              Get next link (or restart from here)
+       SBO  0                      Make sure card is on
+A0AFE  MOV  *R2,R2                 Get link
+       JEQ  A0ACC                  No more: try next card
+       MOV  R2,@>83D2              Save link
+       INCT R2                     Point at routine address
+       MOV  *R2+,R9                Save routine address
+       BL   @A0BE8                 Check name
+       JMP  A0AF8                  Mismatch: try next link
+       INC  R1                     Found: increment counter
+       BL   *R9                    Call the routine
+       JMP  A0AF8                  The routine wants us to keep scanning
+       SBZ  0                      Turn card ROM off
+       JMP  A0B1C                  And we're done
+
+A0B1A  CLR  *R8                    That's for XML >1A: clear >83D0
+A0B1C  BL   @A0842                 Get return address from sub stack = RTN
+A0B20  B    @>006A                 To GPL interpreter
+
+*----------------------------------------------------------------------------
+* XML >1A does the same job with GROMs but it does not call routines:
+* if it finds one it just returns its address on the data stack
+* In addition, it also searches for programs (>06 in byte >836D)
+*----------------------------------------------------------------------------
+XML1A  LI   R7,>83D2               Since we're going to use these a lot
+       LI   R8,>83D0
+       BL   @A0864                 Save GROM address on stack
+A0B30  MOV  *R7,R1                 Get next link
+       MOV  *R8,R2                 Get GROM base, if any
+       JNE  A0B3E                  There is one: we're continuing from before
+       LI   R2,>9800               There in no base in here: start from >9800
+Z0B3A  LI   R1,>E000               Last GROM
+A0B3E  CZC  @>0128,R1              Contains >1FFF: are we at beg of GROM?
+       JNE  A0B60                  No: keep scanning
+       MOV  R2,*R8                 Yes: save base in >83D0
+       MOVB R1,@>0402(R2)          Set GROM  address
+       MOVB @>83E3,@>0402(R2)
+       AB   @>836D,@>83E3          Add offset to R1
+       MOVB R1,@>83CB              Save GROM domain
+       CB   *R2,@>000D             Valid header ? (>AA)
+       JNE  A0BC4                  No: next GROM
+A0B60  MOVB R1,@>0402(R2)          Point to list pointer  
+       MOVB @>83E3,@>0402(R2)
+       SLA  R10,4                  Kill time
+       MOVB *R2,R3                 Get list pointer
+       NOP
+       MOVB *R2,@>83E7             Into R3
+       MOV  R3,*R7                 Save it into >83D2
+       JEQ  A0BC4                  No more: next GROM
+       INCT R3                     Skip link to next
+       MOVB R3,@>4002(R2)          Set GROM address 
+       MOVB @>83E7,@>0402(R2)
+       NOP                         Kill time
+       MOVB *R2,R9                 Get routine address
+       SLA  R10,4                  Kill time
+       MOVB *R2,@>83F3             Into R9
+       BL   @A0BE8                 Check name
+       JMP  A0B30                  Mismatch: try next link
+
+       AB   @>0030,@>8372          Found: add 2 to data stack ptr
+       AB   R14,@>836C             Add 1 to the counter
+       MOVB @>8372,R4              Get data stack ptr
+       SRL  R4,8                   Make it a word
+       DECT R3                     Point back to link
+       CB   @>836D,@>0C04          Are we scanning programs (>06)
+       JNE  A0BB0                  No  
+       MOV  R3,R9                  Yes: save link address (as we'll need names)
+A0BB0  MOVB R9,@>8300(R4)          Push address on data stack
+       MOVB @>83F3,@>8301(R4)      Second byte
+       MOV  R2,R13                 Change the GROM base for the one the routine is in
+       BL   @A0842                 Get return address from sub stack
+       B    @>00CE                 Return with Cnd bit set
+
+A0BC4  CLR  R1                     Let's try the next GROM (previous one actually)
+       MOVB @>83CB,R1              Get msb that was save above
+       AI   R1,>E000               Get >2000 bytes before
+       MOV  R1,*R7                 Save address in >83D2
+       CI   R1,>E000               Did we loop around?
+       JNE  A0B3E                  No yet: try that one
+       C    *R2+,*R2+              Yes: try next GROM base
+       MOV  R2,*R8                 Save it in >83D0
+       CI   R2,>9840               Did we try all bases?
+       JEQ  A0B1A                  Yes: not found
+       MOVB @>8355,R5              Are we scanning for DSR or subprograms?
+       JNE  A0B3A                  Yes: scan all GROMs in this base
+       JMP  A0B1C                  Power-ups: check base >9800 only
+*                                  Programs: let caller change base (REVIEW MODULE LIBRARY option)
+*
+*----------------------------------------------------------------------------
+* This subroutine is used to check names. It is called by both XML >19 and >1A
+*----------------------------------------------------------------------------
+A0BE8  MOVB @>8355,R5              Check name
+       JEQ  A0C08                  No name: match (power-ups and programs)
+       CB   R5,*R2                 Does size match?
+       JNE  RT05                   No: return with error
+       SRL  R5,8                   Yes: make it a word
+       LI   R6,>834A               Name buffer
+A0BF8  CI   R2,>9800               Are we checking GROMs (XML >1A)
+       JHE  A0C00                  Yes
+       INC  R2                     No: point to next byte
+A0C00  CB   *R6+,*R2               Does this char match?
+       JNE  RT05                   No: return with error
+BYT06  DEC  R5                     More to test?
+       JNE  A0BF8                  Yes
+A0C08  INCT R11                    We found it! Skip a JMP on return
+A0C0A  B    *R11                   Return to caller
+
+*----------------------------------------------------------------------------
+* This routine gets an address from the subroutine stack
+* and sets it as the GROM address
+*----------------------------------------------------------------------------
+A0842  MOVB @>8373,R4              Get sub stack ptr
+       SRL  R4,8                   Make it a word
+       DECT @>8373                 Decrement pointer (Ahem: could affect >8372!)
+       MOVB @>8300(R4),@>0402(R13) Set GROM address
+       MOVB @>8301(R4),@>0402(R13)
+       B    *R11                   
+
+*----------------------------------------------------------------------------
+* This routine saves the current GROM address on the subroutine stack
+*----------------------------------------------------------------------------
+A0864  INCT @>8373                 Point to a free space in sub stack
+       MOVB @>8373,R4              Pointer is a byte
+       SRL  R4,8                   Make it a word
+       MOVB @2(R13),@>8300(R4)     Save the current address on stack
+       MOVB @2(R13),@>8301(R4)
+       DECT @>8300(R4)             GROMs always return an address 1 byte too far
+       B    *R11

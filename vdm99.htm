@@ -1,0 +1,3281 @@
+<!doctype html public "-//w3c//dtd html 4.0 transitional//en">
+<html>
+<head>
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+   <meta name="Author" content="asdf">
+   <meta name="GENERATOR" content="Mozilla/4.79 [en] (WinNT; U) [Netscape]">
+   <title>Virtual Disk Manager 99</title>
+</head>
+<body>
+
+<center>
+<h1>
+<a href="http://www.nouspikel.com/ti99/titechpages.htm"><img SRC="logo.jpg" style="border: 0px solid ; height: 33px; width: 95px;" title="" height=33 width=95></a></h1></center>
+
+<h1>
+VDM99 user manual</h1>
+
+<p><br>Virtual Disk Manager 99, is a disk manager program that can handle
+three types of "drives":
+<ul>
+<li>
+Files on your PC that contain a TI-99/4A disk image in either DOAD format
+(i.e. sequential sector dump) or PC99 formats (containing track information).</li>
+
+<li>
+Real drives on a remote TI-99/4A connected to your PC with a serial or
+parallel cable (this did not work with version 1.0, but was fixed in version
+1.1).</li>
+
+<li>
+Emulated drives, inside my <a href="bug99.htm">Bug99</a> debugger (you'll
+need Bug99 version 2.0 or higher).</li>
+</ul>
+VDM99 provides a familiar&nbsp; "Windows Explorer" interface, with a tree
+view of the drives/disks on the left and a list of files on the right.
+Copying a disk or a file then becomes a simple matter of drag and drop,
+and so it uploading / downloading to/from your TI-99/4A. The main menu
+allows you to perform the expected disk and file operations (delete, protect,
+etc) and some more advanced ones (undelete file, defragment disk, etc).
+In addition, VDM99 is able to extract any file from a TI-99/4A disk into
+a PC file, and conversely it can import a PC file into a TI disk.
+<p>Starting with version 2.0, VDM99 also offers database support: You can
+"scan" a disk and store the characteristics of the disk and all its files
+into an MS Access database. You can then browse the database, or query
+it in various manners to locate a disk or a file, find on which disk a
+given file resides, etc. Note that the workspace file format changed with
+version 2, so you cannot reuse workspaces saved with version 1.x.
+<p>Finally, you can select an "advanced mode" in which two extra panes
+appear: a sector map of the current disk, and a sector editor. This mode
+also offers a sophisticated search-and-replace function, sector copy and
+compare functions, etc.
+<p>Here are a few screen shots: <a href="vdm99_1.jpg">normal mode</a> (editing
+file properties), <a href="vdm99_2.jpg">advanced mode</a> (editing a sector),
+and <a href="vdm99_3.jpg">database mode</a> (browsing records while displaying
+queries).
+<p><a href="#Getting started">Getting started</a>
+<p><a href="#tree view">Tree View</a>
+<br><a href="#file view">List View</a>
+<br><a href="#sector map">Sector map</a>
+<br><a href="#sector editor">Sector Editor</a>
+<br><a href="#Database support">Database support</a>
+<p><a href="#main menu">Main menu</a>
+<br>&nbsp; <a href="#drive menu">Drive menu</a>
+<br>&nbsp; <a href="#disk menu">Disk menu</a>
+<br>&nbsp; <a href="#File menu">File menu</a>
+<br>&nbsp; <a href="#Sector menu">Sector menu</a>
+<br>&nbsp; <a href="#edit menu">Edit menu</a>
+<br>&nbsp; <a href="#view menu">View menu</a>
+<br>&nbsp; <a href="#Database menu">Database menu</a>
+<br>&nbsp; <a href="#setup menu">Setup menu</a>
+<br>&nbsp; <a href="#Help menu">Help menu</a>
+<p><a href="#Keyboard shortcuts">Keyboard shortcuts</a>
+<p><a href="#cable wiring">Connection cables</a>
+<p><b><font color="#FF0000">Legal disclaimer. Read this first.</font></b>
+<p><font size=-2>The contents of this webpage are for educative purposes
+only. I'm not a professional programmer, and therefore I cannot guarantee
+that the program described in here will function properly. In fact, it
+probably won't. It may even cause damage to your computer. And quite possibly
+set it on fire and burn your house to ashes, sending toxic fumes in the
+whole neighbourhood. Actually, it may even kill you. So if you know where
+your interest is, don't install it! Don't even think of it. Furthermore,
+be aware that using some of the third-party software included with this
+package may constitute a copyright violation, an infringement on FCC regulations,
+a federal crime or whatever it is called in the country you live in. You
+have been warned! By reading this page further and/or installing the software
+described herein, you agree on taking whole legal and moral responsability
+for any disapointment, loss of data, damage, accident, catastrophe, or
+apocalypse that this package may directly or indirectly cause or favor.
+And if you were thinking of suing me, forget it. I may have an MD but I'm
+only a scientist: I don't have any money.</font>
+<p><font size=-2>The program detailed below is copyrighted by me, Thierry
+Nouspikel, till the end of time or 50 years after my death, whichever occurs
+first. I grant you the right (but not the exclusive rights) to use it,
+and even to distribute it, as long as you understand that I take no responsability
+for it. If you distribute it, be sure to include my copyright and a link
+to the present webpage. Thanks.</font>
+<h3>
+<a NAME="Getting started"></a>Getting started</h3>
+Just expand the <a href="vdm99.zip">zip file</a> into any folder of your
+choice. Then double-click VDM99.EXE and you're up and running. You may
+want to create a shortcut to VDM99.EXE and drag it into your desktop or
+startup menu, but that's up to you.
+<p>To establish communications with a remote TI-99/4A via a serial or parallel
+cable, you should first setup communications with "Setup-->Options", then
+transfer a communication routine to the TI-99/4A with "Setup-->Upload hook".
+You only need to do this once, as VDM99 will remember the settings you
+made, and you will be able to copy the communication routine to a TI-99/4A
+disk once and for all. See <a href="#scan ti99">below</a> for details.
+<br>To view drives on the remote TI-99/4A, load and run the desired "hook"
+routine on the TI-99/4A, then do "Drive-->Scan remote TI-99/4A". A list
+of available drives appears. Click on one of them to view its contents
+and the disk name (if any) will appear in square brackets after the drive
+name: DSK1 [MYDISK].
+<br>&nbsp;
+<h4>
+Registering the database engine</h4>
+Starting with version 2.0, VDM99 offers database support. This is implemented
+via Microsoft's JetEngine database manager and requires you to install
+and register a DLL called <b>dao3032.dll</b> It may already be part of
+your system (look inside C:\Windows\MSApps\Dao), but if not you must register
+it with Windows, otherwise VDM99 will crash on startup. The best way to
+find out if you already have the file is to start VDM99: if you get an
+application error, you need to register the DLL.
+<p>Registration is very easy:
+<br>- From the start menu, select "Run"
+<br>- Type into the box: Regsvr32.exe "<i>path</i>\dao3032.dll"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+where <i>path</i> is the folder in which dao3032.dll resides. It may be
+the VDM99 folder, or you can move the DLL to&nbsp; C:\Windows\MSApps\Dao
+if you like.
+<br>- Launch VDM99 again, this time it should work.
+<p>If you are experiencing difficulties with this registration, try downloading
+the following installer from Microsoft:&nbsp; <a href="http://download.microsoft.com/download/vc40std/patch/1/win98/en-us/daoredis.exe">http://download.microsoft.com/download/vc40std/patch/1/win98/en-us/daoredis.exe</a>&nbsp;
+I did not try it personally, since DAO is already on my computer, but&nbsp;
+I was told it works really well (although some people also reported that
+it does not work on certain systems...).
+<p>NB. If you decide that you don't like the database feature and will
+never work with it, you can dispense with registering the DLL, but then
+you <u>must</u> remove "Floppies.mdb" from the VDM99 directory, otherwise
+VDM99 will attempt to open it upon startup and cause a crash.
+<p>A more drastic solution is to download the database-less version of
+VDM99, dubbed version 1.9x, from <a href="vdm99nodb.zip">here</a>. The
+file VDM99NODB.ZIP contains only one file:VDM99.EXE. You should thus download
+and instal VDM99 version 2, then replace VDM99.EXE with the one in the
+"noDB" zip file. Note that workspace format is different between version
+1 and 2, so delete the file Workspace.VDM, if you don't want to see an
+error message. In my opinion, it's a shame not to use the database features,
+but if you are part of the unhappy few that cannot install DAO, then using
+version 1.9x is your best bet.
+<br>&nbsp;
+<h2>
+<a NAME="tree view"></a>The Tree view</h2>
+
+<p><br>This view displays the currently available drives/disks. It consists
+in four sub-trees:
+<blockquote>
+<li>
+The PC subtree displays virtual drives implemented as PC files containing
+an image of a TI-99/4A disk. The tree can also have PC folders and "dummy"
+folders, i.e. folders that only exist within VDM99, for you to arrange
+your virtual disks. To populate the PC tree, you must select PC files with
+the "Drive-->Mount PC file" or "Drive-->New PC file" or "Drive-->Mount
+PC folder" commands.</li>
+
+<li>
+The TI-99/4A subtree displays all drives on the remote TI-99/4A with names
+matching DSK#, where # can be a digit or a letter. For this to work, a
+special "hook" routine must run on the TI-99/4A so that VDM99 can control
+it. Instructions on how to load this routine and setup communications (with
+Setup-->Options) are provided <a href="#remote options">later</a> in this
+document. Once this is done, just do "Drive-->Scan remote TI-99/4A" to
+populate the tree.</li>
+
+<li>
+The Bug99 subtree displays all drives emulated in my Bug99 emulator. If
+a device is running my IDEAL DSRs, the subtree will also contain a folder
+called "Floppies" in which your entire floppy collection appears. To populate
+the tree, make sure Bug99 version 2 or above is running (the emulation
+does not need to be running, just the program) and select "Drive-->Scan
+Bug99".</li>
+
+<li>
+The database subtree. You can add a disk to you database by drag-and-dropping
+it onto the file cabinet icon (the database must be open for this to work).
+This subtree comprises two built-in folders: a list of queries saved into
+the database, and a list of use-defined parameters. You can also create
+you own search queries and they will be added to this subtree.</li>
+</blockquote>
+<u>To display the contents of a disk/drive</u>
+<br>Just click on it: the files will appear in the List View, in the right
+pane, with a sector map and hex/ascii dump of sector 0 in the bottom panes
+if advanced mode is on.
+<p><b>Very important</b>: if you swap floppies in a TI-99/4A drive, select
+"Drive-->Refresh" so that VDM99 becomes aware of the change. This is necessary
+because all remote drives are buffered locally to speed things up (you
+can disable this feature in the options, if you dislike it, but remote
+access will be slower...).
+<p><u>To copy a disk</u>
+<br>Just drag the source disk and drop it onto another. You will get a
+dialog box asking you which type of copy you'd like:
+<br>- <b>All sectors</b>: This "clones" the disk, making the destination
+a perfect image of the source.
+<br>- <b>Sectors marked used</b>: This saves time by copying only the sectors
+that are marked as used in the directory of the source disk (disk allocation
+bitmap in sector 0).
+<br>- <b>All files + disk info</b>: This copies only sector 0, which contains
+the disk name and characteristics (e.g. name, size, density, sides), then
+it copies all files, one by one. As a result, the destination disk is defragmented,
+with all files grouped at the beginning of the disk, in alphabetical order,
+each file consisting of a single cluster immediately following its FDR
+(file descriptor record).
+<br>- <b>All files</b>: Same as above, except the characteristics of the
+destination disk remain unchanged. This is especially useful if the disks
+have different sizes.
+<p><u>To upload a disk to the TI-99/4A</u>
+<br>Place a blank, but formatted disk in one of the TI drives, then drag-and-drop
+a disk into it. You can also perform copies between two different TI drives
+(with Edit-->Copy or Ctrl-C, followed with Edit-->Paste or Ctrl-V).
+<p><u>To download a disk from the TI-99/4A</u>
+<br>You have two solutions: 1) Drag-and-drop a TI drive onto an existing
+disk image in the PC tree: the destination file will be overwritten with
+the contents of the TI disk.
+<br>2) Drag-and-drop a TI drive into a PC folder, a dummy folder, or the
+root of the PC subtree. This will create a new PC file to hold the contents
+of the TI disk. The "Drive properties" dialog box appears first, so you
+can select the format and location of the PC file, then the copy dialog
+described above.
+<p>More disk commands are available from the <a href="#disk menu">Disk
+menu</a> described below.&nbsp; Selected functions are available from a
+context menu, which can be displayed by right-clicking on a tree item.
+<p>Database commands are described in a dedicated section below.
+<br>&nbsp;
+<h2>
+<a NAME="file view"></a>The List view</h2>
+
+<p><br>This view displays a list of files contained in the current disk
+(to change the current disk, just click on a disk or drive in the tree
+view). When used with database functions, it displays the results of a
+query, or the contents of the two folders in the database subtree.
+<p>The list layout can be customized with "View-->Customize list": you
+can decide which information you want to display, set the size of each
+column and the justification of the text within it.
+<p>By default, the disk catalog displays:
+<br>The file name
+<br>The file format (e.g. DV80 for "display, variable 80").
+<br>The file size in sectors, including the FDR. Thus an empty file has
+a size of 1.
+<br>The protection status.
+<br>The date of creation. This is not part of the standard TI file format,
+but is a feature of my IDEAL DSRs and other disk managers.
+<br>The date of last modification. Ditto.
+<br>The location of the File Descriptor Record, i.e. the sector containing
+all the file information, including which sectors it uses.
+<p>You can order the list in alpha-numerical order by clicking on one of
+the column headings. Click again to reverse the order. A '^' or 'v' arrowhead
+indicates which column is used for sorting, and in which direction. Note
+that you can also resize the columns by draging their separators.
+<p><u>To rename a file</u>
+<br>Click on it to select it, then select "File-->Rename" (alternatively,
+right-click on a file and select "Rename" from the context menu). Type
+the new file name directly into the list, then click anywhere out of the
+edit box. Note that the name won't change if another file with the same
+name is already on the disk
+<p><u>To copy a file onto another disk</u>
+<br>Drag-and-drop it onto a disk/drive in the Tree View.
+<p><u>To upload a file to the TI-99/4A</u>
+<br>Place a formated disk into a drive on your TI-99/4A. The disk does
+not need to be blank, just make sure there is enough room to receive the
+file(s) you're uploading.
+<br>Drag-and-drop one or more files onto the drive icon in the tree view.
+(You can select several files with Ctrl-click or Shift-click before you
+start dragging).
+<br>This can also be done with "Edit-->Copy" (Ctrl-C) in the list view,
+followed with "Edit-->Paste" (Ctrl-V) in the tree view, but it's less convenient,
+as you'll need to select the TI drive before pasting into it, which makes
+it the current drive and displays its catalog.
+<p><u>To download a file from from the TI-99/4A</u>
+<br>Click on a drive image in the TI-99/4A subtree. If the drive contains
+a disk, its contents will be displayed in the List View.
+<br>Drag-and-drop the file(s) you want into a PC disk in the tree. Or use
+copy-paste as described above.
+<p>More file operations are available from the <a href="#File menu">File
+menu</a>, described below. Selected functions are available from a context
+menu, which can be displayed by right-clicking on a file.
+<br>&nbsp;
+<h2>
+<a NAME="sector map"></a>The Sector Map view</h2>
+
+<p><br>This view is only available in advanced mode, which can be toggled
+on/off with "View-->Advanced".
+<p>The view consists in a text-based representation of the disk contents,
+each sector being represented by one letter. By default there are 18 sectors
+per line (i.e. one double-density track), but you can change this in Setup-->Option.
+You can also decide whether the map should display all 1440 sectors or
+stop at the disk size reported in sector 0.
+<p>The map is color coded in a very simple way:
+<br>- Free sectors are colored green.
+<br>- Used sectors are colored blue.
+<br>- Sectors beyond the purported disk size are in black.
+<br>- Various functions can select sectors, which will be highlighted in
+red. You can also use "Edit-->Select/Deselect Sector",&nbsp; "Edit-->Clear
+selection" or "Edit-->Edit selection" to mofidy these.
+<p>The function of a given sector is coded as follow:
+<br>D: disk directory, i.e. sector 0 and 1.
+<br>d: ditto, but sector is marked free (very dangerous).
+<br>F: sector contains a FDR (file descriptor record) listed in the disk
+directory, in sector 1.
+<br>f: ditto but sector is marked free (dangerous).
+<br>o: Sector is used by a file.
+<br>u: ditto, but sector is marked free.
+<br>. (dot): sector is not used
+<br>_:&nbsp;&nbsp;&nbsp; sector is not used, yet marked as used (may be
+a bad sector, or hidden info).
+<br>X: sector is beyond end of disk, as reported in sector 0.
+<br>x: ditto, but marked as free (weird).
+<br>*: sector is used by more than one file (weird)
+<br>@: sector is used by several files, including for a FDR
+<p>As you may have guessed, D F o . X can be part of a normal disk, all
+others indicate an abnormal condition that may needs fixing...
+<p>The position of the cursor in the map defines the current sector, which
+is displayed in the sector editor. The sector number is listed in the status
+bar, at the bottom of the application window.
+<p>You can freely navigate in the map with the arrow keys, by clicking
+on a sector (if you click in between two sectors, the first one is selected),&nbsp;
+or by using the Sector menu functions or the corresponding toolbar buttons:
+"Next sector", "Previous sector", "Next track", "Previous track" or "Read
+sector". A track consists of 9 sectors in single-density disks, and 18
+sectors in double-density disks.
+<p>You can also select a current file, by dragging-and-dropping a file
+from the file view into the map or the sector editor. All sectors that
+are part of this file, including its FDR, will be highlighted in red and
+its FDR will become the current sector. You can do this for more than one
+file, in which case all will be highlighted, but only the last one becomes
+the current file. The name of that file appears in the status bar. You
+can cancel the current file selection with "Edit-->Clear selection", in
+which case the status bar will display "No file selected".
+<p>Selecting a current file also sets the "stay in file" option, which
+you can freely toggle on/off with "Sector-->Stay in file". When stay-in-file
+is on, navigation with "Next sector" and "Previous sector" is confined
+within the sectors used by the file, in the order they are used. "Next
+track" and "Previous track" change to "Next cluster" and "Previous cluster",
+respectively (a cluster is a group of adjacent sectors used consecutively
+by a file). If you select "Previous sector" when on the first sector of
+a file, you'll land on its FDR. If the current sector is part of the file,
+its offset within the file will be displayed after the file name in the
+status bar.
+<p>You can move out of the file by clicking on another sector on the map,
+but as soon as you use a navigation command from the "Sector" menu you'll
+be sent back into the current file. To return to disk-wide navigation,
+just toggle the "Sector-->Stay-in-file" option off.
+<p>Various other functions apply to the sector map, e.g. comparison, searches,
+etc. These are described in the corresponding menus, below. Some functions
+(copy, compare) require a target disk, which you can select by simply dragging-and-dropping
+a disk from the Tree view into the Sector Map or the Sector Editor views.
+Alternatively, you can define the current disk as the target with "Edit-->Select
+disk as target", but drag-and-drop is more convenient because it does not
+require changing the current disk. The name of the target disk, if any,
+is displayed in the status bar.
+<p>&nbsp;Selected functions are available from a context menu, which can
+be displayed by right-clicking on a sector.
+<br>&nbsp;
+<h2>
+<a NAME="sector editor"></a>The Sector Editor view</h2>
+
+<p><br>This view also is only available in advanced mode. It provides an
+hexadecimal and ASCII view of the current sector (as defined in the map
+view). The view is divided into 16 lines of 16 bytes. In the left column
+is the hexadecimal address of the first byte in the line, then 16 bytes
+are displayed in hexadecimal mode, then the same bytes are displayed as
+ASCII (non-printable characters are displayed as spaces).
+<p>You can navigate the sector by clicking on a given byte, or by using
+the arrow keys. The offset of the current byte appears after the sector
+number in the status bar, in the form xxx: YY where xxx is the sector number
+(decimal) and YY the current byte offset (hexadecimal).
+<p>You can alter the contents of the edited sector by simply typing new
+values in either the hexadecimal field or the ASCII field. You can use
+the [Insert] key to toggle between insert and overtype mode, and the [Delete]
+key to delete a byte (scrolling the rest of the sector up).
+<p>Changes to the sector contents will be highlighted in red. It's important
+you realize that these changes are NOT committed to disk until you select
+"Sector-->Save" or "Sector-->Save as". If you just move to another sector
+or another disk, all changes are discarded.
+<br>&nbsp;
+<br>&nbsp;
+<h2>
+<a NAME="Database support"></a>Database support</h2>
+
+<p><br>VDM99 version 2 now offers database support. You can save the characteristics
+of your disks, and of the files they contain, into a database in MS Acess
+format, which you can then browse or search with a sophisticated system
+of queries. By default, VDM99 comes with a database called "Floppies.mdb",
+which contains only one scanned disk (the VDM99 disk) and a handfull of
+commonly used queries. This database is opened by default upon startup,
+but you can change this if you want.
+<p>The database is represented by a file cabinet icon in the Tree View,
+with an open drawer if the database is open. The name of the database file
+is displayed near the icon, in either long or abbreviated form, depending
+on the settings of "View-->Full path name". To obtain more info on the
+database, right-click on the icon and select "Database properties". You
+could also select "Copy path" to copy the name of the database file to
+the clipboard (this works for folders and drives, too).
+<p>There are two sub-folders under the database icon: one to store saved
+queries, one for user-defined parameters. When you create queries (or load
+them from their folder), they'll be installed in the tree too.
+<p><u>To add a disk to your database</u>
+<br>First mount it, then drag-and-drop it onto the file cabinet icon in
+the Tree View. The disk and all its files will be registered into the database.
+VDM99 detects potential duplicates, disks or files, and may prompt you
+on what to do in such cases. See <a href="#database add disk">below</a>
+for details. After a disk or a file is entered into the database, you are
+given the option to ammend the associated information. Most fields are
+read-only, as they depend on intrisic charateristics of the disk/file,
+but you can edit the disk location, and there are 3 information fields
+for you to use as you like.
+<p><u>To browse your database</u>
+<br>Select Database-->Browse-->All disks to browse disk records, or Database-->Browse-->All
+files to browse file records. The relevant information is displayed using
+the same dialog boxes as when the disk was scanned in. You just get an
+extra set of buttons that let you navigate between records. Note that,
+per database design rules, any change you make is committed to the database
+when you move from a record to the next.
+<p><u>To search your database</u>
+<br>You can search disks or files by issuing queries. A query is an SQL
+"SELECT" statement that serves several purposes:
+<br>1) It selects a subset of records, based on the criteria you specified.
+In general, these will be checking the contents of one or more fields in
+the record (e.g. <tt>[File name] = "HANGMAN"</tt> ).
+<br>2) It can sort the records in ascending (alphabetical) or descending
+(reverse alphabetical) order, based on the contents of one or more fields
+of your choosing.
+<br>3) It can limit the number of results to the top 10, 20, etc matches
+(you decide how many).
+<br>4) Finally, VDM99 displays the query results in the List View, and
+allows a query to customize the layout of the list. For disk queries, you
+can also mount a disk by selecting its record in the List View and doing
+"Database-->Mount disk".
+<p>The "Floppies.mdb" database comes preloaded with a handful of common
+queries. These can be found in the "Saved queries" folder, in the database
+subtree. To use one of these queries, just double-click on it and it will
+be mounted into the tree. Alternatively, you could select one or more queries
+in the "Saved queries" folder and do "Database-->Load query" to load it/them
+into the tree. To run a query, just select it in the tree. To repeat a
+query, click onto another tree item, then back onto the desired query.
+<p>You can also create your own queries with "Database-->New query" or,
+if you know the database language SQL with "Database-->SQL query". These
+queries can then modified later with "Database-->Edit query" or by right
+clicking on a query in the tree and selecting "Edit" from the context menu.
+See <a href="#database new query">below</a> for details.
+<p>Queries can be saved into the database with the command "Database-->Save
+query", or by right-clicking on a query and selecting "Save".
+<p>Queries can be removed from the tree with "Database-->Delete query"
+or by right-clicking on a query and selecting "Delete".
+<br>Queries can be removed from the "Saved queries" folder by selecting
+them in the List View, and doing "Database-->Remove query" (this is the
+same menu item as "Delete query", it just changes name depending whether
+the Tree View or the List View has the focus). You will only be asked for
+confirmation if more than one query is to be removed.
+<p>Queries present in the tree when you save your workspace will be saved
+in the workspace file, and reloaded next time you load it.
+<br>&nbsp;
+<h3>
+Advanced database features</h3>
+<u>Using parameters</u>
+<br>Parameters are variables that can be used in your queries. VDM99 provides
+you with a set of pre-defined parameters, and you can define your own,
+which will appear in the List View when you select the "Parameters" folder.
+Use "Database-->New parameter" to add a new parameter to this folder, then
+click into the List View to modify its characteristics. To delete a parameter,
+select it in the list and do "Database-->Delete parameter".
+<p>If you run a query that contains an undefined parameter, VDM99 will
+prompt you for it each time you run the query. This is a handy way to customize
+queries. For instance, this is how the "File by name" query works.
+<p><u>Combining queries</u>
+<br>You can mount a query on top of another, which means the new query
+(the child) will only search records returned by the first one (the parent).
+Various types of combination are available, depending on the query types
+(file-on-disk, disk-on-file, or same-on-same).
+<p><u>Updating disk records</u>
+<br>If you modified a disk, you can rescan it to ammend its record inside
+the database. Just mount the disk and select "Database-->Rescan". You will
+be asked for the disk ID (which you should have written on the disk label
+when adding the disk to your database) and this record will be ammended.
+<p><u>Bulk replace</u>
+<br>You can ammend multiple records in the database with "Database-->Bulk
+update". You choose the field to modify, specify the new value it should
+take, and (most importantly) specify selection criteria to determine which
+records should be modified.
+<p><u>Exporting and merging</u>
+<br>You can export your database, or selected parts of it, into a text
+file. This file can then be opened with a text editor (a good way to print
+out a list of the floppies you own), imported into Excel, or merged back
+into the database (a way to make partial backups, or combine a friend's
+database with yours).
+<br>&nbsp;
+<p>
+<hr WIDTH="100%">
+<h2>
+<a NAME="main menu"></a>Main menu</h2>
+
+<p><br>The main menu bar contains the following entries:
+<br>- <a href="#drive menu">Drive</a>. This menu regroups operations dealing
+with virtual (or real) drives: selecting or creating a disk-image file
+on your PC, connecting to the remote TI-99/4A or to Bug99, creating folders
+to arrange your collection of disks, etc.
+<br>- <a href="#disk menu">Disk</a>. This menu regroups all disk-related
+operations.
+<br>- <a href="#File menu">File</a>. This menu regroups file operations,
+including import/export and conversions between TI files and PC files.
+<br>- <a href="#Sector menu">Sector</a>. This menu is only available in
+advanced mode and handles sector-related operations: navigating, read and
+write, copy, compare, etc.
+<br>- <a href="#edit menu">Edit</a>. Aside from the usual copy/paste functions,
+this menu also contains the search and replace operations available in
+advanced mode.
+<br>- <a href="#view menu">View</a>. Offers you a few display-related options,
+including toggling advanced mode on/off.
+<br>- <a href="#setup menu">Setup</a>. Here you can set,&nbsp; load or
+save your favorite options, including currently mounted drives so you won't
+have to mount them every time.
+<br>- <a href="#Help menu">Help</a>. Windows does not allow WinHelp to
+run any more. But help is available in the form of the current html file.
+<br>&nbsp;
+<h3>
+<a NAME="toolbar"></a>Toolbar</h3>
+The toolbar regroups several of the most commonly used commands from various
+menus. In order, these are:
+<p><img SRC="imageHD7.JPG" height=28 width=534>
+<p>- New PC file
+<br>- Mount PC file
+<br>- Dummy folder
+<p>- Protect file
+<br>- Delete file
+<br>- Export file
+<br>- Import file
+<p>- Select sector
+<br>- Clear selection
+<br>- Swap target
+<br>- Previous track/cluster
+<br>- Previous sector
+<br>- Save sector
+<br>- Next sector
+<br>- Next track/cluster
+<br>- Stay in file (toggle button)
+<br>- Mark sectors
+<p>- Find
+<br>- Find again
+<br>- Find all
+<br>- Edit copy
+<br>- Edit paste
+<p>You can toggle display of the toolbar on/off in the View menu.
+<h3>
+<a NAME="status bar"></a>Status bar</h3>
+The status bar comprises the following fields, from left to right:
+<p><img SRC="imageUP7.JPG" height=22 width=914>
+<p>- Help info on the current menu item
+<br>- Name of the target disk, if any.
+<br>- Name of the active file (the one highlighted in the Sector Map).
+If the current sector is part of the active file, its offset is shown in
+[brackets] after the file name.
+<br>- Current sector number (decimal). If the Sector Editor has the focus,
+the position of the cursor is shown (in hexadecimal) after the sector number.
+<br>- Caps-lock indicator.
+<br>- Num-lock indicator.
+<br>- Ins/Ovr indicator. Shows whether Insert or Overtype mode is selected
+in the Sector Map and Sector Editor. Toggle it with the &lt;Insert> key.
+<br>&nbsp;
+<h2>
+<a NAME="drive menu"></a>The Drive menu</h2>
+
+<p><br>This menu is divided into 5 sections: The first one deals with virtual
+drives consisting in PC files that contain a TI disk image.
+<br>The second part deals with ad-hoc folders, which you can use to organise
+your disk in the PC sub-tree, or the IDEAL collection in the Bug99 sub-tree.
+<br>The third part handles&nbsp; the remote TI-99/4A and the Bug99 emulation.
+<br>The fourth part consists in a list of recently mounted drives (i.e.
+disk image files residing on your PC). You can quickly mount a drive again
+by selecting if from the list. To remove a drive from the list, select
+it twice: the second time will cause an error (as the file is already in
+use) and the offending entry will be removed from the most-recenly-used
+list.
+<br>The last part contains only the Exit command, which can automatically
+save your options, layout, and list of drives, if you so wish (this is
+enabled in "Setup-->Options"). If you quit the program by just closing
+the main window, nothing is saved.
+<p>&nbsp; <a href="#new pc file">New PC file</a>
+<br>&nbsp; <a href="#mount pc file">Mount PC file</a>
+<br>&nbsp; <a href="#Mount PC folder">Mount PC Folder</a>
+<br>&nbsp; <a href="#drive properties">Drive properties</a>
+<br>&nbsp; <a href="#dismount">Dismount</a>
+<br>&nbsp; <a href="#dummy folder">Dummy folder</a>
+<br>&nbsp; <a href="#alphasort">Alpha sort</a>
+<br>&nbsp; <a href="#scan ti99">Scan remote TI-99/4A</a>
+<br>&nbsp; <a href="#flush buffers">Refresh</a>
+<br>&nbsp; <a href="#unhook ti99">Unhook TI-99/4A</a>
+<br>&nbsp; <a href="#scan bug99">Scan Bug99</a>
+<br>&nbsp; <a href="#exit">Exit</a>
+<h3>
+<a NAME="mount pc file"></a>Mount PC file</h3>
+This command lets you select a file on your PC that contains a TI-99/4A
+disk image, and mounts it as a drive in the tree view. By default, the
+disk icon will appear at the root of the PC subtree. If you want it to
+appear in a given folder, select this folder before you select the "Drive-->Mount
+PC file" command. Note that a file will only appear in a "PC" folder (colored
+yellow) if it really is in that folder on the PC. No such restriction exists
+with dummy folders (colored blue), since they only exists within VDM99.
+<p>Note that the disk icon reflects the format of the file: a 5-inch floppy
+represent DOAD format (sector only), whereas a 3-5-inch floppy is used
+for PC99 formats.
+<p>The dialog box that allows you to pick a file is a bit different from
+the standard Windows file selection dialog. Since it is used by several
+commands in VDM99, I'll spend a little while detailing its contents.
+<br>&nbsp;
+<h3>
+<a NAME="file selection dialog"></a>The file selection dialog</h3>
+This dialog box is used by many commands in VDM99 and allows you to select
+one or more files on your PC. Its layout is based on that of Windows file
+selection dialog, which you are probably familiar with, but with a couple
+of differences: First, the file list displays TI-related information, and
+second you can filter files by contents.
+<p>At the top of the box is the current directory. You cannot type anything
+in this combo box, but you can select a different drive or one of the parent
+folders in the drop list. The two small buttons nearby respectively serve
+to travel the list of previously visited folders, and to move one level
+up to the parent folder. (To move one level down, simple double-click on
+a folder in the list).
+<p>The file list displays the filename, optionally followed with information
+related to the TI-99/4A, if relevant:
+<br>Format. This is the format of the PC file. It may be a disk format
+(DOAD or PC99), or a file format (FIAD or TIFILES). Or it may be blank
+if the file content dosen't seem to match any known TI format.
+<br>TI name. This is the name of the TI disk (for disk image files), or
+the name of the TI file (for exported files).
+<br>Type. For disks, this field indicates the number of sides (SS: single-side,
+DS: double-side) and the density (SD: single-density DD: double-density).
+For files, it is the file format (e.g. Prog, DF80, IV254, etc).
+<br>Size. Is the size of the disk image in sectors, or the number of sectors
+in the file (not counting the FDR).
+<p>There are three ways you can filter the list of files:
+<br>1) Pick one of the options in the drop-list of the "Files of type"
+combo. This basically filters files based on their extension. To turn this
+feature off, select "All files (*.*)".
+<br>2) Type a filename containing a wildcard character (? or *) in the
+"File name" combo and hit the &lt;return> key (or click the default button
+or a checkbox). This filters files based on their name.
+<br>3) Select/deselect the three checkboxes that filter the files by contents:
+<br><b>TI disk</b> filters in files that appear to contain TI disk images
+in DOAD or PC99 format. Note that detection of DOAD files is based on the
+contents of sector 0 and may not work if the imaged disk is not or improperly
+formated.
+<br><b>TI file</b> filters in files that contain an exported TI file with
+a FIAD or TIFILES header. Files exported without a header (e.g. to a *.txt
+file) cannot be detected with this option.
+<br><b>Other</b> filters in files that have failed the above two detection
+schemes. These may be TI files exported without a header, or unrelated
+PC files.
+<p>To select a file, click on it in the file list. Alternatively, you can
+enter a file name in the "File name" combo, or select a previously selected
+file from the drop-list (this may result in changing the current folder).
+<br>If the command allows for multiple file selections, hold the Ctrl or
+Shift key down while clicking in the list. Alternatively, type several
+file names, each enclosed in double-quotes, in the "File name" combo ("File1.dsk"
+"File2.dsk").
+<p><b>Mount folder too</b>. When mounting a disk, an extra checkbox labelled
+"Mount folder too" appears above the [Mount] button. If you check this
+box, the PC folder will appear in the tree view, with the selected file(s)
+as children. If you wish to only mount the folder, leave the filename empty.
+<br>&nbsp;
+<h3>
+<a NAME="new pc file"></a>New PC file</h3>
+This command allows you to create a new disk-image file on your PC. It
+first displays a small dialog box in which you can select the desired file
+format, name, and location:
+<p><b>Format</b>: You have the choice between DOAD (simple sector dump)
+and PC99 (includes track info). Additionally, you could select "CF format",
+which is the 1600-sector format used by the NanoPEB. When&nbsp; you close
+the drop-list, "CF format" will reverse to DOAD, but place the proper size
+(400 KB) in the "Size in bytes" field. VDM99 version 2.3 has been modified
+to handle 1600 sectors, rather than 1440 as in version 2.2.
+<p><b>DD</b>: double-density. This is critical for PC99 format, which differs
+according to the number of sides and density.
+<p><b>DS</b>: double-sided. Ditto.
+<p><b>Name</b>: Enter the file name and path. If you don't use a path,
+the file will be created in the current folder. I'd suggest you use a meaningful
+extension, such as "dsk" or "pc99".
+<p><b>[Browse]</b>: Calls the file dialog box and lets you select a folder
+and a filename for the drive. If you pick a file that already exists, you
+will be asked if it is ok to overwrite it.
+<p>The next 3 fields are used by Bug99, which can place several disks in
+a single file (e.g. to emulate the Ramdisk memory). You can just ignore
+them, but if you are curious, here's what they mean:
+<br><b>Start</b>: Offset (in bytes) at which the disk image starts in the
+file.
+<br><b>Size in bytes</b>: Current size of the file or (for Bug99 disks)
+size of the disk within the file.
+<br><b>Max size</b>: Maximum size a Bug99 disk can have inside a file,
+not to overwrite the next disk.
+<p>Once you dismiss the dialog with [OK], the disk-image file is created.
+You are then presented with the "Disk format" dialog, which will be described
+<a href="#disk properties">below</a>.
+It allows you to properly initialize the TI disk. Note that the DS and
+DD boxes are preset to the values you selected when creating the drive.
+You may change these, but it will not change the type of PC99 format. It
+just means that the TI disk will misreport its characteristics, which is
+generally not a good thing...
+<p>The newly created drive will appear in the PC sub-tree, either at the
+root, or in the folder that had the focus when you selected the command
+(if any). Note however, that you can only mount a drive (or folder) into
+a yellow folder if it is actually part of that folder on the PC. If is
+isn't, it will be mounted at the PC root. Blue folders do not suffer from
+such restrictions.
+<p>You can change the name of a drive or folder by clicking on it twice,
+not too quickly. This only affects the display in the tree and won't change
+the actual file name. For PC folders, you have the option of toggling between
+your name (by default the folder name) and the full path name by selected
+the proper option in the View menu.
+<br>&nbsp;
+<h3>
+<a NAME="Mount PC folder"></a>Mount PC folder</h3>
+
+<p><br>This command allows you to mount a PC folder and all the disk image
+files it may contain. All you need to to is to select the desired folder
+from the Folder selection dialog, VDM99 mounts it in the file tree as a
+child of the current folder if allowed, or at the root of the PC sub-tree.
+It then searches the folder for all files that may contain disk images
+(in DOAD or PC99 format) and mounts then as children of the selected folder.
+<br>&nbsp;
+<h3>
+<a NAME="drive properties"></a>Properties</h3>
+This calls the same dialog as above, to let you review and possibly modify
+the file characteristics. You cannot use this dialog to change the file
+name or location (do this in Windows Explorer, while the file is not used
+by VDM99). But you can use it to change the format, number of sides, density,
+and the three Bug99-related fields.
+<br>&nbsp;
+<h3>
+<a NAME="dismount"></a>Dismount</h3>
+This closes a PC file and removes it from the PC sub-tree. If the command
+is called when the focus in on a folder (yellow or blue), this folder and
+all its contents are removed from the tree.
+<br>&nbsp;
+<h3>
+<a NAME="dummy folder"></a>Dummy folder</h3>
+This creates a "dummy" folder, at the currently selected location in the
+tree (which must be the PC root, the IDEAL collection in Bug99, or another
+folder). Dummy folders only exist within VDM99 and are intended for you
+to arrange your virtual floppies at your convenience, irrespective of where
+they are located on your PC. You can drag-and-drop disks and folders to/from
+dummy folders without restrictions. By contrast, yellow folders are intented
+to reflect the contents of your PC hard-drive and won't accept a drive
+(or another yellow folder) which is not actually part of this folder on
+the PC. It's entirely up to you to decide whether you want to use dummy
+folders, PC folders, or a mix of both.
+<p>Dummy folders are created with the name "Dummy folder". You'll probably
+want to change it, by clicking twice on the folder (slowly) and typing
+in a new name.
+<br>&nbsp;
+<h3>
+<a NAME="alphasort"></a>Alpha-sort</h3>
+This sorts the contents of a folder (either yellow or blue) or of a whole
+sub-tree in alphabetical order. In addition, the command can also dispatch
+your drives inside dummy folders based on their name. For the latter to
+work, dummy folders that are children of the folder being sorted must have
+a name in the form "<i>First</i>-<i>Last</i>". A disk will be moved into
+a folder if its name is equal or higher to <i>First</i> (i.e. the string
+preceeding the dash), but smaller than <i>Last</i> (the string following
+the dash).
+<p>For instance, you could have a series of dummy folder called "A-H",
+"H-N", "N-U", and "U-" to automatically dispatch your disks in alphabetical
+dividers. A couple of things to note, though:
+<br>Since the disk name must be smaller than the <i>Last</i> string, <i>Last</i>
+must appear again as <i>First</i> in the next folder. In the above example,
+if you had dummy folders named "A-G"and "H-N" any disk beginning with G
+would not be sorted and would remain in the parent folder.
+<br>You can omit the <i>Last</i> string to include any disk with a name
+greater or equal to <i>First</i>, as in the "U-" example above.
+<br>Conversely, you could use "-A" to accept any disk that begins with
+a character smaller than 'A'.
+<br>Finally, the contents of the recipient folders are not sorted aphabetically.
+If you want to do this, you will need to click on the desired folder and
+select "Alpha-sort" again.
+<br>&nbsp;
+<h3>
+<a NAME="scan ti99"></a>Scan remote TI-99/4A</h3>
+This contacts a TI-99/4A connected to your PC via a serial or parallel
+cable, and searches its DSRs for any name matching "DSK#", where # is a
+digit or a letter. In addition, the DSRs in question must comprise subroutine
+>10, which implements sector read/write. The command does not query the
+various drives for their contents, as an empty floppy drive takes an awfully
+long time to report its emptyness. To display the contents of a drive,
+just click on it.
+<p>There are several prerequisites for this to work:
+<br>- The TI-99/4A must be connected to you PC with one of the cables described
+<a href="#cable wiring">later</a>
+in this document. This could be a parallel cable, or one of two different
+types of serial cables: crossed or straight-through.
+<br>- The communication parameters for the PC should be set properly in
+the "Setup-->Options" dialog, "Remote" tab. This involves selecting the
+proper PC port, type of cable, and communication protocol. See <a href="#remote options">below</a>
+for explanations (the good news is, you only need to do this once if you
+save your options, as these are loaded automatically when VWM99 starts).
+<br>- The TI-99/4A must be running the proper assembly routine to enslave
+it to the PC. There are 6 such routines, corresponding to the 6 possible
+TI-99/4A ports (2 parallel, 4 serial). In addition, each routine comes
+in the form of a "program" file (Editor-Assembler option 5) and a DF80
+object file (E-A option 3). See <a href="#Upload hook">below</a> for help
+on selecting the proper routine, and on transfering it on the TI-99/4A
+for the very first time.
+<p>You can either list all drives together, or arrange them according the
+the peripheral card that supports the drives (listed according to its CRU).
+Use&nbsp; "View-->Devices" menu to toggle this option.
+<br>&nbsp;
+<h3>
+<a NAME="flush buffers"></a>Refresh (formerly Flush buffers)</h3>
+Due to limited transmission speed, working with a disk on a remote TI-99/4A
+can be very slow. To speed things up, all remote drives are internally
+buffered in VDM99. Each sector is only read once, every subsequent read
+operation accesses the internal copy. Write operations are always passed
+to the remote TI-99/4A, but also update the internal buffer. Since most
+command require many read operations (e.g. to display the disk directory),
+but few require writes, this strategy considerably improves processing
+speed.
+<p>However, it can become a problem in two situations: first when a write
+operation is not properly executed on the remote system, due to a faulty
+drive or disk for instance. Since you're reading back from the PC buffer,
+you will not see the problem. Second, if you change floppies in one of
+the remote drives, VDM99 will not be aware of it, as it keeps accessing
+the local copy.
+<p>The "Refresh" (aka "Flush buffers" in VDM99 1.0) command solves these
+problems by causing VDM99 to "forget" that it has read any sector in the
+currently selected disk. It will thus start afresh and read each sector
+from the remote system again (but just once for each sector). You should
+select this command each time you swap disks in a remote TI-99/4A drive,
+and when you suspect a write operation may not have been properly carried
+out.
+<p>Alternatively, if you don't like this buffering scheme, you can disable
+it in "Setup-->Options".
+<br>&nbsp;
+<h3>
+<a NAME="unhook ti99"></a>Unhook TI-99/4A</h3>
+This allows the TI-99/4A to exit the "hook" routine and returns control
+to whatever program you used to load it: Extended Basic, Editor-Assembler,
+Funnelweb, etc. The TI-99/4A sub-tree is emptied and the icon turns black
+to indicate that there is no connection.
+<p>If you decide to re-establish the connection, just relaunch the routine
+on the TI-99/4A and select "Drive-->Scan remote TI-99/4A" on the PC.
+<br>&nbsp;
+<h3>
+<a NAME="scan bug99"></a>Scan Bug99</h3>
+This contacts Bug99 and obtains a list of drives from the various emulated
+cards. Currently these are the Horizon ramdisk, and the IDE card, but I
+am planning to add the USB-SM card as soon as I have working DSRs for it.
+For this to work, Bug99 version 2.0 (or above) must be running, the appropriate
+devices must be enabled (with "Setup-->CRU" map in Bug99) , the ramdisk
+DSR must be ROS8.14 and the IDE card must run my IDEAL DSR.
+<p>Here also, you have the option to display all drives together, or to
+arrange them by device. If you are using my IDEAL DSRs, your collection
+of virtual floppies will also appear, in a folder named "Floppies".
+<p>Note: If two devices should contain a drive with the same name (e.g.
+"DSK1") a real TI-99/4A can only access the drive located in the device
+with the lowest CRU address. Bug99 however remembers which drive is on
+which device and lets you access both drives independently.
+<h3>
+<a NAME="exit"></a>Exit</h3>
+This exits VDM99 after optionally saving your workspace. The workspace
+consists of all your options, the lists of most recenly used disks and
+files, and the structure of the PC sub-tree. It is saved in a file called
+"Workspace.VDM", located in the same folder as VDM99.EXE. When VDM99 starts,
+it automatically seeks this file and loads its contents.
+<p>In "Setup-->Options" you can decide whether to always save your workspace
+when exiting, never to do so, or have VDM99 ask you what to do. In any
+case, you can always exit without saving by closing the VMD99 window, rather
+than selecting "Drive-->Exit".
+<br>&nbsp;
+<br>&nbsp;
+<br>&nbsp;
+<h2>
+<a NAME="disk menu"></a>The Disk menu</h2>
+
+<p><br>This menu regroups most operations dealing with a TI-99/4A disk.
+Most of them, but not all, require a current disk to be selected, which
+you can do by simply clicking on a disk/drive in the tree pane.
+<p>&nbsp; <a href="#disk properties">Disk properties</a>
+<br>&nbsp; <a href="#diagnose">Diagnose</a>
+<br>&nbsp; <a href="#defragment">Defragment</a>
+<br>&nbsp; <a href="#disk copy">Copy disk</a>
+<br>&nbsp; <a href="#format">Format disk</a>
+<br>&nbsp; <a href="#disk purge">Purge disk</a>
+<br>&nbsp; <a href="#sort files">Sort files</a>
+<h3>
+<a NAME="disk properties"></a>Properties</h3>
+This command calls a dialog box that lets you view and optionally edit
+the disk properties, i.e. the information found in disk sector 0 and 1,
+according to the TI floppy disk format convention. You can also display
+this dialog by double-clicking a disk/drive in the tree pane.
+<p><b>Name</b>: The TI disk name (max 10 chars).
+<p><b>Files</b>: The number of files in the directory. This information
+is obtained by counting pointers in sector 1 and cannot be edited via this
+dialog (use "File-->Delete" and "File-->Create").
+<p><b>Double-sided</b>: This box is ticked if the disk claims to be double-sided
+(i.e. 80 tracks).
+<p><b>Double-density</b>: This box is ticked if the disk claims to be double-density
+(18 sectors per track).
+<p><b>Protected</b>: This box is ticked if the disk is "copy-protected",
+according to TI original scheme, which is just to include the letter 'P'
+after the format name. Most disk managers completely ignore this and copy
+the disk anyway. So does WVM99.
+<p><b>Sectors</b>: The number of sectors on disk, as reported in sector
+0.
+<p><b>Free</b>: The number of remaining free sectors. This is calculated
+by scanning the sector bitmap found in sector 0, and cannot be modified
+via this dialog (use "Sector-->Mark" in advanced mode).
+<p><b>[Size]</b>: Clicking this button adjusts the total number of sectors
+according to the density and number of sides. It will be 360 for SS/SD,
+720 for SS/DD and DS/SD, and 1440 for DS/DD.
+<p><b><i>Time stamps</i></b>: If you are using my IDEAL DSRs, a time stamp
+can be added in sector 0, to indicate when the disk was created and when
+it was last modify. Dates should be entered in the format dd/mm/yy and
+time should be entered as hh:mm:ss (note that seconds are rounded up to
+the next 2-second interval). In addition, you could type "today" or "now"
+in a date field to specify the current date, or type "now" into a time
+field for the current time.
+<p><b>Tracks per side</b>: This is normally 40, but the TI format allows
+for different values (most likely 35).
+<p><b>Sectors per track</b>: Normally, single-density disks have 9 sectors
+per track, whereas double-density disks have 18.
+<p><b>Format name</b>: This should be "DSK" to indicate native TI format.
+<p><b>Plato protection</b>: Plato disks hide their file list in sector
+359, instead of sector 1. By checking this box, you instruct&nbsp; VDM99
+to consider the disk as "Plato" protected, and to use sector 359 to read
+or update the file catalog.
+<br>&nbsp;
+<h3>
+<a NAME="diagnose"></a>Diagnose</h3>
+This runs a series of diagnostic tests on the disk directory (sectors 0
+and 1) and on all the FDRs listed in sector 1. A summary of the findings
+is displayed via a message box. For more detailed info, view the sector
+map in advanced mode.
+<p>Possible diagnostic messages:
+<br>"Size is too big for sides &amp; density" indicates a mismatch between
+the number of sectors reported in sector 0, and the number of sides and
+density also reported in sector 0.
+<br>"File list is not in alphabetical order" (info taken from sector 1).
+<br>"Illegal FDR number found in file list": one of the pointers in sector
+1 points to a sector greater than the total number of sectors, or smaller
+than 2.
+<br>"Illegal sector number found in FDR": a file claims to be using a sector
+that's either beyond the total number of sectors, or smaller than 2.
+<br>"# sectors marked as used but not used", where # is the number of&nbsp;
+sectors marked as used in sector 0 bitmap, but not used by any file. May
+be bad sectors, or contain hidden info...
+<br>"# sectors marked as free but used by file(s)", conversely, # is the
+number of sectors marked as available, but actually used by a file/FDR.
+Very dangerous as a write operation may overwrite these sectors...
+<br>"# sectors beyond disk size marked as free": by convention ALL sectors
+beyond the number reported in sector 0 must by marked as used, to prevent
+the DSRs from allocating them to a new file.
+<br>"# sectors beyond disk size used by file(s)": one or more FDR claims
+to be using a sector that is past the total number of sectors reported
+in sector 0.
+<br>"# sectors used by more than one file", where # is the number of sectors
+that are shared by two or more files. Might be some fancy data-sharing
+or protection scheme, or a disk problem.
+<br>"No problems found": This is the message you want!
+<br>&nbsp;
+<h3>
+<a NAME="defragment"></a>Defragment</h3>
+When a file is grown in many successive steps, it may not be possible for
+the DSRs to allocate adjacent sectors every time. Instead, it may be necessary
+to start a new "cluster", i.e. a group of 1 or more adjacent sectors used
+by a file. Problem is, the FDR has only room for so many clusters and it
+may become impossible to grow a file, even though there is room left on
+the disk. Also, jumping from cluster to cluster is slower than reading
+adjacent sectors on a real floppy disk drive.
+<p>Defragmenting a disk means that all files will be rewritten and arranged
+in alphabetical order at the beginning of the disk (from sector 2 on).
+Each file will consist of a single cluster, immediately following its FDR.
+<br>&nbsp;
+<h3>
+<a NAME="disk copy"></a>Copy</h3>
+This command allows you to copy the current disk onto a PC disk-image file
+that has not been mounted (as opposed to just drag a mounted disk onto
+another in the tree view). The usual file selection dialog allows you to
+pick a single PC file as the target, then you get to choose the copy mode
+(all sectors, sectors marked used, all files + disk info, all files). If
+the drive file already exists its characteristics remain unchanged, so
+make sure it is big enough to receive the disk you are copyying. If you
+elected to create a new file, its characteristics (sides, density, PC99
+format) will match those of the current disk.
+<br>&nbsp;
+<h3>
+<a NAME="format"></a>Format</h3>
+This calls the disk properties dialog, with default values. You need to
+enter a new disk name, check that the sides, density, and number of sectors
+are ok, and click [Ok]. The disk directory will be purged, and information
+in sector 0 updated as per your specifications. If you click [Cancel],
+any changes you made are discarded and the disk remains unchanged.
+<p>Note that, if you place a never-formatted-before disk in a remote drive,
+selecting this drive will cause an I/O error when VDM99 attempts to retrieve
+the disk catalog. This is normal and will not prevent formatting, so just
+dismiss the error message, and proceed with formatting. Alternatively,
+you may want to right-click on the drive icon and select "Format..." from
+the context menu. Since right-clicking does not display the catalog, no
+error will occur.
+<br>&nbsp;
+<h3>
+<a NAME="disk purge"></a>Purge</h3>
+This command empties the disk directory (in sector 1), and marks all sectors
+as free. Sector 0 and 1 are marked "used", as well as all sectors beyond
+the total&nbsp; number of sectors announced in sector 0. Note that the
+files are not actually erased, just removed from the list in sector 1,
+and can thus still be recovered with "File-->Undelete".
+<br>&nbsp;
+<h3>
+<a NAME="sort files"></a>Sort files</h3>
+This commands sorts the list of FDR pointers found in sector 1, so that
+the disk catalog is in alphabetical order.
+<br>&nbsp;
+<h2>
+<a NAME="File menu"></a>The File menu</h2>
+
+<p><br>This menu regroups most file operations. All of them require a disk
+to be selected (by clicking on it in the disk tree), and some also require
+one or more file to be selected in the file list. Click on a file to select
+it, use Ctrt-click or Shift-click to select more than one.
+<p>&nbsp; <a href="#create file">Create file</a>
+<br>&nbsp; <a href="#file properties">File properties</a>
+<br>&nbsp; <a href="#rename file">Rename</a>
+<br>&nbsp; <a href="#protect file">Protect/Unprotect</a>
+<br>&nbsp; <a href="#purge file">Purge file</a>
+<br>&nbsp; <a href="#delete file">Delete file</a>
+<br>&nbsp; <a href="#undelete">Undelete</a>
+<br>&nbsp; <a href="#view file">View file</a>
+<br>&nbsp; <a href="#export file">Export file</a>
+<br>&nbsp; <a href="#Import file">Import file</a>
+<br>&nbsp;
+<h3>
+<a NAME="file properties"></a>Properties</h3>
+This calls a dialog box that displays the file properties, as obtained
+from the file's FDR (File Descriptor Record, the sector that contains all
+the info on a given file). Most, but not all values can be edited. You
+can also call this dialog by double-clicking on a file in the file list.
+<p><b>Name</b>: The TI file name. Max 10 characters.
+<p><b>FDR</b>: The number of the sector that contains the FDR. This value
+cannot be modified.
+<p><b>Type</b>: The file type, e.g. "Prog", "DV80", etc. If you modify
+this, you better know what you are doing, otherwise you'll just make the
+file unusable!
+<p><b>Sectors</b>: The total number of sectors in the file, not counting
+the FDR (contrarily to the file list). This number is thus 1 less than
+what appears in the file view (e.g. an empty file has a size of 0).
+<p><b>Clusters</b>: The number of clusters into which the above sectors
+are split. This value cannot be modified (use "Disk-->Defragment" to make
+every file a single cluster).
+<p><b>Records</b>: This field varies depending on the file type. For "fixed"
+files, it indicates the number of records, for "variable" files it just
+repeats the number of sectors, for "program" files it is always 0.
+<p><b>Records per sector</b>: For "fixed" files, this is the number of
+records per sector, for "variable" files it is the minimum number of records
+be sector (there could be more if records are smaller than the maximum
+size), for "program" files it should be 0.
+<p><b>Last byte</b>: Indicates the number of bytes used in the last sector
+of a "program"&nbsp; or "variable" file. Always 0 for "fixed" files.
+<p><b><i>Time stamps</i></b>: Just like disks, each file can be time-stramped
+if you are using my IDEAL DSRs. There is one stamp for the creation date+time,
+and one for the last time the file was modified. Date format is dd/mm/yy
+and you can use "today" or "now" to enter the current date. Time format
+is "hh:mm:ss" and you can use "now" to specify the current time (when [OK]
+is clicked).
+<p><b>[Sector list] </b>This displays a sub-dialog box containing a list
+of all sectors used by the file. You can edit this list if you want, but
+make sure you know what you're doing...
+<br>&nbsp;
+<h3>
+<a NAME="sector list dialog"></a>The sector list dialog</h3>
+The edit field contains a list of clusters, one per line. Each cluster
+is listed in the form "<i>first</i>-<i>last</i>", where "<i>first</i>"
+is the first sector included in the cluster, and "<i>last</i>" is the last
+one included (obviously, the cluster also contains all sectors between
+these two). If a cluster consists of a single sector, it is ok to list
+it as a single number, omitting the - sign.
+<p><b>[Get free sector] </b>This gets the number of the next free sector
+from the bitmap in sector 0, and appends it to the list as a single-sector
+cluster. You are free to repeat the operation as long as there are free
+sectors, and to merge adjacent sectors into clusters.
+<p><b>[Mark all used] </b>Marks all the above-listed sectors as "used"
+in sector 0 bitmap.
+<p><b>[Mark all free] </b>Marks all the listed sectors as "free" in sector
+0 bitmap (quite dangerous to do, as your file becomes highly likely to
+be overwritten).
+<p><b>[Ok] </b>Dismisses the sector list dialog, and introduces any changes
+you made into the FDR and sector 0 as appropriate. Note that modifications
+to the FDR won't become effective until you also dismiss the "File Properties"
+dialog with [OK]. By contast, any changes to the sector bitmap in sector
+0 (introduced by [Get free sector], [Mark all free], or [Mark all used])
+become effective now, and won't be cancelled even if you dismiss "File
+Properties" with [Cancel].
+<p><b>[Cancel] </b>Discard all changes you made to the sector list. The
+file FDR remains unchanged. Any sector you might have appropriated with
+[Get free sector] will not be marked as used. Similarly, the effect of
+[Mark all free] and [Mark all used] is cancelled.
+<br>&nbsp;
+<h3>
+<a NAME="create file"></a>Create</h3>
+This command lets you create an empty file in the directory. It calls the
+"File properties" dialog, and leaves it to you to fill it up. When you
+click [OK] and empty file is created. Not terribly useful, as files are
+best created by an application (e.g. a Basic program)...
+<br>&nbsp;
+<h3>
+<a NAME="rename file"></a>Rename</h3>
+This command lets you rename the file that's currently selected in the
+list view. Just type the new name directly into the list and click anywhere
+in the list when done. Note that the operation will fail if the name you
+chose already exists.
+<br>&nbsp;
+<h3>
+<a NAME="protect file"></a>Protect</h3>
+This command toggles the protection status of any file that's currently
+selected in the file list. Protected files cannot be erased or modified
+by most applications. However, some disk managers (including VDM99) ignore
+this flag and will modify/delete the file on your command without arguing
+<br>&nbsp;
+<h3>
+<a NAME="purge file"></a>Purge</h3>
+This empties a file, i.e. marks all its sectors free (except for the FDR)
+and removes all clusters from the cluster list in the FDR. This command
+is irreversible, so be careful with it. (N.B. You could use the "Edit-->Find"
+command to try and located the erased sectors, then "Edit-->Edit selection"
+to copy the list of found sectors, and copy it to the sector list in "File-->Properties",
+remembering of course to click [Mark all used]. But that's a lot of work...).
+<br>&nbsp;
+<h3>
+<a NAME="delete file"></a>Delete</h3>
+Removes a file from the directory, and mark all its sectors free (including
+the FDR) in sector 0 bitmap. The FDR itself is not modified, so the command
+is easily reversible, provided the file has not been overwritten after
+it was deleted...
+<br>&nbsp;
+<h3>
+<a NAME="undelete"></a>Undelete</h3>
+This command is used to recover a file that was accidentally deleted. Enter
+the name of the file and click [OK]. If the command succeeds, the file
+will reappear in the file list, otherwise you'll get an error message.
+Optionally, you can restrict the search to a given type of file, e.g. "IV254",
+but you always must enter a filename. If you attempt to undelete an existing
+file, nothing happens.
+<br>&nbsp;
+<h3>
+<a NAME="view file"></a>View</h3>
+This commands allows you to view the contents of a file in an external
+text editor. You have two options: view the file as text (assuming it is
+a text file) or view an hexadecimal + ASCII dump, similar to the one in
+Sector Editor.
+<p><b>File-->View-->As text</b> exports the selected file into a temporary
+text file, using the conversion options you set for file export in "Setup-->Options".
+Then it instructs Windows to open the file using the default application
+that handles files with a .txt extension (if you haven't selected one,
+Windows will ask you for instructions).
+<p><b>File-->View-->Hexadecimal</b> is best used for files that do not
+contain text. It exports an hexadecimal + ASCII dump into a temporary text
+file and again asks Windows to open it in your default text editor (e.g.
+Notepad, Wordpad, etc). The listing is equivalent to that of the Sector
+Editor, but comprises all the sectors in the file (not including the FDR).
+<br>&nbsp;
+<h3>
+<a NAME="export file"></a>Export</h3>
+This allows you to export a file from a TI disk onto your PC, optionally
+converting it to text, or adding a special header to the file. The command
+displays the familiar file selection dialog described above, with the "TI
+file" box pre-ticked. Select or create the target file and click [Export].
+<p>You will notice that a new combo box has appeared above the [Export]
+button. You can use it to include a 80-byte header at the top of the PC
+file, which will contain info on the nature of the exported TI file.
+<br><b>Add FIAD header</b>: Adds the "file-in-a-directory" header introduced
+by V9T9, before the first data byte. A FIAD header simply reproduces the
+FDR, not including the cluster list.
+<br><b>Add TIFILES header</b>: Adds a different type of header, which also
+reproduces the information found in the FDR, but in a somewhat scrambled
+order. Note the file produced does NOT contain the "junk" bytes found at
+the end of each sector.
+<br><b>No header</b>: Saves the file as such, in pure binary copy. I'd
+suggest you use a filename or extension reflecting the file type, in case
+you want to import it back later (e.g. "MyFile_DF80.bin" or "MyFile.DF80").
+<br><b>Convert to text</b>: Is mostly useful for DV80 files created with
+a text editor. It appends the proper "end-of-line" sequence (>0D >0A) at
+the end of each record, so that they can be read with a text editor on
+the PC.
+<br><b>Convert to text + tabs</b>: Does the same, but converts stretches
+of spaces to tab characters when possible. Use "Setup-->Options" to specify
+the position of the various tab stops.
+<br>&nbsp;
+<h3>
+<a NAME="Import file"></a>Import</h3>
+This command it the mirror image of the above one, and lets you import
+files from your PC and insert them into a TI disk. It first calls the file
+selection dialog, so you can select one or more files on your PC. These
+may or may not have a header, of either type.
+<p>Once you confirm your selection with [OK], you will be presented with
+a confirmation dialog box for each of the files you've picked. You can
+decide on the name the file should have on the TI disk, and on its type.
+If the file comprises a header, the information it contains is used to
+preset the dialog, but you are free to modify them.
+<p><b>Convert text</b>: This options is useful in case you've selected
+a .TXT file on your PC. It causes VDM99 to search for PC-style end-of-lines,
+strip them, and terminate the record there if possible (for "variable"
+files), otherwise fill the rest with spaces (for "fixed" files).
+<p><b>Convert tabs</b>: If you select this option, any tab character found
+in the PC file will be replaced with spaces according to the specifications
+you made in "Setup-->Options". Basically, you can either replace a tab
+with a fixed number of spaces (including none, to just remove the tabs),
+or issue enough spaces to reach a given column position, known as a tab
+stop. See Setup-->Options for more details.
+<p><b>Truncate overlong lines</b>: if you tick this box, text lines that
+are too long to fit in the record size you have selected will be truncated.
+If this box is not checked, long lines will be split into the next record.
+This option is useful when importing assembly programs, as you don't want
+overlong comments to continue on the next line where they'll cause a syntax
+error.
+<p>There are a couple of "secret" file types, both relating to Jean-Francois
+Rossel's cross-assembler package:
+<li>
+It you type "RDF80" in the file type field, you can import object files
+created by Jean-Francois' assembler. These are almost in DF80 format, except
+that a PC end-of-line (0x0D 0x0A) is appended after each record, and that
+some records can be shorter than 80 bytes. VDM99 will strip the end-of-line,
+pad records with spaces upto 80 bytes, and save them into a regular DF80
+file.</li>
+
+<li>
+If you enter "REA5" as the format, you can import assembly "program" files
+created by Jean-Francois' linker. These resemble the standard Editor-Assembler
+option 5 format, except that the second and third words in the header (size
+and address) are inverted. The leading "R" tells VDM99 to swap them back.</li>
+
+<br>&nbsp;
+<h2>
+<a NAME="Sector menu"></a>The Sector menu</h2>
+
+<p><br>This menu regroups command dealing with the Sector Map and Sector
+Editor views. Consequently, these commands are only available in advanced
+mode (select it with "View-->Advanced").
+<p>&nbsp; <a href="#next sector">Next sector</a>
+<br>&nbsp; <a href="#previous ssector">Previous sector</a>
+<br>&nbsp; <a href="#Next track">Next track/cluster</a>
+<br>&nbsp; <a href="#Previous track">Previous track/cluster</a>
+<br>&nbsp; <a href="#Stay in file">Stay in file</a>
+<br>&nbsp; <a href="#read sector">Read sector</a>
+<br>&nbsp; <a href="#save sector">Save sector</a>
+<br>&nbsp; <a href="#save sector as">Save sector as</a>
+<br>&nbsp; <a href="#Compare">Compare sectors</a>
+<br>&nbsp; <a href="#Copy sectors">Copy sectors</a>
+<br>&nbsp; <a href="#swap target">Swap target</a>
+<br>&nbsp; <a href="#mark sector">Mark sectors</a>
+<h3>
+<a NAME="next sector"></a>Next</h3>
+This command moves to the sector following the current sector, and makes
+it the current one. Note that you'll get an error message if you have reached
+the end of the disk
+<p>When "Stay in file" is selected, this command moves to the next sector
+within the file, in order of appearance.
+<br>&nbsp;
+<h3>
+<a NAME="previous ssector"></a>Previous</h3>
+This command move the current sector to the one immediately before it,
+if "Stay in file" is off.
+<p>When "Stay in file" is on, it moves to the previous sector in the file
+or, if the current sector was the first one, to the file FDR.
+<br>&nbsp;
+<h3>
+<a NAME="Next track"></a>Next track / Next cluster</h3>
+This command moves to the start of the next track. A track is 9 sectors
+in single-density disks, 18 sectors in double-density. The density assumed
+is taken from the disk directory in sector 0.
+<p>When "Stay in file" is on, the command moves to the start of the next
+cluster or, if you were in the last cluster, to the end of the file. A
+cluster is a group of adjacent, and consecutively used sectors in a file.
+They are listed in the file FDR.
+<br>&nbsp;
+<h3>
+<a NAME="Previous track"></a>Previous track / Previous cluster</h3>
+This command moves to the end of the previous track if "Stay in file" is
+off.
+<p>When "Stay in file" is on, the command moves to the end of the previous
+cluster in the file or, if you are in the first cluster, to the file FDR.
+<br>&nbsp;
+<h3>
+<a NAME="Stay in file"></a>Stay in file</h3>
+This toggles between free disk editing, and file editing. For the latter,
+you must have selected a current file by "dragging-and-dropping" it from
+the File view into the Sector Map or the Sector Editor.
+<p>When "Stay in file" is on, all navigation commands are restricted to
+sectors within the file, and so are search-and-replace operations.
+<br>&nbsp;
+<h3>
+<a NAME="read sector"></a>Read</h3>
+This lets you jump to a given sector by just typing its number in the box
+and clicking [OK]. A decimal number is expected, but you can enter an hexadecimal
+number by preceding it with the 0x prefix (e.g. 0x10 specifies sector 16).
+<br>&nbsp;
+<h3>
+<a NAME="save sector"></a>Save</h3>
+Saves the current sector back to its place in the current disk.
+<br>&nbsp;
+<h3>
+<a NAME="save sector as"></a>Save as</h3>
+This allows you to save the current sector to a different place in the
+same disk, or to a different disk. This dialog box that appears is initialized
+with the current sector number and "This disk" as the target. Clicking
+[OK] at this point is equivalent to the "Sector-->Save" command. You can
+change the sector number by entering a new decimal or hexadecimal value
+in the text box. Use a 0x prefix to specify hexadecimal values (e.g. 0x0A&nbsp;
+is ten).
+<p>To copy the sector to a different disk, you must have previously defined
+a target disk. This is easily done by dragging-and-dropping a disk from
+the Tree view into either the Sector Map or the Sector Editor. Alternatively,
+you could use the "Edit-->Select disk as target" command, to make the current
+disk the target one. The name of the target disk appears in the status
+bar in the form "To <i>diskname</i>". If you haven't selected a target,
+the status bar displays "No target disk".
+<p>When a target disk has been defined, it will be selected by default
+in the "Save as" dialog, but you always have the option to use the current
+disk by selecting "This disk" from the drop list.
+<br>&nbsp;
+<h3>
+<a NAME="Compare"></a>Compare</h3>
+This function allows you to compare the contents of one or more sectors.
+Differences will be highlighted in red in the Sector Map and in the Sector
+Editor.
+<p>When the command is triggered, a dialog box appears that lets you select
+the source and target for the comparison.
+<p><b>Source</b>: The source is always the current disk.
+<p><b>Sectors</b>: First sector to compare. This field is initialized as
+the current sector.
+<p><b>To</b>: Last sector to compare. If you leave this field empty, only
+one sector will be compared.
+<p><b>Destination</b>: This can be either the current disk, or the target
+disk if one has been defined (by dragging-and-dropping a disk/drive from
+the Tree view into the Sector Map or Sector Editor).
+<p><b>Sectors</b>: The first sector to use for comparison. This field is
+initialized as the current sector.
+<p><b>To</b>: The last sector to compare. If left empty, the same number
+of sectors specified for the source will be used for the destination.
+<p>Click [OK] to launch the comparison. Any sector in the source that doesn't
+exactly match the corresponding sector in the target will be highlighted
+in red in the Sector Map. The first sector (in the source) that contains
+mismatches will be displayed in the Sector Editor, with all differences
+highlighted in red. You can view other compared sectors by navigating the
+map, and any differences will also be highlighted in the Sector Editor.
+You can use "Swap target" to move from source to destination and conversely.
+<br>&nbsp;
+<h3>
+<a NAME="Copy sectors"></a>Copy</h3>
+
+<p><br>This command allows you to copy one or more sectors to a different
+place in the same disk, or to a different disk.
+<p>The same dialog box as for "Sector-->Compare" is used to select the
+source and destination. The only difference is that there is an extra check
+box labelled "Mark as used". Checking this box results in marking copied
+sectors as used in the directory of the target disk.
+<p>You do not need to have the same number of sectors in the source and
+the destination. The rule is that the destination is always filled to completion,
+but never further. So if the source is larger than the destination, copying
+stops when the last sector in the destination (the one specified in the
+"To" field) has been copied. If the destination is larger than the source,
+copying continues from the beginning of the source again (e.g. copying
+sectors 1-3 into 10-17 copies sectors 1, 2, 3, 1, 2, 3, 1 ,2&nbsp; into
+sectors 10, 11, 12, 13, 14, 15, 16, 17).
+<p>The copy operation is buffered, so there are no problems when source
+and destination overlap. For instance, if there were no buffering, copying
+sector 1-3 into 2-4 would result in copying sector 1 everywhere since,
+when its time to copy sector 2 it has been overwritten with a copy of sector
+1. So VDM99 first read all sectors to copy into a temporary buffer, then
+performs the copy operation using this buffer as data source. (If you really
+meant to make multiple copies of sector 1, just copy 1-1 into 2-4).
+<br>&nbsp;
+<h3>
+<a NAME="swap target"></a>Swap target</h3>
+This command behaves in slightly different ways depending on whether or
+not a comparison has been made. If no comparison was made, the command
+just swaps the current disk and the target disk. That is, the target disk
+becomes the current one, and its contents are listed in the File view,
+Sector Map and Sector Editor. The former current disk becomes the new target,
+available for "Copy", "Compare", and "Save as" commands.
+<p>If you have previously run the "Sector-->Compare" command, "Swap target"
+swaps the two compared areas and runs the comparison again. If the comparison
+did involve a target disk, the command also swaps disks just as above.
+But if the comparison was internal to the current disk, no disk swapping
+occurs. Simply, the highlighting of mismatched sectors in the Sector Map
+swaps between source and destination areas.
+<p>If the current sector is part of the "source" compared area, the Sector
+Editor will jump to the corresponding sector in the "destination" area.
+This allows you to quicly toggle between sectors to inspect the mismatched
+bytes. If the current sector is outside the comparison area, it remains
+the current sector.
+<br>&nbsp;
+<h3>
+<a NAME="mark sector"></a>Mark sectors</h3>
+This command allows you to mark one or more sectors as either free or used
+in the disk directory (more precisely, in the sector bitmap kept in sector
+0).
+<p><b>Sector</b>: First sector to mark.
+<p><b>To</b>: Last sector to mark (inclusive).
+<p><b>[Free]</b>: Mark sectors as free.
+<p><b>[Used]</b>: Mark sectors as used.
+<p><b>[Cancel]</b>: Do nothing.
+<p>To mark more complex groups of sectors, e.g. non-adjacent ones, you
+could use "Edit-->Edit selection" to enter a list of sectors, and then
+click [Mark all used] or [Mark all free]. You can do the same in "File-->Properties"
+by clicking on [Sector list]: it displays the same dialog, only preset
+with a list of sectors used by the file.
+<p>N.B. The menu called by right clicking on a sector features two distinct
+entries: "Mark&nbsp; used" and "Mark free". They only affect the clicked
+sector, after which the selection is moved to the next sector.
+<br>&nbsp;
+<h2>
+<a NAME="edit menu"></a>The Edit menu</h2>
+&nbsp; <a href="#edit copy">Copy</a>
+<br>&nbsp; <a href="#Edit paste">Paste</a>
+<br>&nbsp; <a href="#select sector">Select sector</a>
+<br>&nbsp; <a href="#edit selection">Edit selection</a>
+<br>&nbsp; <a href="#clear selection">Clear selection</a>
+<br>&nbsp; <a href="#find">Find</a>
+<br>&nbsp; <a href="#find next">Find next</a>
+<br>&nbsp; <a href="#Find all">Find all</a>
+<br>&nbsp; <a href="#Replace">Replace</a>
+<br>&nbsp; <a href="#Replace all">Replace all</a>
+<h3>
+<a NAME="edit copy"></a>Copy</h3>
+This command plays a dual role: on the one hand it copies the current pane
+to the clipboard, so you can paste it into a text processor for instance.
+On the other hand, it internally memorizes some info that can then be used
+by the "Paste" command. Its exact behaviour thus depends on which of the
+4 panes has the focus:
+<p>If the active pane is the Tree view: nothing is copied to the clipboard,
+the current disk/drive is memorized.
+<br>If the active pane is the File view: the disk catalog is copied to
+the clipboard. The list of currently selected files (if any) is memorized
+internally.
+<br>If the active pane is the Sector Map: the map is copied to the clipboard.
+<br>If the active pane is the Sector Editor: the editor's display is copied
+to the clipboard. The current disk and sector number are memorized.
+<br>&nbsp;
+<h3>
+<a NAME="Edit paste"></a>Paste</h3>
+This command should be used after something has been memorized with the
+"Edit-->Copy" command. In most cases, this succession of command (Copy
+and Paste) is a substitute for a drag-and-drop. The precise behaviour of
+the Paste command depends on which pane has the focus, and on what was
+memorized with "Edit-->Copy".
+<p>If the active pane is the Tree view: Pasting a list of files (memorize
+with Edit-->Copy in the File view) into a disk/drive copies these files
+there. Pasting a disk/drive (memorized with Edit-->Copy in the Tree view),
+copies this disk onto the current one. Pasting a sector (memorized with
+Edit-->Copy in the Sector Editor) places this sector into the Sector Editor,
+from which it can be committed to disk by selecting "Sector-->Save".
+<p>If the active pane is the File view: pasting a list of files copies
+them to the current disk.
+<p>If the active pane is the Sector Map: Pasting a memorized disk/drive
+makes it the current target. Pasting a file (or a list of files) highlights
+them in red and makes the last one the current file. Pasting a memorized
+sector copies it into the Editor pane, from where it can be saved to disk
+if desired.
+<p>If the active pane is the Sector Editor:&nbsp; Pasting a memorized disk/drive
+makes it the current target. Pasting a memorized sector copies it into
+the Editor, without committing it to disk yet..
+<br>&nbsp;
+<h3>
+<a NAME="select sector"></a>Select / Deselect sector</h3>
+This Select command highlights the current sector in red in the sector
+map. If the current sector is already highlighted, the command reads "Deselect
+sector" and cancels highlighting. Once the command is completed, the cursor
+moves to the next sector, so you can call the command repeatedly.
+<br>&nbsp;
+<h3>
+<a NAME="edit selection"></a>Edit selection</h3>
+This displays a dialog with the list of all sectors that are currently
+highlighted in the sector map. Lone sectors are listed as a single number,
+adjacent sectors as <i>first</i>-<i>last</i>
+<br>You can freely edit this list, taking care that each line should only
+contain either a single sector number, or two sector numbers separated
+with a dash - sign (no spaces allowed on either side of the dash).
+<p>You can also use Ctrl-C and Ctrl-V to cut and paste the sector list,
+or parts of it. For instance, supposed you are trying to reconstitute a
+DV80 file that was accidentally wiped out. You would search for sectors
+that could be in DV80 format, call "Edit-->Selection", copy the sector
+list with Ctrl-V (optionally editing it first), call File-->Properties
+and [Sector list] inside of it, and now paste in the list of sectord so
+they become part of the file.
+<br>&nbsp;
+<h3>
+<a NAME="clear selection"></a>Clear selection</h3>
+This cancels any selection in the Sector Map. It also cancels the current
+file, i.e. reverts to "No file selected" state.
+<br>&nbsp;
+<h3>
+<a NAME="find"></a>Find</h3>
+VDM99 supports a sophisticated search-and-replace function, in which you
+can search for a string, for a type of sector, or both. Selecting the "Edit-->Find"
+command calls a dialog box in which you define the search (and replace)
+parameters:
+<p><b>Find what</b>: If you want to search for a string, type it here.
+You can search for text or hexadecimal bytes, and you can use a wildcard,
+if you wish.
+<p><b>Type</b>: Decides whether the string you entered is ASCII text or
+a list of bytes in hexadecimal notation. If you change the type from ASCII
+to Hex, any text you might have typed in "Find what" will be converted
+to hexadecimal bytes. Conversely, if you change the type from Hex to ASCII,
+an attempt is made to convert hexadecimal bytes to text. Be aware that
+conversion may not work well if the list of bytes contains unprintable
+characters. For instance, a >00 byte will cause Windows to truncate the
+string.
+<p><b>Wildcard</b>: Leave this empty if you do not wish to use a wildcard.
+Otherwise, enter the character (or hexadecimal byte) to use as a wildcard.
+The type of wildcard (Hex or ASCII) is always the same as that of the query
+string. If the query string contains characters matching the wildcard,
+these will not be considered during the search. For instance, if you defined
+* as the wildcard, searching for "C*T" will match CAT, CUT, COT, etc.
+<p><b>Replace with</b>: If, and only if, you have selected a query string
+in "Find what", you have the option to enter a replacement string. When
+a match to the query is found, it can then be replaced with the replacement
+string. Note that the entire replacement string is copied, even if its
+longer than the query string. (The only exception is when the replacement
+reaches the end of the sector: it will only continue to the next sector
+if the "Cross boundaries" box has been ticked). So replacing "dog" with
+"mongrel" will change "My dog is black" to "My mongrelblack". The opposite
+operation would convert "My mongrel is black" to My doggrel is black".
+So it's generally best if query and replacement have the same length...
+<p><b>Type</b>: Just like query, the replacement string can be ASCII or
+hexadecimal.
+<p><b>Wildcard</b>: You can define a wildcard for replacement purposes
+(which doesn't need to be the same as the query wildcard). Any character
+in the replacement string that matches the wildcard will be left unchanged.
+This is mostly useful when a wildcard in the replacement string matches
+a wildcard in the search string, or when the replacement string is longer
+than the query. For instance, searching for "C*T" and replacing it with
+"B*T" changes CAT into BAT, CUT into BUT, etc.
+<br>&nbsp;
+<p>The fields in the "Where" box allow you to restrict the search to some
+sectors or, if you left the "Find what" field empty, to search for a given
+type of sector.
+<p><b>Sector</b>: The first sector to include in the search. Initialized
+as 0.
+<p><b>To</b>: The last sector to search (inclusive). By default, this field
+is initialized as the last sector in the disk, based on the disk size reported
+in sector 0.
+<p><b>Cross boundaries</b>: This allows you to search for a string that
+may begin at the end of a sector and continue in the next one. Mostly useful
+when searching inside a "program" file.
+<p><b>Inside <i>filename</i></b>: If a current file has been selected,
+its name appears here. Ticking the box restricts the search to sectors
+that are part of this file, including its FDR. This box is initialized
+to the current value of the "Stay in file" option. If you change it, it
+will modify the "Stay in file" option accordingly, when the search begins.
+<p><b>Marked free</b>: Include sectors that are marked free in sector 0
+bitmap.
+<p><b>Marked used</b>: Include sectors that are marked used.
+<p><b>In FDR</b>: Include sectors that are listed as FDRs in sector 1.
+<p><b>In files</b>: Include sectors that are listed as being part of a
+file in one of the FDRs found in sector 1.
+<p><b>Not used</b>: Include sectors that are neither a FDR, nor part of
+a file. (Note: sector 0 and 1 are considered as being part of a file).
+<p><b>Sector format</b>: Here you can type a record format, to restrict
+the search to sectors that could match this format. For instance, you could
+search for DV80 sectors, or IF254, etc. Note that, because "program" and
+"display/fixed" sectors can contain absolutely anything, every sector will
+always match these types. You can also enter "Any" to disable this option.
+<p><b>[All]</b>: Initializes all the contents of the "Where" box so that
+all sectors are searched, no matter what.
+<br>&nbsp;
+<p>Once you have filled all the fields you wanted, you are ready to begin
+the search. Click one of the following buttons:
+<p><b>[Find next]</b>: Finds the next sector matching your requirements
+(if any) and containing at least one occurence of the query string (if
+any). This sector will be highlighted in red in the Sector Map, and displayed
+in the Sector Editor, with the matched string in red. If the sector contains
+several matches to the query string, the first one is highlighted.
+<p><b>[Find all]</b>: Finds all matching sectors, and highlight them in
+the Sector Map. The last sector found becomes the current one and is displayed
+in the Sector Editor.
+<p><b>[Replace]</b>: Find the first match, displays it in the Sector Editor
+and replaces it with the replacement string (if any). The replaced text
+is shown in red. At this point, the change is not commited to disk, until
+you select "Sector-->Save".
+<p><b>[Replace all]</b>: Find all matches, highlight the corresponding
+sectors in the Sector Map, replaces every occurence of the query string
+with the replacement string, and save these sectors to disk.
+<br>&nbsp;
+<h3>
+<a NAME="find next"></a>Find next</h3>
+Find the next match, starting from the sector that was previously found
+(which may not be the current one, if you navigated elsewhere in the map).
+If a given sector contains several matches to the query string, the next
+match is displayed in red in the Sector Editor.
+<br>&nbsp;
+<h3>
+<a NAME="Find all"></a>Find all</h3>
+Find all the remaining sectors that match the search parameters, and highlight
+them in the Sector map, starting from the sector that was previously found.
+<br>&nbsp;
+<h3>
+<a NAME="Replace"></a>Replace</h3>
+Replace the current match in the Sector Editor and saves the sector to
+disk. Then performs "Find next".
+<br>&nbsp;
+<h3>
+<a NAME="Replace all"></a>Replace all</h3>
+Replace all subsequent occurences of the query string with the replacement
+string, and save the corresponding sectors to disk.
+<br>&nbsp;
+<h2>
+<a NAME="view menu"></a>The View menu</h2>
+This menu regroups several options regarding the appearance of the VDM99
+interface. Most of these are also available inside "Setup-->Options".
+<p>&nbsp; <a href="#View advanced">Advanced mode</a>
+<br>&nbsp; <a href="#View toolbar">Toolbar</a>
+<br>&nbsp; <a href="#view status bar">Status bar</a>
+<br>&nbsp; <a href="#view devices">Devices</a>
+<br>&nbsp; <a href="#view full names">Full path names</a>
+<br>&nbsp;<a href="#View customize">Customize list</a>
+<h3>
+<a NAME="View advanced"></a>Advanced</h3>
+Toggles advanced mode on/off. In advanced mode there are 4 panes instead
+of 2, and many supplementary commands are available.
+<br>&nbsp;
+<h3>
+<a NAME="View toolbar"></a>Toolbar</h3>
+Toggles the toolbar on/off. The toolbar can also be dragged away from its
+position, docked on any side of the main window, or left "floating" inside
+or outside the application window.
+<br>&nbsp;
+<h3>
+<a NAME="view status bar"></a>Status bar</h3>
+Toggles the status bar on/off.
+<br>&nbsp;
+<h3>
+<a NAME="view devices"></a>Devices</h3>
+Decides whether the device names (respectively card CRU) should appear
+in the Bug99 and TI-99/4A subtrees.
+<br>&nbsp;
+<h3>
+<a NAME="view full names"></a>Full path names</h3>
+Decides whether yellow (PC) folders should display the full path name,
+or their short, editable, name.
+<br>&nbsp;
+<h3>
+<a NAME="View customize"></a>Customize list</h3>
+
+<p><br>Calls a dialog box that lets you customize the layout of the list
+appearing in the right pane. This pane can display several types of information,
+depending on the item that is currently selected in the tree view:
+<p>- Current disk catalog
+<br>- Results of a disk query
+<br>- Results of a file query
+<br>- Results of a SQL query
+<br>- List of saved queries
+<br>- List of user-defined parameters
+<p>When you call "Customize list", the dialog will apply to whatever type
+is currently displayed. To customize another type, you must first display
+it.
+<p>The dialog box contains the following controls:
+<p><b>Apply to</b>: This lets you decide whether you wish to customize
+the current tree item only, or change the defaults for all such items that
+have not been customized. Possible settings are:
+<br>- Current view (or current query): applies to the disk/drive or query
+that is currently selected in the tree view. This is not available for
+the lists of queries, as there is only one so the default always applies.
+The same is true for the parameter list. If you leave this empty, the default
+layout will be used when displaying this item.
+<br>- The default layout for such items, when they have not been customized.
+This is not available for SQL queries, as the default is "display all fields
+returned by the query".
+<br>- Default column sizes and justification, to be used when such information
+is ommited in one of the above two option.
+<p>The big text box serves to enter a list of information fields to be
+displayed, optionally followed with formatting options. You can type text
+directly into the box, the syntax is very simple:
+<br><tt>[field name] &lt;size justification></tt> where <i>size</i> is
+the column width in pixels, and <i>justification</i> can be left, center
+or right.
+<p>Alternatively, you the controls above to avoid syntax errors. Just select
+a field from the drop-down list, optionally enter a column with and/or
+justification, and click the [Add] button.
+<p>Columns in the list view will be created to display the fields you selected,
+in order of appearance, using the width and justification you provided
+(if any). Note that you can always resize columns directly in the list
+view, by dragging their separators. The new size is remembered for the
+current node and will be reused the next time you display it.
+<p>Things are a bit different when you edit the default column characteristics.
+Here, you get a list of all available fieds, each followed with a default
+column width and justification. These values will be used of you ommit
+column specification when customizing an item or changing the default layout.
+You can change these default values, but make sure that all fields are
+always present.
+<p><b>[Get current] </b>This button retrieves the current layout for the
+category selected in "Apply to". In the case of the current view, the values
+returned are taken from the display. The column width can differ from what
+you set when customizing this node, since you may have resized a column
+directly in the list view. When the dialog first appears, it shows you
+whatever customization you previously entered. Clicking [Get current] changes
+it to current values.
+<p><b>[Save]</b> This button saves the current layout without dismissing
+the dialog box. This allows you to edit several categories without having
+to leave the dialog box.
+<p><b>[OK]</b> Dismisses the dialog, saves your changes and apply them
+to the display. Layout information is saved in your workspace, together
+with each item that's present in the tree when the workspace is saved.
+Queries saved in the database include customized layout. Default layout
+and column formats are saved into the database, except for the disk catalog,
+which saves this info in the workspace.
+<p><b>[Cancel]</b> dismisses the dialog box without commiting your most
+recent changes. Of course, if you previously clicked [Save], the saved
+changes remain in effect.
+<br>&nbsp;
+<h2>
+<a NAME="Database menu"></a>The Database menu</h2>
+This chapter describes the "Database" menu, which regroups all database
+functions. In addition, there are a couple of chapters dealing with advanced
+database functions, like using parameters and combining queries.
+<p>As a reminder, if you replace VDM99.EXE with version 1.9x, database
+support is unavailable, and the Database menu contains only one item that
+reads "Database disabled".
+<p>&nbsp; <a href="#database new">New database</a>
+<br>&nbsp; <a href="#database open">Open database</a>
+<br>&nbsp; <a href="#database close">Close database</a>
+<br>&nbsp; <a href="#database export">Export database</a>
+<br>&nbsp; <a href="#database merge">Merge database</a>
+<br>&nbsp; <a href="#database browse">Browse</a>
+<br>&nbsp; <a href="#database add disk">Add disk</a>
+<br>&nbsp; <a href="#database rescan disk">Rescan disk</a>
+<br>&nbsp; <a href="#database mount disk">Mount disk</a>
+<br>&nbsp; <a href="#database remove disk">Remove disk</a>
+<br>&nbsp; <a href="#database new query">New query</a>
+<br>&nbsp; <a href="#database edit query">Edit query</a>
+<br>&nbsp; <a href="#database save query">Save query</a>
+<br>&nbsp; <a href="#database load query">Load query</a>
+<br>&nbsp; <a href="#database delete query">Delete query</a>
+<br>&nbsp; <a href="#database SQL query">SQL query</a>
+<br>&nbsp; <a href="#database new param">New parameter</a>
+<br>&nbsp; <a href="#database delete param">Delete parameter</a>
+<br>&nbsp; <a href="#database bulk update">Bulk update</a>
+<p>Advanced database functions
+<p>&nbsp; <a href="#Using params">Using parameters</a>
+<br>&nbsp; <a href="#combining queries">Combining queries</a>
+<br>&nbsp;
+<br>&nbsp;
+<h3>
+<a NAME="database new"></a>New</h3>
+VDM99 comes prepacked with a sample database called "Floppies", which contains
+one disk record (the VDM99 disk) and a handful of commonly used queries.
+In general, you'll want to use this database and expand it by adding your
+own disks and queries. But just in case you'd like to start over from scratch,
+you can use the "Database-->New" command to create a new and empty database
+(well, not quite empty: it contains the default layout and column formats
+for database-related views).
+<p>In the file selection dialog, just enter a filename with an .MDB extension
+and click [Open].&nbsp; If the file already exists, you will be asked for
+confirmation, as the command will wipe out anything that was in the file.
+<p>The new database becomes the current one, and will be automatically
+opened upon startup if this function is selected in "Setup-->Options-->Database".
+<br>&nbsp;
+<h3>
+<a NAME="database open"></a>Open</h3>
+VDM99 saves the name of the current database in your workspace, and optionally
+opens it upon startup (this can be disabled in "Setup-->Options-->Database").
+There aren't many cases when you'd want to open another database, as it
+is probably better to keep everything in the same one. Although one could
+imagine that a friend sent you a copy of his database for you to peruse...
+<p>To open an existing database, use "Database-->Open" and select an exiting
+.MDB file, which must contain a VDM99 database in the proper format (i.e.
+with the expected tables, fields, etc). VDM99 closes the current database
+and opens the one you specified. This becomes the new current database
+and will be opened next time you start VDM99 (that is, assuming you saved
+your workspace).
+<br>&nbsp;
+<h3>
+<a NAME="database close"></a>Close</h3>
+This command allows you to close the current database without opening another.
+It's not terribly useful, as you can very well leave the current database
+open even if you don't need it. And you don't need to close the current
+database before opening or creating a new one, as VDM99 does this automatically.
+<br>&nbsp;
+<h3>
+<a NAME="database export"></a>Export</h3>
+This command allows you to export the contents of your database, or selected
+portions of it, to a text file. This file can then be viewed in a text
+processor, imported into Excel, or merged with an existing database. Thus,
+you can use exported files to backup your list of queries and parameters,
+for instance.
+<p>When you select "Database-->Export", you are presented with a dialog
+box that comprises three sections. First, you should select which record
+set (aka table) you'd like to save. Then pick the file name. Finally, you
+can define the file format.
+<p>VDM99-generated databases contain the following tables:
+<ul>
+<li>
+Disks. This table contains information pertaining to the disks you scanned,
+but not the files they contain.</li>
+
+<li>
+Files. This table contains information pertaining to files that were found
+on scanned disks, but does not include the name of the parent disk.</li>
+
+<li>
+Relationship table. This table is invisible to you within VDM99. It contains
+a list of matched disk and file IDs and is used to determine which file
+resides on which disk. In database parlance, it serves to implement a "many-to-many"
+relationship and is thus essential to maintain database integrity.</li>
+
+<li>
+Queries. The set of queries you saved in the "Saved queries" folder.</li>
+
+<li>
+Parameters. User-defined parameters, as shown in the "Parameters" folder.
+Pre-defined parameters are generated on-the-fly and are not saved into
+the database.</li>
+
+<li>
+Info. This table also is invisible inside VDM99. It contains the database
+version number, a copyright string, and the default layouts and column
+format for the different types of view (except those for disk catalog,
+which are saved in your workspace).</li>
+</ul>
+When exporting the database, you can select which table you'd like to include
+in the exported file.
+<p><b>Disk</b>: You have the option to save all disk records in the database,
+or only those records that were returned by the most recent disk query.
+Or you could elect not to save the disk table at all.
+<br><b>Files</b>: Again, you could export all file entries, none, or only
+those entries that were returned by the most recent file query. Additionally,
+you could select "From above disks" to save only the files that are found
+on the disks you chose to export. This option is recommended if you are
+planning to merge the exported file with a database.
+<br><b>Relationship</b> table: You must include this table if you exported
+disks and files that you intend to merge later with a database.
+<br><b>Queries</b>. Tick the box to export your list of saved queries.
+<br><b>Parameters</b>. Tick the box to export the parameters you defined.
+It's generally a good idea to export queries and parameters together, as
+parameters are used by queries.
+<br><b>Info</b>. Tick this box to export the default layout for the various
+database-related views, and the default column widths and justifications.
+<p>Then you should enter a filename in the text box, or use the <b>[Browse]</b>
+button to select one. As a general rule, it will have a .TXT extension.
+If you intend to import the file into Excel, avoid .CSV extensions, as
+these trigger default processing in Excel that may not correspond to the
+format you selected.
+<p>You should then define the file format, namely select the characters
+(or strings of characters) to be used to separate fields, records, and
+tables. You can pick a character from the drop list, or select "Other"
+to display an extra text box in which you can type the character you want
+(there can be more than one). Just make sure that whatever you pick is
+not likely to appear in any of the database fields. For instance do not
+pick the comma, as some fields comprise commas that would then be mistaken
+for separators.
+<p><b>Field separator</b>. Used to separate the various fields in a record,
+e.g. Disk name, ID, Size, etc. By default, it is set as the &lt;tab> character
+and I recommend you leave it so.
+<br><b>Record separator</b>. Used to separate the various records in a
+table. By default, it is a PC-style line break, i.e. characters 0x0A and
+0x0D.
+<br><b>Table separator</b>. Used to mark the end of a table in the file.
+The default is the form feed character (ASCII code 0x0C), but you can change
+this to something more prominent, such as multiple line breaks, or a long
+line of ---- signs. To my knowledge, Excel does not recognize any sequence
+as spreadsheet separator, so if you are exporting several tables and want
+each one on a different sheet, you'll have to manually copy them from one
+sheet to another inside Excel. You can also leave this field empty, but
+not if you intend to use the file for database merging.
+<p>If you examine the exported file with a word processor, you will notice
+that each table begins with a record containing only the table name, then
+a record listing all the field names, then zero or more records that list
+the table contents.
+<br>&nbsp;
+<h3>
+<a NAME="database merge"></a>Merge</h3>
+This command allows you to merge the contents of a previously exported
+text file into the current database. It displays a dialog box made of three
+sections: First you should select which table you wish to import, assuming
+of course that such a table was included in the exported file. Then you
+select the text file to import. Finally, you can specify the format that
+was used to created the exported file.
+<p><b>Disks</b>. Here you can decide whether to import disk records, and
+what to do if a matching disk record already exists in the database. Your
+options are:
+<br>- To overwrite the existing record with whatever information is imported
+from the text file.
+<br>- To keep the existing record, and ignore the one found in the imported
+file.
+<br>- To create a duplicate entry based on the imported file, leaving the
+existing entry untouched.
+<br>- Finally, you could elect not to import disk records at all. In this
+case, you will not be able to import file records either.
+<p><b>Files</b>. Files records are always imported if you import disk records,
+and never if you don't. You should however decide what to do if an imported
+file record matches one that already exists in the database. You can choose:
+<br>- To overwrite the existing record, and replace it with the imported
+data. Any disk record that used to refer to the old record will now refer
+to the new one. This is equivalent to selecting [Update old] when manually
+adding a disk.
+<br>- To use the existing file record in place of the imported one. This
+means the existing record will be shared by existing and newly imported
+disks.This is equivalent to selecting [Use old entry] when manually adding
+a disk.
+<br>- To create a duplicate entry, specifically linked to the imported
+disk(s) containing that file. The existing file record in the database
+remains untouched and is used by disks already present in the database.
+<p><b>Queries</b>. You can decide whether or not to import queries, and
+what to do if a query with the same name already exists:
+<br>- Replace the existing query with the imported one.
+<br>- Keep the existing query and do not import the one found in the file.
+<br>- Or you could choose not to import queries at all.
+<p><b>Parameters</b>. Just like with queries, you can elect to replace
+parameters that already exist in the database, to disregard imported parameters
+that have the same name as existing ones, or not to import parameters at
+all.
+<p><b>Info</b>. Again, you can choose to overwrite existing information
+(in general, it will always exist), to keep it unchanged, or not to import
+the information table at all.
+<p>Then select the file you want to merge with the database, using the
+<b>[Browse]</b>
+button if you wish. In general, it will be a file you've previously created
+with "Database-->Export", but you may have created/edited the file in Excel
+or with a word processor. If you do so, though, be careful not to corrupt
+the database by entering absurd values...
+<p>As for the file format, you should again select field separator, record
+separator and table separator just as in the "Database-->Export" dialog
+box. Obviously, these values should match those used when exporting the
+file...
+<p>Click [OK] to perform the merge. If you are importing disks and files,
+VDM99 uses the relationship table to performs several checks and make sure
+database integrity is maintained. First of all, file records that are present
+in the text file, but not mentioned in the relationship table will be removed.
+Then if, according to the relationship table, an imported disk should contain
+a given file but that file was not imported, the merge operation will be
+canceled. Similarly, the merge is canceled if an imported file is listed
+in the relationship table as being part of a disk that was not imported.
+And of course, you cannot import disks without files, files without disks,
+or either ones without the relationship table: all three tables must be
+part of the imported file. You can however import a merge file that contains
+only queries, or parameters, or just the info table.
+<br>&nbsp;
+<h3>
+<a NAME="database browse"></a>Browse</h3>
+You can browse your collection of disks with Database-->Browse-->All disks,
+and the file collection with Database-->Browse-->All files. If you've run
+a query, you can also use Database-->Browse-->Current set to browse the
+set of records returned by the query.
+<p>In all cases, you will be presented with the same dialog boxes used
+to review disk or file information when adding a disk to the database.
+Two differences though:
+<br>- The list control at the bottom of the "Disk" dialog now contains
+the list of all files found on this disk. In the "file" dialog, this box
+lists all the disks that contain the file in question (there may be more
+than one, if you elected to reuse a duplicate).
+<br>- The dialog now contains naviagtion buttons, which you can use to
+browse the database. As per database design specs, any changes you made
+to a record are saved into the database whenever you move to a different
+record.
+<br><b>[Next]</b> Moves to the next record
+<br><b>[Previous]</b> Moves to the previous record
+<br><b>[First]</b> Moves to the first record
+<br><b>[Last]</b> Moves to the last record
+<br><b>[Refresh]</b> Reloads the current record from the database, thereby
+discarding any changes you might have made but not saved yet.
+<br><b>[Delete]</b> Removes the current disk record from the database.
+It also removes all associated file entries, provided they are not shared
+by another disk. This button does not normally appear in the "File record"
+dialog, as files must always be removed with their disk. However, you might
+see this button with "orphan" files, i.e. files that don't have an associated
+disk (this should normally never happen, unless your database got corrupted).
+<br><b>[OK]</b> Saves the current record and dismisses the dialog box.
+<br><b>[Expand]</b> This button double the width of the dialog box and
+displays the file list in the right side. This allows to display more files
+than with the original layout. To return to the original layout, click
+the same button, which is now labelled [Collapse].
+<br>&nbsp;
+<br>&nbsp;
+<h3>
+<a NAME="database add disk"></a>Add disk</h3>
+To register a disk with your database, first mount the disk/drive as described
+above. Then you several ways to add this disk to your database, all equivalent:
+<br>- Drag-and-drop the disk into the database subtree.
+<br>- Selecte the disk and do "Database-->Add disk".
+<br>- Copy the disk with "Edit-->Copy" (Ctrl-C) and paste it onto the database
+file cabinet icon ("Edit-->Paste", or Ctrl-V).
+<br>- Right click on a disk and select "Add to database".
+<br>&nbsp;
+<h4>
+Duplicate disks detection</h4>
+Before adding a disk or a file to the database, VDM99 takes its "fingerprints",
+i.e. calculates a 32-bit CRC value (cyclic redundancy check, polynomial
+= 0xEDB88320). This allows rapid identification of duplicate disks or files.
+<p>For files, the CRC value only considers the data portion of the file,
+excluding any unused bytes at the end of a sector, and not considering
+information in the FDR, such as file name or time stamps. This way, files
+with identical contents can always be spotted, even if they've been renamed.
+An empty file has a CRC of 00000000, whereas a value of FFFFFFFF indicates
+that something went wrong while scanning the file.
+<p>For disks, VDM99 calculates two CRC values. A sector-based one, CRC-S,
+which considers every sector marked as used in the disk directory. Since
+sectors 0 and 1 are always used, CRC-S is never zero. Two disks with identical
+CRC-S values are "clones", in that all their used sectors are identical,
+so they were likely copied sector-wise.
+<p>VDM99 also coins a file-based CRC, which I call CRC-F, by combining
+the CRCs of all files on the disk. Thus, an empty disk, or a disk containing
+only empty files, has a CRC-F of 00000000. Disks that have the same CRC-S
+generally also have the same CRC-F (unless a file is using a free sector,
+which should never happen). By contrast, it is quite possible for two disks
+to have different CRC-S but identical CRC-F. It generally means that the
+original disk was copied file-wise, which rearranged the files on the copy.
+Or it may be that the disk manager time-stamped the copy. Or the disk may
+have been renamed, or some of the files might have been renamed. The important
+point is that disks with identical CFC-F carry the same data (i.e. file
+contents), but arranged differently.
+<p>When you add a disk to your database, VDM99 first checks for duplicates
+based&nbsp; on CRC-S. If one or more duplicates are found, a dialog box
+pops up that shows the duplicate(s) and gives you the option to abort.
+In general you won't want duplicate entries in a database, but there are
+cases when they are acceptable. For instance, you might have a "real" floppy,
+and its disk image on your PC: they'll have the same CRC-S and CRC-F, but
+are distinct entities.
+<p>Then the program checks for duplicates based on CRC-F and asks you what
+to do if any is found. This step is skipped if you have already agreed
+to create a CRC-S duplicate, as it is assumed that you won't have changed
+your mind since.
+<br>&nbsp;
+<h4>
+Reviewing disk information</h4>
+Then VDM99 enters the disk into the "Disks" table in the database, and
+optionally gives you a chance to review the entry. You can disable the
+latter step in "Setup-->Options-->Database", if you wish. You can always
+ammend a record later (by double-clicking on it in the List View), but
+in my experience, if you don't do it right away you never will...
+<p>Most fields are read-only, as they represent fixed disk characteristics.
+If you insist on editing them, you can check "Unlock editing" in "Setup-->Options-->Database".
+The fields are similar to those found in the dialog called by "Disk-->Properties",
+with a few extra:
+<br>- <b>ID</b>. This is an unique identifier (aka primary key) associated
+with your disk. It is a good idea to write this number on the floppy disk
+label, so you can quickly identify it later.
+<br>- <b>Scanned date and time</b>. This is the time and date when the
+disk was added to the database.
+<br>- <b>Drive type</b>. This can be DOAD or PC99 for disk image files
+on your PC, TI99 for floppies accessed from a remote TI-99/4A, or Bug99
+for virtual floppies emulated in Bug99.
+<br>- <b>Drive location</b>. This is one of the few fields that can be
+freely modified. For PC-resident disk images, it contains the file name
+and path and you should probably leave it so. For remotely scanned disks,
+it contains the drive name, which is not terribly useful. You may want
+to replace it with the physical location of the floppy, e.g. box number,
+shelf where it is stored, etc.
+<br>- <b>Info1</b> and <b>Info2</b>. These two text fields are free for
+you to use. They are indexed for fast searching, and limited to 256 characters.
+You can enter whatever you want in there, but my advise is to use a system
+of keywords. For instance, Info1 could be "Game", "Application", "Text
+document", or "Data file", whereas Info2 could be the language in which
+a program is written, or the program that created a data file.
+<br>- <b>Info3</b>. This is a "memo" field, which has no limitations in
+length, but cannot be used for sorting in a query. It is meant for you
+to enter a more verbous description of the contents of a disk or file.
+<p>Once you have edited disk information, click [OK] to commit your changes
+to the database, or [Cancel] to leave the record unchanged, i.e. as it
+was when the dialog poped up (this does not prevent adding the disk to
+the database, just cancels your changes).
+<br>&nbsp;
+<h4>
+Duplicate files detection</h4>
+At this point, VDM99 will start entering each file on the disk into "Files"
+table in the database. Again, it checks for duplicates, i.e. files with
+the same CRC (same content) and the same file name. If any is found, a
+dialog box pops up that displays all duplicates and offers you three options.
+<br><b>[Create new entry]</b> Createa a duplicate entry for this file,
+which will be uniquely associated with the disk it resides on.
+<br><b>[Use old entry]</b> Reuse an existing entry. This implies that the
+file entry will be associated with more than one disk. If more than one
+duplicate was found, you should first select the one you want in the list
+presented in the dialog box. If you choose this option, you won't be given
+the option to review file information.
+<br><b>[Update old]</b> Reuse an existing entry, but update it. For instance,
+change the time stamps, or the Info fields. Again, if there are many replicates,
+select the one you want before clicking the button.
+<p>It's up to you to decide what you prefer. In general, it's better to
+have separate entries for duplicate files, but this may result in a lot
+of clutter. For instance, some people include a small CATLIST program on
+every TI-Basic or Extended-Basic disk they own. If you have a hundred such
+disks, it will results in 100 copies of the same file entry. In this case,
+it might be better to make only one entry and just tell VDM99 that a disk
+contains "the" CATLIST file. But once again, it's up to you.
+<p>Note that you can set an option in "Setup-->Options-->Database", to
+automatically take the desired action when a duplicate is found. If you
+didn't to so, but don't want to be asked the same question for every file
+on the disk you just scanned, you can tick the "Do this for all files on
+this disk" box prior to clicking one of the three buttons. Your choice
+will be applied to every file on this disk, but you will be prompted again
+next time you scan a disk. If you choose to reuse existing entries and
+several duplicates are found, the first duplicate will be used during automatic
+processing.
+<br>&nbsp;
+<h4>
+Reviewing file information</h4>
+Finally, you will be given the option to review the information associated
+with each file entry (unless you disabled this feature in "Setup-->Options-->Database").
+Again, most fields correspond to those in the "File-->Properties" dialog
+box, and most are read-only except for Info1, Info2, and Info3.
+<p>Click [OK] to validate changes, or [Cancel] to accept the entry as it
+is. If you get tired of reviewing each and every file, you can click [Finish]
+to skip the reviewing step for all remaining files.
+<p>And that's it. It looks complicated, but it's actually a straightforward
+process. It takes longer to describe it than to do it...
+<br>&nbsp;
+<h3>
+<a NAME="database rescan disk"></a>Rescan disk</h3>
+There are two reasons why you might want to scan a disk without adding
+it to your database.
+<br>1) Because you forgot to write down the disk ID, and you would like
+to retrieve it.
+<br>2) Because you made changes to a disk and would like to update its
+entry in the database (to do so, you need the disk ID, so better record
+it before you make changes).
+<p>In either case, you should mount the disk, select it, and do "Database-->Rescan
+disk". VDM99 will calculate the disk CRC-S and present you with a dialog
+box listing all possible entries that might correspond to this disk. If
+you were trying to determine the disk ID, write it down and click [Cancel].
+<p>If you have made changes to the disk, its CRCs changed and VDM99 will
+return an empty list of matches. You should enter the disk ID in the text
+field in the upper right corner of the dialog box and click the [Check
+ID] button. This will display the disk record with that ID. If this is
+the disk you want, click [OK] and this disk entry in the database will
+be updated. Unless you disabled these options, you will be offered a chance
+to review disk and file information, and be prompted for what to do with
+duplicate files, if any. Note that the disk ID remains the same, but all
+existing file entries will be deleted and new file IDs created (unless
+a duplicate is found and you chose to reuse it).
+<br>&nbsp;
+<h3>
+<a NAME="database mount disk"></a>Mount disk</h3>
+This command allows you to mount one or more disks, identified by their
+records in the database. This only works for disks images located on your
+PC, and only if they're still in the same folder than at the time they
+were added to the database.
+<p>First, you should display a disk query. Then you could either:
+<br>- Select one or more disks records in the List View and do "Database-->Mount
+disk".
+<br>- Right-click on a query in the list and select "Mount disk" from the
+context menu.
+<br>&nbsp;
+<h3>
+<a NAME="database remove disk"></a>Remove disk</h3>
+This command removes one or more disk records from the database. It also
+removes all file entries associated with this disk, except for files that
+are shared with other disks.
+<p>You should first display a disk query and select one or more disk records
+in the List View. Then do "Database-->Remove disk". You will only be prompted
+for confirmation if more than one disk is to be removed.
+<br>&nbsp;
+<h3>
+<a NAME="database new query"></a>New query</h3>
+To create a new query, position the cursor on the file cabinet icon (optional)
+and select the "Database-->New query" command. A dialog box appears that
+contains the following fields:
+<p><b>Name</b>. This is the query name that will appear in the tree and
+in the "Saved queries" folder. So choose something suitably descriptive,
+e.g. "All 2010 disks" or "Empty files", etc.
+<p><b>Comments</b>. If you are planning to save the query into the database,
+you may want to enter a somewhat more comprehensive description of what
+the query is meant for in this field.
+<p><b>FROM</b>. This is the most important field: it detemines whether
+your query will return disk records or file records. It must be set once
+and for all when creating the query: you cannot change it later with "Edit
+query".
+<p><b>SELECT ALL</b>. This is known as the 'predicate'. It controls the
+number of results that the query is allowed to return. Most of the times,
+you'll want this to be "ALL", but you can also select "TOP" to return only
+the top few results. A new field appears in which you can enter how many
+records you'd like to see (e.g. <tt>TOP 10</tt>). Alternatively, you could
+select "TOP x PERCENT", which works in the same way, except that the number
+you enter represents a percentage of the total records. So if you enter
+<tt>TOP
+10 PERCENT</tt> and your query returns 150 records, the top 15 will be
+displayed. Finally, "DISTINCTROW" is used to remove duplicate results.
+Since each record has a unique ID number, duplicates can only happen when
+combining queries, which is an advanced feature described <a href="#combining queries">below</a>.
+<p><b>WHERE</b>. This text box is used to speficy search criteria. If you
+leave it empty, all disk (or file) records will be returned.
+<br>The syntax is pretty simple: either [<i>Field name</i>] <i>operator
+constant
+</i>or [<i>Field name</i>] <i>operator</i> [<i>parameter</i>].
+Several search criteria can be combined with AND and OR, using parentheses
+if necessary (because A and (B or C) is not the same as (A and B) or C).
+After a while, you'll probably type queries directly into the box, but
+at the beginning you can use the controls above the text box to avoid syntax
+errors.
+<br>- Select a field from the first drop list. The field names depend on
+whether you elected to query the Disks or the Files table.
+<br>- Select a comparison operator from the second drop list. A reminder
+appears under the text box to help you coin the <i>constant</i> field.
+<br>- Enter a constant value in the text field. String constants must be
+enclosed in "double-quotes". Note that the VDM99 considers dates and CRCs
+as strings.
+<br>- Click the [AND] or [OR] button. The first time, it doesn't matter
+which button you click. But if you are adding more search criteria, you
+should decide whether you want to combine them with AND or with OR. If
+you need parentheses, you'll have to enter them directly into the WHERE
+text box.
+<p>Most comparison operators are fairly straightforward (equal, not equal,
+greater than, etc), but there are a few that deserves a bit more explanation:
+<br>BETWEEN serves to specify a range of valid values: enter a minimum
+value, the word AND and a maximum value. E.g. <tt>[Size] BETWEEN 15 AND
+20</tt>&nbsp; or for strings <tt>[Type] BETWEEN "DF40" AND "DF80"</tt>
+<br>NOT BETWEEN is just the opposite of the above: enter a range of excluded
+values.
+<br>IN serves to specify a list of legal values. The list must be enclosed
+in parentheses, and values separated with commas. E.g. <tt>[Size] IN (360,720,1440)</tt>
+Enclose values in double quotes for text fields.
+<br>NOT IN uses the same format to specify a list of illegal values that
+will cause a record not to be selected.
+<br>LIKE mostly applies to text strings. It allows you to use the following
+wildcards in your constants: ? means any character, * means any string
+of zero or more characters, # means any digit from '0' to '9'. For instance,
+you could enter <tt>[Archived date] LIKE "2011*"</tt> to accept any date
+in 2011. You can also specify a list of valid characters enclosed in square
+brackets (e.g. <tt>LIKE "xx[ACGT]xyz"</tt>) or of invalid characters by
+starting the list with an exclamation mark: <tt>LIKE "[!ACGT]"</tt> (to
+include ! among the legal characters, make sure it does not come first).
+Finally, the list can contain a range of characters, specified with a hyphen:
+<tt>LIKE
+"[A-F]"</tt> (to include the hyphen among legal characters, make sure it
+comes first). In all cases, the specified group matches only one character.
+<br>NOT LIKE simply negates a LIKE comparison and selects records that
+do not fit the LIKE comparison.
+<p><b>ORDER BY</b>. This text box optionally lets you sort the results
+according to one or more field: just specify a valid field name enclosed
+in square brackets. If you leave this box empty, records will be returned
+in no particular order. You can specify the direction of the sort by following
+the field name with ASC for ascending (alphabetical for strings) or DESC
+for descending (reverse alphabetical). The default is ASC.
+<p>You can sort on more than one field, by separating fields with commas.
+In this case, results are first sorted according to the first field. Records
+that have the same first field are further sorted according to the second
+field, etc. For instance, to sort by time and date you could do: <tt>[Archived
+data],[Archived time]</tt>.
+<p>Here also, you can enter text directly into the text box, or use the
+controls above it. Just select a field name, a direction for sorting, and
+click the [Add] button. Note that ASC is not appended to the field name,
+since it is the default.
+<p><u>Important</u>: You cannot the Info3 field for sorting, as it is a
+"memo" field (unlimited length) and Microsoft's JetEngine database engine
+does not allow sorting or indexing memo fields.
+<p><b>Display</b>. This box allows you to specify the layout of the List
+View, which will be used to display the query results. It works just like
+"View-->Customize list" (see <a href="#View customize">above</a>), and
+was only included in this dialog for your convenience. You can always leave
+it blank to use the default layout, or call "View-->Customize list" later.
+<p><b>[OK]</b> Saves the query into the tree, runs it, and displays results
+in the list view.
+<p><b>[Cancel]</b> Dismisses the dialog without creating (or modifying)
+the query.
+<p>The same dialog box is used to modify queries with "Database-->Edit
+query", except that in this case the "FROM" field is read only.
+<br>&nbsp;
+<h3>
+<a NAME="database edit query"></a>Edit query</h3>
+This command allows you to update an existing query, either standard or
+SQL. There are two ways to activate it:
+<br>- Selecte a query mounted in the Tree View (which will run it), and
+do "Database-->Edit query".
+<br>- Right-click on a mounted query (which will not run it), and select
+"Edit" from the context menu.
+<p>In either case, you will be presented with the same dialog box that
+was used to create the query, pre-filled with the current values. Note
+that, for standard "select" queries, you must keep the table (Disks or
+Files) that was chosen when creating the query.
+<br>&nbsp;
+<h3>
+<a NAME="database save query"></a>Save query</h3>
+Queries mounted in the Tree View will be saved together with your workspace.
+But if you delete a query, it's gone for good. You may thus wish for a
+safer place to store frequently used queries, and that's what the "Saved
+queries" folder is for. It allows you to save a query within the database
+itself and to reload it later, as many times as you want.
+<p>You can save a query in the database in several ways, all equivalent:
+<br>- Drag a query into the "Saved queries" folder.
+<br>- Select a query (which will run it), and do "Database-->Save query"
+<br>- Right-click on a query (which will not run it), and select "Save"
+in the context menu.
+<p>If a query with the same name already exists in the database, you will
+be asked if it's ok to replace it. Click [OK] to overwrite the database
+entry, or [Cancel] to cancel the operation (which means your query won't
+be saved).
+<br>Since saving a query produces no visible effect, when the "Saved queries"
+folder is not being viewed a message box pops up to inform you that the
+query was saved successfully.
+<br>&nbsp;
+<h3>
+<a NAME="database load query"></a>Load query</h3>
+Queries saved into the database can be mounted in the Tree View for execution.
+To do so, first click on the "Saved queries" folder to display its contents.
+Then you have several options:
+<br>- Double-click on the query you wish to mount.
+<br>- Select one or more queries in the list and do "Database-->Load query".
+<br>- Right-click on a query in the List View and select "Load in tree"
+from the context menu.
+<p>A copy of the query will be placed in the database subtree, and executed
+immediately (which will likely change the contents of the List View). If
+several queries are mounted at once, only the last one is executed.
+<p>Note: When you save a "combined" query, its record inside the database
+includes the type of combination and the name of the parent query. When
+you load such a query, VDM99 will attempt to mount it on its parent. To
+do so, it first searches the Tree View for a query with a name matching
+the parent. If none is found, VDM99 looks among saved queries and, if it
+find a query with the parent's&nbsp; name, mounts this query first. Then
+the combined query is mounted on its parent. If VDM99 cannot find the parent
+query, it will mount the selected query at the current location of the
+cursor (which may be another query that will then serve as parent), or
+in the database root if the cursor is not on a suitable parent query. This
+process is recursive, so you can load the parent query, the grand-parent,
+the great-grand-parent, etc, by selecting the last query in the chain.
+Just make sure there is no circular reference (a parent having its child
+as a parent) as this would result in a forever loop.
+<br>&nbsp;
+<h3>
+<a NAME="database delete query"></a>Delete query / remove query</h3>
+This menu command serves two purposes. When the Tree View has the focus,
+the command reads "Delete query" and serves to delete a query from the
+tree view. When the focus is on the List View, the command reads "Remove
+query" and serves to remove a query record from the database.
+<p>To delete a query from the tree view, you have two solutions:
+<br>- Select the query (which will run it) and do "Database-->Delete query".
+<br>- Right-click on the query (which will not run it) and select "Delete"
+from the context menu.
+<p>To remove a query from the database, first select the "Saved queries"
+folder so as to display its contents. Then
+<br>- Select one or more queries in the list and do "Database-->Remove
+query". You will only be asked for confirmation if more than one query
+is to be removed.
+<br>- Right-click on a query and select "Remove" from the context menu.
+<br>&nbsp;
+<h3>
+<a NAME="database SQL query"></a>SQL query</h3>
+If you know the database language SQL, you can enter SQL command and queries
+by selecting "Database-->SQL query". You will be presented with a dialog
+box containing the following fields:
+<p><b>Name</b>: The query name that will appear in the tree and in the
+"Saved queries" folder.
+<p><b>Comments</b>: An optional of what the query is does, to be saved
+into the database.
+<p>The big text box is there for you type the SQL command into. You can
+use the drop lists above it to select field names or paramters. A name
+is copied into the text box when you close the drop list.
+<p>You must then decide whether your query returns results or performs
+an action (i.e. is a command). This is an important distinction, an the
+two types of queries are run differently. For instance, UPDATE performs
+an action and does not return any results, whereas SELECT returns results
+but does not modify the database.
+<p><b>Display</b>: If your query returns results, you can customize the
+layout of the List View, to be used for this query only. If you leave it
+empty, all fields returned by the query will be displayed, in the order
+they are returned, using the default column size. You can select a field
+name from the leftmost drop list. Note that you have to option to specify
+fields by number rather than by name: [#0] displays the first field returned
+by the query, [#1] the second, etc. (This also works for standard queries,
+by the way).
+<p><b>[Run now]</b> Allows you to execute a query without dismissing the
+dialog box. It is mostly useful with command queries, and lets you perform
+several actions in a row, or perform a one-time action without having to
+create a query in the tree. If the query is a command, a message box pops
+up to let you know how many fields were modified. If you realized you made
+a mistake, you can click [Cancel] to cancel the changes and 'roll back'
+the database.
+<p><b>[OK]</b> Places the query in the tree and runs it. If the query returns
+results, these will be displayed in the List View. If the query performs
+an action, a message box pops up to let you know how many records were
+affected by the action. Click [OK] to commit the changes, or [Cancel] to
+roll back.
+<p><b>[Cancel]</b> dismisses the dialog box without creating (or modifying)
+the query. Also cancels all changes to the database that may have been
+introduced with [Run now].
+<br>&nbsp;
+<h3>
+<a NAME="database new param"></a>New parameter</h3>
+This command is only available when the List View displays the contents
+of the parameter folder. A text box appears in the list, in which you should
+type the parameter name. Although VDM99 lets you enter any name you want,
+you should avoid using a name that already exits, or that matches a record
+field (e.g. "Disk name" or "Size"). If you enter the name of a predefined
+parameter (e.g. "Path") your version will replace the internal one. Hit
+&lt;return> to complete the command and create the new paramter.
+<p>By default, a text parameter is created with empty value and comment
+fields. You should thus click into the List View to modify these. The parameter
+type can be Text, Num (for numeric), or Bool (boolean). Boolean values
+can be Yes, No, True or False. Quote marks should not be used for text
+or boolean values, as the database engine adds them automatically. To finish
+editing a field, just click out of it.
+<br>&nbsp;
+<h3>
+<a NAME="database delete param"></a>Delete parameter</h3>
+To remove a parameter from the database, first display the "Parameters"
+folder. Then you have two possibilities:
+<br>- Select one or more parameters in the list. Since clicking in a column
+results in editing it, make sure you click on the icon to select a parameter
+without editing it. Then do "Database-->Delete parameter".You will only
+be prompted for confirmation if more than one parameter is to be removed.
+<br>- Right-click on a parameter and select "Delete" from the context menu.
+<br>&nbsp;
+<br>&nbsp;
+<h3>
+<a NAME="database bulk update"></a>Bulk update</h3>
+There are times when you will need to change a field in a great many records
+in the database, too many to edit them one by one. For instance, if you
+changed the name of the PC folder where you store your TI99 disk images
+from C:\TI99 to C:\TI99\Disks you must now introduce this change into the
+drive location field of the corresponding entries in your database. This
+is easily achieved with "Database-->Bulk update", which display a dialog
+box with the following controls:
+<p><b>UPDATE</b> Here you decide whether you wish to update disk records,
+or file records (You can't do both at the same time. To update queries
+or parameters, use a SQL command).
+<p><b>SET</b> Here you enter the name of the field you with to modify,
+and the new value it should take. Arithmetic expressions are allowed, e.g.
+[Size] = [Size]+1 or&nbsp; [Info1] = [Info1] &amp; "Keyword" (&amp; is
+the concatenation operator, to be used when joining strings together).
+<p><b>WHERE</b> Allows you to restrict changes to a subset of records.
+The syntax is identical to that of the WHERE clause in standard queries,
+and has been described <a href="#database new query">above</a>. This clause
+is critically important, as otherwise all records in the table will take
+the value specified in SET (if you make such a mistake, just click [Cancel]
+to dismiss the dialog box without committing changes).
+<p>So in our example, the final command would look like this: <tt>UPDATE
+[Disks] SET [Drive] = "C:\TI99\Disks" WHERE [Drive] = "C:\TI99"</tt>&nbsp;
+In this way, only the records that have C:\TI99 as a drive location will
+be updated.
+<p><b>[Update]</b> Performs the update. You can execute several commands
+successively before leaving the dialog box. After each update, a message
+box pops up indicating whether the command was successful and how many
+records were modified.
+<p><b>[OK]</b> Dismisses the dialog box and confirms any change that was
+made with [Update]. Of course, if you did not click the [Update] button,
+nothing will change.
+<p><b>[Cancel]</b> Dismisses the dialog box and cancels any changes that
+were made with the [Update] button (i.e. rolls back).
+<br>&nbsp;
+<h3>
+<a NAME="Using params"></a>Using parameters</h3>
+
+<p><br>Parameters are variables that you can use in your queries. For instance,
+instead of typing <tt>[Size] = 360</tt>, you could use <tt>[Size] = [Limit]</tt>,
+where "Limit" is the parameter name.
+<p>Why would you want to do this? There are several reasons:
+<br>- If you have a lot of queries that include a check for the same value,
+using a parameter allows you to change all these queries by just changing
+the value of the parameter.
+<br>- In some cases, you may want to include a parameter in a query without
+adding it to the parameter folder. In this case, VDM99 will prompt you
+for the value each time you run the query. For example, the query <tt>[File
+name] = [Name]</tt> will prompt you for the name of the file to look for.
+<br>- Finally, VDM99 internally defines a bunch or parameters that you
+may find convenient. For instance [Today] contains the current date and
+[Path] the current application folder. These do not appear in the "Parameters"
+folder.
+<p>To create a new parameter, open the parameter folder and select "Database-->New
+parameter". Enter the parameter name directly in the List View. Avoid names
+that correspond to record fields (e.g. [Disk name], [Size], etc) as they
+would not be used: the corresponding field is used instead.
+<br>You must then specify the parameter type, value, and an optional comment.
+This can be done by clicking into the List View, in the corresponding column.
+When done, click out of the column to commit changes.
+<br>- Name. This is the variable name, to be used in your queries.
+<br>- Type. This should be either "Text" for string parameters, "Num" for
+numeric parameters, or "Bool" for boolean parameters (the field [DS], [DD]
+and [Protected] are booleans and must be compared to boolean parameters).
+<br>- Value. Enter the parameter values. Text values should not be enclosed
+in quote marks, as the query automatically adds them for string parameters.
+Legal boolean values are Yes, No, True and False.
+<br>- Comments. This is an optional field, in which you can enter a short
+description of what the parameter is for, or which query uses it.
+<p>To delete parameters, select one or more in the list and do "Database-->Delete
+parameter". You will only be asked for confirmation if more than one parameter
+is to be deleted.
+<br>&nbsp;
+<h4>
+Predefined parameters</h4>
+VDM99 internally defines the following parameters
+<br><b>Today</b>: todays date in yyyy/mm/dd format.
+<br><b>This year</b> (aka <b>Thisyear</b>): the current year.
+<br><b>Path</b>: the path of the folder that contains VDM99.exe
+<p>In addition, VDM99 remembers the last disk you selected while viewing
+a disk query, and the last file selected while displaying a file queries.
+These are used to derive a bunch of built-in parameter, by combining the
+name <b>CurDisk</b> with a disk field, or <b>CurFile</b> with a file field
+(using a space as separator). For instance [CurDisk ID], [CurDisk Disk
+name], [CurFile CRC], etc.
+<br>&nbsp;
+<h4>
+Undefined parameters</h4>
+If you run a query that refers to a parameter that is neither one of the
+predefined parameters nor included in the "Parameters" folder, VDM99 will
+prompt you for the parameter value. Enter it in the text box and click
+[OK] to go on with the query, or [Cancel] to abort. For numeric parameters,
+you can enter numbers in decimal or hexadecimal notation. Prefix hexadecimal
+numbers with 0x (e.g. 0x168 ). For boolean parameters, you can use "yes",
+"no", true" or "false" in lower or upper case.
+<p>You can also specify the parameter type: text, number or boolean. Be
+aware that setting the wrong type for a boolean parameter will cause a
+"Type mismatch" error that will cause an application after you left the
+program. So if you use a boolean field in your query (these are [DD], [DS]
+and [Protected] ) together with a parameter, make sure that the parameter
+type is boolean! Alternatively, leave the type on "auto", in which case
+a valid number will set the type as numeric, whereas "yes", "no", true"
+and "false" (case-independent) set the type as boolean.
+<p>If you wish, you can tick the "Save into database" box, and VDM99 will
+place your parameter in the parameter folder when you click [OK].
+<br>&nbsp;
+<h3>
+<a NAME="combining queries"></a>Combining queries</h3>
+
+<p><br>It is possible to combine two or more queries, i.e. to run a query
+on the results returned by another. There are several types of combination
+available, depending on whether you are combining queries of the same type
+(disk-on-disk or file-on-file) or of different types.
+<p>To combine a query with another, you can:
+<br>- Drag-and-drop a query onto another in the tree view (which will remove
+it from its original location).
+<br>- Cut-and-paste a query onto another (the original stays in place,
+a copy is made at the new location).
+<br>- Select an exiting query before you do "Database-->New query" (the
+new query will be combined with the existing one).
+<p>In all cases, you will be presented with the standard query dialog box.
+You will notice two new controls, though, in the upper right corner:
+<br>- A read-only text box that displays the name of the "parent" query,
+i.e. the query with which the currently edited query must be combined.
+<br>- A drop-list with the available types of combination. By default,
+the type is "Standalone", which means the query will not be combined. If
+you leave it so when you click [OK], the query will be moved to the database
+root, and not combined with the expected parent. Available combinations
+depend on the query type (Disks or Files) and on the type of parent query.
+<br>&nbsp;
+<h4>
+Files-on-disk combination</h4>
+If you are mounting a file query on top of a disk query, the only available
+combination is "Files on disks". In other words, the combination will only
+consider files that are located on one (or more) of the disks returned
+by the parent query. Of course, you can further filter these files by filling
+in the WHERE box in the file query. It is generally a good idea to change
+the predicate to "SELECT DISTINCTROW" to avoid multiple entries in case
+a file is shared by several disks.
+<p>For instance, if you wanted to find all DV80 files in disk images residing
+on your PC, you would create the following parent query:
+<br><tt>SELECT ALL * FROM [Disks] WHERE [Drive] = "DOAD" OR [Drive] = "PC99"</tt>
+<br>and mount the following file query onto it:
+<br><tt>SELECT DISTINCTROW * FROM [Files] WHERE [Type] = "DV80"</tt>
+<p>Simple enough, isn't it?
+<br>&nbsp;
+<h4>
+Disk-on-file combination</h4>
+If you are mounting a disk query on top of a file query, the only possible
+combination is "Disks with files". This means that the combined query will
+return all disks that contain one or more of the files returned by the
+parent query. It is generally a good idea to change the predicate to "SELECT
+DISTINCTROW" to avoid multiple entries in case a disk contains several
+of the files found in the parent query.
+<p>For example, if you wanted to know which of your many floppies contain
+the "CATLIST" file, you would create the following parent query:
+<br><tt>SELECT ALL * FROM [Files] WHERE [File name] = "CATLIST"</tt>
+<br>and mount the following disk query onto it:
+<br><tt>SELECT DISTINCTROW * FROM [Disks] WHERE [Drive] = "TI99"</tt>
+<br>&nbsp;
+<h4>
+Same-on-same combinations</h4>
+There are several possible combinations when you are combining queries
+of the same type, i.e. disk-on-disk or file-on-file. In essence, VDM99
+considers the two sets of results returned by the two queries and combines
+them in different ways:
+<p><b>INTERSECT</b> Selects only the records that were returned by both
+queries. Since it is applied to the same table (either Disks or Files),
+this is equivalent to combining the WHERE clauses of the two queries with
+an AND. (And this is more or less how it is implemented, as Microsoft's
+version of SQL does not support INTERSECT).
+<p><b>UNION</b> Pools both sets of results, making sure that records that
+are returned by both queries only appear once. This is equivalent to combining
+the WHERE clauses with OR, and this is how it is implemented (kind of)
+since Microsoft's database engine cannot perform UNION on records that
+contain "memo" fields (Info3 is a memo).
+<p><b>UNION ALL</b> Just pools the two sets of results, whithout filtering
+out duplicates. If you don't want duplicates, you could change the predicate
+to SELECT DISTINCTROW, which would return the same results as a regular
+UNION.
+<p><b>LEFT JOIN</b> This combination is normally used to merge different
+tables, on the basis of a field (aka column) they have in common. Here
+we are applying it to the same table, so it just selects records by comparing
+each record in the parent query with every record in the child query, based
+on a field that you specify. A new text box appears when you select this
+combination type, in which you should enter which field you whish to compare
+to which, and how. The syntax is a bit peculiar, so better use the controls
+on the left to fill the box: select a field from the drop-list and click
+[Add]. You will see something like <tt>[this].[CRC] = [parent].[CRC] </tt>,
+which means that file records will only be kept if their CRC fields match,
+which is a good way to detect duplicates. The <tt>[this].</tt> and <tt>[parent].</tt>
+notation is necessary so that the database engine knows in which of the
+two queries is the field you want to consider.
+<p>Note that you could use other type of comparisons than the equality,
+or compare different fields. The above example (known as an "equijoint")
+is just the most frequent case.
+<p>You will have noticed that clicking the [Add] button also resulted in
+adding the following filter to the WHERE box: <tt>[this].[ID] &lt;> [parent].[ID]
+</tt>This
+is meant to prevent a record from selecting itself, in case it is returned
+by both queries (you can remove this if you want). Incidentally, if you
+add more selection criteria to the WHERE box, you must use the <tt>[this].</tt>
+(or <tt>[parent].</tt>) notation prior to the field name, otherwise you
+will get an "ambiguous field reference" error. The same goes for the SORT
+BY box, but not for the display box, as VDM99 knows that display instructions
+always refer to the present query. You do not need to amend the parent
+query in the same way, as the parent cannot refer to the child.
+<p>The above example works well to detect file duplicates (i.e. two files
+only), but with more replicates it tends to clutter the list of results.
+For instance, triplicates would return six records, because #1 selects
+#2 and #3, whereas #2 selects #1 and #3, and #3 selects #1 and #2. With
+quadruplicates, you would have 12 records, etc. To prevent this problem,
+just change the predicate to SELECT DISTINCTROW.
+<br>&nbsp;
+<br>&nbsp;
+<h2>
+<a NAME="setup menu"></a>The Setup menu</h2>
+&nbsp; <a href="#options">Options</a>
+<br>&nbsp;&nbsp;&nbsp; <a href="#general options">General</a>
+<br>&nbsp;&nbsp;&nbsp; <a href="#conversion options">Conversions</a>
+<br>&nbsp;&nbsp;&nbsp; <a href="#remote options">Remote connection</a>
+<br>&nbsp; <a href="#Upload hook">Upload hook</a>
+<br>&nbsp; <a href="#load workspace">Load workspace</a>
+<br>&nbsp; <a href="#save workspace">Save workspace</a>
+<br>&nbsp; <a href="#changing speed">Changing RS232 speed</a>
+<br><a href="#save workspace"></a>&nbsp;
+<br>&nbsp;
+<h3>
+<a NAME="options"></a>Options</h3>
+Displays a property sheet with several tabs containing the various options
+you can select:
+<br>&nbsp;
+<h4>
+<a NAME="general options"></a>The "General" tab</h4>
+This tab contains many setting relevant to the appearance of the VDM99
+interface.
+<p><b>Use full folder names</b>: Decides whether the "PC" folders (yellow)
+in the tree view should display the full path name, or the abbreviated
+(and editable) name. This option is also accessible from the View menu.
+<p><b>Show remote devices</b>: Decides whether the drives in the Bug99
+subtree should be grouped by device, and those in the TI-99/4A tree by
+card CRU. This option is also accessible from the View menu.
+<p><b>Sectors per line</b>: How many characters, each corresponding to
+one sector, should there be in Sector Map line.
+<p><b>Show sectors beyond disk size</b>: If this box is ticked, 1440 sectors
+are always shown (those beyond the disk size are labelled X, attempting
+to edit one may results in an error). If the box is unticked, the number
+of sectors displayed is taken from the disk size announced in the disk
+directory (sector 0).
+<p><b>Buffer</b>: Decides what to buffer when accessing drives on a remote
+TI-99/4A. Buffered sectors are read only once from the remote system, then
+the local copied is accessed for further read operations (write opeartions
+are directed both to the buffer and the remote system). This can speed
+things up considerably, but may lead to strange side effect if you change
+the remote disk and neglect to inform VDM99. Also, write errors cannot
+be detected. Thus, you have the option to control what should be buffered.
+<b>Nothing</b>:
+no buffering, sectors are always read from the remote system.
+<b>Sector
+0+1+FDR</b>: sectors 0 and 1 are buffered locally, as well as the FDR of
+the file currently in use. <b>Whole disk</b>: the whole disk is progressively
+buffered; as you read new sectors from the remote system they are saved
+locally. This setting also applies to Bug99 drives, but the "Whole disk"
+option is not available and defaults to "Sector 0+1" when selected. Disk-image
+files on the PC are never buffered.
+<p><b>Save VDP mem</b>: Decides whether VDP memory on the TI-99/4A must
+be preserved when executing sector read/write operations. Checking this
+box makes sector transfers 3 times slower (since VDP memory must be saved
+before each sector access, and restored afterwards). On the other hand,
+if this box is not checked, VDP addresses >2000-20FF will be overwritten
+upon reading/writing to a remote drive, which may be a problem depending
+which application is currently running on the TI-99/4A. If you're not doing
+anything special on the remote TI, just leave the box unchecked to speed
+up transfer.
+<p><b>Save on exit</b>: Decides whether the workspace should be saved when
+exiting the program via Drive-->Exit (nothing is saved if you just close
+the application window). Possible options are: Always, Never, and Ask me.
+With the later, a message box will appear upon exit, asking you whether
+you want to save the workspace or not.
+<br>&nbsp;
+<h4>
+<a NAME="conversion options"></a>The "Convert" tab</h4>
+This tab controls text file conversions between PC .txt format and the
+TI text format (generally in DV80 files). When converting a PC file to
+a TI file, any tab character (ASCII 9) can be replaced with spaces according
+to your specifications. It could be a fixed number of spaces for each tab
+character, or the conversion routine can generate enough spaces to reach
+a given column, known as a tab stop. This works best if you set tab stops
+corresponding to those of your favorite text editor on the PC.
+<p><b>Tab stops</b>: Column positions (in characters) of the tabulator
+stops. When importing a file from the PC to a TI disk, a tab character
+will be replaced with enough spaces to reach the next column in your list
+that is greater or equal to the current position. For instance, if your
+first tab stop is 7 and a line begins with "TEST&lt;<i>tab</i>>NOP" then
+&lt;<i>tab</i>> will be replaced with 3 spaces, so that NOP begins in column
+7. If you do not wish to use this feature, leave the list empty.
+<p><b>Then replace tab with <i>xx</i> spaces</b>: If the current character
+in the line is already beyond the last tabstop specified in the above list,
+it will be replaced with a fixed number of spaces, which you can specify
+here. This number can be zero, in which case the tab character is simply
+removed.
+<p><b>Replace tab on import</b>: Defines the default behaviour when importing
+files from the PC to the a TI disk. You will have another opportunity to
+change this when executing the "File-->Import" command, but not with "File-->View-->As
+text".
+<p><b>Create tabs on export</b>: Defines the default behaviour when exporting
+a TI file to your PC. Again, you will be given a chance to change this
+when calling the "File-->Export" command. If you choose to create tabs,
+any space (or stretch of spaces) preceeding a tab stop will be replaced
+with a tab character. For instance "TEST&nbsp;&nbsp; NOP" would become
+"TEST&lt;<i>tab</i>>NOP" if you had a tabstop in position 9.
+<br>&nbsp;
+<br>&nbsp;
+<h4>
+<a NAME="remote options"></a>The "Remote" tab</h4>
+This tab controls communications with the remotely connected TI-99/4A.
+See <a href="#cable wiring">below</a> for instructions on how to build
+connection cables.
+<p><b>Contact</b>: Here you decide whether to contact a real TI-99/4A,
+or a third party emulator posing as a TI-99/4A. The later assumes that
+the author of the emulator has included the appropriate code in his program.
+Instructions on how to do this can be found in the file "Emulators.txt"
+that's part of this package. To my knowledge, only Tursi's Classic99 offers
+this option.
+<p><b>Parallel | Serial</b>: Select the type of connection you wish by
+clicking the appropriate radio button. This field controls the layout of
+the rest of the dialog box, so I shall discuss parallel and serial settings
+separately.
+<p><u>Parallel connection</u>
+<p><b>PC port used</b>: Here you should enter the hardware address of the
+PC parallel port you want to use (e.g. 0x2BA). If you do not know the port
+address, you could pick the port name from the drop list. Be aware, however,
+that the address of a given port depends on the total number of parallel
+ports on your PC (because the PC BIOS attribute the first address to the
+last port, and don't ask me why). Thus, if you mean to use LPT1, make sure
+to select "LPT1 single port" if your PC has only one parallel port, "LPT1
+two ports" if it has two, and "LPT1 three ports" if it has three parallel
+ports.
+<p><b>Handshake in</b>: Here you select the PC line which is connected
+to the "Handshake in" line in the PIO port of the TI-99/4A. If you built
+your parallel cable according to my instructions, this should be "Strobe*".
+<p><b>Handhake out</b>: Here you select the PC parallel line that senses
+the "Handshake out" output in the PIO port. If you followed my instructions,
+it should be "Busy*".
+<br>&nbsp;
+<p><u>Serial connection</u>
+<p><b>PC port used</b>: Here you should type the name of the serial port
+you wish to use, e.g. COM1, COM2, etc. Some default values are provided
+in the drop list, but if you are using a USB-to-serial converter, the port
+may have an exotic name (e.g. COM9), which you should simply type into
+this field.
+<p><b>DTR</b>: Decides which line in the PC serial port controls the DTR
+input of the RS232 card on the TI-99/4A. This could be DTR for a straight
+serial cable, RTS with a crossed cable, or none (not recomended).
+<p><b>DCD</b>: Which PC line receives the DCD output from the TI-99/4A.
+Possible choices are DCD (straight cable), CTS (crossed cable), DSR, or
+none.
+<p><b>CTS</b>: Which PC line receives the CTS output from the TI-99/4A.
+Possible choices are DCD,&nbsp; CTS (optional in straight cable), DSR,
+or none (crossed cable). This line is not used by the default version of
+the hook routine. If you want to use it, you should reassemble the serial
+hook after changing the line HOUT EQU DCD into HOUT EQU CTS1 (use CTS2
+for RS232/2 or RS232/4).
+<p><b>Bauds</b>: This should be set as 9600, unless you reassembled the
+hook routine with a different BAUD value, or patched the EA5 file accordingly
+(e.g. with the Sector Editor). See <a href="#changing speed">below</a>
+for details.
+<p><b>Stop</b> bits: This should be set as 1, unless you changed the hook
+routine.
+<p><b>Parity</b>: Should be "none" unless you modified the hook routine.
+<p><b>Pause before each byte</b>: Causes VDM99 to pause for 2 milliseconds
+before sending a byte over the serial port, to give the TI-99/4A time to
+process the previous byte.
+<p>To ensure proper communications you should either enable pausing, or
+select a handshaking line. Otherwise, transmission overflow may occur at
+speeds higher then 1200 bauds, as the PC is sending bytes faster than the
+TI-99/4A can process them. Note that the "Upload hook" command overrides
+some of these settings: it enables pausing and temporarily disables handshake
+by DCD and CTS. This is necessary because the ROM routines in the RS232
+card do nor perform handshaking upon reception. Bauds rate and parity are
+taken from your settings, which allows you to try different parameters
+if you whish (just remember to do it in TI-Basic too:e.g. CALL LOAD("RS232.BA=1200.DA=8.PA=E.CR").
+Your full settings will be reinstated as soon as the hook is uploaded.
+<p>In summary, possible settings for a straight cable are:
+<p>DTR: DTR
+<br>DCD: DCD
+<br>CTS: None
+<br>Bauds: 9600
+<br>Stop: 1
+<br>Parity: None
+<br>Pause: No
+<p>or
+<p>DTR: DTR
+<br>DCD: None
+<br>CTS: None
+<br>Bauds: 9600
+<br>Stop: 1
+<br>Parity: None
+<br>Pause: Yes
+<p>And for a crossed cable:
+<p>DTR: RTS
+<br>DCD: CTS
+<br>CTS: None
+<br>Bauds: 9600
+<br>Stop: 1
+<br>Parity: None
+<br>Pause: No
+<p>or
+<p>DTR: RTS
+<br>DCD: None
+<br>CTS: None
+<br>Bauds: 9600
+<br>Stop: 1
+<br>Parity: None
+<br>Pause: Yes
+<p><u>Other controls</u>
+<p><b>Timeout value</b>: Decides how many times the PC will attempt to
+contact the TI-99/4A before announcing a communication error. This is an
+hexadecimal field and the default value is 00001000, wich is <u>required
+for parallel transmission</u>. You can set this value as 0 to disable timeout
+altogether. In this case, the only way to break a hung transmission will
+be to press &lt;Escape>.
+<p><b>Xop used for breakpoints</b>: This must be 1. On some machines 2
+might also work, but it depends on the console ROMs, so VDM99 always uses
+1.
+<p><b>Hook routine location</b>: The hexadecimal address at which the hook
+routine currently resides in the TI-99/4A memory.
+<p><b>Hook routine workspace</b>: The hexadecimal address of the workspace
+used by the hook routine.
+<p><b>[Move it]</b>: This is meant for Bug99, which uses the same setup
+dialog. It allows you to enter new values in the "location" and "workspace"
+fields, and to move (and modify) the hook routine accordingly. This is
+useful for a debugger like Bug99, as it may be necessary to move the hook
+routine out of the way of the program being debugged. There is no reason
+to use this feature with VDM99, so leave it alone.
+<p><b>[Query hook]</b>: This checks whether the remote TI-99/4A is answering,
+and updates the hook location and workspace values. For this to work, you
+must have loaded and launched the appropriate hook routine on the TI-99/4A.
+<br>&nbsp;
+<h4>
+<a NAME="Database options"></a>The database tab</h4>
+This tab contains all database-relatated options.
+<p><b>Review disk info</b>: Tick this box if you want to be given a chance
+to review disk information when adding a disk to your database.
+<p><b>Review each file info</b>: Tick this box if you want to review information
+for all files, as they are entered in the database when you add a disk.
+<p><b>File duplicates</b>: Here you can select a default action to be taken
+when a duplicate file is detected. Your choices are the same as in the
+"Duplicate found" dialog box: Create a new entry for this file, reuse the
+existing entry as it is, or reuse the existing entry but overwrite some
+fields (e.g. scanned date and time, info1 to 3, etc) it with the details
+of the new file. Or you could select "Ask me", in which case you will be
+prompted for the action to take each time a duplicate is detected.
+<p><b>Open on startup</b>: Tick this box to open the current database when
+VDM99 starts up. The current database name is shown in the adjacent read-only
+file. To change it, just open (or create) another database.
+<p><b>Unlock edit</b>: Ticking this box allows you to modify the fields
+that are normally read-only in the "Disk record" and "File record" dialog
+box. It's not advisable to do so as these fields should reflect the actual
+characteristics of the disk and its files (if you've modified a disk, better
+just rescan it), but if you really want to fiddle with these fields, you
+can do it by ticking this box. The only field that's never editable is
+the ID field, as it is the primary key of each table and essential for
+database integrity. Note that this option is not saved with the workspace,
+so you'll have to re-tick the box if you restart VDM99.
+<br>&nbsp;
+<h3>
+<a NAME="Upload hook"></a>Upload hook</h3>
+To communicate with a remotely connected TI-99/4A, there are several prerequisite.
+<ol>
+<li>
+The TI and the PC should be connected via a serial or parallel cable.</li>
+
+<li>
+The proper communication parameters should be set up on the PC. This is
+done in the "Remote" tab of the dialog called with "Setup-->Option", as
+described above.</li>
+
+<li>
+The proper hook routine must be running on the TI-99/4A. There are 6 routines,
+corresponding to the 6 possible ports on a TI-99/4A (PIO/1 PIO/2, RS232/1,
+RS232/2, RS232/3, and RS232/4). All these routines are included in the
+disk image VDM99.DSK that is part of the VDM99.ZIP file. Each routine comes
+in two flavours: a DF80 object file (to be loaded with Editor/Assembler
+option 3, or with a CALL LOAD), and an "program" file (to be loaded with
+Editor/Assembler option 5, or Funelweb).</li>
+</ol>
+One of the first thing you should do is to copy the VDM99.DSK disk, or
+at least the routines you are interested in, onto your TI-99/4A. This will
+make it easier for you to launch the hook routine when needed. But how
+do you transfer this routine for the very first time? This is where the
+"Setup-->Upload hook" command comes in. The procedure is slightly different
+for a serial and a parallel cable, so I shall describe them separately.
+<br>&nbsp;
+<h4>
+Parallel cable</h4>
+
+<li>
+Connect a parallel cable to the PIO/1 port, i.e. the parallel port of your
+first RS232 card on the TI-99/4A.</li>
+
+<li>
+In VDM99, do "Setup-->Option", select the "Remote" tab and setup parallel
+communications as described <a href="#remote options">above</a>.</li>
+
+<li>
+On the TI-99/4A, enter Extended Basic, or TI-Basic with the Editor-Assembler
+cartridge plugged in (this is faster than XB).</li>
+
+<li>
+Type CALL INIT then CALL LOAD("PIO.EC")</li>
+
+<li>
+In VDM99 select "Setup-->Upload hook". In the dialog that appears, select
+the routine HOOKPIO1.DF80. It should be in the same directory as the VDM99
+application, since it is part of the ZIP file.</li>
+
+<li>
+Once the TI-99/4A returns from the CALL LOAD, type CALL LINK("GO").</li>
+
+<li>
+A message box appears in VDM99, asking you if you wish to scan the remote
+TI-99/4A right away. The main purpose of this message is to delay VDM99
+until the hook routine on the TI-99/4A is ready to accept command. Answer
+[Yes] to scan for drives and populate the TI-99/4A sub-tree. If you answer
+[No], you can always scan later with "Drive-->Scan remote TI-99/4A".</li>
+
+<br>&nbsp;
+<h4>
+Serial cable</h4>
+
+<li>
+Connect a serial cable to the RS232/1 port of your first RS232 card. This
+could be either a <a href="#straight serial">straight cable</a>, or a <a href="#crossed serial">crossed
+cable</a>.</li>
+
+<li>
+In VDM99, do "Setup-->Option", select the "Remote" tab and setup serial
+communications as described <a href="#remote options">above</a>.</li>
+
+<li>
+On the TI-99/4A, enter Extended Basic, or TI-Basic with the Editor-Assembler
+cartridge plugged in (this is faster than XB).</li>
+
+<li>
+Type CALL INIT then CALL LOAD("RS232.BA=9600.DA=8.PA=N.EC")</li>
+
+<li>
+In VDM99 select "Setup-->Upload hook". In the dialog that appears, select
+the routine HOOKRS1.DF80. It should be in the same directory as the VDM99
+application, since it is part of the ZIP file.</li>
+
+<li>
+Once the TI-99/4A returns from the CALL LOAD, type CALL LINK("GO").</li>
+
+<li>
+A message box appears in VDM99, asking you if you wish to scan the remote
+TI-99/4A right away. The main purpose of this message is to delay VDM99
+until the hook routine on the TI-99/4A is ready to accept command. Answer
+[Yes] to scan for drives and populate the TI-99/4A sub-tree. If you answer
+[No], you can always scan later with "Drive-->Scan remote TI-99/4A".</li>
+
+<br>&nbsp;
+<h4>
+Now what?</h4>
+You should now copy the VDM99.DSK disk (or the hook routine you intend
+to use) onto your TI-99/4A. For this you must first use "Drive-->Mount"
+to mount the VDM99.DSK disk image which is part of the VDM99.ZIP file.
+<br>Then place an empty, but initialized disk in one of the TI drives and
+drag-and-drop the VDM99.DSK image onto it. This will copy the entire disk
+to the TI-99/4A.
+<br>Alternatively, you could pick the desired routine from the file list,
+and drag-and-drop it into the TI drive
+<br>From now on, you will not need to use "Upload hook" again, since you
+can load-and-run the hook routine directly on the TI-99/4A.
+<p>The VDM99.DSK disk contains the following files:
+<pre>Filename&nbsp;&nbsp;&nbsp; Format&nbsp; Contents
+----------------------------------------------------------------
+HOOKPIO1&nbsp;&nbsp;&nbsp; Prog&nbsp;&nbsp;&nbsp; EA5 file for use with PIO/1
+HOOKPIO2&nbsp;&nbsp;&nbsp; Prog&nbsp;&nbsp;&nbsp; EA5 file for&nbsp; use with PIO/2 (i.e. the second RS232 card)
+HOOKRS1&nbsp;&nbsp;&nbsp;&nbsp; Prog&nbsp;&nbsp;&nbsp; EA5 file for use with RS232/1
+HOOKRS2&nbsp;&nbsp;&nbsp;&nbsp; Prog&nbsp;&nbsp;&nbsp; EA5 file for use with RS232/2
+HOOKRS3&nbsp;&nbsp;&nbsp;&nbsp; Prog&nbsp;&nbsp;&nbsp; EA5 file for use with RS232/3 (on the second RS232 card)
+HOOKRS4&nbsp;&nbsp;&nbsp;&nbsp; Prog&nbsp;&nbsp;&nbsp; EA5 file for use with RS232/4
+HOOKPIO1_O&nbsp; DF80&nbsp;&nbsp;&nbsp; Objec file for use with PIO/1
+HOOKPIO2_O&nbsp; DF80&nbsp;&nbsp;&nbsp; Objec file for use with PIO/2
+HOOKRS1_O&nbsp;&nbsp; DF80&nbsp;&nbsp;&nbsp; Objec file for use with RS232/1
+HOOKRS2_O&nbsp;&nbsp; DF80&nbsp;&nbsp;&nbsp; Objec file for use with RS232/2
+HOOKRS3_O&nbsp;&nbsp; DF80&nbsp;&nbsp;&nbsp; Objec file for use with RS232/3
+HOOKRS4_O&nbsp;&nbsp; DF80&nbsp;&nbsp;&nbsp; Objec file for use with RS232/4
+HOOKPIO1_S&nbsp; DV80&nbsp;&nbsp;&nbsp; Source code for parallel port
+HOOKRS1_S&nbsp;&nbsp; DV80&nbsp;&nbsp;&nbsp; Source code for serial port</pre>
+&nbsp;
+<h3>
+<a NAME="save workspace"></a>Save workspace</h3>
+Saves your current workspace setup to a file of your choice. The workspace
+includes all you options, the size and positions of the 4 panes, the composition
+of the PC subtree, etc. Normally, this information is saved onto a file
+called "Worskpace.VDM" when exiting the program with "Drive-->Exit" (although
+you can disable this in the options) and automatically loaded upon startup.
+Here you can save your workspace to a different file, for instance if you
+want to quickly load a different setup (e.g. serial versus parallel connections).
+<p>In the dialog box, select an existing file or create a new one, preferably
+with a VDM extension.
+<br>&nbsp;
+<h3>
+<a NAME="load workspace"></a>Load workspace</h3>
+This allows you to reload a previously saved workspace, which may or may
+not be the default one loaded upon startup (Workspace.VDM). Just select
+the appropriate file using the file selection dialog box.
+<br>&nbsp;
+<h4>
+<a NAME="changing speed"></a>Changing RS232 speed</h4>
+You can type any speed you like in the "Bauds" field of the Setup dialog,
+but it will only work if the Hook routine handles the corresponding speed.
+The serial&nbsp; hook routines provided with the package all expect 9600
+bauds, so if you'd like to work at a different speed, you should reassemble
+the hook. The source file is included in this package as a PC-readable
+file, HookSer1.txt, and in TI-99/4A DV80 format on the VDM99.DSK disk image:
+HOOKRS1_S.
+<p>At the beginning of the source file, you'll see a bunch of EQU statements,
+a few of wich are part of a section marked "You may change the following
+if you wish". To change the baud rate, replace BAUDS EQU B9600 with the
+desired value (e.g BAUDS EQU B38400). Note that, for some speeds, you must
+also change the divisor flag in the control register by replacing DIVBY4
+into DIVBY3 in the CTRLRG EQU line. The speeds that require this are clearly
+indicated in the EQU section: currently 1200, 19200 and 38400.
+<p>Then assemble the file (with the R option enabled) and load it as an
+EA3 file (DF80 format). Optionally, you could link it into an EA5 (program)
+file, for faster loading.
+<p>Alternatively, you could modify the existing DF80 or EA5 files directly,
+for instance with the sector editor in VDM99. This implies locating the
+proper values (0200 0027) and replacing them with the new ones (e.g. 0200
+001A). Don't forget the control register: if DIVBY3 must be specified,
+replace 0200 8B00 with 0200 8300. These values are hexadecimal in EA5 files,
+but ASCII in the DF80 files with 'B' tag separators: B0200B0027 for instance.
+All in all, it's probably easier to reassemble the source, but it's up
+to you.
+<br>&nbsp;
+<h2>
+<a NAME="Help menu"></a>The Help menu</h2>
+Windows does not support WinHelp any more, and even actively blocks it.
+Thus your only online help is the current file.
+<h3>
+<a NAME="help about"></a>About VDM99</h3>
+Displays the version number and copyright dialog.
+<br>&nbsp;
+<br>&nbsp;
+<h2>
+<a NAME="Keyboard shortcuts"></a>Keyboard shortcuts</h2>
+
+<p><br>Some commands can be called with keyboard accelerators, aka shortcuts.
+Note that some only work in advanced mode, or when a given file/sector
+is selected.
+<p><tt>Mount PC file&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+Ctrl-M</tt>
+<br><tt>New PC file&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+Ctrl-N</tt>
+<br><tt>Open workspace&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+Ctrl-O</tt>
+<br><tt>Save workspace&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+Ctrl-S</tt>
+<p><tt>Import File&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+Ctrl-I</tt>
+<br><tt>Export File&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+Ctrl-E</tt>
+<br><tt>Protect/unprotect file&nbsp;&nbsp;&nbsp;&nbsp; Ctrl-P</tt>
+<br><tt>View file as text&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+Ctrl-T</tt>
+<br><tt>View file hexadecimal&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Ctrl-X</tt>
+<p><tt>Edit copy&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+Ctrl-C</tt>
+<br><tt>Edit paste&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+Ctrl-V</tt>
+<br><tt>Edit Find&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+Ctrl-F</tt>
+<br><tt>Edit Find next&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+F2</tt>
+<br><tt>Edit Find all&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+Shift-F2</tt>
+<br><tt>Edit Replace&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+F3</tt>
+<br><tt>Edit Replace all&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+Shift-F3</tt>
+<p><tt>Mark sector free&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+Ctrl-0 (zero)</tt>
+<br><tt>Mark sector used&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+Ctrl-1 (one)</tt>
+<br><tt>Select/deselect sector&nbsp;&nbsp;&nbsp;&nbsp; Ctrl-2</tt>
+<br><tt>Previous track/cluster&nbsp;&nbsp;&nbsp;&nbsp; Ctrl-Left arrow</tt>
+<br><tt>Next track/cluster&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+Ctrl-Right arrow</tt>
+<br><tt>Toggle "stay in file"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; F5</tt>
+<br><tt>Swap targets&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+Ctrl-W</tt>
+<p><tt>Safely abort operation&nbsp;&nbsp;&nbsp;&nbsp; F4</tt>
+<br><tt>Abort remote transmission&nbsp; Escape</tt>
+<p>NB. &lt;F4> can be used to abort lengthy operations, such as displaying
+a remote drive catalog, copying a disk file-wise or sector-wise, copying
+or comparing sectors, and checking a disk. You may have to hold this key
+down for a while, as it is only detected when it is "safe" to abort, e.g.
+after a file has been fully copied. A message box appears, asking you for
+confirmation. Click [No] to continue with normal operations, click [Yes]
+to abort. The F4 key will not work if communication with the TI-99/4A hangs.
+<p>By contrast, &lt;Escape> is used specifically when accessing a remote
+TI-99/4A. It aborts transmission immediatly, even in the middle of a byte,
+and without asking for confirmation. This key should thus only be used
+when communications appear hopelessly stuck.
+<p>
+<hr WIDTH="100%">
+<h2>
+<a NAME="cable wiring"></a>Connection cables wiring</h2>
+This sections details the three types of connection cable that can be use
+to access a remove TI-99/4A from VDM99: parallel, "straight-through" serial,
+and "crossed" serial.
+<h3>
+<a NAME="Parallel cable"></a>Parallel cable</h3>
+Detailed instructions on how to build this parallel cable can be found
+on my website at <a href="download.htm">http:\\www.nouspikel.com\ti99\download.htm</a>
+<p>IMPORTANT: If you experience transmission problems, try to shield your
+cable. A parallel cable, especially a long one, makes a pretty good antenna
+and is thus prone to glitches. If you can't find shielded cable, simply
+wrap it in foil and ground the foil (e.g. by attaching it to the back of
+the PE box). This is perfectly serious.
+<p>If you still get transmission errors, check your soldering. A connection
+that is good 99.99% of the time still guarantees that reading a disk directory
+will fail almost every time.
+<ul>
+<pre>PIO pin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; cable&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; PC pin
+=============================================
+<font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp; D7 (#2)&lt;</font>------------------>(<font color="#000000">#2) D0&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp; D6 (#3)&lt;</font>------------------><font color="#000000">(#3) D1&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp; D5 (#4)&lt;</font>------------------><font color="#000000">(#4) D2&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp; D4 (#5)&lt;</font>------------------><font color="#000000">(#5) D3&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp; D3 (#6)&lt;</font>------------------><font color="#000000">(#6) D4&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp; D2 (#7)&lt;</font>------------------><font color="#000000">(#7) D5&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp; D1 (#8)&lt;</font>------------------><font color="#000000">(#8) D6&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp; D0 (#9)&lt;</font>------------------>(<font color="#000000">#9) D7</font></pre>
+
+<pre><font color="#000000">HandOut (#1)-</font>------------------><font color="#000000">(#11)Busy
+HandIn&nbsp; (#10)&lt;</font>------------------<font color="#000000">(#1) Strobe*</font></pre>
+
+<pre><font color="#000000">&nbsp;&nbsp;&nbsp; GND (#16)--,
+&nbsp;&nbsp;&nbsp; GND (#11)--+----------------(#18-25) GND</font></pre>
+
+<pre><font color="#000000">SpareOut(#14)-</font>-----------------><font color="#000000">(#10)Ack&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (optional)
+SpareIn (#13)&lt;</font>--------------+---<font color="#000000">(#16)Init*&nbsp;&nbsp;&nbsp; (optional)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; '-->(#12)PaperOut (optional)</font></pre>
+
+<pre><font color="#000000">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (#12) nc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; nc -->(#13) Select&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (#15) nc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; nc -->(#15) Error
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; nc &lt;--(#14) AutoLF*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; nc &lt;--(#17) SelectIn</font></pre>
+
+<pre></pre>
+</ul>
+
+<h3>
+<a NAME="straight serial"></a>Serial "straight-connect" cable</h3>
+This is a full-duplex modem cable that takes advantage of the fact that
+the RS232 card is wired as a receiving device (e.g. a printer) rather than
+as a computer...
+<br>&nbsp;
+<pre>RS232 pin&nbsp;&nbsp;&nbsp;&nbsp; cable&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; PC pin
+===================================</pre>
+
+<pre>RD (#2)&lt;-----------------(#3) TX
+TX (#3)----------------->(#2) RD</pre>
+
+<pre>DTR(#20)&lt;----------------(#4) DTR
+DCD(#8)----------------->(#1) DCD
+DSR(#6)----------------->(#6) DSR</pre>
+
+<pre>CTS(#5)----------------->(#8) CTS (optional)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; nc(#7) RTS
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; nc(#9) RI</pre>
+
+<pre>GND(#7)------------------(#5) GND</pre>
+
+<h3>
+<a NAME="crossed serial"></a>Serial "crossed" cables</h3>
+This is the cable suggested by Fred Kraal on his website. I assume its
+purpose is to allow CTS/RTS handshaking on the PC, but VDM99 does not require
+this feature (yet).
+<br>&nbsp;
+<pre>RS232 pin&nbsp;&nbsp;&nbsp;&nbsp; cable&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; PC pin
+==================================</pre>
+
+<pre>RD (#2)&lt;-----------------(#3) TX
+TX (#3)----------------->(#2) RD</pre>
+
+<pre>DTR(#20)&lt;----------------(#7) RTS
+DCD(#8)----------------->(#8) CTS
+DSR(#6------------+----->(#1) DCD
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; '----->(#6) DSR</pre>
+
+<pre>CTS(#5) nc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; nc(#4) DTR
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; nc(#9) RI</pre>
+
+<pre>GND(#7)------------------(#5) GND</pre>
+
+<p><br>Fred's cable is equivalent to a splitter cable (converting the TI
+DB25 connector to two DB9, to separate RS232/1 from RS232/2), followed
+with a DB9-to-DB9 crossed cable (once common in the PC world). So rather
+than building a dedicated cable, you could assemble one from two "off the
+shelf" components...
+<pre>RS232 pin&nbsp; splitter cable&nbsp;&nbsp; DB9&nbsp; crossed cable&nbsp;&nbsp; PC pin
+=======================================================</pre>
+
+<pre>RD (#2)&lt;...................(#2) RD------------(#3) TX
+TX (#3)...................>(#3) TX------------(#2) RD</pre>
+
+<pre>DTR(#20)&lt;..................(#8) CTS-----------(#7) RTS
+DCD(#8)...................>(#7) RTS-----------(#8) CTS
+DSR(#6)...................>(#4) DTR-------+---(#1) DCD
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; '---(#6) DSR&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; nc(#1) DCD---,
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; nc(#6) DSR---+-------(#4) DTR</pre>
+
+<pre>CTS(#5) nc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; nc(#9) RI nc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; nc(#9) RI</pre>
+
+<pre>GND(#7)....................(#5) GND-----------(#5) GND</pre>
+&nbsp;
+<h3>
+Acknowledgments</h3>
+I am greatly indebted to Cory Klatt and Jean-Louis (humeur) for their help
+with debugging the communication routines. As I do not have a functional
+TI-99/4a setup, I could only test these routines with an emulator. Predictably,
+VDM99 version 1.0 did not work with a real TI-99/4a! Jean-Louis figured
+that the parallel port necessitated a timeout value of 1000. Cory tested
+no less than 20 test builds of VDM99, built three cables, and even set
+up a Win98 machine to rule out OS-specific issues. Thanks to his efforts,
+a handful of nasty bugs were removed, and several major issues identified
+and resolved. Finally, I am indebted to Fred Kraal who sent me samples
+of his code, which allowed me to find the 1-bit bug that was crippling
+serial transmission. Thank you, guys!
+<br>&nbsp;
+<br>&nbsp;
+<address>
+Preliminary version. 11/3/2011. For beta testers.</address>
+
+<address>
+Version 1.2. 28/8/2011. Added context menus, shortcuts, Mount PC folder.
+Fixed communication bugs.</address>
+
+<address>
+Version 2.0 18/11/2011. Added F4 and memorized folders. Added database
+support.</address>
+
+<address>
+Version 2.1 17/1/2012. Added instructions on how to register database DLL.</address>
+
+<address>
+Version 2.1 15/2/2012. Transfered file rename in menu, expanded disk browsing
+dialog, added database properties box.</address>
+
+<address>
+Version 2.2 10/4/2012. Fixed various bugs, added "Save VDP mem" option,
+changed workspace format.</address>
+
+<address>
+12/6/2012. Added link to MS installed for DAO. Added PA=N in instructions
+to upload hook.</address>
+
+<address>
+Version 2.3 and database-less version 1.90. 30/8/2012. Added 1600 sector
+support, added high-speed RS232, handled "junk" bytes in TIFILES.</address>
+
+<br>&nbsp;
+<p><br>
+<center>
+<p><a href="titechpages.htm">Back to the TI-99/4A Tech Pages</a></center>
+
+<p><br>
+<br>
+</body>
+</html>

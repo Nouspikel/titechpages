@@ -1,0 +1,456 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+  <title></title>
+  <meta name="Author" content="">
+  <meta name="GENERATOR"
+ content="Mozilla/3.04Gold (Win95; U) [Netscape]">
+</head>
+<body>
+<h1 align="center"><a
+ href="http://www.nouspikel.com/ti99/titechpages.htm"><img
+ src="logo.jpg" style="border: 0px solid ; height: 33px; width: 95px;"
+ title="Back to main index" alt=""></a></h1>
+<h1>The 32K memory expansion card</h1>
+<p>This card provides 32K of RAM, mapping in two blocks: the low memery
+expansion at &gt;2000-3FFF and the high memory expansion at
+&gt;A000-FFFF.
+The memory consists in sixteen MK4116 DRAM chips, each of 16Kx1 bits. </p>
+<p><a href="#pinout">MK4116 pinout<br>
+</a><a href="#circuitery">Additional circuitery<br>
+</a><a href="#Timing%20diagrams">Timing diagrams<br>
+</a><a href="#Electrical">Electrical charateristic</a></p>
+<p><a href="#doit">Do-it-yourself card</a></p>
+<h2><br>
+<a name="pinout"></a>MK4116 pinout</h2>
+<pre>     +---+--+---+ <br> Vee |1  +--+ 16| GND <br>   D |2       15| CAS* <br> WE* |3   MK  14| Q <br>RAS* |4  4116 13| A6 <br>  A0 |5       12| A3 <br>  A2 |6       11| A4 <br>  A1 |7       10| A5 <br> Vdd |8        9| Vcc <br>     +----------+ </pre>
+<p><u>Power supply<br>
+</u><b>Vcc</b> +5V<br>
+<b>Vdd</b> +12V<br>
+<b>Vee</b> -5V<br>
+<b>Gnd</b> Ground</p>
+<p><u>Control bus<br>
+</u><b>WE*</b> Write enable<br>
+<b>RAS*</b> Row address select: The chip is a matrix of 128x128 bits.
+To
+access a bit, the row address is placed on A0-A6, then RAS* goes low to
+latch the row address. This also refreshes the whole row.<br>
+<b>CAS*</b> Column address select. Once the row is selected, the column
+address in placed on A0-A6 and CAS* goes low, which selects a given bit
+in the chip. If WE* is low, the bit will be given the value of D. If
+WE*
+is high, the bit value will be output on Q.</p>
+<p><u>Address bus<br>
+</u><b>A0-A6</b> Row address / column address. Multiplexed via the RAS*
+and CAS* signals.</p>
+<p><u>Data bus<br>
+</u><b>D</b> Data bit in.<br>
+<b>Q</b> Data bit out.</p>
+<h2><br>
+<a name="circuitery"></a>Additional circuitery</h2>
+<p>A complicated circuitery is in charge of refreshing the DRAM chips
+by
+composing all the row addresses one after the other, when the card is
+idling
+(i.e. when MEMEN* is high). This circuit comprises: </p>
+<pre>3  74LS74   dual-D flip-flop<br>1  74LS109  dual JK flip-flop<br>1  74LS161  4-bit counter<br>1  74LS393  dual 4-bit counter<br>1  74LS244  dual 4-bit buffer, 3-state</pre>
+<p>The selection logic is achieved by a proprietary chip. </p>
+<p>The PE-Box address bus is buffered by two 74LS244 buffers, then
+lines
+A2 through A15 are multiplexed as 2 times 7 bits via 2 74LS257 quad
+2-to-1
+multiplexers. An extra 74LS244 buffers the control bus, and a 74LS245
+buffers
+the data bus (its direction is controlled by the DBIN line of the
+control
+bus).</p>
+<p>The LED indicator is controlled by a 3964 transistor driven by a
+74LS123
+one-shot multivibrator. </p>
+<p>Note that the card does not contain any ROM, nor does it have a CRU
+interface.</p>
+<h2><br>
+<a name="Timing diagrams"></a>Timing diagrams</h2>
+<p>These diagrams come from the Mitsubishi equivalent: M5K4116P,S-3
+(200
+ns).</p>
+<h4>Read cycle</h4>
+<pre><u>       </u>|                 &gt;375 ns            <u>       </u>|<br>       \<u>           200-1000 ns             </u>/&gt;120 ns\<u>    </u> RAS*<br>        |             &gt;200 ns          |   |       |      <br> <u>       | 25-65 ns </u> |       &gt;135 ns    <u>    |       |  <br></u>        |          \<u>     &gt;135 ns      </u>/|  &gt; -20 ns |  \_ CAS*<br>        |     &gt;120 ns      |           |<br>  <u>| &gt;0  | &gt;25 </u>|  <u>|a |&gt;55 ns</u>|           |                <br>XX<u>    row     </u>XXX<u>  column  </u>XXXXXXXXXXXXXXXXXXXXXXXXXXXXX A0-A6<br>        |    <u>|&gt;0 |                     |&gt;0</u>|<br>XXXXXXXXXXXX/       |   &lt;135 ns  |     |  \XXXXXXXXXXXXX R/W*<br>        |         &lt;200 ns        <u>|     |&lt;50</u>|            <br>ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZX<u>  data    </u>XZZZZZZZZZZZZ DOUT  <br>                                                <br>a) &gt; -10 ns<br></pre>
+<h4>Write cycle</h4>
+<pre><u>       </u>|                    &gt;375 ns              <u>         </u>|     <br>       \<u>              200-1000 ns               </u>/ &gt;120 ns \<u>    </u> RAS* <br>        |                &gt;200 ns              | |         |     <br> <u>       | 25-65 ns </u> |         &gt;135 ns         <u>  |         |  </u>     <br>        |          \<u>|     &gt;135 ns            </u>/|  &gt; -20 ns |  \_ CAS*<br>        |           |                         | |               <br>        |      &gt;120 ns      |                 | |                 <br>  <u>| &gt;0  | &gt;25 </u>|   <u>|a| &gt;55   </u>|                 | |                  <br>XX<u>     row    </u>XXXX<u>  column  </u>XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX A0-A6<br>        |      |                 &gt;85 ns       | |<br>        |      |              &gt;70 ns            |<br><u>        |      </u>|&lt;-20| &gt;55 |<u>                                </u>       <br>        |      \<u>  &gt;55 ns  </u>/                                \<u>  </u> R/W*<br>        |     &gt;120 ns     |                                         <br>                  <u>|b| &gt;55 ns </u>|           <br>XXXXXXXXXXXXXXXXXX<u>   data    </u>XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX DIN  <br>        |       &gt;55 ns       |                                <br>ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ DOUT</pre>
+<p>a) &gt; -10 ns <br>
+b) &gt; -20 ns (data setup time before CAS*)<br>
+</p>
+<h4>Refresh cycle</h4>
+<pre><u>       </u>|            &gt;375 ns <u>                             </u>| <br>       \<u>    200-1000 ns    </u>/        120 ns - 2 ms        \<u>    </u> RAS* <br>        |                                      <br>  <u>| &gt;0  | &gt;25 </u>|                               <br>XX<u>     row    </u>XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX A0-A6<br><br>ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ DOUT</pre>
+<h2><br>
+<a name="Electrical"></a>Electrical characteristics</h2>
+<p>These are the characteristics of the Mitsubishi equivalent: M5K4116P.</p>
+<h3>Absolute maximum ratings</h3>
+<pre>Supply voltage: Vcc, Vdd, Gnd  -0.5 to +20 V over Vbb<br>                Vcc, Vdd         -1 to +15 V over Gnd<br>                Vbb                  max 0 V over Gnd<br>Input voltage:                  -0.5 to 20 V over Vbb<br>Output voltage:                 -0.5 to 20 V over Vbb<br>Output current:                         50 mA<br>Power dissipation:                700-1000 mW<br>Free air temperature:             0 to 70 `C<br>Storage temperature:           -40 to 125 `C</pre>
+<h3><br>
+<br>
+Recommended operating conditions</h3>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Parameter</th>
+      <th>Min</th>
+      <th>Nom</th>
+      <th>Max</th>
+      <th>Unit</th>
+    </tr>
+    <tr>
+      <td>Supply voltage Vdd</td>
+      <td>10.8</td>
+      <td>12</td>
+      <td>13.2</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>Supply voltage Vcc</td>
+      <td>4.5</td>
+      <td>5</td>
+      <td>5.5</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>Supply voltage Gnd</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>Supply voltage Vbb</td>
+      <td>-4.5</td>
+      <td>-5</td>
+      <td>-5.7</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>High level input voltage: RAS*, CAS*, R/W* </td>
+      <td>2.7</td>
+      <td>.</td>
+      <td>7</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>High level input voltage: A0-A6, Din</td>
+      <td>2.4</td>
+      <td>.</td>
+      <td>7</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>Low level voltage</td>
+      <td>-1</td>
+      <td>.</td>
+      <td>0.8</td>
+      <td>V</td>
+    </tr>
+  </tbody>
+</table>
+<h3><br>
+Characteristics under recommended conditions</h3>
+<p>Ta = 0-70 `C, Vdd = 12V+/- 10%, Vcc = 5V +/- 10%, Gnd = 0V, Vbb =
+-5.7
+to -4.5 V</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Parameter</th>
+      <th>Test conditions</th>
+      <th>Min</th>
+      <th>Typ</th>
+      <th>Max</th>
+      <th>Unit</th>
+    </tr>
+    <tr>
+      <td>High-level output voltage</td>
+      <td>-5 mA</td>
+      <td>2.4</td>
+      <td>.</td>
+      <td>Vcc</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>Low-level output voltage</td>
+      <td>4.2 mA</td>
+      <td>0</td>
+      <td>.</td>
+      <td>0.4</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>Offstate output current</td>
+      <td>0-5.5 V, D floating</td>
+      <td>-10</td>
+      <td>.</td>
+      <td>10</td>
+      <td>uA</td>
+    </tr>
+    <tr>
+      <td>Input current</td>
+      <td>0-7 V, Vbb=-5V, all other pins 0 V</td>
+      <td>-10</td>
+      <td>.</td>
+      <td>10</td>
+      <td>uA</td>
+    </tr>
+    <tr>
+      <td>Average supply current from Vdd, operating </td>
+      <td>RAS*, CAS* cycling, 375 ns</td>
+      <td>.</td>
+      <td>.</td>
+      <td>35</td>
+      <td>mA</td>
+    </tr>
+    <tr>
+      <td>Average supply current from Vcc, operating</td>
+      <td>Ditto</td>
+      <td>.</td>
+      <td>.</td>
+      <td>.</td>
+      <td>.</td>
+    </tr>
+    <tr>
+      <td>Average supply current from Vbb, operating</td>
+      <td>Ditto</td>
+      <td>.</td>
+      <td>.</td>
+      <td>200</td>
+      <td>uA</td>
+    </tr>
+    <tr>
+      <td>Supply current from Vdd, standby</td>
+      <td>RAS* = H, DOUT floating</td>
+      <td>.</td>
+      <td>.</td>
+      <td>1.5</td>
+      <td>mA</td>
+    </tr>
+    <tr>
+      <td>Supply current from Vcc, standby</td>
+      <td>Ditto</td>
+      <td>-10</td>
+      <td>.</td>
+      <td>10</td>
+      <td>mA</td>
+    </tr>
+    <tr>
+      <td>Supply current from Vbb, standby</td>
+      <td>Ditto</td>
+      <td>.</td>
+      <td>.</td>
+      <td>100</td>
+      <td>uA</td>
+    </tr>
+    <tr>
+      <td>Average supply current from Vdd, refreshing</td>
+      <td>CAS* = H, RAS* cycling, 375 ns</td>
+      <td>.</td>
+      <td>.</td>
+      <td>27</td>
+      <td>mA</td>
+    </tr>
+    <tr>
+      <td>Average supply current from Vcc, refreshing</td>
+      <td>Ditto</td>
+      <td>-10</td>
+      <td>.</td>
+      <td>10</td>
+      <td>mA</td>
+    </tr>
+    <tr>
+      <td>Average supply current from Vbb, refreshing</td>
+      <td>Ditto</td>
+      <td>.</td>
+      <td>.</td>
+      <td>200</td>
+      <td>uA</td>
+    </tr>
+    <tr>
+      <td>Input capacitance: A0-A6, DIN</td>
+      <td>1 mHz, 25 mVrms</td>
+      <td>.</td>
+      <td>.</td>
+      <td>5</td>
+      <td>pF</td>
+    </tr>
+    <tr>
+      <td>Input capacitance: R/W*</td>
+      <td>Ditto</td>
+      <td>.</td>
+      <td>.</td>
+      <td>7</td>
+      <td>pF</td>
+    </tr>
+    <tr>
+      <td>Input capacitance: RAS*, CAS*</td>
+      <td>Ditto</td>
+      <td>-10</td>
+      <td>.</td>
+      <td>10</td>
+      <td>pF</td>
+    </tr>
+    <tr>
+      <td>Output capacitance</td>
+      <td>Ditto</td>
+      <td>.</td>
+      <td>.</td>
+      <td>.</td>
+      <td>pF</td>
+    </tr>
+    <tr>
+      <td><br>
+      </td>
+      <td>Vcc=5.25 V, Vdd=12.6 V, T=0-70 `C</td>
+      <td>-</td>
+      <td>71</td>
+      <td>95</td>
+      <td>mA</td>
+    </tr>
+    <tr>
+      <td><br>
+      </td>
+      <td>Vcc=5.25 V, Vdd=12.6 V, T=0-70 `C</td>
+      <td>-</td>
+      <td>73</td>
+      <td>95</td>
+      <td>mA</td>
+    </tr>
+    <tr>
+      <td>Supply current from Vdd</td>
+      <td>Vcc=5.25 V, FDD+OSCIN=0, T=0-70 `C</td>
+      <td>-</td>
+      <td>14</td>
+      <td>24</td>
+      <td>mA</td>
+    </tr>
+    <tr>
+      <td>Ditto, at 3 MHz</td>
+      <td>Vcc=5.25 V, Vdd=12.6 V, T=0-70 `C</td>
+      <td>-</td>
+      <td>40</td>
+      <td>48</td>
+      <td>mA</td>
+    </tr>
+    <tr>
+      <td>Ditto, at 4 mHz</td>
+      <td>Vcc=5.25 V, Vdd=12.6 V, T=0-70 `C</td>
+      <td>-</td>
+      <td>47</td>
+      <td>52</td>
+      <td>mA</td>
+    </tr>
+  </tbody>
+</table>
+<h2>
+<hr width="100%"><br>
+<a name="doit"></a>Do-it-yourself card</h2>
+<p>If you wanted to emulate such a card, here is a suggested circuit
+(not
+tested yet). </p>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS244&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +----+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp; A0&gt;---|&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  74LS138&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +--------+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; A0----|S2&nbsp;     |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; A1----|S1&nbsp;  Y1*|---,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp; A2----|S0&nbsp;     |&nbsp;  |&nbsp;&nbsp; 74LS21&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp; A7&gt;---|&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; |        |&nbsp;  |&nbsp;  &nbsp;___&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Gnd--|EN* |&nbsp;&nbsp;  &nbsp;           +5V---|G1      |&nbsp;  '---|&nbsp;&nbsp;&nbsp;\&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +----+&nbsp;&nbsp;,-------------------|G2A* Y5*|-------|&nbsp;&nbsp;&nbsp; )_ __&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; '244&nbsp;&nbsp; |&nbsp; +5V---WWW--+-----|G2B* Y6*|-------|&nbsp;&nbsp; &nbsp;)&nbsp;&nbsp; &nbsp;|&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +----+&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 10K&nbsp; |     |  &nbsp;  Y7*|-------|___/&nbsp; &nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp; A8&gt;---|&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;| &nbsp;&nbsp; Gnd--o o-'   &nbsp; +--------+&nbsp;   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;  &nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;      |&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;             &nbsp;  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;              |&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp; &nbsp;  &nbsp;___&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;           |&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;|&nbsp; A0---|&nbsp;&nbsp;&nbsp;\&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;      55256 (32K)            |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;|&nbsp;&nbsp;A2---|&nbsp;&nbsp;&nbsp; )___&nbsp;&nbsp;&nbsp; &nbsp;+-------------+          |&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;|&nbsp;+5V---|&nbsp;&nbsp; &nbsp;)   '----|A14&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |          |<br>&nbsp;&nbsp;&nbsp;&nbsp; A15&gt;--|&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;|&nbsp;+5V---|___/&nbsp; A1-----|A13&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CE*|----------+ <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Gnd--|EN* |&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;   &nbsp;&nbsp;&nbsp; &nbsp;   .&nbsp;&nbsp;&nbsp;&nbsp; | .&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;|&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +----+&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp;&nbsp;   .&nbsp;&nbsp;&nbsp;&nbsp; | .&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;|<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; '244&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp;&nbsp;  .&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| .         D7|------D0&nbsp;&nbsp;|<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +----+&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   &nbsp;&nbsp;&nbsp;  .&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;. |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.&nbsp;&nbsp;&nbsp;|&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;    A15-----|A0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;. |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.&nbsp;&nbsp;&nbsp;|&nbsp;<br>&nbsp;MEMEN*&gt;---|&nbsp;&nbsp;&nbsp; |--'&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp;| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;. |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.&nbsp;&nbsp;&nbsp;|<br>&nbsp;&nbsp;&nbsp; WE*&gt;---|&nbsp;&nbsp;&nbsp; |------------------------|R/W*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;. |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.&nbsp;&nbsp;&nbsp;|&nbsp;<br>CRUCLK*&gt;---|&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp; &nbsp;   Gnd---|OE*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;D0|------D7  |&nbsp;<br>CLKOUT*&gt;---|&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp;  +-------------+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;<br>&nbsp;RESET*&gt;---|&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;<br>&nbsp;&nbsp; DBIN&gt;---|&nbsp;&nbsp;&nbsp; |---,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Gnd--|EN* |&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+5V&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +----+&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; '245&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;  LED&nbsp;&nbsp;<u>V</u>&nbsp;&nbsp;    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +----+&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;|&nbsp;&nbsp;    74LS125&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | DIR|---'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'--------&lt;|------------------------+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp; D0&lt;---&gt;|&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;     &nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  |&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;     Gnd&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|      &nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp; <br>&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;|&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp; D7&lt;---&gt;|&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;| <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | OE*|---------+---------------------------------------'<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +----+&nbsp;&nbsp;  &nbsp;&nbsp;   |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;   |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>RDBENA*&lt;------------------&lt;|----Gnd<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS125&nbsp;&nbsp;<br>                             &nbsp;&nbsp;&nbsp;&nbsp; 78L05&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; All chips <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +----------+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +5V&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-----+<br>+8V--------------------+-------|Vin&nbsp;&nbsp; Vout|---+-----... --+------|Vcc&nbsp; |&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; Gnd&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; = 22 uF +----------+&nbsp;&nbsp; = 0.1 uF&nbsp;&nbsp;&nbsp; =0.1uF |&nbsp;&nbsp;&nbsp;&nbsp; |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Gnd&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Gnd&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Gnd&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +------|Vss&nbsp; |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-----+</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h4><br>
+Memory</h4>
+<p>As recommended by Texas Instruments, the PE-box bus incoming lines
+are
+buffered on the card by 74LS244 buffers.</p>
+<p>The memory chip is a 32Kx8 SRAM chip. Using SRAM allows us to avoid
+the annoying requirement for a refreshing circuit. In addition, we
+could
+install a small battery on the card to keep the content of the memory
+intact
+even when the power is down... And nowadays 32K of SRAM costs nothing.</p>
+<p>The R/W* pin is driven by the WR* line that provides a write pulse
+during
+write operations and remains high during read operations.</p>
+<p>The data pins D0 through D7 are connected to the data bus via a
+74LS245
+8-bit bus transceiver, which is enabled by the card selection signal
+and
+whose direction is controlled by DBIN. (NB Since Texas Instruments
+numbers
+the pins the opposite way to everyone else, D0 corresponds to D7 and
+conversely.
+This is not strictly required in this case, though).</p>
+<p>The 15 address pins A0-A13 are connected to the address bus lines A1
+to A15. Line A14 receives a A0 [AND] A2 signal, so that the various
+extended
+memory areas map at different addresses in the chip (Thanks to Dave
+Nieters).
+The AND&nbsp;gate is implemented with the second half of the 74LS21
+chip
+used for address decoding: the two unused inputs should be connected to
++5 volts. This way, we have the following mapping:</p>
+<pre><u>Address  A0 A1 A2 | A14 A13 SRAM<br></u>&gt;2000    0  0  1  |  0   0  &gt;0000<br>&gt;A000    1  0  1  |  1   0  &gt;4000<br>&gt;C000    1  1  0  |  0   1  &gt;2000<br>&gt;E000    1  1  1  |  1   1  &gt;6000</pre>
+<h4><br>
+Selection logic</h4>
+<p>The address mapping is performed by a 74LS138 decoder hooked to
+address
+lines A0-A2 and enabled by MEMEN*. Each output of the decoder
+corresponds
+to a &gt;2000 bytes block in memory. The ones we want to react to are
+Y1*
+(&gt;2000-3FFF), Y5* (&gt;A000-BFFF), Y6* (&gt;C000-DFFF) and Y7*
+(&gt;E000-FFFF).
+They are combined through a 4-inputs AND gate to produce an active low
+selection signal. This signal selects the SRAM and enables our data bus
+transceiver (74LS245). It also enables the data bus buffers at each end
+of the connection cable by bringing RDBENA* low via a 74LS125 3-state
+buffer.
+The '125 is required because we don't want to hold this line high when
+the card in not in use, since other cards may need to bring it low.</p>
+<p>A LED indicator lights up when the card is selected. Optionally, a
+transistor
+could be used to make it shine brighter. Mount the LED so that it is
+visible
+in the slot on the front of the PE-box.</p>
+<p>An optional switch has been added to the 74LS138, so that the card
+can
+be disabled if necessary (a good thing to have during the test phase).
+The memory answers when the switch is closed, and is disabled when the
+switch is open.</p>
+<h4><br>
+Power supply</h4>
+<p>The card is powered by a standard 78L05 voltage regulator that
+delivers
+100 mAmps at +5 Volts. It has a 22 uF capacitor on the power line, and
+a 0.1 uF cap on the output. Note that each chip should also have its
+own
+by-pass capacitor (0.1 uF is a good value) connected as close to the
+Vcc
+pin as possible (ideally, the current should meet the cap before
+reaching
+the chip).</p>
+<h4><br>
+List of components</h4>
+<pre>1  Hitachi 55256 32x8 SRAM<br>1  74LS238 decoder<br>1  74LS21 dual 4-input AND gate<br>3  74LS244 dual 4-bit buffers<br>1  74LS245 8-bit transceiver, 3-state<br>1  74LS125 quad buffer, 3-state<br>1  78L05 voltage regulator<br>1  Yellow LED<br>1  SPST switch (optional)<br>1  Capacitor 22 microfarads <br>9  Capacitors 0.1 microfarad<br>1  Resistors 10 kilohms</pre>
+<p>The most expensive part will be the board itself. See my <a
+ href="pebox.htm">PE-Box
+page</a> for the connections with the PE-box bus.</p>
+<address><br>
+Preliminary version 6/16/99. Not for release.<br>
+Revision 1. 6/17/99. Ok to release (circuit not tested).<br>
+Revision 2. 5/3/00. Added timing diagrams and electrical
+characteristics.<br>
+Revision 3. 11/1/01. Changed the circuit controlling A14 (AND gate
+instead
+of XOR).</address>
+<address><br>
+</address>
+<center>
+<p><a href="titechpages.htm">Back to the TI-99/4A Tech Pages</a></p>
+</center>
+</body>
+</html>

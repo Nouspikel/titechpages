@@ -1,0 +1,652 @@
+********************************************************************************
+*                        RS232 INTERFACE CARD ROMS                             *
+*                        -------------------------                             *
+*      Disassembled and commented by Thierry Nouspikel  May 1991               *
+*                                                                              *
+********************************************************************************
+* 1. CRU map ($ means used by rom routines)                                    *
+* ==========                                                                   *
+*                                                                              *
+* Input (card->cpu): stcr, tb                                                  *
+* ---------------------------                                                  *
+* Bit  Base       Meaning if 1                                                 *
+*                                                                              *
+*  0   >1300      Not used: always 0                                           *
+*  1   >1302      PIO is in input   |                                          *
+*  2   >1304  $   Handshake in      |                                          *
+*  3   >1306      Spare input bit   |    PIO                                   *
+*  4   >1308      Reads itself      |                                          *
+*  5   >130A      External cts1 inactive                                       *
+*  6   >130C      External cts2 inactive                                       *
+*  7   >130E      Lamp is on                                                   *
+*                                        RS232/1                               *
+*  0-7 >1340  $   Receive buffer content                                       *
+*  8   >1350        (not used)                                                 *
+*  9   >1352  $   Reception error                                              *
+* 10   >1354  $   Parity error, reset by char with good parity                 *
+* 11   >1356  $   Overflow: new bit arrived when buffer was full               *
+* 12   >1358  $   Frame error: stop bits recognized as zeros                   *
+* 13   >138A      First bit has arrived                                        *
+* 14   >135C      Receiving byte                                               *
+* 15   >135E      Current bit (rin pin)                                        *
+* 16   >1360  $   Reception interrupt occured  (reset with bit 18)             *
+* 17   >1362      Emission interrupt occured   (reset by loading emission reg) *
+* 18   >1364        (not used)                                                 *
+* 19   >1366      Timer interrupt              (reset with bit 20)             *
+* 20   >1368      Cts/dsr interrupt            (reset with bit 21)             *
+* 21   >136A  $   Receive buffer loaded        (reset with bit 18)             *
+* 22   >136C  $   Emit buffer empty            (reset by loading emission reg) *
+* 23   >136E      No data sent                                                 *
+* 24   >1370      Timer error: time elapsed twice (reset with bit 20)          *
+* 25   >1372      Time elapsed                   (reset with bit 20)           *
+* 26   >1374      Rts active (request to send)                                 *
+* 27   >1376  $   Dsr active (data set ready)  |                               *
+* 28   >1378      Cts ready (clear to send)    |connected together             *
+* 29   >137A      Change of cts/dsr            (reset with bit 21)             *
+* 30   >137C      Loading register                                             *
+* 31   >137E  $   Interrupt occured                                            *
+*                                                                              *
+*  0   >1380 to   |Ditto for second chip: RS232/2                              *
+* 31   >13BE      |                                                            *
+*                                                                              *
+*                                                                              *
+* Output (cpu->card) ldcr, sbo, sbz                                            *
+* ---------------------------------                                            *
+* Bit  Base       Meaning if 1                                                 *
+*                                                                              *
+*  0   >1300      Card on, rom appears in >4000-48B0                           *
+*  1   >1302  $   Sets pio in input |                                          *
+*  2   >1304  $   Handshake out     |    PIO                                   *
+*  3   >1306      Spare output bit  |                                          *
+*  4   >1308      Writes to itself  |                                          *
+*  5   >130A      Inactivats external cts1                                     *
+*  6   >130C      Idem with cts2 (clear to send)                               *
+*  7   >130E  $   Turns lamp on                                                *
+*                                        RS232/1                               *
+* 0-10 >1340  $   Value to load in registers                                   *
+* 11   >1356  $   Load emission rate reg                                       *
+* 12   >1358  $   Load reception rate reg (reset when loaded)                  *
+* 13   >138A  $   Load interval register         idem                          *
+* 14   >135C      Load control register          idem                          *
+* 15   >135E      Testmode: rts->cts xout->rin                                 *
+* 16   >1360  $   Activate rts (rts is inactive only when input bits 22+23=0)  *
+* 17   >1362      Abort transmission: xout=0 if input bits 22+23=0             *
+* 18   >1364  $   Reception interrupts enabled                                 *
+* 19   >1366      Emission interrupts enabled                                  *
+* 20   >1368      Timer interrupts enabled                                     *
+* 21   >136A      Cts/dsr interrupts enabled                                   *
+* 22   >136C to   | (not used)                                                 *
+* 30   >137C      |                                                            *
+* 31   >137E  $   Reset: bits 11-14=1 17-20=0 (input bits 22+23=1 21,25,13=0)  *
+*                                                                              *
+*  0   >1380 to   |Ditto for second chip: RS232/2                              *
+* 31   >13BE      |                                                            *
+*                                                                              *
+* Registers                                                                    *
+* ---------                                                                    *
+* Control register contains: nnppflll                                          *
+* nn : number of stop bits 01=two 10=one 11=one and a half                     *
+* pp : parity 00=none 10=even 11=odd                                           *
+* f  : internal frequency 0=clock/3 1=clock/4   (clock=3 Mhz)                  *
+* lll: byte length 000=5 001=6 010=7 011=8 100=9                               *
+*                                                                              *
+*                                                                              *
+* Interval register contains: a number n used by the on-chip timer             *
+* Transmission freq= freq/64 divided by n (freq is clock/4 or clock/3)         *
+* Interval = 64 microsecond multiplied by n  (or 85.3 us if clock/4)           *
+*                                                                              *
+* Rate registers contain: mnnnnnnnnnn (10 bits) used to calculate baud rate    *
+* If m=1 divide freq by 8 then by nnnnnnnnn then by 2                          *
+* If m=0 divide freq by nnnnnnnnn then by 2                                    *
+* (freq is clock/3 or clock/4)                                                 *
+* Time= (8 or 1) * nnnnnnnnn * 2 * (1 or 1.33) microseconds                    *
+*                                                                              *
+*------------------------------------------------------------------------------*
+*                                                                              *
+* 2. External connections                                                      *
+* =======================                                                      *
+*                                                                              *
+*  PIO Pin  Function         Access                                            *
+*      ---  --------         ------                                            *
+*       1   Handshake out    Cru bit 2                                         *
+*       2   Data (lsb)       Byte >5000                                        *
+*       3    "                "                                                *
+*       4    "                "                                                *
+*       5    "                "                                                *
+*       6    "                "                                                *
+*       7    "                "                                                *
+*       8    "                "                                                *
+*       9    "   (msb)        "                                                *
+*      10   Handshake in     Cru bit 2                                         *
+*      11   Ground            -                                                *
+*      12   +5 V 10 ohm       -                                                *
+*      13   Spare input      Cru bit 3                                         *
+*      14   Spare output     Cru bit 3                                         *
+*      15   +5V 1kohm         -                                                *
+*      16   Ground            -                                                *
+*                                                                              *
+*                                                                              *
+* RS  Pin   Function                          Access                           *
+* 232 ---   --------                          ------                           *
+*      1    Ground                              -                              *
+*      2    Rd1 data entry                    Cru bits 0-7    (base >1340)     *
+*      3    Tx1 data output                   Cru bits 0-7    (base >1340)     *
+*      5    Cts1 ready to receive             Cru bit  5      (base >1300)     *
+*      6    Dsr  ready to send (always 1)       -                              *
+*      7    Ground                              -                              *
+*      8    Dcd1 data carrier detected (rts)  Cru bit 16      (base >1340)     *
+*     12    Dcd2                              Cru bit 16      (base >1380)     *
+*     13    Cts2                              Cru bit  6      (base >1300)     *
+*     14    Rd2                               Cru bits 0-7    (base >1380)     *
+*     16    Tx2                               Cru bits 0-7    (base >1380)     *
+*     19    Dtr2              (cts+dsr pins)  Cru bits 27-28  (base >1380)     *
+*     20    Dtr1 terminal ready to receive    Cru bits 27-28  (base >1340)     *
+*                                                                              *
+*------------------------------------------------------------------------------*
+ 
+*==============================================================================*
+* 9900 assembly language routines     Stored in ROM at >4000-48B0              *
+* -------------------------------                                              *
+*==============================================================================*
+       AORG >4000
+*
+A4000  DATA >AA01             version 1
+       DATA >0000             no programs
+A4004  DATA A4010             power-up
+       DATA >0000
+       DATA A4016             dsr
+       DATA >0000
+       DATA A406C             interrupt
+       DATA >0000
+*                             power-up header
+A4010  DATA >0000             ---------------
+       DATA A40F4             address
+       DATA >0000             no name
+*
+A4016  DATA A4020             dsr headers
+       DATA A416E             -----------
+       BYTE >05
+       TEXT 'RS232'
+A4020  DATA A402C             link to next
+       DATA A416E             address
+       BYTE >07               name size
+       TEXT 'RS232/1'         name
+A402C  DATA A4038
+       DATA A4174
+       BYTE >07
+       TEXT 'RS232/2'
+A4038  DATA A4040
+       DATA A415E
+       BYTE >03
+       TEXT 'PIO'
+A4040  DATA A404A
+       DATA A415E
+       BYTE >05
+       TEXT 'PIO/1'
+A404A  DATA A4054
+       DATA A4164
+       BYTE >05
+       TEXT 'PIO/2'
+A4054  DATA A4060
+       DATA A4180
+       BYTE >07
+       TEXT 'RS232/3'
+A4060  DATA >0000
+       DATA A417A
+       BYTE >07
+       TEXT 'RS232/4'
+*                             interrupt header
+A406C  DATA >0000             ----------------
+       DATA A40D2             address
+       DATA >0000             no name
+*
+A4072  BYTE >08
+A4073  BYTE >00
+A4074  DATA >0303
+*
+A4076  TEXT 'EC'              options table
+       DATA A4512             -------------
+       TEXT 'CR'
+       DATA A4518
+       TEXT 'LF'
+       DATA A451E
+       TEXT 'NU'
+       DATA A4524
+       TEXT 'DA'
+       DATA A4570
+A408A  TEXT 'BA'              for Save and Old: start here
+       DATA A4536
+       TEXT 'PA'
+       DATA A4540
+       TEXT 'TW'
+       DATA A4596
+       TEXT 'CH'
+       DATA A452A
+       DATA >0000
+*
+A409C  DATA >0028,A40B6       clock speed vectors
+A40A1  EQU  $+1               -------------------
+       DATA >0030,A40C4
+       DATA >0000
+*                             nominal baud rates
+A40A6  DATA 110               ------------------
+       DATA 300
+       DATA 600
+       DATA 1200
+       DATA 2400
+       DATA 4800
+       DATA 9600
+A40B3  EQU  $-1
+       DATA >0000
+*                             corresp. intervals
+A40B6  DATA >8563             ------------------
+       DATA >8482             for clock speed >0028
+       DATA >8209
+       DATA >015B
+       DATA >8082
+       DATA >8041
+       DATA >002B
+A40C4  DATA >85AA             idem for clock speed >0030
+       DATA >849C
+       DATA >8271
+       DATA >01A1
+       DATA >809C
+       DATA >804E
+       DATA >8027
+ 
+*------------------------------------------------------------------------------*
+* Interrupt routine       &       Power-up routine                             *
+* -----------------               ----------------                             *
+* Checks if interrupt has been issued by this card (if not: returns),          *
+*        if it came from receive buffer (if not: performs power-up).           *
+*                                                                              *
+* Saves the incoming character in a circular buffer in vdp memory              *
+*        Buffer base adress in >8300->8301.                                    *
+*        Max size in >8302 (following chars saved from bottom again).          *
+*        Ptr to next char to read (by caller) in >8303.                        *
+*        Ptr to last char written in >8304.                                    *
+*                                                                              *
+* In case of reception errors the byte is replaced with >FF.                   *
+* If buffer is full (>8304 would equal >8303), the previous byte is replaced   *
+* with >7E, the incoming one is lost.                                          *
+*                                                                              *
+* Interrupts are enabled by opcode >80 and disabled by i/o opcodes             *
+*------------------------------------------------------------------------------*
+A40D2  STWP 4                 interrupt routine
+       SBO  7                 ----------------- lamp on
+       MOV  11,5
+       MOV  12,6
+       AI   12,>0040          cru of first RS232 chip
+       TB   16                receive buffer interrupt?
+       JEQ  A410E             yes
+       TB   31                any interrupt at all?
+       JEQ  A40F2             yes
+       AI   12,>0040          no -> next chip
+       TB   16
+       JEQ  A410E             receive buffer interrupt
+       TB   31
+       JNE  A4156             no interrupt in this card
+A40F2  MOV  6,12              interrupt but not from reception
+
+A40F4  MOV  12,6              power-up
+       SBO  7                 --------
+       SBO  2                 handshake out = 1
+       SBZ  1                 pio in output mode
+       AI   12,>0040
+       SBO  31                reset RS232 chip 1
+       AI   12,>0040
+       SBO  31                reset RS232 chip 2
+       MOV  6,12
+       SBZ  7                 lamp off
+       B    *11
+
+*                             interrupt from receive buffer
+A410E  BL   @A4874            test dsr pin and rec buffer
+       JNE  A4156             no reception
+       MOVB @>FF24(4),1       >8304: write ptr
+       AB   @A45F9,1          add >01
+       CB   1,@>FF22(4)       >8302: max size
+       JLE  A4124
+       CLR  1                 circle to buffer bottom
+A4124  CB   1,@>FF23(4)       >8303: read ptr
+       JEQ  A4136             overflow
+       STCR 7,8               fetch byte received
+       TB   9                 error?
+       JNE  A413E             no
+       LI   7,>FF00           yes: use >FF as a flag
+A4132  EQU  $-2
+       JMP  A413E
+A4136  LI   7,>FE00           buffer overflow, use >FE as a flag
+       MOVB @>FF24(4),1       place it over the previous BYTE (i.e. 2 bytes lost)
+A413E  MOVB 1,@>FF24(4)       >8304: write ptr
+       SRL  1,8
+       A    @>FF20(4),1       >8300: buffer base
+       ANDI 1,>3FFF           make it a valid VDP address
+       BL   @A484E            set vdp address from r1
+       DATA >4000             for a write
+       MOVB 7,@>FFFE(15)      save BYTE in circular buffer
+A4156  SBO  18                reset flag, interrupt enabled
+       MOV  6,12              card CRU base
+       SBZ  7                 lamp off
+       B    *5
+ 
+*------------------------------------------------------------------------------*
+*  Device Service Routines DSR                                                 *
+*  ---------------------------                                                 *
+*                                                                              *
+*  Special registers:                                                          *
+*  R3:  >FFFF for PIO, >0000 for RS232                                         *
+*  R6:  >0001 for first card, >0002 for second                                 *
+*  R9:  crc (cyclic redundancy check)                                          *
+*  R12: CRU base: >1300 for card (pio), >1340 for RS232/1 and >1380 for RS232/2*
+*                                                                              *
+*  Scratch-pad map:                                                            *
+*  >834A      opcode                                                           *
+*  >834B      flags         |                                                  *
+*  >834C-D    data buffer   |                                                  *
+*  >834E      record length |copy of pab                                       *
+*  >834F      char count    |(peripheral access block)                         *
+*  >8350-1    record number |                                                  *
+*  >8352      screen bias   |                                                  *
+*  >8353      name length   |                                                  *
+*  >8354-5    device name length                                               *
+*  >8356-7    end of device name                                               *
+*  >8358      .EC echo off          |                                          *
+*  >8359      .CR no cr nor lf      |                                          *
+*  >835A      .LF no line feed      |                                          *
+*  >835B      .CH parity check      |flags                                     *
+*  >835C      .NU add nulls         |                                          *
+*  >835D      interrupt opcode (80) |                                          *
+*  >835E-F    current rec number                                               *
+*  >8360-1    current rec size                                                 *
+*  >8362-3       (not used)                                                    *
+*  >8364-D    5 buffers to save r11                                            *
+*                                                                              *
+*  >83DA-B    control register copy                                            *
+*  >83DE-F    interval register copy                                           *
+*------------------------------------------------------------------------------*
+A415E  LI   6,>0001           pio pio/1
+       JMP  A4168
+A4164  LI   6,>0002           pio/2
+A4168  SETO 3                 R3=pio flag
+       CLR  2                 R2=cru base
+       JMP  A4190
+A416E  LI   6,>0001           rs232 rs232/1
+       JMP  A4184
+A4174  LI   6,>0001           rs232/2
+       JMP  A418A
+A417A  LI   6,>0002           rs232/4
+       JMP  A418A
+A4180  LI   6,>0002           rs232/3
+A4184  LI   2,>0040
+       JMP  A418E
+A418A  LI   2,>0080
+A418E  CLR  3
+A4190  STWP 4                 save workspace (>83E0)
+       MOV  11,@>FF84(4)      ret address in >8364
+       C    1,6
+       JEQ  A419E             r1: calls the 1rst or 2nd program (card)
+       B    @A4480            ret with error: not found
+A419E  MOV  4,6               |
+       AI   6,>FF78           |
+       LI   5,>0006           |clear >8358-8362 (flags)
+A41A7  EQU  $-1
+A41A8  CLR  *6+               |
+       DEC  5                 |
+       JNE  A41A8             |
+       SBO  7                 lamp on
+       A    2,12
+       BL   @A4842            |
+       DATA >0000             |
+       LI   5,>000A           |
+       MOV  4,6               |copy pab (without name)
+       AI   6,>FF6A           |in >834A->8353
+A41C2  MOVB @>FBFE(15),*6+    |
+       DEC  5                 |
+       JNE  A41C2             |
+       SZCB @A460B,@>FF6B(4)  >E0 : clear status
+       CB   @A40B3,@>FF6A(4)  opcode = >80?
+       JNE  A41E4
+       SOCB @A4132,@>FF7D(4)  >835D = >FF (interrupt flag)
+       SZCB @A40B3,@>FF6A(4)  opcode -> open
+A41E4  CB   @>FF6A(4),@A41A7  opcode bigger than >06?
+       JLE  A41F0
+       B    @A4450            yes -> err 3
+A41F0  BL   @A4490
+       MOVB @>FF6A(4),5       |
+       SRL  5,8               |
+       SLA  5,1               |branch to opcode
+       MOV  @A4202(5),5       |
+       B    *5                |
+*
+A4202  DATA A4210             open
+       DATA A4464             close ret
+       DATA A4236             input
+       DATA A42FA             print
+       DATA A4450             restore -> err 3
+       DATA A4338             old
+       DATA A43D2             save
+*-------------------------------------------------------------------------------
+A4210  MOVB @>FF6E(4),2       open
+       JNE  A4228             ====
+       BL   @A4842            |
+       DATA >4004             |if rec len=0 (>834E)
+       LI   2,>5000           |set default length (80)
+       MOVB 2,@>FF6E(4)       |
+       MOVB 2,@>FFFE(15)      |
+A4228  MOVB @>FF6B(4),1
+A422C  COC  @A43CA,1          relative?
+       JNE  A42F8             no  -> return
+       B    @A444A            yes -> err 2
+*-------------------------------------------------------------------------------
+*                             input
+A4236  ABS  3                 =====
+       SZCB @A4132,@>FF6F(4)  clear char count  (>834F)
+       MOVB @>FF6E(4),7       fetch rec len     (>834E)
+       MOV  @>FF6C(4),9       fetch DATA buffer (>834C)
+       BL   @A4740            int/dis?
+       JNE  A425A             dis
+       BL   @A463A            int: fetch rec size from pio/rs232
+       CB   7,6               check it
+       JHE  A4258
+       B    @A4456            too long -> err 4
+A4258  MOV  6,7
+A425A  SRL  7,8
+       JEQ  A42EE             size=0 -> end
+A425E  BL   @A463A            receive 1 char
+       BL   @A4740            int/dis?
+       JEQ  A42DC
+       MOVB @>FF78(4),1       echo type
+       JEQ  A427C             on
+       BL   @A474A            off: fix/var?
+       JEQ  A42DC             fixed
+       CI   6,>0D00           var: check if end-of-record
+       JNE  A42DC
+       JMP  A42EE             end if <cr>
+A427C  CI   6,>0D00           echo on
+       JEQ  A42CC             <cr>  (end of record)
+       CI   6,>7F00           <del>
+       JEQ  A42AC
+       CI   6,>1200           <ff> (form feed)
+       JNE  A42D8             others
+       MOV  @>FF6C(4),1       <ff> |set DATA buffer address
+       BL   @A4850                 |for reading
+       BL   @A46EE            end of rec
+       MOV  9,2               |
+       S    @>FF6C(4),2       |current size
+       JMP  A42A8
+A42A2  BL   @A47DE            emit 1 byte
+       DEC  2
+A42A8  JNE  A42A2
+       JMP  A425E
+*
+A42AC  C    @>FF6C(4),9       <del>
+       JEQ  A425E             size=0
+       INC  7                 |
+       DEC  9                 |dec data pointer
+       MOV  9,1
+       BL   @A4850            |
+       BL   @A47DE            |emit previous char
+       CI   6,>0D00
+       JNE  A425E
+       BL   @A4700            if <cr> end of rec
+       JMP  A425E
+*
+A42CC  BL   @A474A            <cr> fix/var?
+       JEQ  A42D8
+       BL   @A46EE            var: end of rec
+       JMP  A42EE             end
+A42D8  BL   @A47E6            fix: emit char
+A42DC  MOV  9,1               |
+       BL   @A484E            |
+       DATA >4000             |put char in data buffer
+       MOVB 6,@>FFFE(15)      |
+       INC  9                 |
+       DEC  7                 last?
+       JNE  A425E
+A42EE  S    @>FF6C(4),9       |
+       SLA  9,8               |calc char count
+       MOVB 9,@>FF6F(4)       |
+A42F8  JMP  A4334             return
+*-------------------------------------------------------------------------------
+A42FA  MOV  3,3               print
+       JEQ  A4300             =====
+       SETO 3
+A4300  MOV  @>FF6C(4),1       |set DATA buffer address
+       BL   @A4850            |to read
+       MOVB @>FF6F(4),7       char count (>834F)
+       BL   @A4740            int/dis?
+       JNE  A4318             dis
+       MOV  7,6               |
+       BL   @A47E6            |int -> emit size
+A4318  SRL  7,8
+       JEQ  A4324             size = 0
+A431C  BL   @A47DE            emit 1 byte
+       DEC  7
+       JNE  A431C             next
+A4324  BL   @A4740            int/dis?
+       JEQ  A4334
+       BL   @A474A            dis -> fix/var?
+       JEQ  A4334
+       BL   @A46EE            var -> end of rec
+A4334  B    @A4464            return
+*-------------------------------------------------------------------------------
+*                             old
+A4338  MOV  @>FF70(4),0       ===  size (>8350)
+A433C  BL   @A47E4            |
+       DATA >1600             |send <syn> (synchro)
+       LI   5,>0007
+A4346  LI   1,>C01C
+A434A  BL   @A4870            check dsr pin and rec buffer
+       JEQ  A435E
+       DEC  1                 delay
+       JNE  A434A
+       BL   @A4880            test <clear> key
+       DEC  5                 7 times
+       JNE  A4346
+       JMP  A433C             send <syn> again
+A435E  SETO 9                 reception. reset crc
+       BL   @A45C6            |
+       MOV  6,7               |
+       BL   @A45C6            |fetch 2 bytes received
+       SRL  6,8               |size (in bytes)
+       SOC  6,7               |
+       BL   @A45A0            fetch 2 bytes, in r8
+       BL   @A46B4            write rec number
+       C    8,9               check crc
+       JEQ  A4382
+       BL   @A47E4            |wrong -> send <nak> (not acknowledged)
+       DATA >1500             |and retry
+       JMP  A435E             |
+A4382  C    0,7               check size
+       JL   A4456             too large -> err 4
+       BL   @A47E4            |
+       DATA >0600             |send <ack> (acknoledged)
+A438C  BL   @A4686            number of bytes
+A4390  SETO 9                 reset crc
+       MOV  10,1
+       BL   @A484E            |set data buffer address
+       DATA >4000             |for writing
+A439A  BL   @A45C6            fetch 1 byte in r6
+       MOVB 6,@>FFFE(15)
+       DEC  7                 next
+       JNE  A439A
+       BL   @A45A0            fetch 2 bytes in r8
+       MOV  3,3
+       JEQ  A43B2
+       BL   @A48A2            pio -> wait
+A43B2  C    9,8               check crc
+       JEQ  A43C2
+       MOV  @>FF80(4),7       >8360
+       BL   @A47E4            |
+       DATA >1500             |send <nak>
+       JMP  A4390             |and retry
+A43C2  BL   @A47E4
+       DATA >0600             send <ack>
+       AI   10,>0100
+A43CA  EQU  $-2
+       MOV  @>FF7E(4),7       retrieve rec number (>835E)
+       JMP  A438C
+*-------------------------------------------------------------------------------
+*                             save
+A43D2  MOV  10,1              ====
+       BL   @A4850            set vdp address
+A43D8  BL   @A463A            |
+       CI   6,>1600           |input chars untill <syn>
+       JNE  A43D8             |
+A43E2  SETO 9                 reset crc
+       MOV  3,3
+       JEQ  A43EC
+       BL   @A48A2            pio -> wait
+A43EC  MOV  @>FF70(4),6       size (>8350)
+       BL   @A45D0            |
+       SWPB 6                 |emit 2 bytes (from r6)
+       BL   @A45D0            |
+       BL   @A45B4            emit 2 bytes: crc
+       BL   @A463A            |
+       CI   6,>0600           |wait for <ack>
+       JNE  A43E2             |
+       MOV  @>FF70(4),7       size (>8350)
+A440C  BL   @A4686            number of bytes
+A4410  SETO 9                 reset crc
+       MOV  10,1              |
+       BL   @A4850            |set data buffer address (to read)
+A4418  MOVB @>FBFE(15),6
+       BL   @A45D0            emit 1 byte
+       DEC  7
+       JNE  A4418             next
+       BL   @A45B4            emit crc (2 bytes)
+       BL   @A463A            |
+       CI   6,>0600           |fetch 1 char
+       JEQ  A4440             |is it <ack>?
+       MOV  3,3               no
+       JEQ  A443A
+       BL   @A48A2            pio -> wait
+A443A  MOV  @>FF80(4),7       rec size (>8360)
+       JMP  A4410             retry
+A4440  AI   10,>0100
+       MOV  @>FF7E(4),7       rec number (>835E)
+       JMP  A440C             next record
+*------------------------------------------------------------------------------*
+*           Correspondence between old and save                                *
+*           -----------------------------------                                *
+*                                                                              *
+*          SAVE                 Bytes              OLD                         *
+*                                                                              *
+*      Emit <syn>               ---1->     Wait for <syn>                      *
+*      Emit size     <-+        ---2->     Receive size        <-+             *
+*      Emit crc        |        ---2->     Receive crc           |             *
+*                      |                   Check if crc ok       |             *
+*      Receive char or-+        <--1--      no:  emit <nak> and -+             *
+*      If not <ack>----+                    yes: emit <ack>                    *
+*                                                                              *
+*      Emit 1 record <-+ <-+    -256->     Receive 1 record    <-+ <-+         *
+*      Emit crc        |   |    ---2->     Receive crc           |   |         *
+*                      |   |               Check if crc of       |   |         *
+*      Receive char or-|   |    <--1--      no:  emit <nak> and -+   |         *
+*      If not <ack>----+   |                yes: emit <ack>          |         *
+*      Next record --------+               Next record  -------------+         *
+*                                                                              *
+*------------------------------------------------------------------------------*
+*       COPY "DSK1.RS2/S"
+       COPY "RS1.TXT"

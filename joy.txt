@@ -1,0 +1,389 @@
+*      Analog joystick driver
+*      Th.N. April 1995
+*
+*
+       DEF  AJTIME,AJPOS,AJSPED,AJFIRE   assembly interface
+       DEF  JTIME,JPOS,JSPEED,JFIRE      Xbasic interface
+       DEF  GETJNB,POINTJ,FLTINT,INTFLT,JPARAM  link with other files
+*
+       DATA 1,2,3,4,5,6,7,8,9            fill in first rec
+       RORG $-18
+*
+JPARAM
+VMIN   DATA 0                 joystick 1 parameters
+VMAX   DATA 255
+HMIN   DATA 0
+HMAX   DATA 255
+CUP    DATA 95
+CDOWN  DATA 105
+CLEFT  DATA 110
+CRIGHT DATA 130
+FIRE1  DATA 1
+FIRE2  DATA 4
+FIRE3  DATA >FFFF
+INVERT DATA 0
+INVHOR DATA 0
+VWIDE  DATA 255
+HWIDE  DATA 255
+UWIDE  DATA 95
+DWIDE  DATA 150
+LWIDE  DATA 110
+RWIDE  DATA 125
+ 
+JOY2   DATA 0,255,0,255,95,105,110,130
+       DATA 1,4,16,0,0,255,255,95,150,110,125
+*
+       DATA 1,2,3,4,5,6       fill in rec 4
+       RORG $-12
+*
+WREGS  BSS  24                workspaces
+       DATA >0024,0,0,0
+WREG1  BSS  32
+*-----------------------------
+*
+AJFIRE DATA WREGS,FIRE        test fire buttons
+*                             -----------------
+FIRE   MOV  *13,1             r0: joystick #
+       ABS  1
+       MOV  1,0
+       BL   @POINTJ
+ 
+       SLA  1,8
+       AI   1,>0500
+       LDCR 1,3               on
+       LI   12,>0006
+       STCR 1,8               test all connections
+       SRL  1,8
+       LI   12,>0024
+       LDCR 12,3              off
+ 
+       CLR  0                 make up code
+       CZC  @FIRE1(10),1
+       JNE  SK12
+       INC  0
+SK12   CZC  @FIRE2(10),1
+       JNE  SK13
+       INCT 0
+SK13   CZC  @FIRE3(10),1
+       JNE  SK14
+       C    *0+,*0+
+SK14   MOV  0,@6(13)          result in r3
+       JEQ  SK1D
+ 
+       LI   12,>0006
+       STCR 0,8               keyboard scanning
+       LI   12,>0024
+       INV  0
+       SRL  0,12
+       SLA  0,3
+       A    0,@6(13)          add fctn/shift/ctrl
+SK1D   RTWP
+*
+*
+AJTIME DATA WREGS,TIME        time joystick
+*                             -------------
+TIME   MOV  *13,0             r0: joystick #
+       BL   @POINTJ
+ 
+       SLA  0,8
+       AI   0,>0500
+       LDCR 0,3               test joystick: pulse start
+       CLR  1                 horiz timer
+       CLR  2                 vert timer
+       JMP  LP1               to timing routine
+ 
+SK2    INC  1                 vert: not ready
+       NOP
+LP1    TB   -14               test horiz
+       JEQ  SK1
+       JMP  SK3               }so that timing always equal
+       NOP                    }
+ 
+SK3    INC  2                 horiz: not ready
+       TB   -12               test vert
+       JNE  SK2
+       INC  0                 vert: ready
+       JMP  LP1
+ 
+SK1    INC  0                 horiz: ready
+       NOP
+       TB   -12               test vert
+       JNE  SK2
+ 
+       LDCR 12,3              off
+       MOV  1,0               vert in r1
+       ABS  @INVERT(10)
+       JEQ  SK8
+       MOV  @VMAX(10),0       inverted
+       S    1,0
+       A    @VMIN(10),0
+SK8    MOV  0,@2(13)
+ 
+       MOV  2,0               horiz in r2
+       ABS  @INVHOR(10)
+       JEQ  SK9
+       MOV  @HMAX(10),0       inverted
+       S    2,0
+       A    @HMIN(10),0
+SK9    MOV  0,@4(13)
+       RTWP
+*
+*
+AJPOS  DATA WREG1,POS         position mode
+*                             -------------
+POS    MOV  *13,0             r0: joystick #
+       BL   @POINTJ
+       BLWP @AJTIME
+       CLR  0
+ 
+SK18   S    @HMIN(10),2       adjust value
+       MPY  @H00FF,2
+       DIV  @HWIDE(10),2
+       A    0,2
+       MOV  2,@4(13)          horiz in r2
+ 
+       S    @VMIN(10),1       adjust value
+       MOV  *13,*13           negative joystick # ?
+       JLT  SK16
+       MPY  @H00C0,1          -1 to 191
+       DIV  @VWIDE(10),1
+       DEC  1
+       JMP  SK17
+SK16   MPY  @H00FF,1          0 to 255
+       DIV  @VWIDE(10),1
+ 
+SK17   A    0,1
+       MOV  1,@2(13)          vert in r1
+ 
+       RTWP
+*
+*
+AJSPED DATA WREG1,SPEED       speed mode
+*                             ----------
+SPEED  MOV  *13,0             r0: joystick #
+       BL   @POINTJ
+       BLWP @AJTIME
+       LI   0,-128
+       MOV  *13,*13           negative # ?
+       JLT  SK18              yes: no central zone
+ 
+       C    2,@CLEFT(10)      check horiz
+       JL   SKA
+       C    2,@CRIGHT(10)
+       JH   SKB
+       CLR  @4(13)            centered
+       JMP  SKD
+ 
+SKA    S    @HMIN(10),2       left
+       MPY  @H007F,2          adjust value
+       DIV  @LWIDE(10),2
+       AI   2,>FF80
+       JMP  SKC
+ 
+SKB    S    @CRIGHT(10),2     right
+       MPY  @H007F,2          adjust value
+       DIV  @RWIDE(10),2
+SKC    MOV  2,@4(13)          horiz in r2
+ 
+SKD    C    1,@CUP(10)        check vert
+       JL   SKE
+       C    1,@CDOWN(10)
+       JH   SKF
+       CLR  @2(13)            centered
+       JMP  SK11
+ 
+SKE    S    @VMIN(10),1       up
+       MPY  @H007F,1          adjust value
+       DIV  @UWIDE(10),1
+       AI   1,>FF80
+       JMP  SK10
+ 
+SKF    S    @CDOWN(10),1      down
+       MPY  @H007F,1          adjust value
+       DIV  @DWIDE(10),1
+SK10   MOV  1,@2(13)          vert in r1
+SK11   RTWP
+*--------------------subs-----
+POINTJ ABS  0                 point at joystick params
+       CLR  10                ------------------------
+       CI   0,1
+       JEQ  SK1E
+       LI   10,JOY2-VMIN
+SK1E   B    *11
+*
+H00FF  DATA >00FF             constants
+H007F  DATA >007F
+H00C0  DATA >00C0
+*==============================================
+*                X-Basic interface (can be overwritten by BSS-460)
+NUMREF EQU  >200C
+NUMASG EQU  >2008
+STRASG EQU  >2010
+ERR    EQU  >2034
+*
+JPOS   BLWP @XBPOS            position mode
+DONE   CLR  @>837C            =============
+       LI   0,>0400           delay to re-arm 74LS221
+WAIT   DEC  0
+       JGT  WAIT
+       B    *11               return to basic
+*
+JSPEED BLWP @XBSPED           speed mode
+       JMP  DONE              ==========
+*
+JFIRE  BLWP @XBFIRE           fire buttons testing
+       JMP  DONE              ====================
+*
+JTIME  BLWP @XBTIME           crude joysick timing
+       JMP  DONE              ====================
+*
+*      ---------------------
+*
+XBPOS  DATA XBREGS,XBPOS1     position mode
+*                             -------------
+XBPOS1 BL   @GETJNB           get joy #
+       BLWP @AJPOS            test position
+       INCT 1
+       INC  2
+       JMP  SK22
+*
+XBSPED DATA XBREGS,XBSPE1     speed mode
+*                             ----------
+XBSPE1 BL   @GETJNB
+       BLWP @AJSPED
+SK22   MOVB @>8312,12         # of params
+       CI   12,>0400
+       JL   SK1F              no fire param
+       BLWP @AJFIRE           test fire buttons
+       BL   @FIREST           compare with previous
+SK1F   BL   @PASVHF           pass 3 values
+       RTWP
+*
+XBFIRE DATA XBREGS,XBFIR1     fire buttons
+*
+XBFIR1 LI   0,1               joy 1
+       BLWP @AJFIRE           test buttons
+       BL   @FIREST           compare with previous
+       MOV  3,2               save
+       INC  1                 joy 2
+       BLWP @AJFIRE
+       BL   @FIREST
+       BL   @PASFF            pass 2 values
+       RTWP
+*
+XBTIME DATA XBREGS,XBTIM1     crude timing
+*                             ------------
+XBTIM1 BL   @GETJNB           get joy #
+       BLWP @AJTIME           timing
+       BL   @PASS12           pass r1 and r2
+       RTWP
+*
+*--------------------subs----------
+GETJNB CLR  0                 get joystick #
+       LI   1,1
+       BLWP @NUMREF           first param
+       BLWP @FLTINT
+       MOV  @>834A,0          check range
+       JEQ  BADVAL
+       CI   0,+2              1,2
+       JGT  BADVAL
+       CI   0,-2              -1,-2
+       JLT  BADVAL
+       B    *11
+BADVAL LI   0,>1E00           bad value
+       BLWP @ERR
+*
+FIREST AI   0,J1FIRE-1        fire buttons status
+       SLA  3,8               -------------------
+       CB   3,*0              same as before ?
+       JEQ  SK20
+       MOVB 3,*0              no: save new
+       NEG  3
+SK20   NEG  3                 yes: negate
+       SRA  3,8
+       B    *11
+*
+PASS12 MOV  2,3               pass r1/r2
+       MOV  1,2               ----------
+       CLR  0
+       LI   1,1               as params 2 and 3
+       SETO 4
+       JMP  SK26
+*
+PASVHF CLR  0                 pass vert/horiz/fire
+       MOV  1,@>834A          --------------------
+       LI   1,2               vert, as param #2
+       BLWP @INTFLT
+       BLWP @NUMASG
+SK26   MOV  2,@>834A          then horiz
+       INC  1
+       BLWP @INTFLT
+       BLWP @NUMASG
+       CI   12,>0400
+       JL   SK1C              skip last param
+SK21   MOV  3,@>834A          then fire
+       INC  1
+       BLWP @INTFLT
+       BLWP @NUMASG
+SK1C   B    *11
+*
+PASFF  CLR  0                 pass fire status
+       MOV  2,@>834A          ----------------
+       LI   1,1               joy 1, as param 1
+       BLWP @INTFLT
+       BLWP @NUMASG
+       JMP  SK21              then joy 2, as param 2
+*
+FLTINT DATA XBREG1,FLTIN1     float to integer
+*                             ----------------
+FLTIN1 LWPI >83E0
+       MOV  11,@MEMR11        save gpl r11
+       MOV  @>0CFA+2,2
+       MOV  @4(2),2
+       BL   *2                call XML >12
+       MOV  @MEMR11,11        restore gpl r11
+       LWPI XBREG1
+       RTWP
+*
+INTFLT DATA XBREG1,INTFL1     integer to float
+*                             ----------------
+INTFL1 LI   4,>834A
+       MOV  *4,0              get integer
+       MOV  4,6
+       CLR  *6+               clear space
+       CLR  *6+
+       MOV  0,5               sign flag
+       JEQ  SK25              0: one word is enough
+       ABS  0
+       LI   3,>0040           exponent
+       CLR  *6+               clear remaining space
+       CLR  *6
+       CI   0,100
+       JL   SK24              < 100
+       CI   0,10000
+       JL   SK23              < 10000
+       INC  3                 exp+1 i.e *100
+       MOV  0,1
+       CLR  0
+       DIV  @D100,0             div by 100
+       MOVB @XBREG1+3,@>0003(4) remainder
+SK23   INC  3                   exp+1 i.e *100
+       MOV  0,1
+       CLR  0
+       DIV  @D100,0             div by 100
+       MOVB @XBREG1+3,@>0002(4) remainder
+SK24   MOVB @XBREG1+1,@>0001(4) result
+       MOVB @XBREG1+7,*4        exponent
+       INV  5
+       JLT  SK25              positive
+       NEG  *4                negative
+SK25   RTWP
+*
+XBREGS BSS  8                 xb workspace
+XBREG1 BSS  32                secondary
+JOYNB  DATA 0                 joystick #
+J1FIRE BYTE 0,0               fire buttons buffer
+MEMR11 DATA 0                 r11 buffer
+D100   DATA 100
+*
+       END

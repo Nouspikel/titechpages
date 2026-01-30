@@ -1,0 +1,717 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+  <title></title>
+  <meta name="Author" content="">
+  <meta name="GENERATOR"
+ content="Mozilla/3.04Gold (Win95; U) [Netscape]">
+</head>
+<body>
+<h1 align="center"><a
+ href="http://www.nouspikel.com/ti99/titechpages.htm"><img
+ src="logo.jpg" style="border: 0px solid ; height: 33px; width: 95px;"
+ title="Back to main index" alt=""></a></h1>
+<h1>The MBP card</h1>
+<p>The MBP card comprises a real-time clock and an 8-bit
+analog-to-digital
+converter (ADC). The clock gives you the time and date, the ADC let you
+measure the voltage (or current) of upto eight different signals. The
+card
+is based on an original design by Gary Emmich.</p>
+<p>Let me point out that I don't own such a card, so the present
+description
+is based on the schematics and manual, rather than on "hands-on"
+experience.</p>
+<p><b>Hardware<br>
+</b><a href="#Card%20circuitery">Card circuitery<br>
+</a><a href="#RTC58167">The clock chip<br>
+</a><a href="#ADC0809">The ADC chip</a></p>
+<p><b>Software<br>
+</b><a href="#Acessing%20clock">Accessing the clock<br>
+</a><a href="#Accessing%20ADC">Accessing the ADC</a></p>
+<h2><br>
+<a name="Card circuitery"></a>Hardware</h2>
+<p><a href="#Power">Power supply<br>
+</a><a href="#Bus%20buffers">Bus buffering<br>
+</a><a href="#LEDs">Front light<br>
+</a><a href="#Address%20decoding">Address decoding<br>
+</a><a href="#Clock">Real-time clock<br>
+</a><a href="#ADC">AD converter</a></p>
+<h4><br>
+<a name="Power"></a>Power supply</h4>
+<p>There are two independent +5V voltage regulators, one for the clock
+and one for the rest of the card. That's probably because one of them
+provides
+current to the external devices that you want to hook to the AD
+converter.
+In addition, the clock is backed up by a +3V lithium battery, so that
+it
+keeps time even when power is off.</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>&nbsp;<br>              &nbsp;&nbsp;&nbsp;&nbsp;  7805&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; All chips<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +----------+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +5V&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;     +-----+<br>+8V---+-----+---|Vin&nbsp;&nbsp; Vout|---+----------...----+---|Vcc&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;  &nbsp;&nbsp;|&nbsp;&nbsp; |&nbsp;&nbsp; Ref&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;        |   |&nbsp;&nbsp;&nbsp;&nbsp; |<br>&nbsp;&nbsp;    | 100 =   +----------+&nbsp;&nbsp; = 22 &nbsp;&nbsp;&nbsp;      0.1 =   |&nbsp;&nbsp;&nbsp;&nbsp; |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| uF&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;uF&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  uF  |   |&nbsp;&nbsp;&nbsp;&nbsp; |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|    Gnd&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Gnd&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  Gnd&nbsp;&nbsp;&nbsp;     Gnd----+---|Vss&nbsp; |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; &nbsp;       +-----+<br>      |             7805&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Clock<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +----------+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 1N914&nbsp;         +-----+<br>      '-----+---|Vin&nbsp;&nbsp; Vout|---+---|&gt;|---+-------|Vcc&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; |   Ref&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;|       |&nbsp;&nbsp;&nbsp;&nbsp; |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 100&nbsp;=   +----------+&nbsp;&nbsp; = 22 &nbsp;&nbsp;&nbsp;  |       |&nbsp;&nbsp;&nbsp;&nbsp; |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; uF&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <u>|</u>&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;uF&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;     |&nbsp;&nbsp;&nbsp;&nbsp; |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;    &nbsp;Gnd&nbsp;1N914 <u>V</u>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;  Gnd&nbsp;&nbsp;&nbsp;&nbsp;   |       |Vss&nbsp; |<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;      |       +-----+<br>                    Gnd                  |<br>                          |              |   1MOhm <br>                    Gnd---||-----|&gt;|-----+---WWW---Gnd<br>                          |   1N914  <br>                        +3V battery           <br> </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>Regular power is supplied by a +5 volts regulator 7805. It has a 100
+uF cap on its input and a 22 uF cap on its output.</p>
+<p>The clock power is supplied by an identical +5 volts regulator 7805,
+through a 1N914 diode to prevent the battery current from flowing to
+the
+rest of the card (and the PE-box) when power is off. This diode will
+cause
+a small voltage drop, so the regulator has a similar diode in its
+reference
+line to compensate for the drop.</p>
+<p>A lithium battery (BR2325 or equivalent) provides a +3V backup
+voltage
+to the clock. Another 1N914 diode prevent the regular +5 volts power
+supply
+from fighting the battery when power is on.</p>
+<p>Each chip on the card has its own 0.1 uF bypass capacitor, between
+its
+power pin and the ground. This helps filtering power spikes.</p>
+<h4><br>
+<a name="Bus buffers"></a>Bus buffering and enabling</h4>
+<p>As specified by Texas Instruments, all PE-box signals are
+re-buffered
+on card. There are two 74LS244 to buffer the address bus, one more to
+buffer
+some control lines (MEMEN*, WE*, PHI3*, and DBIN), and a 74LS245 to
+buffer
+the data bus. The direction of the 74LS245 is controlled by DBIN, and
+it
+is enabled by the Sel* selection signal (see <a
+ href="#Address%20decoding">below</a>),
+together with the RDBENA* line that activates the remote data bus
+buffers
+in the connection card and cable.</p>
+<p>Note that DBIN is double-buffered by a 74LS08, then inverted by a
+74LS368
+to provide a delayed, active-low read signal.</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS244&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  74LS244&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-------+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;    +-------+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp; A0&gt;---|&nbsp;&nbsp;   &nbsp; |---A0&nbsp;&nbsp;&nbsp;   A8&gt;---|&nbsp;&nbsp;     |---A8<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;   &nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;    &nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;   &nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;    &nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;    |&nbsp;&nbsp;&nbsp;&nbsp;.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;    &nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;.&nbsp;&nbsp; <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;   &nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;    &nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;    |&nbsp;&nbsp;&nbsp;&nbsp;.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp; |&nbsp;    &nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;.<br>&nbsp;&nbsp;&nbsp;&nbsp; A7&gt;---|&nbsp;&nbsp;&nbsp;    |---A7&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A15&gt;--|&nbsp;&nbsp;&nbsp;    |---A15&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Gnd--|EN*    |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Gnd--|EN*    |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-------+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-------+&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  4LS244&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-------+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <br>  PHI3*&gt;---|&nbsp;   &nbsp;&nbsp; |---Phi3*&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp; WE*&gt;---|&nbsp;   &nbsp;&nbsp; |---WE*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>  MEMEN&gt;---|&nbsp;&nbsp;     |---Memen*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;    &nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;    &nbsp; | +5V-,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;74LS368&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp; DBIN&gt;---|&nbsp;&nbsp;     |-----=|)-+---|&gt;o---Dbin*&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Gnd--|EN*    |&nbsp;&nbsp;74LS08 |&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp; <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-------+&nbsp;&nbsp;       |&nbsp;&nbsp;&nbsp;Gnd&nbsp; <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 74LS245          |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-------+&nbsp;&nbsp;       |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |    DIR|&lt;--------'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <br>&nbsp;&nbsp;&nbsp; D0&lt;---&gt;|    &nbsp;&nbsp; |-----D0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp;&nbsp; |   &nbsp;&nbsp;&nbsp; |      .&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp;&nbsp; |   &nbsp;&nbsp;&nbsp; |      .&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp;&nbsp; |   &nbsp;&nbsp;&nbsp; |      .&nbsp;&nbsp;&nbsp; <br>&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp;&nbsp; |   &nbsp;&nbsp;&nbsp; |      .&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp;&nbsp; |   &nbsp;&nbsp;&nbsp; |      .&nbsp;&nbsp;   &nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp; .&nbsp;&nbsp;&nbsp;&nbsp; |   &nbsp;&nbsp;&nbsp; |      .&nbsp; <br>&nbsp;&nbsp;&nbsp; D7&lt;---&gt;|   &nbsp;&nbsp;&nbsp; |-----D7&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   &nbsp; <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |   &nbsp;OE*|&lt;--------+---------Sel*&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +-------+&nbsp;&nbsp;       |&nbsp;&nbsp;&nbsp;    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;          |&nbsp;&nbsp;&nbsp;&nbsp; 1K    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>RDBENA*&lt;--------------------o&lt;|---WWW---+5V<br>                         74LS367</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h4><br>
+<a name="LEDs"></a>Front light</h4>
+<p>The card contains a dedicated chip, a 555 timer, whose sole function
+is to light up the front panel LED&nbsp;when the card is accessed. This
+is kind of a luxury and could easily be ommited, or replaced with a
+simple
+transistor.</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>&nbsp;&nbsp;    &nbsp;+----------+       LED   220<br>       |    Output|-------|&gt;|---WWW---Gnd <br>Sel*---|Trigger   |<br>       | Threshold|--+---WWW---+5V<br>       |          |  |   1K   <br>       | Discharge|--+---||----Gnd   <br>       |          |     22 uF<br>       |  CtrlVolt|---||---Gnd<br>       +----------+  100 uF  </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>The 555 is wired as a one-shot monostable multivibrator. When the
+Sel*
+line is triggered, it sends an ~25 usec pulse to the LED.</p>
+<h4><br>
+<a name="Address decoding"></a>Address decoding</h4>
+<p>The address decoding is performed by two 74LS138 decoders, which
+together
+react to memory operations in the range &gt;8640-867F (real-time clock)
+and &gt;8680-86BF (AD converter).</p>
+<p>The two selection signals are further combined with an AND gate to
+provide
+the Sel* signal that enables the data bus and triggers the 555 to light
+up the LED.</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;    74LS138&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp;74LS138   &nbsp;&nbsp;&nbsp;&nbsp;<br>&nbsp;&nbsp;   &nbsp;&nbsp;&nbsp; +-------+&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;   +-------+&nbsp;&nbsp;&nbsp;,----ClockSel*&nbsp;&nbsp;&nbsp; <br>    A2---|S0     |    A9---|S0     |   |<br>&nbsp;&nbsp;&nbsp; A1---|S1&nbsp;    |    A8---|S1  Y1*|---+---, 74LS08<br>   &nbsp;A0---|S2&nbsp;    |    A7---|S2  Y2*|--+----=|)-------Sel* <br>&nbsp;        |  &nbsp; Y4*|---------|G2A*   |  |    <br>Memen*---|G2A*&nbsp;  |   &nbsp;A4---|G2A*&nbsp; &nbsp;|&nbsp; '-----ADCSel*     <br>    A3---|G2B*&nbsp;  |   &nbsp;A5---|G1     |&nbsp;      <br>    A6---|G1&nbsp;    |   &nbsp;     |       |&nbsp;      <br>&nbsp;&nbsp;&nbsp;      |&nbsp; &nbsp;    |   &nbsp;     |    &nbsp; &nbsp;|       <br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   +-------+         +-------+&nbsp;&nbsp; </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h4><br>
+<a name="Clock"></a>Real-time clock</h4>
+<p>The real-time clock is a MM58167 chip. It has an 8-bit data bus
+which
+is connected to the PE-box data bus, taking into account that D0 is the
+most significant bit for TI, but the least significant bit for the rest
+of the world. The clock also has five address pins, connected to A10
+through
+A14, which provide access to a total of 32 registers. Its WE*
+write-enabling
+pin is connected to the WR* line and the RD* read-enabling pin to the
+inverted
+and delayed DBIN (see <a href="#Bus%20buffers">above</a>).</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;        MM58167<br>&nbsp; &nbsp;   &nbsp;&nbsp;&nbsp;     +-------+<br> ClockSel*----|CS*  D0|---D7<br>&nbsp;&nbsp; &nbsp; Dbin*----|RD*  D1|---D6 <br>   &nbsp;    WE*---|WR*  D2|---D5  <br>&nbsp;       A14---|A0&nbsp;  D3|---D4<br>        A13---|A1   D4|---D3<br>        A12---|A2  &nbsp;D5|---D2   Crystal<br>        A11---|A3   D6|---D1   32.768 kHz<br>&nbsp;&nbsp;      A10---|A4   D7|---D0            3-30 pF<br>              |     Oi|----------<u>-+-</u>----||---Gnd<br>              |       |          <u>===<br></u>              |     Oo|----WWW----+-----||---Gnd<br>              +-------+    200K         20 pF</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>The clock needs a 32.768 kHz crystal, with some associated
+circuitery:
+two capacitors (one 20 pF one adjustable 3-30 pF) and a 200K resistor.
+</p>
+<p>The clock chip has the ability to generate a variety of interrupts,
+but the corresponding pins are not connected in the MBP design, so this
+feature cannot be used to generate alarms.</p>
+<h4><br>
+<a name="ADC"></a>The AD converter</h4>
+<p>The converter is an ADC0809, 8-bit analog-to-digital converter. It
+has
+8 input channels that can be selected via three address lines. These
+address
+lines are controlled by A12 through A14.</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>&nbsp;                 &nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;    ADC0809<br>&nbsp;                 &nbsp;   &nbsp;   &nbsp;&nbsp;+-------+<br>&nbsp;                     A12---|A2  IN0|---&lt;<br>&nbsp;                   &nbsp; A13---|A1  IN1|---&lt; <br>&nbsp;                     A14---|A0  IN2|---&lt;<br>&nbsp;           A10----,        |  &nbsp; IN3|---&lt;<br>               ,---=|)------|OE  IN4|---&lt;<br>ACDSel*---|&gt;o--+            |    IN5|---&lt;<br>               '---,        |    IN6|---&lt;<br>            A11----=|)---+--|ALE IN7|---&lt;<br>  &nbsp;                      '--|Start  |<br>        +-------+           |       |<br>Phi3*---|Clk* Q2|-----------|Clk    |<br>     ,--|Rst1   |           +-------+ <br>Gnd--+--|Rst2   |     <br>        +-------+<br>         74LS93 </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>The active-low selection signal (see above) is inverted to become
+active
+high. It is combined with address line A10 via a 74LS08 AND gate to
+activate
+the output enable OE pin. This means that reading at addresses
+&gt;86A0-86BF
+will repetedly access the seven ADC registers.</p>
+<p>The inverted selection signal is also combined with A11 to trigger
+both
+the address latch ALE pin (which selects an input line) and the Start
+pin
+that causes the ADC to appraise voltage on the selected line. So these
+will be triggered by access to the range &gt;8690-869F and
+&gt;86B0-86BF.</p>
+<p>Operations are clocked by the Phi3* clock signal, divided by 4 with
+a 74LS93 counter. Since Phi3* is 3 MHz, the ADC is effectively clocked
+at 750 KHz.</p>
+<h3><br>
+<a name="RTC58167"></a>The MM58167A real-time clock</h3>
+<p>The MM58167A maintains the time from the milliseconds to the months,
+but does not support years. An alarm can be set that will automatically
+trigger an interrupt pin. This interrupt pin can also be triggered by a
+variety of periodic events.</p>
+<p>When power is off, the clock can be placed in standby mode and
+powered
+by a +3 volts battery. In this mode all outputs are disabled, except
+for
+a special, dedicated interrupt pin.</p>
+<p>The clock is accessible via a set of 32 registers (of which only 25
+are used). Their function is described in the <a
+ href="#Acessing%20clock">software
+section</a> of this page.</p>
+<p><a href="#Clock%20pinout">Pinout<br>
+</a><a href="#Clock%20max%20ratings">Absolute maximum ratings<br>
+</a><a href="#Clock%20electrical">Electrical characteristics<br>
+</a><a href="#Clock%20timing">Timing diagrams</a></p>
+<h4><a name="Clock pinout"></a>Pinout</h4>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  +----+--+----+&nbsp;<br>  &nbsp;CS* |1 o&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 24| Vcc<br>   RD* |2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 23| PwrOff*<br>   WR* |3&nbsp;&nbsp;&nbsp; R&nbsp;&nbsp;&nbsp; 22| D7<br>  RDY* |4&nbsp;&nbsp;&nbsp; T&nbsp;&nbsp;&nbsp; 21| D6<br>&nbsp;  &nbsp;A0 |5&nbsp;&nbsp;&nbsp; C&nbsp;&nbsp;&nbsp; 20| D5<br>    A1 |6&nbsp;&nbsp;&nbsp;&nbsp;5&nbsp;&nbsp;&nbsp; 19| D4<br>   &nbsp;A2 |7&nbsp;&nbsp;&nbsp; 8&nbsp;&nbsp;&nbsp; 18| D3<br>   &nbsp;A3 |8&nbsp;&nbsp;&nbsp; 1&nbsp;&nbsp;&nbsp; 17| D2<br>   &nbsp;A4 |9&nbsp;&nbsp;&nbsp; 6&nbsp;&nbsp;&nbsp; 16| D1&nbsp;<br> OscIn |10&nbsp;&nbsp; 7&nbsp;&nbsp;&nbsp; 15| D0<br>OscOut |11&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 14| StdbyInt*<br>   Vss |12&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 13| IntOut<br>&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; +------------+</pre>
+<p><b>D0-D7</b> form the data bus. D0 is the least significant bit.</p>
+<p><b>A0-A4</b> form the address bus that lets you select one input for
+the conversion. A0 is the least significant bit.</p>
+<p><b>CS*</b> is the chip select signal.<br>
+<b>RD*</b> triggers read operations.<br>
+<b>WR*</b> triggers write operations.<br>
+<b>PwrOff*</b> when low, puts the clock in standby mode (i.e. outputs
+disabled,
+minimal current usage).</p>
+<p><b>RDY*</b> when high, signals the clock is not ready to answer.<br>
+<b>IntOut</b> signals that an interrupt occured (active high).<br>
+<b>StdbyInt </b>signals that an interrupt occured while in standby
+mode
+(active low, open collector).</p>
+<p><b>OscIn </b>Oscillator input. Requires a 32.768 kiloHerz signal.<br>
+<b>OscOut </b>Oscillator output.</p>
+<p><b>Vcc </b>Power supply, normally +5V, can be as low as +2V in
+standby
+mode.<br>
+<b>Vss </b>Ground.</p>
+<h4><br>
+<a name="Clock max ratings"></a>Absolute maximum ratings</h4>
+<pre>Supply voltage Vcc-Vss:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;6.0 V<br>Voltage on all pins:         Vss-0.3 to Vcc+0.3 V<br>Storage temperature:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-65 to 150 `C<br>Operating temperature:       0 to 70 `C</pre>
+<h4><br>
+<a name="Clock electrical"></a>Electrical characteristics under
+recommended
+conditions</h4>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Parameter </th>
+      <th>Test conditions </th>
+      <th>Min </th>
+      <th>Norm </th>
+      <th>Max </th>
+      <th>Unit </th>
+    </tr>
+    <tr>
+      <td>Supply voltage </td>
+      <td>Enabled<br>
+Standby</td>
+      <td>4.5<br>
+2.2</td>
+      <td>.</td>
+      <td>5.5<br>
+5.5</td>
+      <td>V<br>
+V</td>
+    </tr>
+    <tr>
+      <td>Supply current </td>
+      <td>Vih &gt;= Vcc-0.3 V<br>
+Vih = 2.0 V </td>
+      <td>.</td>
+      <td>.</td>
+      <td>20<br>
+5</td>
+      <td>uA<br>
+mA</td>
+    </tr>
+    <tr>
+      <td>Input voltage</td>
+      <td>High<br>
+Low</td>
+      <td>2.0<br>
+0.0</td>
+      <td>.</td>
+      <td>Vcc<br>
+0.6</td>
+      <td>V<br>
+V</td>
+    </tr>
+    <tr>
+      <td>Input leakage current </td>
+      <td>Vss &lt;= Vin &lt;= Vcc</td>
+      <td>-1</td>
+      <td>.</td>
+      <td>1</td>
+      <td>uA</td>
+    </tr>
+    <tr>
+      <td>Output impedance. Low<br>
+High<br>
+      <br>
+Tri-state<br>
+      </td>
+      <td>Vcc = 4.5V Iol = 1.6 mA<br>
+Ioh = -400 uA<br>
+Ioh = -10 uA<br>
+Vss &lt;= Vout &lt;= Vcc</td>
+      <td><br>
+2.4<br>
+0.8Vcc<br>
+-1</td>
+      <td>.</td>
+      <td>0.4<br>
+      <br>
+      <br>
++1</td>
+      <td>V<br>
+V<br>
+V<br>
+uA</td>
+    </tr>
+    <tr>
+      <td>Output impedance OC pins. Low<br>
+High (i.e leakage)</td>
+      <td>Vcc = 4.5V Iol = 1.6 mA <br>
+Vout &lt;= Vcc</td>
+      <td>.</td>
+      <td>.</td>
+      <td>0.4<br>
+10</td>
+      <td>V<br>
+uA</td>
+    </tr>
+  </tbody>
+</table>
+<h4><br>
+<a name="Clock timing"></a>Timing diagrams</h4>
+<h5>Read cycle</h5>
+<pre>    <u>                                                     </u>              <br>XXXX<u>    Valid   address                                  </u>XXXXXXXXX A0-A4&nbsp;<br>___<u>|</u>___&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;                     |   &gt;50 ns   |   _____<br>&nbsp;&nbsp; |   \<u>                                    |               </u>/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CS*<br><u><i>   |    </i>| &gt;0</u> |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;              <u>|                     <br></u>&nbsp;&nbsp;&nbsp;|        \<u>                              </u>/|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;         RD*<br>   | &gt;100 ns |                              |<br>   |                &lt;1050 ns             |<u>  | 0-250 ns</u>|<br>ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZX<u> Valid data </u>XZZZZZZZZZZZ D0-D7<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;                     |&lt;100|  |<br><u>             |&lt;150</u> |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <u>| &gt;0    |                     <br></u>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;       \<u>                </u>/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;          READY*<br>                   |    &lt;800 ns          |<br></pre>
+<h5>Write cycle</h5>
+<pre>    <u>                                                     </u>              <br>XXXX<u>    Valid   address                                  </u>XXXXXXXXX A0-A4&nbsp;<br>___<u>|</u>___&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;                     |  &gt;50 ns    |   _____<br>&nbsp;&nbsp; |   \<u>                                    |               </u>/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CS*<br><u><i>   |    </i>| &gt;0</u> |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;              <u>|                     <br></u>&nbsp;&nbsp;&nbsp;|        \<u>                              </u>/|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;         WR*<br>   | &gt;100 ns |                              |<br>   |    <u>|&gt;100|                              | &gt;110</u>|<br>ZZZZZZZX<u>     Valid   data                         </u>XZZZZZZZZZZZ D0-D7<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;                             |<br><u>             |&lt;150</u> |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <u>| &gt;0    |                     <br></u>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;       \<u>    &lt;800 ns     </u>/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;          READY*</pre>
+<h3><br>
+<br>
+<a name="ADC0809"></a>The ADC0809 analog-to-digital converter</h3>
+<p>The ADC0809 analog-to-digital converter is based on an internal
+series
+of 256 daisy-chained resistors. One end of the chain is tied to the
+Vref-
+pin and the other end to the Vref+ pin. All resistors have the same
+value,
+except the first one (1/2 the value) and the last one (1.5 times the
+value).
+If you do the math, you will see that this makes up a voltage divider
+with
+256 equal steps.</p>
+<p>To appraise an external voltage, the ADC&nbsp;compares it to these
+internal
+references. It does not perform 256 comparisons though, rather it
+starts
+at the mid-point, then moves to the upper or lower quarter-mark, etc.
+This
+way it never takes more than 8 steps before it finds the appropriate
+value.
+The total conversion time should be around 100 microseconds. This is
+equivalent
+to a dozen or so assembly instructions.</p>
+<p>The ADC0809 has eight analog inputs. You select one by placing its
+number
+on the 3-bit address bus, then pulsing the ALE&nbsp;pin high. You then
+start the conversion by pulsing the "Start" pin high. The end
+of the conversion is signaled by the EOC pin. At this point, you can
+enable
+the data bus by setting the OE pin high, and read the result.</p>
+<p>Pulsing "Start" before the end of the current conversion cancels
+it and begins a new conversion.</p>
+<p><a href="#ADC%20pinout">Pinout<br>
+</a><a href="#ADC%20max%20rating">Absolute max ratings<br>
+</a><a href="#ADC%20recommended">Recommended operating conditions<br>
+</a><a href="#ADC%20electrical">Electrical parameters<br>
+</a><a href="#ADC%20timing">Timing diagrams</a></p>
+<h4><a name="ADC pinout"></a>Pinout</h4>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +----+--+----+&nbsp;<br> &nbsp;IN3 |1 o&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 28| IN2<br>  IN4 |2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 27| IN1<br>  IN5 |3&nbsp;&nbsp;&nbsp; A&nbsp;&nbsp;&nbsp; 26| IN0<br> &nbsp;IN6 |4&nbsp;&nbsp;&nbsp; D&nbsp;&nbsp;&nbsp; 25| A0<br>&nbsp;&nbsp;IN7 |5&nbsp;&nbsp;&nbsp; C&nbsp;&nbsp;&nbsp; 24| A1&nbsp;<br>Start |6&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 23| A2&nbsp;<br> &nbsp;EOC |7&nbsp;&nbsp;&nbsp; 0&nbsp;&nbsp;&nbsp; 22| ALE&nbsp;<br>  &nbsp;D4 |8&nbsp;&nbsp;&nbsp; 8&nbsp;&nbsp;&nbsp; 21| D0&nbsp;<br>  &nbsp;OE |9&nbsp;&nbsp;&nbsp; 0&nbsp;&nbsp;&nbsp; 20| D1&nbsp;<br>&nbsp; Clk |10&nbsp;&nbsp; 9&nbsp;&nbsp;&nbsp; 19| D2&nbsp;<br>  Vcc |11&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 18| D3&nbsp;<br>Vref+ |12&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 17| D7&nbsp;<br>  Gnd |13&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 16| Vref-&nbsp;<br>&nbsp;&nbsp; D6 |14&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 15| D5&nbsp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; +------------+</pre>
+<p><b>D0-D7</b> form the data bus. D0 is the least significant bit.<br>
+<b>OE</b> is used to place the result of the conversion on the data bus
+(active high).</p>
+<p><b>A0-A2</b> form the address bus that lets you select one input for
+the conversion. A0 is the least significant bit.<br>
+<b>ALE </b>is used to latch the address. This signal is active high.</p>
+<p><b>Start</b> triggers the A--&gt;D conversion process. It should be
+a positive pulse whose leading edge resets the successive approximation
+register, whereas the falling edge begins the conversion process. <br>
+<b>EOC </b>signals the end of the conversion. It goes low when the
+conversion
+begins, and high when it's done.<br>
+<b>Clk</b> clocks the conversion process. Typical frequency = 640 kHz.</p>
+<p><b>Vcc </b>is the power supply. It should be +5 volts.<br>
+<b>Gnd </b>is the ground.<br>
+<b>Vref+</b> and <b>Vref-</b> are the two ends of the resistor chain,
+i.e.
+provide the voltage range whithin which the measured input must fall.
+They
+should not exceed the values of Gnd and Vcc for proper conversion.<br>
+<b>IN0</b>-<b>IN7 </b>are the analog input pins. Their limitations are
+the following: -0.1 Vref to +1.1 Vref, maximum 100 milliAmps. Exceeding
+these values may destroy the chip.</p>
+<h4><br>
+<a name="ADC max rating"></a>Absolute maximum ratings</h4>
+<pre>Supply voltage:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -0.3 to 10 V<br>All inputs except controls:    -0.3 to Vcc+0.3 V<br>Control inputs:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;         -0.3 to +15 V<br>Package dissipation:           875 mW<br>Storage temperature:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -65 to 150 `C</pre>
+<h4><br>
+<a name="ADC recommended"></a>Recommended operating conditions</h4>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Parameter</th>
+      <th>Min </th>
+      <th>Nom </th>
+      <th>Max </th>
+      <th>Unit </th>
+    </tr>
+    <tr>
+      <td>Vcc</td>
+      <td>4.5</td>
+      <td>5.0</td>
+      <td>6.0</td>
+      <td>Volts </td>
+    </tr>
+    <tr>
+      <td>Temperature </td>
+      <td>-40</td>
+      <td>.</td>
+      <td>+85</td>
+      <td>`C</td>
+    </tr>
+  </tbody>
+</table>
+<h4><br>
+<a name="ADC electrical"></a>Electrical characteristics under
+recommended
+conditions</h4>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Parameter</th>
+      <th>Test conditions</th>
+      <th>Min</th>
+      <th>Nom</th>
+      <th>Max</th>
+      <th>Unit</th>
+    </tr>
+    <tr>
+      <td>Supply current </td>
+      <td>640 KHz</td>
+      <td>.</td>
+      <td>0.3</td>
+      <td>3.0</td>
+      <td>mA</td>
+    </tr>
+    <tr>
+      <td>Input current</td>
+      <td>Vin = 0 or 15 V </td>
+      <td>-0.1</td>
+      <td>.</td>
+      <td>0.1</td>
+      <td>mA </td>
+    </tr>
+    <tr>
+      <td>Input cap</td>
+      <td>Control inputs</td>
+      <td>.</td>
+      <td>10</td>
+      <td>16</td>
+      <td>pF</td>
+    </tr>
+    <tr>
+      <td>Output current </td>
+      <td>Vout = 0 or 5 V</td>
+      <td>-3.0</td>
+      <td>.</td>
+      <td>3.0</td>
+      <td>mA</td>
+    </tr>
+    <tr>
+      <td>Output cap</td>
+      <td>.</td>
+      <td>.</td>
+      <td>10</td>
+      <td>15</td>
+      <td>pF</td>
+    </tr>
+    <tr>
+      <td>Vref-</td>
+      <td>.</td>
+      <td>0.1</td>
+      <td>0</td>
+      <td>.</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>Vref+</td>
+      <td>.</td>
+      <td>.</td>
+      <td>Vcc</td>
+      <td>Vcc+0.1</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>Vcenter</td>
+      <td>.</td>
+      <td>Vcc/2 -0.1</td>
+      <td>Vcc/2 </td>
+      <td>V/2 +0.1</td>
+      <td>V</td>
+    </tr>
+    <tr>
+      <td>Comparator input current</td>
+      <td>640 kHz</td>
+      <td>-2.0</td>
+      <td>0.5</td>
+      <td>2.0</td>
+      <td>uA</td>
+    </tr>
+    <tr>
+      <td>Analog channel leakage</td>
+      <td>Vin=0 or +5V 25`C <br>
+-40 to +85 `C</td>
+      <td>-0.2<br>
+-1</td>
+      <td>0.01<br>
+      </td>
+      <td>0.2<br>
+1</td>
+      <td>uA<br>
+uA</td>
+    </tr>
+    <tr>
+      <td>Input resistance</td>
+      <td>From Ref+ to Ref-</td>
+      <td>1</td>
+      <td>2.5</td>
+      <td>.</td>
+      <td>kOhm </td>
+    </tr>
+    <tr>
+      <td>Unadjusted error</td>
+      <td>0 to 70 `C<br>
+-40 to +85 `C</td>
+      <td>-1<br>
+-1.25</td>
+      <td>.</td>
+      <td>+1<br>
++1.25</td>
+      <td>LSB</td>
+    </tr>
+    <tr>
+      <td>Clock frequency</td>
+      <td>.</td>
+      <td>10</td>
+      <td>640</td>
+      <td>1280</td>
+      <td>kHz</td>
+    </tr>
+  </tbody>
+</table>
+<h4><br>
+<a name="ADC timing"></a>Timing diagram</h4>
+<pre>&nbsp;&nbsp;_&nbsp;&nbsp; _&nbsp;&nbsp; _&nbsp;&nbsp; _&nbsp;&nbsp; _&nbsp;&nbsp; _&nbsp;&nbsp; _&nbsp; &nbsp;_&nbsp;&nbsp; _|1/<u>F</u>|&nbsp; _&nbsp;&nbsp; _&nbsp;&nbsp; _&nbsp;&nbsp; _&nbsp;&nbsp; _&nbsp;  _&nbsp;&nbsp; _&nbsp;&nbsp;<br>_| |_| |_| |_| |_| |_| |_| |_| |_| |_| |_| |_| |_| |_| |_| |_| |_| | Clock<br>         <u>    </u>                                                        <br><u>        </u>/&lt;200\<u>                                                      </u> ALE<br>    <u>|&lt;50|&lt;50 </u>|                                                       <br>XXXX<u> Valid   </u>XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX A0-A2<br>      <u>  | b |                                </u>                        <br>XXXXXX<u>         Stable                        </u>XXXXXXXXXXXXXXXXXXXXXXX INx<br>           <u>    </u>                                                         <br><u>          </u>/&lt;200\<u>                                                    </u> START<br>&nbsp;         |     | 90-116 us (typ 100 us)    |                         <br><u>          | note a</u> |     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   |<u>                       </u> <br>&nbsp;&nbsp;                \<u>                         </u>/&nbsp;&nbsp;&nbsp;               &nbsp;&nbsp;    EOC<br>                                       |  c |   <u>         </u>            <br><u>                                               </u>/         \<u>          </u> OE<br>                                                |        |&lt;250 |     <br>                                                | &lt;250 <u>|       </u>|            <br>ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZX<u> Valid  </u>XZZZZ D0-D7</pre>
+<pre>a) 2 us + 8 clock cycles (of duration 1/F)<br>b) Analog multiplexer delay: typ 1 us, max 2.5 us<br>c) The data register is updated 1 clock cycle before EOC goes high</pre>
+<p>All values are in nanoseconds, unless marked us (microseconds).
+Typical
+values are generally are half the indicated max value. NB The figure is
+not drawn to scale.<br>
+</p>
+<p>
+</p>
+<hr width="100%">
+<p></p>
+<h2>Software</h2>
+<p><a href="#Acessing%20clock">Accessing the clock<br>
+</a><a href="#Accessing%20ADC">Accessing the ADC</a></p>
+<h3><a name="Acessing clock"></a>Accessing the clock</h3>
+<p>The MM58167A real-time clock interface consists in 32 registers.
+They
+can be accessed at addresses &gt;8640 through &gt;867E. Only even
+addresses
+are considered, although both bytes are transfered: so just ignore the
+least significant byte.</p>
+<p>All values are in binary-coded decimal (aka BCD), i.e. number
+from&nbsp;&gt;00
+to &gt;09 represent 0 to 9, then &gt;10 to &gt;19 represent 10 to 19,
+etc.
+I know it's a drag, but that's the way it is. To convert decimal to BCD
+and conversely, use the following formulas:</p>
+<pre>BCD = DECIMAL + 6 * INT(DECIMAL/10)<br>DECIMAL = BCD - 6* INT(BCD/16)</pre>
+<h4>Extended Basic</h4>
+<p>When working from Extended Basic, you can use CALL LOAD and CALL
+PEEK
+to access the clock. Clock addresses start at -31168, and go up from
+there.
+For instance, to set and read back the time, you could do:</p>
+<p>100 CALL LOAD(-31164,SECS,0,MINS,0,HRS,0)<br>
+110 CALL SOUND(1,110,30)<br>
+120 CALL PEEK(-31164,SECS,X,MINS,X,HRS,X)</p>
+<p>Line 110 is necessary to shut off the sound generators that could be
+affected by writing to the clock (since they share the same address). X
+is used to dump the least significant bytes.</p>
+<p>For more details, see the "Assembly" section. Just convert
+the hexadecimal addresses to signed decimal.</p>
+<h4>Assembly</h4>
+<p>In assembly, the clock registers can be accessed at the following
+addresses:</p>
+<pre>&gt;8640 1/1000 seconds (0-9)<br>&gt;8642 1/100 seconds (0-99)<br>&gt;8644 seconds (0-59)<br>&gt;8646 minutes (0-59)<br>&gt;8648 hours (0-23)<br>&gt;864A day of the week (1-7, Sunday=1)<br>&gt;864C day of the month (1-31)<br>&gt;864E month (1-12)</pre>
+<p>The year is not stored inside the clock chip. The P-Gram DSRs save
+it
+(together with the month) in the DSR space and updates the year upon
+power
+up, if needed.</p>
+<p>To implement alarms, the same information can be saved in the clock
+RAM at the following addresses:</p>
+<pre>&gt;8650 1/1000 seconds (&gt;Cx = always true)<br>&gt;8652 1/100 seconds (&gt;Cx = always true)<br>&gt;8654 seconds (&gt;Cx = always true)<br>&gt;8656 minutes (&gt;Cx = always true)<br>&gt;8658 hours (&gt;Cx = always true)<br>&gt;865A day of the week (&gt;xC= always true)<br>&gt;865C day of the month (&gt;Cx = always true)<br>&gt;865E month (&gt;Cx = always true)</pre>
+<p>The clock chip can be set to automatically compare these values with
+the current time and to trigger an interrupt if they match. Setting the
+first two bit of any RAM address causes any value to match the current
+time (except for day-of-week that should be set as &gt;0C). This allows
+for setting a daily alarm, an hourly alarm, etc. </p>
+<p>The remaining registers are:</p>
+<pre>&gt;8660 Interrupt status register<br>&gt;8662 Interrupt control register<br>&gt;8664 Writing &gt;FF here resets the clock<br>&gt;8666 Writing &gt;FF&nbsp;here resets the RAM values<br>&gt;8668 Status bit: &gt;01 = time was updated. Reset when read.<br>&gt;866A Writing here resets the seconds. Minutes are incremented if secs were &gt;=40.<br>&gt;866C Standby interrupt: &gt;01 to enable, &gt;00 to disable.<br>&gt;866E-7C These registers do not exist<br>&gt;867E Test mode, do not use.</pre>
+<p><br>
+The <b>interrupt control register</b> is used to determine when
+interrupt
+will occur</p>
+<pre><u>Bit  Interrupt when<br></u>&gt;80  RAM matches time<br>&gt;40  Every 10th of second<br>&gt;20  Every second<br>&gt;10  Every minute, at 00 seconds<br>&gt;08  Every hour, on the hour<br>&gt;04  Every day, at 00:00<br>&gt;02  Every week, on Saunday at 00:00<br>&gt;01  Every month, on the first at 00:00</pre>
+<p><br>
+The <b>interrupt status register</b> mirrors this structure. It
+indicates
+which interrupt has fired, if any. Reading this register also clears
+the
+interrupt condition. This kind of interrupt is signaled on pin #13 of
+the
+clock (active high), which is not connected in the P-Gram card. So an
+actual
+interrupt will not occur, but you can always check the interrupt status
+register periodically, to see if an alarm has fired. This is easier
+than
+checking the time yourself.</p>
+<p>There is another interrupt pin, #14, which is active (low) even when
+the clock is in standby mode, i.e. when power is off. This pin only
+reacts
+to a match between the RAM and the clock. Write &gt;01 to &gt;866C to
+enable
+it, write &gt;00 to disable it. Note that, since this pin is not
+connected
+either, this interrupt is completely useless.</p>
+<p>The <b>status bit</b> should be read before and after each access
+to
+the current time. If it is &gt;01 the time was updated while you were
+reading
+it, so the values may be incorrect (e.g. if it was midnight). In this
+case,
+read the time again. The bit is only set if the time was rippling, e.g.
+if incrementing the seconds changed the minutes, etc.</p>
+<p>To start the clock more precisely (e.g. when the user presses a
+key),
+you can write to &gt;866A, which resets the seconds to 0. In case the
+seconds
+were higher than 39 the minutes will be incremented.</p>
+<p>Writing &gt;FF to &gt;8664 and &gt;8666 reset the clock and the RAM,
+respectively. It's not overly useful (quite dangerous in fact), so
+beware
+of these addresses!</p>
+<h3><br>
+<a name="Accessing ADC"></a>Accessing the ADC</h3>
+<p>To start the ADC conversion process, just read a dummy word from
+addresses
+&gt;8690 through &gt;869E, corresponding to channels IN0 through IN7
+respectively.
+Writing to these addesses will also work since the TI-99/4A always
+carries
+a dummy read before a write. (NB In Extended Basic, address &gt;8690
+correspond
+to -31088.)</p>
+<p>Then wait for about 100 usec until the conversion process is
+finished.
+Unfortunately, there is no way you can read the status of the EOC pin
+that
+signals the end of the conversion, since this pin is not connected on
+the
+MBP card.</p>
+<p>Read the result from any address in the range &gt;86A0-86AE (decimal
+-31072). As far as I know, the exact address does not matter.</p>
+<p>If you would like to start a new conversion as you are reading the
+results
+of the current one, you may try to read from &gt;86B0 through &gt;86BE
+instead, although I don't guaranty that this will work.</p>
+<p>Reading from &gt;8680-868E has no effect on the converter. </p>
+<p>Note that these addresses correspond the sound generator in the
+console.
+Since the generator cannot be read from, there is no conflict with the
+ADC. That is, unless you elect to write to the ADC to start the
+conversion...</p>
+<h4>Address summary</h4>
+<pre>&gt;8680-869E: No effect<br>&gt;8690:      Start converting channel 0<br>&gt;8692:      Start converting channel 1<br>&gt;8694:      Start converting channel 2<br>&gt;8696:      Start converting channel 3<br>&gt;8698:      Start converting channel 4<br>&gt;869A:      Start converting channel 5<br>&gt;869C:      Start converting channel 6<br>&gt;869E:      Start converting channel 7<br>&gt;86A0-86BE: Read conversion result<br>&gt;86B0-86BE: Read result and start new conversion</pre>
+<address><br>
+Revision 1. 4/30/02. Preliminary.<br>
+Revision 2. 5/1/02. OK to release.</address>
+<center>
+<p><br>
+<a href="titechpages.htm">Back to the TI-99/4A Tech Pages</a></p>
+</center>
+</body>
+</html>

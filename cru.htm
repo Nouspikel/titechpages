@@ -1,0 +1,1249 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+  <title></title>
+  <meta name="Author" content="">
+  <meta name="GENERATOR"
+ content="Mozilla/3.04Gold (Win95; U) [Netscape]">
+</head>
+<body>
+<h1 align="center"><a
+ href="http://www.nouspikel.com/ti99/titechpages.htm"><img
+ src="logo.jpg" style="border: 0px solid ; height: 33px; width: 95px;"
+ title="" alt=""></a></h1>
+<h1>Understanding the CRU</h1>
+<h2>Introduction</h2>
+<p>The CRU (Communication Register Unit) can be seen as a bunch of 4096
+wires connecting the TMS9900 microprocessor to various peripherals. Of
+course, there are not that many physical lines, in fact there are only
+three (CRUCLK, CRUOUT and CRUIN). How is this possible? </p>
+<p>Well, the TMS9900 makes use of the address bus (lines A3 through
+A14)
+to identify the CRU "wire" that needs to be used. A special line,
+CRUIN, is used for input operations and another one, CRUOUT for output
+operations. Note that the regular data bus is not used by CRU
+operations:
+CRUIN and CRUOUT form a tiny data bus reserved for CRU operations.
+Finally,
+CRUCLK is activated (i.e. goes high) to signal a CRU write operation. </p>
+<p>To communicate with the TMS9900 via the CRU a peripheral device must
+watch the address bus. When an address appears that matches its own CRU
+address, the peripheral places data on the CRUIN line. If CRUCLK is
+active,
+the peripheral knows it can also import one bit of data from the CRUOUT
+line. The CRUCLK line is required for the peripheral to distinguish CRU
+output operations from regular memory access, via the data bus. It does
+not matter that the peripheral sends data on CRUIN during memory
+operations,
+since the TMS9900 just ignores them.</p>
+<p>It should be noted that CRUOUT is only available as such inside the
+TI-99/4A console. In the PE-box, it is multiplexed with the extra
+address
+line A15 (that does not exist in the console, since the data bus is 16
+bits there).</p>
+<p><u>Forbidden opcodes<br>
+</u>Note that a few other assembly language instructions also activate
+the CRUCLK line. These are CKON, CKOF, LREX and RSET. Each places a
+different
+address on the address bus lines A0-A3 (real CRU operations place zeros
+on these lines). BUT...most peripherals do not bother with checking
+that
+part of the address bus! Which means that the above instructions will
+be
+missinterpreted as CRU operations, with unpredictable results. That's
+why
+those instructions should never be used with the TI-99/4A.</p>
+<p><br>
+<b>Hardware<br>
+</b><a href="#decoder">Address decoders</a> <br>
+<a href="#latches">Bit latching and emiting</a> <br>
+<a href="#ROM%20select">ROM selection</a> </p>
+<p><b><a href="#software">Software</a> </b></p>
+<p><b>CRU maps<br>
+</b><a href="#console%20map">Console <br>
+</a><a href="#disk%20controller">TI disk controller</a> <br>
+<a href="#rs232">RS232 card</a> <br>
+<a href="#Pcode">P-code card<br>
+</a><a href="#Gramkarte">Gram Karte</a> <br>
+<a href="#IDE%20card">IDE interface card</a><br>
+</p>
+<h2><br>
+<a name="decoder"></a>Hardware considerations</h2>
+<p>A peripheral card only requires a few TTL components to handle CRU
+operations.
+Its main tasks are: 1) decoding the address bus so that the card only
+answers
+to the proper CRU address, 2) latch CRU bits during output operations,
+issue bits during CRU input operations, and 3) optionally turn on DSR
+memory
+at addresses &gt;4000-5FFF when CRU bit 0 is set.</p>
+<h3><br>
+Address decoder</h3>
+<p>Addresses &gt;0000-0400 are reserved for the TMS9901 in the console
+(it only uses 64 bits, but the associated decoding circuitery answers
+to
+every address upto &gt;03FE). Traditionally peripheral cards have
+addresses
+in the range &gt;1000-1F00, because the scanning routines in the
+console
+ROM search card ROMs at CRU address &gt;1000 to &gt;1F00, by increments
+of &gt;0100. If you were to set a CRU address in the range
+&gt;0400-0FFE,
+no DSR, subprogram, power-up or interrupt routine will be found in your
+card ROM. Now if your card does not have a ROM (or has no standard
+header
+in its ROM), the lower addresses are perfectly ok.</p>
+<p>Traditionally, each card gets a pool of 128 successive addresses,
+i.e.
+the CRU addresses of different cards are &gt;0100 apart. This means
+that
+only A0-A7 need to be decoded; however we saw above that A0-A2 can
+safely
+be assume to be zero during CRU operations. We are thus left with only
+five lines to decode: A3-A7. We could also exclude memory operations by
+checking the MEMEN* line and make sure it's high, but this is not
+strictly
+required: the TMS9900 ignores the CRUIN line during memory operations,
+and CRU output operations are signaled via the CRUCLK line.</p>
+<table bgcolor="#cdcde6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>Gnd--www--,  <br>     10k  |           <br>          |   +---------+<br>A3&gt;--o o--+---| A=B     |         10k<br>A4&gt;-----------| A0   B0 |-----+--wwww---+-- +5V<br>A5&gt;-----------| A1   B1 |----+|--wwww---+<br>A6&gt;-----------| A2   B2 |---+||--wwww---+<br>A7&gt;-----------| A3   B3 |--+|||--wwww---+<br>              |         |  ||||<br>        Gnd---| A&lt;B     |  oooo  Select device CRU address<br>              |         |  oooo  with these switches<br>        Gnd---| A&gt;B     |  ||||<br>              |         |  Gnd     '04<br>              |     A=B |---------|&gt;o----+------&gt; CRU_enableI* (active low)<br>              +---------+                | '32<br>                74LS85     CRUCLK*&gt;-------=)&gt;---&gt; CRU_enableO* (active low) </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>The above circuit makes use of a 74LS85 4-bit comparator. You can
+connect
+one set of inputs (pins 10, 12, 13 and 15) to address lines A4-A7, the
+other set (pins 9,11,14 and 1 respectively) to 10K pull-up resistors
+and
+a DIP switch connected to ground. This way we can manually select the
+CRU
+address of our card in the range &gt;1000-1F00 by just composing the
+binary
+equivalent of 0 through &gt;F on the switches.</p>
+<p>A3 must also be handled, but the 74LS85 only compares 4 bits. A
+nifty
+solution is to make use of the cascade inputs of the comparator. There
+are three of them: A&lt;B (pin 2 ), A=B (pin 3 ) and A&gt;B (pin 4).
+Unfortunately,
+when A=B is high the other two inputs are ignored, so only A=B is of
+any
+use: we'll connect A3 to it, so as to enable the 74LS85 when A3 is high.</p>
+<p>Optionally, we can place a switch in the A3 line with a 10K pull
+down
+resistor. This way, the user can inactivate the card by opening the
+switch,
+which may come handy if the card takes over during power-up. The P-code
+card and the Horizon Ramdisk have such switches (although they do not
+use
+a 74LS85 for decoding).</p>
+<p>The "A=B" output of the comparator provides an active high
+seletion signal. You may want to invert it , as most chips have an
+activelow
+activation input.</p>
+<p>For output operations, we must also check the CRUCLK* line and make
+sure it's low. Note that CRUCLK is inverted in the peripheral box and
+thus
+becomes CRUCLK*, which is active low (as indicated by the *). For CRU
+input
+operations, we should not use CRUCLK* as it will never be active. N.B.
+If you prefer active high selection signals, move the inverter to the
+CRUCLK*
+line and replace the OR gate with an AND gate (e.g. 74LS08).<br>
+<br>
+</p>
+<h4>Alternative circuit</h4>
+<table bgcolor="#cdcde6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>                 74LS138<br>               +---------+          ,------------&gt;CRU_enableO<br>A3&gt;------------| G1   Y0*|-----o o--+     &gt;1000        <br>A4&gt;------------| S0   Y1*|-----o-o--+     &gt;1800<br>A5&gt;------------| S1   Y2*|-----o o--+     &gt;1400<br>A6&gt;------------| G2A* Y3*|-----o o--'     &gt;1C00<br>A7&gt;------------| G2B*    |<br>               |      Y4*|-----o o--,     &gt;1000<br>CRUCLK*&gt;-------| S2   Y5*|-----o-o--+     &gt;1800<br>               |      Y6*|-----o o--+     &gt;1400<br>               |      Y7*|-----o o--+     &gt;1C00<br>               |         |          '------------&gt;CRU_enableI<br>               +---------+</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>Here is an alternative circuit for a read-and-write peripheral
+device,
+using a 74LS138 decoder. It provides two active low signals, one for
+output
+operations, one for input. The DIP switches are used to select one out
+of the four CRU addresses the circuit can answer to. In the exemple
+above,
+the address &gt;1800 was selected. Note that only one switch should be
+closed at a time (unless you want your card to appear at two distinct
+CRU
+addresses). You can obtain other addresses than the above four by
+choosing
+which of the A4-A7 address lines goes to a G2x* active low input and
+which
+goes to the S0 and S1 selection inputs. If needed, inverters could be
+placed
+on the lines going to G2A* and G2B*. </p>
+<p>With a read-only device there is no need to check CRUCLK*, so S2
+becomes
+available for an extra address line and the user has a choice of eight
+possible CRU addresses. </p>
+<h3><br>
+<a name="latches"></a>Bit latching/emitting</h3>
+<p>We can decode and store 8 CRU bits using a 74LS259 addressable
+latch:
+let's connect A15 to the D input (pin 13) , A12, A13 and A14 to the S0,
+S1 and S2 inputs respectively (pins 1-3), our enabling signal (a
+combination
+of CRUCLK* and the address decoder) to EN* (pin 14), pull the RST*
+reset
+input high (pin 15) or connect it to the RESET* line, and that's it.
+The
+output pins Q0 through Q7 (pins 4-7 and 9-12) become eight wires
+virtually
+connected to the TI-99/4A console. To decode more than 8 bits, we can
+use
+additionnal 74LS259 and a 74LS138 decoder to enable one or the other.
+We
+could also use a 74LS154, which is a 16-bit equivalent of the 74LS259.</p>
+<p>If our peripheral is to allow CRU input operations a simple way is
+to
+use a 74LS251 multiplexer. Let's connect upto eight output wires to the
+inputs A0 through A7 (pins 4, 3, 2, 1, 15, 14, 13, and 12), address
+lines
+A12, A13, and A14 to inputs S0, S1 and S2 respectively (pins 1-3) and
+our
+enabling signal (from the address decoder, ignoring CLUCLK*) to the EN*
+input (pin 7). The non-inverted output Y (pin 5) will be applied to
+line
+CRUIN. Here again, you can use additional 74LS251 (controlled by the
+same
+74LS138 decoder used for write operations) to implement more than eight
+lines.</p>
+<p>It's a good practice to mirror each output bit on the 74LS259 to an
+input bit on the 74LS251, so that the user can determine the current
+settings
+of the peripheral. But this is by no means required.</p>
+<table bgcolor="#cdcde6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>                74LS259                     74LS251<br>              +----------+                +----------+<br>A12&gt;----------| S2    Q0 |------Bit0------| A0       |<br>A13&gt;----------| S1    Q1 |------Bit1------| A1     Y |----------&gt;CRUIN<br>A14&gt;----------| S0    Q2 |------Bit2------| A2       |<br>              |       Q3 |------Bit3------| A3       |<br>A15&gt;----------| D     Q4 |------Bit4------| A4       |<br>              |       Q5 |------Bit5------| A5       |<br>CRU_enableO*&gt;-| EN*   Q6 |------Bit6------| A6       |<br>              |       Q7 |------Bit7------| A7       |<br>RESET*&gt;-------| RST*     |                |          |<br>              |          |  CRU_enableI&gt;*-| EN*      |<br>              +----------+                +----------+</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h4><br>
+<a name="ROM select"></a>DSR ROM selection</h4>
+<p>Bit 0 in a card address space has a special meaning: it should turn
+on card ROM (or RAM) memory so that it appears at adresses
+&gt;4000-5FFF.
+The TI-99/4A manipulates the CRU bit 0 of every card it finds during
+power
+up, to look for power-up routines and programs in the card ROMs. The
+same
+thing occurs after a peripheral interrupt, or if the user calls a DSR
+(e.g.
+with a file operation) or a subroutine (e.g. with a basic CALL): every
+card is searched for the corresponding routine until one of them
+answers
+it. Concretely, this means that we cannot use bit 0 for any other
+purpose
+than turning ROM on. Generally, it will also turn on the light for that
+card in the PE-Box, but this is not an absolute requirement: the RS232
+card uses bit 7 for that purpose.</p>
+<table bgcolor="#cdcde6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>                74LS138       +---wwww--- +5V<br>              +----------+    |   100&nbsp;Ohms     <br>A0&gt;-----------| S2    Y0*|    <u>V</u>" LED<br>A1&gt;-----------| S1    Y1*|    |<br>A2&gt;-----------| S0    Y2*|----+---&gt;CS* select memory in range &gt;4000-5FFF <br>              |       Y3*|<br>MEMEN*&gt;-------| G2A*  Y4*|<br>        Gnd---| G2B*  Y5*|<br>CRU bit0&gt;-----| G1    Y6*|    <br>              |       Y7*|<br>              |          |<br>              +----------+</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>The above circuit uses a 74LS138 decoder to answer to memory
+requests
+on the range &gt;4000-5FFF. It decodes A0-A2 which results in selecting
+&gt;2000 blocks with the eight Yx* active low outputs. The one for
+&gt;4000-5FFF
+is Y2*, it should be applied to the chip select CS* pin of our ROM
+memory.
+In this exemple, it also shines a light emitting diode (LED).</p>
+<p>CRU bit 0 is connected to the G1 enabling entry, which means the
+outputs
+will only become active when this bit is set to 1. MEMEN* signals a
+memory
+operation and is applied to the active low enabling entry, to prevent
+the
+device from mistaking CRU operations for memory operations. Finally,
+G2B*
+has been connected to ground to enable it. Note that we could have used
+a switch here, with a 10K pull-up to +5V: this way we could disable the
+card by opening the switch.</p>
+<h2><br>
+<br>
+<a name="software"></a>Software considerations</h2>
+<p>The TMS9900 microprocessor looks for the address of the CRU line in
+the R12 register and copies bits 3 through 14 on the address bus, lines
+A3 through A14. It sets A0-A2 low to differentiate CRU operations from
+the four "external" opcodes and places the data to send out (if
+any) on CRUOUT. Note that this means that R12 must contain the CRU
+address
+<i>times two, </i>since it must begin with address line A14 (whose
+wheight
+is &gt;0002). That's a very frequent cause for bugs when writing
+assembly
+programs that deal with the CRU.</p>
+<p>Once the address has been placed in R12, you can use five different
+instructions to access the CRU "vitual wires". These are:</p>
+<p><b>SBO </b>Set Bit to One. Sets the coresponding wire as "high"
+in the peripheral. <br>
+<b>SBZ </b>Set Bit to Zero. Sets the corresponding wire as "low"
+in the peripheral. <br>
+<b>TB </b>Test Bit. Checks the corresponding wire to see whether it's
+high
+or low. <br>
+<b>LDCR </b>LoaD CRu. Sets the electrical state of 1 to 16 wires in
+the
+peripheral. <br>
+<b>STCR </b>STore CRu. Checks the electrical state of 1 to 16 wires.</p>
+<h4><br>
+SBO <i>bit</i></h4>
+<p>This instruction sets a wire "high" in the peripheral, i.e
+you are sending a "1" bit to the peripheral. The syntax is very
+easy: <i>bit</i> is a number from -127 to +128 representing an offset
+from
+the wire addressed in R12. This is very convenient since you don't need
+to change R12 each time you want to address another wire. Just place
+the
+lowest (for instance) address in R12, and then use SBO 0 to access the
+first wire, SBO 1 for the second, SBO 2 for the next one, etc.</p>
+<h4><br>
+SBZ <i>bit</i></h4>
+<p>The syntax is the same as for SBO: <i>bit</i> is the number of the
+wire,
+relative to the one selected in R12. This wire will be set as "low"
+by the instruction, i.e. you are sending a "0" bit to the peripheral.</p>
+<h4><br>
+TB <i>bit</i></h4>
+<p>Just as the two above: <i>bit</i> is the number of the wire you
+want
+to test, relative to the one addressed by R12. Another way of putting
+it
+is that you're testing the status of a bit in the peripheral. The
+result
+of the test is placed in the EQ bit of the status register. Thus you
+can
+make decisions by placing a JEQ (jump if bit is 1, i.e. if wire is
+high)
+or a JNE (jump if bit is 0, i.e. if wire is low) after the TB
+instruction.
+Note that this is anti-intuitive: JEQ jumps if the bit is 1.</p>
+<h4><br>
+LDCR <i>Rx, nbits</i></h4>
+<p>This instruction is slightly more complicated: <i>nbits </i>is the
+number
+of bits to write, and <i>Rx </i>is the register where to find them.
+Bits
+are taken from the register starting with the rightmost one: this one
+will
+be assigned to the "wire" addressed in R12. The next bit on the
+left is used for the next "wire", etc. If there are less more
+than 8 bits to write, they are taken from the whole register, if
+however
+<i>nbits </i>is 1 through 8, then bits are taken from the most
+significant
+byte of the register. If <i>nbits </i>is 0, it is understood as 16
+and
+the whole register is transfered.</p>
+<p>The main hassle is that you must change the value in R12 if you want
+to begin a write operation with another bit. Don't forget to double the
+address in R12. Note however that most peripheral cards handle only 8
+CRU
+bits: in this case you can set R12 once and for all. (Unless you want
+to
+modify only some of the 8 bits while leaving the others intact, and
+these
+are write-only bits).</p>
+<h4><br>
+STCR <i>Rx,nbits</i></h4>
+<p>The syntax is identical to LDCR: <i>nbits </i>is the number of
+bits
+to read, <i>Rx </i>is the register where to place them. If <i>nbits </i>is
+1-8 bits are placed in the left byte of the register, starting with the
+rightmost one. If <i>nbits </i>is 9-0, bits are dumped into both
+bytes
+of the register, starting with the least significant (rightmost) bit.</p>
+<p>STCR suffers from the same problem as LDCR: you must change R12 each
+time you want to start reading from a different place. </p>
+<h2><br>
+<a name="console map"></a>CRU map</h2>
+<p>This page lists the CRU bits used by the console and all peripheral
+cards that I know of. If you have info on other cards, please <a
+ href="feedback.htm">share
+</a>them with me: I'd love to add them to this list.</p>
+<p>In the following text I will refer to CRU addresses as
+R12-addresses.
+This is meant to avoid the ambiguity due to the fact that the address
+of
+a line must be dobbled when placed in R12. Thus bit 1 is at address
+&gt;0002.
+An R12-address is the content of the R12 register, thus twice the bit
+number.</p>
+<h3><br>
+Console </h3>
+<p>The first 32 bits of the CRU address space are mapped to the TMS9901
+interrupt processor and keyboard decoder. Very unfortunately, the TI
+engineers
+got lazy (or the management got cheap) and they decided not to decode
+address
+lines A4-A10. As a result, the first half of the CRU space, R12-address
+&gt;0000 to &gt;0FFF is mirroring R12-addresses &gt;0000-0040. This
+means
+that the first CRU bit, can be accessed at R12-address &gt;0000, or
+&gt;0040,
+&gt;0080, etc. What a waste of address space! A possible improvement to
+the TI-99/4A console would be to reclaim R12 addresses &gt;0040-00FF by
+adding a simple OR gate in the console.</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Bit</th>
+      <th>R12 address</th>
+      <th>I/O/I+</th>
+      <th>Usage</th>
+    </tr>
+    <tr>
+      <td>0</td>
+      <td>&gt;0000</td>
+      <td>I/O</td>
+      <td>0: I/O mode 1: timer mode </td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>&gt;0002</td>
+      <td>I+</td>
+      <td>0: A peripheral interrupt occured</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>&gt;0004</td>
+      <td>I+</td>
+      <td>0: a VDP interrupt occured</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>&gt;0006</td>
+      <td>I</td>
+      <td>
+      <pre>   =   .   ,   M   N   /  fire1  fire2 </pre>
+      </td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>&gt;0008</td>
+      <td>I</td>
+      <td>
+      <pre>space  L   K   J   H   ;  left1  left2</pre>
+      </td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>&gt;000A</td>
+      <td>I</td>
+      <td>
+      <pre>enter  O   I   U   Y   P  right1 right2</pre>
+      </td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td>&gt;000C</td>
+      <td>I</td>
+      <td>
+      <pre>(none) 9   8   7   6   0  down1  down2</pre>
+      </td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td>&gt;000E</td>
+      <td>I</td>
+      <td>
+      <pre>fctn   2   3   4   5   1  up1    up2 </pre>
+      </td>
+    </tr>
+    <tr>
+      <td>8</td>
+      <td>&gt;0010</td>
+      <td>I</td>
+      <td>
+      <pre>shift  S   D   F   G   A </pre>
+      </td>
+    </tr>
+    <tr>
+      <td>9</td>
+      <td>&gt;0012</td>
+      <td>I</td>
+      <td>
+      <pre>ctrl   W   E   R   T   Q </pre>
+      </td>
+    </tr>
+    <tr>
+      <td>10</td>
+      <td>&gt;0014</td>
+      <td>I</td>
+      <td>
+      <pre>(none) X   C   V   B   Z </pre>
+      </td>
+    </tr>
+    <tr>
+      <td>11</td>
+      <td>&gt;0016</td>
+      <td>-</td>
+      <td>(see bit 27)</td>
+    </tr>
+    <tr>
+      <td>12</td>
+      <td>&gt;0018</td>
+      <td>I/I+</td>
+      <td>Pull up 10K to +5V</td>
+    </tr>
+    <tr>
+      <td>13</td>
+      <td>&gt;001A</td>
+      <td>-</td>
+      <td>(see bit 25) </td>
+    </tr>
+    <tr>
+      <td>14</td>
+      <td>&gt;001C</td>
+      <td>-</td>
+      <td>(see bit 24)</td>
+    </tr>
+    <tr>
+      <td>15</td>
+      <td>&gt;001E</td>
+      <td>-</td>
+      <td>(see bit 23) </td>
+    </tr>
+    <tr>
+      <td>16</td>
+      <td>&gt;0020</td>
+      <td>I/O</td>
+      <td>n.c.</td>
+    </tr>
+    <tr>
+      <td>17</td>
+      <td>&gt;0022</td>
+      <td>I/O</td>
+      <td>n.c.</td>
+    </tr>
+    <tr>
+      <td>18</td>
+      <td>&gt;0024</td>
+      <td>O</td>
+      <td>Select keyboard column (or joystick) </td>
+    </tr>
+    <tr>
+      <td>19</td>
+      <td>&gt;0026</td>
+      <td>O</td>
+      <td>Ditto</td>
+    </tr>
+    <tr>
+      <td>20</td>
+      <td>&gt;0028</td>
+      <td>O</td>
+      <td>Ditto</td>
+    </tr>
+    <tr>
+      <td>21</td>
+      <td>&gt;002A</td>
+      <td>O</td>
+      <td>Set alpha-lock key </td>
+    </tr>
+    <tr>
+      <td>22</td>
+      <td>&gt;002C</td>
+      <td>O</td>
+      <td>1: turn CS1 motor on</td>
+    </tr>
+    <tr>
+      <td>23</td>
+      <td>&gt;002E</td>
+      <td>O</td>
+      <td>1: turn CS2 motor on</td>
+    </tr>
+    <tr>
+      <td>24</td>
+      <td>&gt;0030</td>
+      <td>O</td>
+      <td>Audio gate</td>
+    </tr>
+    <tr>
+      <td>25</td>
+      <td>&gt;0032</td>
+      <td>O</td>
+      <td>Output to cassette mike jack </td>
+    </tr>
+    <tr>
+      <td>26</td>
+      <td>&gt;0034</td>
+      <td>-</td>
+      <td>(see bit 18) </td>
+    </tr>
+    <tr>
+      <td>27</td>
+      <td>&gt;0036</td>
+      <td>I</td>
+      <td>Input from cassette headphone jack </td>
+    </tr>
+    <tr>
+      <td>28</td>
+      <td>&gt;0038</td>
+      <td>-</td>
+      <td>(see bit 10: keyboard mirror) </td>
+    </tr>
+    <tr>
+      <td>29</td>
+      <td>&gt;003A</td>
+      <td>-</td>
+      <td>(see bit 9) </td>
+    </tr>
+    <tr>
+      <td>30</td>
+      <td>&gt;003C</td>
+      <td>-</td>
+      <td>(see bit 8) </td>
+    </tr>
+    <tr>
+      <td>31</td>
+      <td>&gt;003E</td>
+      <td>-</td>
+      <td>(see bit 7) </td>
+    </tr>
+  </tbody>
+</table>
+<h3><br>
+<a name="disk controller"></a>TI disk controller </h3>
+<p>The standard R12-address for that card is hardwired as &gt;1100.
+This
+was probably meant to speed up disk access by making sure this card is
+one of the first to be scanned for DSR or CALLs . Note however, that
+you
+can install a card at address &gt;1000: if it contains a DSR called
+DSK1,
+it can by-pass the TI-controller card!</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Bit</th>
+      <th>Meaning when read</th>
+      <th>Meaning when written to</th>
+    </tr>
+    <tr>
+      <td>0</td>
+      <td>Load head requested (HLD pin)</td>
+      <td>1: Select ROM, turn light on</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>Drive 3 selected</td>
+      <td>1: Strobe motor (for 4.23 sec)</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>Drive 2 selected</td>
+      <td>0: Ignore IRQ + DRQ</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>Drive 1 selected</td>
+      <td>1: Signal head loaded (HLT pin)</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>0: Motor strobe on</td>
+      <td>1: Select drive 1</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>Always 0</td>
+      <td>1: Select drive 2</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td>Always 1</td>
+      <td>1: Select drive 3</td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td>Selected side</td>
+      <td>Select side</td>
+    </tr>
+  </tbody>
+</table>
+<h3><br>
+<br>
+<a name="rs232"></a>RS232 card </h3>
+<p>The original RS232/PIO card by TI is meant to be installed either as
+R12-address &gt;1300 or at &gt;1500. The card ROMs are designed to
+allow
+two such cards per PE box: the first (at address &gt;1300) answers to
+calls
+to RS232/1, RS232/2 and PIO/1, the second card (at address &gt;1500)
+deals
+with RS232/3, RS232/4 and PIO/2.</p>
+<p>In addition to the first eight bits traditionally used at the
+beginning
+of the address space, each TMS9902 asynchronous communication
+controller
+uses 64 bits of CRU space. The first chip (RS232/1 or RS232/3) is at
+R12-address
+&gt;1x40, the second chip (RS232/2 or RS232/4) at &gt;1x80. In the
+table
+below, I renumbered bits from the base address of each chip, since
+changing
+R12 is the usual way to address a given chip.</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Bit</th>
+      <th>R12 address</th>
+      <th>Meaning when read</th>
+      <th>Effect when written to</th>
+    </tr>
+    <tr>
+      <td>0</td>
+      <td>&gt;1300</td>
+      <td>Always 0</td>
+      <td>1: Turn card ROMs on</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>&gt;1302</td>
+      <td>PIO direction</td>
+      <td>0: Set PIO as output 1: Set PIO as input</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>&gt;1304</td>
+      <td>Handshake in PIO</td>
+      <td>Handshake out PIO</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>&gt;1306</td>
+      <td>Spare input bit PIO</td>
+      <td>Spare output bit PIO</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>&gt;1308</td>
+      <td>Read itself</td>
+      <td>Writes to itself</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>&gt;130A</td>
+      <td>Status of CTS1</td>
+      <td>Set CTS1 pin</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td>&gt;130C</td>
+      <td>Status of CTS2 </td>
+      <td>Set CTS2 pin</td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td>&gt;130E</td>
+      <td>Lamp status</td>
+      <td>1: Lamp on</td>
+    </tr>
+    <tr>
+      <td>0-7</td>
+      <td>&gt;1340-134E</td>
+      <td>Content of Receive buffer (8 bits)</td>
+      <td rowspan="4">Value to load in selected register (11 bits)</td>
+    </tr>
+    <tr>
+      <td>8</td>
+      <td>&gt;1350</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>9</td>
+      <td>&gt;1352</td>
+      <td>1: Reception error</td>
+    </tr>
+    <tr>
+      <td>10</td>
+      <td>&gt;1354</td>
+      <td>1: Parity error</td>
+    </tr>
+    <tr>
+      <td>11</td>
+      <td>&gt;1356</td>
+      <td>1: Overflow (bit arrived when buffer full)</td>
+      <td>1: Load Emission-Rate register</td>
+    </tr>
+    <tr>
+      <td>12</td>
+      <td>&gt;1358</td>
+      <td>1: Frame error (stop bits read as 0s)</td>
+      <td>1: Load Reception-Rate register (reset upon loading)</td>
+    </tr>
+    <tr>
+      <td>13</td>
+      <td>&gt;135A</td>
+      <td>1: First bit has arrived</td>
+      <td>1: Load Interval register (reset upon loading)</td>
+    </tr>
+    <tr>
+      <td>14</td>
+      <td>&gt;135C</td>
+      <td>1: Receiving byte</td>
+      <td>1: Load Control register (reset upon loading)</td>
+    </tr>
+    <tr>
+      <td>15</td>
+      <td>&gt;135E</td>
+      <td>1: Status of RIN pin</td>
+      <td>1: Test mode (RTS-&gt;CTS, XOUT-&gt;RIN)</td>
+    </tr>
+    <tr>
+      <td>16</td>
+      <td>&gt;1360</td>
+      <td>1: Reception interrupt occured<br>
+Reset by bit 18</td>
+      <td>Set RTS pin (RTS=1 only if input bits 22+23=0)</td>
+    </tr>
+    <tr>
+      <td>17</td>
+      <td>&gt;1362</td>
+      <td>1: Emission interrupt occured<br>
+Reset by loading Emission register</td>
+      <td>1: Abort transmission (XOUT=0 if bits 22+23=0)</td>
+    </tr>
+    <tr>
+      <td>18</td>
+      <td>&gt;1364</td>
+      <td>-</td>
+      <td>1: Enable reception interrupts</td>
+    </tr>
+    <tr>
+      <td>19</td>
+      <td>&gt;1366</td>
+      <td>1: Timer interrupt occured<br>
+Reset by bit 20</td>
+      <td>1: Enable emission interrupts</td>
+    </tr>
+    <tr>
+      <td>20</td>
+      <td>&gt;1368</td>
+      <td>1: CTS or RTS interrupt occured<br>
+Reset by bit 21</td>
+      <td>1: Enable timer interrupts</td>
+    </tr>
+    <tr>
+      <td>21</td>
+      <td>&gt;136A</td>
+      <td>1: Receive buffer loaded<br>
+Reset by bit 18</td>
+      <td>1: Enable CTS and DSR interrupts</td>
+    </tr>
+    <tr>
+      <td>22</td>
+      <td>&gt;136C</td>
+      <td>1: Emit buffer empty<br>
+Reset by loading Emission register</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>23</td>
+      <td>&gt;136E</td>
+      <td>1: No data sent</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>24</td>
+      <td>&gt;1370</td>
+      <td>1: Timer error (time elapsed twice)<br>
+Reset by bit 20</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>25</td>
+      <td>&gt;1372</td>
+      <td>1: Time elapsed<br>
+Reset by bit 20</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>26</td>
+      <td>&gt;1374</td>
+      <td>Status of RTS pin</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>27</td>
+      <td>&gt;1376</td>
+      <td>Status of DSR pin</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>28</td>
+      <td>&gt;1378</td>
+      <td>Status of CTS pin</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>29</td>
+      <td>&gt;137A</td>
+      <td>1: Change of DSR or CTS detected<br>
+Reset by bit 21</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>30</td>
+      <td>&gt;137C</td>
+      <td>1: Loading register<br>
+      </td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>31</td>
+      <td>&gt;137E</td>
+      <td>1: An interrupt occured</td>
+      <td>1: Reset. Bits 11-14,22,33=1 Bits 13,17-20,21,25=0</td>
+    </tr>
+    <tr>
+      <td>0-31</td>
+      <td>&gt;1380-13BE</td>
+      <td>Same at &gt;1340-137E for 2nd chip</td>
+      <td>Ditto for second chip (RS232/2)</td>
+    </tr>
+  </tbody>
+</table>
+<h3><br>
+<a name="Pcode"></a>P-Code card </h3>
+<p>The base R12-address for this card is &gt;1F00. Only two bits are
+active,
+although a jumper on the card allows bit 7 to control the LED, instead
+of bit 0. Note that, due to the circutery on the card, the bit
+addresses
+appear as two blocks.</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Bit</th>
+      <th>R12 address</th>
+      <th>I/O</th>
+      <th>Usage</th>
+    </tr>
+    <tr>
+      <td>0</td>
+      <td>&gt;1F00</td>
+      <td>O</td>
+      <td>1: Turn on card ROM +&nbsp;GROMs (and light)</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>&gt;1F02</td>
+      <td>O</td>
+      <td>(not used)</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>&gt;1F04</td>
+      <td>O</td>
+      <td>(not used)</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>&gt;1F06</td>
+      <td>O</td>
+      <td>(not used)</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>&gt;1F80</td>
+      <td>O</td>
+      <td>0: ROM page 1 in &gt;5000-5FFF<br>
+1: ROM&nbsp;page 2.</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>&gt;1F82</td>
+      <td>O</td>
+      <td>(not used)</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td>&gt;1F84</td>
+      <td>O</td>
+      <td>(not used)</td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td>&gt;1F86</td>
+      <td>O</td>
+      <td>1: Light on (if optional jumper is installed)</td>
+    </tr>
+  </tbody>
+</table>
+<h3><br>
+<a name="Gramkarte"></a>German Gram-Karte </h3>
+<p>This card has a DIP switch that allows to install it at any CRU
+address
+in the range &gt;1000-1F00.</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Bit</th>
+      <th>R12 address</th>
+      <th>I/O</th>
+      <th>Usage</th>
+    </tr>
+    <tr>
+      <td>0</td>
+      <td>&gt;1x00</td>
+      <td>O</td>
+      <td>1: Turn card ROM (and light) on</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>&gt;1x02</td>
+      <td>O</td>
+      <td>0: Enable reading from RAM at &gt;6000-7FFF</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>&gt;1x04</td>
+      <td>O</td>
+      <td>0: GRAM enable at 2nd port (??)</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>&gt;1x06</td>
+      <td>O</td>
+      <td>0: Enable reading from GRAM</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>&gt;1x08</td>
+      <td>O</td>
+      <td>1: Enable writing to RAM at &gt;6000-7FFF</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>&gt;1x0A</td>
+      <td>O</td>
+      <td>1: Override console GROMs with card GRAMs</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td>&gt;1x0C</td>
+      <td>O</td>
+      <td>0: Switched bank appears at &gt;7000-7FFF<br>
+1: Default bank appears (DIP selected 1-4)</td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td>&gt;1x0E</td>
+      <td>O</td>
+      <td>0: Writing to &gt;6000-7FFF performs switching<br>
+1: Writing to &gt;6000-7FFF writes data</td>
+    </tr>
+  </tbody>
+</table>
+<h3><br>
+<a name="ramdisk"></a>Horizon Ramdisk </h3>
+<p>This card has a DIP switch that allows to select its CRU address in
+the space &gt;1000-&gt;1700. By selecting &gt;1000 one can ensure that
+the Ramdisk will be accessed before the floppies.</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Bit</th>
+      <th>R12 address</th>
+      <th>I/O</th>
+      <th>Usage</th>
+    </tr>
+    <tr>
+      <td>0</td>
+      <td>&gt;1x00</td>
+      <td>O</td>
+      <td>1: Turn card ROM (and light) on</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>&gt;1x02</td>
+      <td>O</td>
+      <td>Page selector</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>&gt;1x04</td>
+      <td>O</td>
+      <td>Ditto</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>&gt;1x06</td>
+      <td>O</td>
+      <td>Ditto</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>&gt;1x08</td>
+      <td>O</td>
+      <td>Ditto</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>&gt;1x0A</td>
+      <td>O</td>
+      <td>Ditto</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td>&gt;1x0C</td>
+      <td>O</td>
+      <td>Ditto</td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td>&gt;1x0E</td>
+      <td>O</td>
+      <td>Ditto </td>
+    </tr>
+    <tr>
+      <td>8</td>
+      <td>&gt;1x210</td>
+      <td>O</td>
+      <td>Ditto</td>
+    </tr>
+    <tr>
+      <td>9</td>
+      <td>&gt;1x12</td>
+      <td>O</td>
+      <td>Ditto</td>
+    </tr>
+    <tr>
+      <td>10</td>
+      <td>&gt;1x14</td>
+      <td>O</td>
+      <td>Ditto</td>
+    </tr>
+    <tr>
+      <td>11</td>
+      <td>&gt;1x16</td>
+      <td>O</td>
+      <td>Ditto</td>
+    </tr>
+    <tr>
+      <td>12</td>
+      <td>&gt;1x18</td>
+      <td>O</td>
+      <td>Ditto</td>
+    </tr>
+    <tr>
+      <td>13</td>
+      <td>&gt;1x1A</td>
+      <td>O</td>
+      <td>Ditto</td>
+    </tr>
+    <tr>
+      <td>14</td>
+      <td>&gt;1x1C</td>
+      <td>O</td>
+      <td>Ditto</td>
+    </tr>
+    <tr>
+      <td>15</td>
+      <td>&gt;1x1E</td>
+      <td>O</td>
+      <td>0: Ramdisk mode 1: RAMBO mode</td>
+    </tr>
+  </tbody>
+</table>
+<h3><br>
+<a name="IDE card"></a>IDE interface card</h3>
+<p>The base address for this card can be set with a DIP-switch to any
+address
+between &gt;1000 and &gt;1F00. Since this is a user-built card, not all
+CRU bits may be implemented, or they may be shuffled around. The
+software
+compensates for this. Below are the default settings:</p>
+<table border="2" cellspacing="2" cellpadding="2">
+  <tbody>
+    <tr>
+      <th>Bit</th>
+      <th>R12 address </th>
+      <th>Effect when written to</th>
+      <th>Meaning when read</th>
+    </tr>
+    <tr>
+      <td>0</td>
+      <td>&gt;1x00</td>
+      <td>1: Turn card on </td>
+      <td>IRQ pin of the IDE interface </td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>&gt;1x02</td>
+      <td>= DIP-switch: registers map at &gt;4000-40FF<br>
+&lt;&gt; switch: SRAM maps at &gt;4000-40FF</td>
+      <td>Read the position of the DIP-switch </td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>&gt;1x04</td>
+      <td>1: Enable SRAM page switching</td>
+      <td>Reads itself</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>&gt;1x06</td>
+      <td>1: Fix page #0 at &gt;4000-4FFF</td>
+      <td>Reads itself</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>&gt;1x08</td>
+      <td>1: Enable RAMBO banks in &gt;6000-7FFF</td>
+      <td>Reads itself</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>&gt;1x0A</td>
+      <td>1: Write-protect the SRAM</td>
+      <td>Reads itself</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td>&gt;1x0C</td>
+      <td>not used</td>
+      <td>not used</td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td>&gt;1x0E</td>
+      <td>1: reset the drives (inverted to IDE pin RST*) </td>
+      <td>.</td>
+    </tr>
+  </tbody>
+</table>
+<address><br>
+Revision 1. 3/25/99 OK to release<br>
+Revision 2. 9/1/99 VDP+periph interrupts were inverted!</address>
+<address>Revision 3. 3/19/01 Changed the decoder schematics (include
+MEMEN*,
+correct 74LS85 behaviour).<br>
+Revision 4. 9/9/01 Added p-code card CRU.<br>
+Revision 5. 9/22/01 Added my IDE card.</address>
+<center>
+<p><br>
+<a href="titechpages.htm">Back to the TI-99/4A Tech Pages</a></p>
+</center>
+</body>
+</html>

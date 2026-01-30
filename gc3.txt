@@ -1,0 +1,150 @@
+*==============================================================================*
+* Gram-card header  It displays the first screen, allows you to choose one     *
+* ----------------  load file or the loader, copies the assembly routines to   *
+*                   low memory expansion and runs loader or load file programs *
+* This program is stored in ROM at addresses >4C00-4DFF but runs in gram       *
+* memory at addresses g@>6000-629D
+*==============================================================================*
+G6000 DATA  >AA01                            header, version 1
+      DATA  >0000                            0 programs
+      DATA  >0000                            no power up
+      DATA  G6014                            program pointer
+      DATA  >0000                            no dsr
+      DATA  >0000                            no subprogram
+      DATA  >0000                            no interrupt
+      DATA  >0000
+*
+G6010 DATA  >9800                            card base: sent by card power-up
+G6012 DATA  >1E00                            card cru
+*
+G6014 DATA  >0000                            program header
+      DATA  G6032
+G6018 BYTE  >0E
+      TEXT  'GRAMCARD'
+G6021 TEXT  ' >'
+G6023 TEXT  '    '                           base address written by card pwr-up
+*
+G6027 DATA  >0000                            cru  |sent by card power-up
+G6029 DATA  >0000                            base |
+G602B BYTE  >E0,>00,>0E,>01,>06              vdp regs
+G6030 DATA  >0001
+*
+G6032 ALL   >20                              program start
+      DST   >0900,@>834A
+      MOVE  >0002,@>83FA,G@G6029             save base
+      CALL  G@>0018                          load upper case chars
+      CALL  G@>004A                          load lower case chars
+G6045 DST   >D000,V@>0300                    no sprites
+      MOVE  >000D,V@>0301,V@>0302
+      ST    >F4,V@>0380                      init color table
+      MOVE  >001E,V@>0380,V@>0381            white on dark blue
+      MOVE  >0002,G@G62F4,@>8300             chat pats pointer (c>27F4)
+      DADD  G6200-A2700,@>8300               address of char pats
+      MOVE  >0090,G@0(@>00),V@>0870          def chars >0E to >1F
+      MOVE  >0007,G@G602B,#>01               set vdp regs
+      FMT
+      ROW   >01                              draw frame
+      COL   >03
+      HCHA  >01,>13                          ul corner
+      HCHA  >18,>10                          top border
+      VCHA  >01,>12                          ur corner
+      VCHA  >15,>11                          right border
+      ROW   >02
+      COL   >03
+      VCHA  >15,>11                          left border
+      HCHA  >01,>15                          ll corner
+      HCHA  >18,>10                          bottom border
+      HCHA  >01,>14                          lr corner
+      FEND
+      MOVE  >0008,G@G6162,V@>0009            write "gramcard"
+      MOVE  >0006,G@G6021,V@>0011            write base
+      MOVE  >0006,G@G6021,G@G63B7            write base in loader menu
+G60A3 DST   G6172,@>8306                     text ptr
+      DST   G6190,@>830A                     ptr for file name copy
+G60AB DST   >0069,@>8302                     screen address
+      CLR   @>8300
+      DCLR  @>8304
+G60B3 MOVE  >0001,G@0(@>06),@>8305           size
+      DINC  @>8306
+      MOVE  @>8304,G@0(@>06),V*>8302         display text
+      DADD  >0040,@>8302                     skip 2 lines
+      DADD  >000E,@>8306                     next text
+      INC   @>8300
+      CHE   >0A,@>8300                       total is 10
+      BR    G@G60B3
+G60D2 SCAN                                   wait for choice
+      BR    G@G60D2
+      CEQ   >0F,@>8375
+      BR    G@G60DB
+      EXIT                                   f9: reset
+G60DB CEQ   >01,@>8375
+      BR    G@G60F0
+      DCEQ  G6190,@>830A                     f7: test which screen
+      BR    G@G60A3                          write first screen
+      DST   G6208,@>8306
+      DST   G6226,@>830A                     set second screen ptrs
+      BR    G@G60AB                          write it
+G60F0 CH    >30,@>8375
+G60F3 BS    G@G60FA
+G60F5 CALL  G@>0036                          error sound if < 1
+      BR    G@G60D2                          retry
+G60FA CH    >39,@>8375
+      BS    G@G60F5                          error sound if > 9
+      MOVE  >0008,G@G616A,V@>0069            write "loading"
+      ST    @>8375,V@>0073                   write key pressed
+G610A CEQ   >31,@>8375
+      BS    G@G614C
+      MOVE  >1200,G@G6200,@A2700             copy assembly program
+      MOVE  >0004,G@G6027,@A27F0             copy base
+      DCLR  @>8300
+      ST    @>8375,@>8300
+      SUB   >32,@>8300
+      ST    >0F,@>8302
+      MPY   @>8302,@>8300                    offset of text chosen
+      DADD  @>830A,@>8300                    in current screen
+      DADD  >0007,@>8300                     point on file name
+      DCLR  @A2720
+      ST    >07,@A2720+1                     name length
+      MOVE  >0007,G@0(@>00),@A2720+2         copy file name
+      DST   LOADFL,@>8300
+      XML   >F0                              branch to load-file routine
+*
+G614C MOVE  >1200,G@G6200,@A2700             copy assembly programs
+      MOVE  >0004,G@G6027,@A27F0             copy base
+      DST   LDMENU,@>8300
+      XML   >F0                              branch to loader menu
+*
+G6162 TEXT  'GRAMCARD'
+G616A TEXT  'LOADING:'
+G6172 STRI  'PRESS         '                 first screen
+      STRI  '1 FOR LOADER  '
+G6190 STRI  '2     DSK1.XB '                 file names
+      STRI  '3     DSK1.EA '
+      STRI  '4     DSK1.DM '
+      STRI  '5     DSK1.MP '
+      STRI  '6     DSK1.WR '
+      STRI  '7     DSK1.TE '
+      STRI  '8     DSK1.LG '
+      STRI  '9     DSK1.MM '
+G6208 STRI  'PRESS         '                 second screen
+      STRI  '1 FOR LOADER  '
+G6226 STRI  '2     DSK1.AA '                 file names
+      STRI  '3     DSK1.BB '
+      STRI  '4     DSK1.CC '
+      STRI  '5     DSK1.DD '
+      STRI  '6     DSK1.EE '
+      STRI  '7     DSK1.FF '
+      STRI  '8     DSK1.GG '
+      STRI  '9     DSK1.HH '
+*
+* This is gram address G629E, when stored in ROM it's >4E9E.
+* Assemly routines to be copied in low memory expansion folow here, but actual
+* copying starts at >4E00 (i.e.g6200 (some crap is copied to the data area).
+*
+G6200 EQU   G6208-8
+G62F4 DATA  A2C44                            char pat pointer
+G63B7 TEXT  'LOADER'                         message "*   gram card loader   *"
+*
+* end of gram: >73FF
+* end of low memory expansion: >38FF
+* end of card roms: >5FFF

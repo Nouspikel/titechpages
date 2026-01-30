@@ -1,0 +1,367 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+  <title></title>
+  <meta name="Author" content="">
+  <meta name="GENERATOR"
+ content="User-Agent: Mozilla/3.04Gold (Macintosh; I; PPC)">
+</head>
+<body>
+<h1 align="center"><a
+ href="http://www.nouspikel.com/ti99/titechpages.htm"><img
+ src="logo.jpg" style="border: 0px solid ; height: 33px; width: 95px;"
+ title="Back to main index" alt=""></a></h1>
+<h1><br>
+The TI-Writer module</h1>
+<p>This cartridge is hardly more than a dongle: the main programs, the
+text editor and the text formatter, come on a companion disk. All the
+cartridge
+does is:</p>
+<li>Select the language to be used, which implies loading special
+character
+definitions, and translate the prompts.</li>
+<li>Present the user with the main menu, and launch the selected
+program.</li>
+<li>List a disk directory (stangely this function is not available from
+the main menu, but must be called from the editor).</li>
+<p><a href="#program">Language selection<br>
+</a><a href="#Init">Initialisation<br>
+</a><a href="#main%20menu">Main menu<br>
+</a><a href="#editor">_Editor<br>
+</a><a href="#formatter">_Formatter<br>
+</a><a href="#utility">_Utility<br>
+</a><a href="#directory">Directory listing</a></p>
+<p>You'll find a commented disassembly listing of the GROM in these two
+files: <a href="wr1.txt">wr1.txt</a> (GPL program), and <a
+ href="wr2.txt">wr2.txt</a>
+(data).</p>
+<h2><br>
+<a name="program"></a>Program</h2>
+<p>The cartridge contains seven programs (and no power-up routines,
+subprograms,
+nor DSRs). In fact, these are just seven different entry points to the
+main menu, each for a different language:</p>
+<p><tt>PROCESSADOR&nbsp;DE&nbsp;TEXTO</tt> (spanish)<br>
+<tt>TI-TEKSTWERVERKER</tt> (dutch)<br>
+<tt>TI-SKRIVARE</tt> (swedish, I think)<br>
+<tt>TRATAMENTO TESTI</tt> (italian)<br>
+<tt>TI-TEXTSYSTEM</tt> (german)<br>
+<tt>TEXTE-TI</tt> (french, sort of)<br>
+<tt>TI-WRITER</tt> (english)</p>
+<p>Due to the fact that programs are listed on the main menu screen in
+reverse order of their position in the program chain, TI-WRITER will
+appear
+first, just under TI-Basic and the spanish version is at the bottom of
+the list.</p>
+<p>Once the user selects a language, each entry point loads a different
+value in byte &gt;8390: 1 for english, 2 for french,... 7 for spanish.
+It also loads a pointer in word &gt;8388-8389, that points to a table
+of
+prompts and messages in the appropriate language. </p>
+<p>The table begins with 26 pointers. The first 25 points at 24 strings
+(pointers 6 corresponds to an empty string) used to display the main
+menu,
+the disk directory and a few messages in the selected language. The
+last
+pointer points at the end of the table, because the display routine
+calculates
+the length of a string by substracting its pointer from the next one.</p>
+<p>Just after the table is a serie of character patterns used to
+display
+the special characters in non-english languages.</p>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Language</th>
+      <th>&gt;8390</th>
+      <th>&gt;8388</th>
+      <th>Special char pats</th>
+    </tr>
+    <tr>
+      <td>English</td>
+      <td>&gt;01</td>
+      <td>&gt;69C4</td>
+      <td>none</td>
+    </tr>
+    <tr>
+      <td>French</td>
+      <td>&gt;02</td>
+      <td>&gt;6B4B</td>
+      <td>64, 91-93, 123-126</td>
+    </tr>
+    <tr>
+      <td>German</td>
+      <td>&gt;03</td>
+      <td>&gt;6D31</td>
+      <td>64, 91-93, 123-126</td>
+    </tr>
+    <tr>
+      <td>Italian</td>
+      <td>&gt;04</td>
+      <td>&gt;6F1D</td>
+      <td>91, 93, 96, 123-126</td>
+    </tr>
+    <tr>
+      <td>Swedish</td>
+      <td>&gt;05</td>
+      <td>&gt;70F9</td>
+      <td>36, 64, 91-94, 96, 123-126</td>
+    </tr>
+    <tr>
+      <td>Dutch</td>
+      <td>&gt;06</td>
+      <td>&gt;72DB</td>
+      <td>6 chars, not used</td>
+    </tr>
+    <tr>
+      <td>Spanish</td>
+      <td>&gt;07</td>
+      <td>&gt;74BB</td>
+      <td>35, 91-93, 123, 124</td>
+    </tr>
+  </tbody>
+</table>
+<p>Once these pointers are set, all programs branch to a common point
+and
+go on with VDP initialisation.</p>
+<h3><br>
+<a name="Init"></a>Initialisation</h3>
+<p>The VDP registers are then set with the following values:</p>
+<p>R1=20 Standard mode, screen off.<br>
+R2=00 Screen image at &gt;0000<br>
+R3=0E Color table at &gt;0380<br>
+R4=01 Char pattern table at &gt;0800<br>
+R5=06 Sprite attribute table at &gt;0300<br>
+R6=00 Sprite pattern table at &gt;0000 (not the same as char pats!)<br>
+R7=F5 White on blue</p>
+<p>Sprites are disabled by writing &gt;D0 at VDP address &gt;0300
+(first
+sprite vertical position).</p>
+<p>Then the program loads the built-in character sets from the console
+GROM, and special characters from the cartridge GROM:</p>
+<li>The current pattern for character 10 is copied to character 255
+(copyright
+symbol).</li>
+<li>The small upper-case chars 32-95 are loaded at VDP address
+&gt;0900-0AFF.
+</li>
+<li>The lower-case characters 96-127 at VPD address &gt;0B00-0BF7. </li>
+<li>The patterns for characters 0-31 are taken from the cartridge GROM
+at address &gt;68C4.</li>
+<li>The special characters for each language are loaded as indicated in
+the table above. English has no such characters, Dutch has six, but
+they
+are not loaded, possibly because they are not needed to display the
+main
+menu, nor the disk catalogue.</li>
+<p>For some reason, provision is made to load a different set of
+standard
+characters, possibly corresponding to another console version: the
+distinction
+is made by scanning the keyboard with keyboard type 5. If the type is
+not
+changed to 0 by the scanning routine, characters &gt;32-95 will be
+loaded
+at addresses &gt;0A00-0BFF in VDP memory, then characters 64-95 are
+modified
+by adding a small 2-pixel dash in their upper left corner. I have no
+idea
+what this is meant for, the TI-99/4 may be?</p>
+<p>Finally the screen is cleared, the color table is initialised as
+white
+on blue (&gt;F5) and the main menu is displayed. VDP register 1 is
+changed
+to &gt;60, which turns the screen on.</p>
+<p>The program then checks for the presence of the memory expansion
+card
+by writing a test value (&gt;BA) at &gt;A000 and reading it back. An
+error
+message is displayed if the read value does not match ("<tt>MEMORY
+EXPANSION&nbsp;NOT&nbsp;FOUND</tt>"). </p>
+<p>At this point, the user can choose between options 1 to 3 in the
+main
+menu.</p>
+<h3><br>
+<a name="main menu"></a>Main menu</h3>
+<table border="1" bgcolor="#0000ff">
+  <tbody>
+    <tr>
+      <td>
+      <pre><font color="#ffffff"> * WORD PROCESSOR *<br><br> PRESS:<br> 1 FOR TEXT EDITOR<br> 2     TEXT FORMATTER <br> 3     UTILITY<br><br><br><br><br> c)1982 TEXAS&nbsp;INSTRUMENTS </font>     </pre>
+      </td>
+      <td>
+      <pre><font color="#ffffff"> * TEKSTVERWERKING *<br><br> TOETS IN:<br> 1 VOOR BEWERKEN VAN TEKST<br> 2      OPNAKEN VAN TEKST<br> 3      HULPROGRAMMA<br><br><br><br><br> c)1982 TEXAS&nbsp;INSTRUMENTS   </font>   </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>Option 1 enters the text editor.<br>
+Option 2 calls the text formatter and printer.<br>
+Option 3 allows the user to load a "program" file in EA5 format.<br>
+Fctn= resets the TI-99/4A.</p>
+<h4><br>
+<a name="editor"></a>Text editor</h4>
+<p>Option 1 first loads a file containing the characters patterns for a
+given language. This file is called CHARA1 for english, CHARB1 for
+french,
+etc. The file PAB is located at &gt;0680 in VDP memory, and the data
+buffer
+area is &gt;07FA. Since all these files begin with a 6-byte header (EA5
+standard), the file data start at &gt;0800, which corresponds to the
+beginning
+of the character pattern table. A very elegant way to modify that
+table,
+indeed. Of course, the contents of the file is not tranfered in cpu
+memory
+(the 6 header bytes are all zero).</p>
+<p>The number of available files is then lowered to 1, by calling
+subprogram
+&gt;16 in the disk controller card. This is the equivalent of a CALL
+FILES(1)
+in Basic.</p>
+<p>The program proceeds by loading an EA5 file called EDITA1 in
+english,
+EDITB1 in french, etc. The PAB is still at &gt;0680, but this time the
+data buffer area is located at an address taken from word &gt;8386,
+which
+points to the first available address in VDP memory. In complieance
+with
+the EA5 standard, the loading routine can continue with loading a file
+called EDITx2 if the header of the first file requires it (it does).</p>
+<p>If the loading operation fails, the program attempts to load the
+english
+version of the editor: EDITA1 and EDITA2. An error message will be
+displayed
+only if that second attempt is unsuccessfull.</p>
+<p>If loading was successfull, word &gt;8386 is set as &gt;1000 (first
+free address in VDP memory), VDP register 1 is set as &gt;30 (screen
+off,
+text mode), the screen is erase, byte &gt;8384 is cleared and the
+editor
+is entered via an <tt>XML &gt;F0</tt> (i.e. the vector is in word
+&gt;8300).</p>
+<p>The editor loads a "program" file (not in EA5 format) called
+TXTEA1 for english, TXTEB1 for french, etc. This file contains the
+promtps
+used by the editor within its menus, and the key combinations to be
+entered
+by the user to trigger one or the other command (e.g. SD for
+ShowDirectory
+in english, AR for AfficherRepertoire in french, etc).</p>
+<p>Upon return, the value of byte &gt;8384 determines the action to be
+taken:<br>
+0: Re-initialise the module.<br>
+1: Load an EA5 file whose PAB in VDP memory is pointed by word &gt;8389
+and execute it (in case of an error, re-enter the program with <tt>XML
+&gt;F0</tt>).<br>
+2: List the disk directory, for the drive number found in &gt;8385.
+Once
+done, re-enter the program<br>
+3: Load and runs the formatter.<br>
+Other values: Performs a GPL <tt>RTN</tt>.</p>
+<h4><br>
+<br>
+<a name="formatter"></a>Text formatter</h4>
+<p>Option 2 loads the character patterns file, just like option 1 and
+sets
+the number of files to 4.</p>
+<p>It then loads the EA5 files FORMA1 and FORMA2 for english, FORMB1
+and
+FORMB2 for french, etc. Here also, if loading fails, the program
+attempts
+to load the english version, before to annouce an error.</p>
+<p>The formatter is launched by the same routine than the editor, and
+the
+same actions can be taken upon return, depending on the value in byte
+&gt;8384.</p>
+<p>The formater loads a "program" file (not in EA5 format) called
+TXTFA1 for english, TXTEF1 for french, etc. This file contains the
+promtps
+used by the formatter to interact with the user, and the formatting
+commands
+to be expected inside the text (e.g. LM for left margin, which is MG in
+french: marge de gauche).</p>
+<h4><br>
+<a name="utility"></a>Utility</h4>
+<p>Option 3 does not load any character pattern but sets the maximum
+number
+of files to 3 and prompts the user for a filename.</p>
+<p>This file is loaded and run just as the editor and the formatter,
+wich
+allows for the possibility of a pre-defined action upon return,
+depending
+on the value of byte &gt;8384.</p>
+<h3><a name="directory"></a>Disk directory</h3>
+<table border="1" bgcolor="#0000ff">
+  <tbody>
+    <tr>
+      <td>
+      <pre><font color="#ffffff"> CATALOG DISK<br><br> DSK1 - DISKNAME= MYDISK<br> AVAILABLE= 216 USED=  92<br><br>  FILENAME  SIZE    TYPE    P<br> ---------- ---- ---------- - <br> TEST1/S      57 DIS/VAR 80<br> TEST1/O      25 DIS/FIX 80<br> MOUSE1       10 PROGRAM    Y<br><br> COMMAND COMPLETED<br> PRESS: "ENTER"</font></pre>
+      </td>
+      <td>
+      <pre><font color="#ffffff"> CATALOGUE<br><br> DSK1 - NOM= MONDISQUE<br> LIBRES= 216 UTILISES=  98<br><br>  FICHIER   DIM     TYPE    P <br> ---------- ---- ---------- -<br> TEST1/S      57 DIS/VAR 80<br> TEST1/O      25 DIS/FIX 80<br> SOURIS1      10 PROGRAM    Y<br><br> FIN D'EXECUTION<br> APPUYEZ SUR "ENTER"</font></pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>As mentionned above, this subprogram is only available when called
+from
+the editor, or from an utility EA5 program that exits with the value
+&gt;02
+in byte &gt;8384 and the relevant drive number in byte &gt;8385. That's
+especially strange since it's written in GPL: it wouldn't cost much to
+create an adequate entry point from the main menu. Maybe that was
+deliberate
+from Texas Instruments, so that the cartridge won't be used without the
+floppy?</p>
+<p>When entered, the program loads VDP registers 1 to 6 with the values
+stored in GROM, and disables the sprites. It initialises the color
+table
+with the colors placed in byte &gt;83FB by the calling program. Then is
+displays "Catalog Disk" and "Press clear to abort"
+in the appropriate language.</p>
+<p>To display the directory, it calls subprogram &gt;10 from the disk
+controller
+card: this is the sector read/write low level utility. It is used to
+read
+sector 0 into a buffer located at &gt;0400 in VDP memory. Data in
+sector
+0 is used to display the disk name, and to calculate the number of free
+and available sectors (the program counts the "1" bits in the
+bitmap).</p>
+<p>Then it calls subprogram &gt;10 again to read sector 1, that
+contains
+a list of file pointers. Again, the data buffer is at &gt;0400. The
+program
+then walks the list of file pointers until it reaches a &gt;0000. For
+each
+file it loads the corresponding File Descriptor Record (using
+subprogram
+&gt;10) into a buffer located at &gt;0500 in VDP memory. The relevant
+informations
+are extracted from the FDR and displayed on screen. If necessary the
+screen
+scrolls up, but never overwrites the title lines.</p>
+<p>The user can press the spacebar to temporarily pause and resume the
+listing. Pressing Fctn-4 aborts the operation. Whether aborted or
+normally
+completed, the program then displays "Command completed", "Press:
+enter" and waits for the user to press &lt;enter&gt;.</p>
+<p>It then clears the screen, loads VDP registers 1 to 6 with the
+values
+taken from bytes &gt;83B9-83BE (placed by the calling program in the
+GPL
+data stack) and re-enters the calling program with the same <tt>XML
+&gt;F0</tt>
+that was used to launch it (i.e. &gt;8300 should contain the address of
+the entry point).</p>
+<address><br>
+Revision 1. 6/22/99 Ok to release</address>
+<center>
+<p><br>
+<br>
+<a href="titechpages.htm">Back to the TI-99/4A Tech Pages</a><br>
+</p>
+</center>
+</body>
+</html>

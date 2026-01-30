@@ -1,0 +1,1084 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+  <title></title>
+  <meta name="Author" content="">
+  <meta name="GENERATOR"
+ content="Mozilla/3.04Gold (Win95; U) [Netscape]">
+</head>
+<body>
+<h1 align="center"><a
+ href="http://www.nouspikel.com/ti99/titechpages.htm"><img
+ src="logo.jpg" style="border: 0px solid ; height: 33px; width: 95px;"
+ title="Back to main index" alt=""></a></h1>
+<h1>TI-99/4A standard joystick</h1>
+<p>Texas Instruments originally marketed a pair of pretty crude
+joysticks.
+Each consists in four switches arranged all around the stick. By
+pushing
+the stick towards a switch you can close it. By pushing it on the
+diagonal
+between two switches you close both of them. This gives you eight
+possible
+joystick positions (nine, if you count the center). In addition, each
+joytsick
+has a unique pushbutton that serves as a "fire" trigger.</p>
+<h2><br>
+<a name="Joystick port"></a>Joystick port</h2>
+<pre>                  ___________ <br>                 ( 1 2 3 4 5 ) <br>                  \ 6 7 8 9 / <br># I/O Use          \_______/ <br>- --- ------- <br>1     not used <br>2  &gt;  Test joystick 2 <br>3  &lt;  Up <br>4  &lt;  Fire button pressed <br>5  &lt;  Left <br>6     not used <br>7  &gt;  Test joystick 1 <br>8  &lt;  Down <br>9  &lt;  Right</pre>
+<p><br>
+As you can see, each joystick has its own input pin (#2 and #7), but
+the
+output of the switches as the fire button are common to both joysticks.
+In fact, the original TI joystick had each a cable connected to a
+common
+plug. Later on, other companies marketed fancy looking joystick that
+and
+one plug each, but this meant that only one stick at a time could be
+used
+(which is OK most of the time).</p>
+<h2><br>
+</h2>
+<h2><a name="circuit"></a>Console circuitery</h2>
+<p>Joysticks are accessed with the same 74LS156 decoder that performs
+the
+selection of a column on the keyboard. Selecting column 6 activates
+joystick
+1, and column 7 activates joystick 2. The output of the decoder is
+amplified
+through a transistor, so as to produce a stronger signal for the
+joystitcks.
+A non-selected joystick is connected to +5V through the transistor, a
+selected
+joystick is connected to -5V (although the effective output voltage is
+about -0.5V at the joystick port).</p>
+<p>The five outputs are read together with the first five keyboard
+rows.
+This is very infortunate since the last one is also used by the
+alpha-lock
+key. When the alpha-lock key is down it sources so much current that
+the
+joystick "up" switch appears to be constantly close. As a result,
+the "up" function is permanently on for both joystick when the
+alpha-lock key is down. That was especially stupid of the TI designers,
+since there were 3 more keyboard rows that could have been used for the
+alpha-lock key (or combine it with the fire buttons: this may have been
+usefull for continuous fire).</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>TMS9901                                  <br>------+              74LS156     <br>      |           +-----------+                  1K              <br>   P2 |-----------| S0        |             ,---WWW---+----+5V<br>   P3 |-----------| S1        |             |    ,----'<br>   P4 |-------+---| 1GA*      |             |  |/<br>      |       '---| 2GA*  1Y2*|-------------+--| <br>      |           |           |                |\      270 Ohm   10 Ohm<br>      |       ,---| 1GB*      |                  V-+---WWW---+---WWW-------&gt; Joystick 1<br>      |       +---| 2GB*      |          1.5K      |         |               Input<br>      |       |   |           |     -5V---WWW------'         '---||---Gnd <br>      |      Gnd  |           |                                 10 pF<br>      |           |       1Y3*|---- Ditto for joystick 2  <br>      |           +-----------+         <br>      |                                                          <br>      |<br>      |                              10K      10 pF<br>      |                        +5V---WWW---+---||---Gnd<br>      |                                    |<br>INT3* |------------------------------------+---WWW-------+---&lt; Keyboard row 0<br>INT4* |--- Ditto (Joysticks left)            470 Ohms    |<br>INT5* |--- Ditto (Joysticks right)                       '-----------&lt; Joysticks fire<br>INT6* |--- Ditto (Joysticks down)    <br>      |                              10K      10 pF<br>      |                        +5V---WWW---+---||---Gnd<br>      |                                    |<br>INT7* |------------------------------------+---WWW-------+---&lt; Keyboard row 4<br>      |                                       470 Ohms   |<br>      |         10K      10 pF                           +-----------&lt; Joysticks up<br>      |   +5V---WWW---+---||---Gnd                       |<br>      |               |    470                           |<br>   P5 |---------------+----WWW----------/ o--------------'<br>------+                           alpha-lock key</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h2><br>
+<a name="joystick soft"></a>Software control</h2>
+<p>The keyboard column selector is controled by CRU bits 18-20 (put
+&gt;0024
+in R12) in the CRU address space of the TMS9901. The joysticks read
+back
+at bits 3 to 7 (CRU address &gt;0006).</p>
+<table border="1" cellspacing="2" cellpadding="2">
+  <tbody>
+    <tr>
+      <th>Column:
+      <p>R12 address</p>
+      </th>
+      <th>6<br>
+      <br>
+      </th>
+      <th>7<br>
+      <br>
+      </th>
+    </tr>
+    <tr>
+      <td>&gt;0006</td>
+      <td>Fire</td>
+      <td>Fire</td>
+    </tr>
+    <tr>
+      <td>&gt;0008</td>
+      <td>Left</td>
+      <td>Left</td>
+    </tr>
+    <tr>
+      <td>&gt;000A</td>
+      <td>Right</td>
+      <td>Right </td>
+    </tr>
+    <tr>
+      <td>&gt;000C</td>
+      <td>Down </td>
+      <td>Down </td>
+    </tr>
+    <tr>
+      <td>&gt;000E</td>
+      <td>Up</td>
+      <td>Up</td>
+    </tr>
+  </tbody>
+</table>
+<p><br>
+</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>* This routine reads the status of joystick 1</pre>
+      <pre>JOY1  LI   R12,&gt;0024      CRU address of the column decoder <br>      LI   R1,&gt;0600       Column 6, i.e joystick #1<br>      LDCR R1,3           Select it</pre>
+      <pre>      TB   -11            Quick test for the fire button<br>      JNE  FIRE           Reads as 0 when pressed</pre>
+      <pre>      LI   R12,&gt;0006      CRU address of the keyboard rows<br>      STCR R1,5           Read joystick position and fire button<br>      INV  R1             To make tests easier: pushed is now 1 <br>      SLA  R1,5           Skip fire button, that we already tested<br>      JOC  SK1            Joystick is left, but maybe down/up/centered <br>      JLT  SK2            Joystick is right, but maybe down/up/centered <br>      SLA  R1,2<br>      JOC  DOWN           Joystick is straigth down<br>      JLT  UP             Joystick is straight up<br>      JMP  CENTER         Joystick is centered</pre>
+      <pre>SK1   SLA  R1,2           Joystick is left, now test vertical position <br>      JOC  LDOWN          Joystick is down to the left<br>      JLT  LUP            Joystick is up to the left<br>      JMP  LEFT           Joystick is straight left</pre>
+      <pre>SK2   SLA  R1,2           Joystick is right, now test vertical position <br>      JOC  RDOWN          Joystick is down to the right<br>      JLT  RUP            Joystick is up to the right<br>      JMP  RIGHT          Joystick is straight right<br>      </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h1>
+<hr width="100%"></h1>
+<h1><a name="Analog joysticks"></a>Analog PC-joysticks</h1>
+<p>The drag with TI joysticks is that they only return
+up/down/left/right
+yes or no informations, which limitates possible moves to 8 directions.
+PC joysticks on the other hand are analog, i.e. they have two variable
+resistors, one in the vertical axis, one in the horizontal axis. The
+current
+value of these resistors indicates how far the joystick was pushed.</p>
+<p>This page describes a small adapter board that I designed a few
+years
+ago. It allows to connect PC joysticks to the TI-99/4A joystick port.
+Of
+course, you'll need a special software to use them. I wrote several
+programs
+to this end, that can be downloaded from this site. These programs are
+also described below.</p>
+<p><b>Building a joystick adapter<br>
+</b><a href="#circuitery">Circuit description<br>
+</a><a href="#components">Components list<br>
+</a><a href="#wiring">Connectors wiring<br>
+</a><a href="#building%20the%20board">Buiding the adapter board<br>
+</a><a href="#modifying%20the%20port">Modifying the joysick port</a></p>
+<p><b>Related software<br>
+</b><a href="#driver%20XB">Joystick driver<br>
+</a><a href="#sprite%20link%20XB">Automatic sprite linking<br>
+</a><a href="#calibration%20XB">Calibration program<br>
+</a><a href="#Ti-artist%20drivers">TI-Artist drivers</a><br>
+</p>
+<h2 align="center"><img src="joy1.jpg" alt="Joystick &amp; adapter in place"
+ height="177" width="300"><br>
+</h2>
+<h2><br>
+<a name="How to"></a>Adapter for PC-joysticks</h2>
+<p>The principle of this adapter is to convert the value of the
+joystick
+resistor into a time: this is archieved by a chip called 74LS221. This
+chip contains two "one-shots", i.e. circuits that, once triggered
+issue a pulse whose length is depending upon an external capacitor and
+an external resistor. You probably already understood that the resistor
+will be the joystick itself.</p>
+<p>The pulses (one for vertical excursion, one for horizontal) are then
+fed into the joystick port: all the TI has to do is to time them, which
+is easily archieved by an assembly language driver.</p>
+<p>This leaves 3 available connections in the joystick port, that we
+can
+use to return joystick buttons status: right, you can now have
+3-buttons
+joysticks!</p>
+<p>The adapter board could be powered by a small battery, but I found
+easier
+to modify the joystick port, so that the two currently unused pins (#1
+and 6) now provide groud and +5 Volts respectively. This console
+modification
+is really very easy to do and results in a much more convenient board,
+thus I think it's worth doing it.</p>
+<h3><br>
+<a name="circuitery"></a>Circuit description</h3>
+<p>Note that this scheme describes a board designed for use with a
+single
+joystick. For the second joystick, duplicate the circuit and use the
+connector
+numbers indicated in parenthesis.</p>
+<p>P1-P9 refer to the console 9-pin joystick port.<br>
+J1-J15 refer to the joystick 15-pin connector.</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>       R1 1K<br>  +5V---WWW---,<br>           ,--+---|&gt;|----,     ,---+---|&lt;|-----&gt; J4 (J12)<br>         |/       LED    |   |/    |  D1 BA318<br>P7 &gt;-----|               '---|     |<br>(P2)     |\   T1       T2    |\    |<br>           v  BC238    BC238   v   |<br>          Gnd                Gnd   |<br>                                   |<br>        ,--------------------------'    <br>        |       74LS121<br>        |       +------+      R3 1K <br>        +-------|A*  RC|---+---WWW-------------&gt; J6 (J13)<br>        |       |      |   |<br>        |       |      |   = C1 110 nF<br>        |       |      |   |<br>        |   ,---|Clr* C|---'<br>        |   +---|B    Q|----------------,<br>        |   |   +------+      R4 1K     |<br>        '---|---|A*  RC|---+---WWW-------------&gt; J3 (J11)<br>            |   |      |   |            |<br>            |   |      |   = C2 110 nF  |<br>            |   |      |   |            |<br>     R2 10K +---|Clr* C|---'            |<br> +5V--WWW---+---|B    Q|---,            |<br>                +------+   |            |<br>      R8 100               |            |<br>P5 &lt;---WWW---\|   R7 1K    |            |<br>              |----WWW-----'            |<br>             /|T4                       |<br>            v  BC238                    |<br>          Gnd                           |<br>                                        |<br>             R6 100                     |<br>P8 &lt;----------WWW---\|   R5 1K          |<br>                     |----WWW-----------'<br>                    /|T3<br>                   v  BC238             <br>                 Gnd<br>P6 ---- +5V                             +5V----&gt; J1 (J9)<br>P1 ---- Gnd<br>P4 &lt;-------------------------------------------&gt; J2 (J10)<br>P9 &lt;-------------------------------------------&gt; J7 (J14) <br>P3 &lt;-------------------------------------------&gt; ?</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>In this schematic, the +5V power is supplied by the console via P6,
+whereas P1 is connected to the console ground. You may use a battery
+instead
+but you still need a common ground connection with the console.</p>
+<p>When the software tests the joystick, P2 (or P7) shifts from high to
+low, which blocks T1. The basis of T2 can now be driven by R1 and T2
+becomes
+passing. (This amplification circuitery is required since pressing a
+key
+drags so much current that the interface board would not be triggered
+if
+a key is pressed).</p>
+<p>The three joystick buttons are now connected to ground, via D1 and
+J4
+(or J12). The diode is required to avoid interference whith keyboard
+scanning.
+<br>
+When button 1 is pressed the ground appears on J2 (or J10) and is
+feeded
+into P4 (i.e. "joystick fire"). <br>
+Button 2 connects J7 (or J14) to ground, feeding it into P9 (i.e.
+"joystick
+right"). <br>
+Finally button 3 is fed into P3 (i.e."joystick up"). Unfortunately,
+having only a 2-buttons joystick I don't know which joystick pins are
+used
+by the third button. You'll have to check it yourself if you have a
+3-button
+joystick. Otherwise, you may decide to install a pushbutton of your own
+on the board.</p>
+<p>Second, the low signal from T2 also triggers both "one-shots"
+in the 74LS221, via their A* inputs. Note that the B and Clr* inputs
+are
+held high via R2.</p>
+<p>The lenght of pulse in the first half-chip is determined by C1, R3
+and
+the joystick vertical resistor, accessed via J6 (or J13). The output Q
+is used to drive T3 via R5 and make it passing. This grounds P8 (i.e.
+"joystick
+down") via R6, which is required to avoid interferences with the
+keyboard.</p>
+<p>Similarly, the pulse length of the second half-chip is determined by
+C2, R4 and the joystick horizontal resistor, accessed via J3 (or J11).
+The pulse is fed into T4 by R7, wich connects P5 (i.e. "joystick down")
+to the ground, via R8.</p>
+<p>The other end of both joystick resistors are connected to +5V via J1
+(or J9).</p>
+<p>Note that R3 and R4 are required to avoid a null resistivity when
+the
+joystick is pushed fully up/left.</p>
+<p>Note: this scheme is valid for joystick resistor varying from 0 to
+150
+KOhms. If yours have different values, you may have to play with C1/C2
+and R3/R4 until you get pulses of suitable length. Use option 2 of the
+calibration program to determine optimal values.</p>
+<h3><br>
+<a name="components"></a>Components list</h3>
+<p>For each joystick you need:</p>
+<ul>
+  <li>1 74LS221 chip</li>
+  <li>5 transistors such as BC238</li>
+  <li>2 capacitors (100 to 150 uF, depending on your joystick)</li>
+  <li>1 diode, such as BA318</li>
+  <li>1 resistor of 10 KOhm</li>
+  <li>5 resistors of 1 KOhm</li>
+  <li>2 resistors of 100 Ohm</li>
+  <li>1 LED (optional)</li>
+</ul>
+<p>All this should cost less than $5</p>
+<p>In addition, you need connectors:</p>
+<ul>
+  <li>1 female 9-hole connector for the console joystick port.</li>
+  <li>1 female 15-hole connector for the joystick plug.</li>
+  <li>You may decide to install a second15-hole joystick connector so
+that
+you can plug in two independent joysticks, instead of having a common
+plug.
+In this case, wire the first connector so that it accepts a
+two-joysticks
+plug (using pins 9 to 14) and wire the second connector in parallel,
+like
+joystick 2 but using pins 1 to 8 (see summary below).</li>
+</ul>
+<p>Each connector costs $2 to $3.</p>
+<li>The most expensive part is the joystick(s) itself. Cheap joysticks
+cost about $15, but more sophisticated joysticks can cost big bucks.
+Just
+make sure the one you buy is an analog joystick!</li>
+<h3><br>
+<a name="wiring"></a>Connectors wiring summary</h3>
+<table border="1">
+  <tbody>
+    <tr>
+      <th>Adapter board </th>
+      <th>Console port </th>
+      <th>Joystick plug </th>
+      <th>(Second joystick plug)</th>
+    </tr>
+    <tr>
+      <td>Ground</td>
+      <td>P1</td>
+      <td>.</td>
+      <td>.</td>
+    </tr>
+    <tr>
+      <td>T1' basis (joy 2)</td>
+      <td>P2</td>
+      <td>.</td>
+      <td>.</td>
+    </tr>
+    <tr>
+      <td>.</td>
+      <td>P3</td>
+      <td>? (both buttons 3)</td>
+      <td>? (button 3 on joy 2)</td>
+    </tr>
+    <tr>
+      <td>.</td>
+      <td>P4 </td>
+      <td>J2 + J10</td>
+      <td>J2</td>
+    </tr>
+    <tr>
+      <td>R8 (joy 1) + R8' (joy 2) </td>
+      <td>P5</td>
+      <td>.</td>
+      <td>.</td>
+    </tr>
+    <tr>
+      <td>+5V </td>
+      <td>P6</td>
+      <td>J1 + J9 </td>
+      <td>J1</td>
+    </tr>
+    <tr>
+      <td>T1 basis (joy 1) </td>
+      <td>P7</td>
+      <td>.</td>
+      <td>.</td>
+    </tr>
+    <tr>
+      <td>R6 (joy 1) + R6' (joy 2)</td>
+      <td>P8</td>
+      <td>.</td>
+      <td>.</td>
+    </tr>
+    <tr>
+      <td>.</td>
+      <td>P9 </td>
+      <td>J7 + J14 </td>
+      <td>J7</td>
+    </tr>
+    <tr>
+      <td>R4 (joy 1)</td>
+      <td>.</td>
+      <td>J3 </td>
+      <td>.</td>
+    </tr>
+    <tr>
+      <td>R4' (joy 2)</td>
+      <td>.</td>
+      <td>J11</td>
+      <td>J3</td>
+    </tr>
+    <tr>
+      <td>R3 (joy 1)</td>
+      <td>.</td>
+      <td>J6</td>
+      <td>.</td>
+    </tr>
+    <tr>
+      <td>R3' (joy 2)</td>
+      <td>.</td>
+      <td>J13 </td>
+      <td>J6</td>
+    </tr>
+    <tr>
+      <td>D1 (joy 1)</td>
+      <td>.</td>
+      <td>J4</td>
+      <td>.</td>
+    </tr>
+    <tr>
+      <td>D1' (joy 2)</td>
+      <td>.</td>
+      <td>J12</td>
+      <td>J4</td>
+    </tr>
+  </tbody>
+</table>
+<h3><br>
+<a name="building the board"></a>Building the board</h3>
+<p>The circuit is so simple that you would not even need to etch a PCB
+for it, nevertheless it's cleaner so may be it's worth doing it... it's
+up to you. On my part, I etched a 6x6 cm board, handling 2 joysticks
+and
+fitting exactly in a small 6x6 cm box I had at hand. It plugs directly
+into the console port.</p>
+<p>I would advise you to use sockets for the 74LS221, so that you can
+easily
+change it, if you suspect it has been damaged with time.</p>
+<p>The buttons connections don't need to be etched: you can just place
+a wire between joystick and console connectors.</p>
+<p>The LED is optional, I just added it for the fun of seing which
+joystick
+is currently accessed, if any.</p>
+<p>You may have to modify capacitors values after you checked your
+board
+with the calibration program. It may even be necessary to add up two
+capacitors
+(for instance 100 uF and 10 uF) by placing them in parallel. When
+designing
+your PCB, plane pads for extra capacitors, just in case.</p>
+<p>In case you decide for a 4.5 V battery (and switch), remember that
+you
+still need a common ground with the console. For instance you could
+pass
+a piece of wire through the PEB cable port (make a little notch in the
+console wall, so that you can still connect the cable). The wire can be
+fixed to one of the small screws you see inside this port.</p>
+<p>However I would advice you to modify you console so that groud and
++5V
+are available through the currently unused pins of the joystick port.
+This
+only takes a few minuts and avoids the burden of a battery, not to
+mention
+the fact that it may be used by future devices connected to the
+joystick
+port (such as a drawing pad for instance).<br>
+<br>
+<br>
+</p>
+<center>
+<p><img src="joy2.jpg" alt="Board closeup" height="209" width="293"></p>
+</center>
+<center>
+<p><br>
+</p>
+</center>
+<h3><br>
+<a name="modifying the port"></a>Modifying the joystick port</h3>
+<ul>
+  <li>Unplug your TI99, wait for a couple of minutes, turn it
+upside-down
+and remove the 7 srews so that you can lift the bottom plate.</li>
+  <li>Remove the screws and the two metal clamps the hold the
+motherboard
+shell. You don't need to remove screws on the PEB connector side: just
+slightly lift the metal shell and keep it open with a piece of rubber
+(such
+as a pencil eraser).</li>
+  <li>Now inspect the joystick port connections, it should look so:</li>
+</ul>
+<center>
+<table cellspacing="2" cellpadding="2" bgcolor="#cccce6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>          +---------+<br>          |connector|<br>----------+---------+---+ &lt;-- board edge  <br>                        |<br>            <font
+ color="#ff0000">+</font> o o o     |      6 7 8 9<br>       oo  <font
+ color="#0000ff">x</font> o o o o    |     1 2 3 4 5<br>                       o|<br>          ooo o   o     |<br>       oo      <font
+ color="#ff0000">+</font> o      |<br>                        |</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+</center>
+<center>
+<p>Here is a <a href="joy3.jpg">picture</a> for you.</p>
+</center>
+<ul>
+  <li>You will note that pin 1 (the one I marked with an blue <font
+ color="#0000ff">x</font>)
+is very close to the surrounding ground "fill-in". It is thus
+very easy to create a little bridge of solder in order to connect that
+pin to ground. Just one thing: before soldering, use a knife to locally
+scratch the insulating paint over the groud.</li>
+  <li>Using a ~1.5 cm <i>insulated </i>wire, connect the two pads I
+marked
+with red <font color="#ff0000">+</font>. This brings +5V to pin 6.
+(Make
+sure you don't accidentally connect any additional pad with +5V).</li>
+  <li>Close the metal shell, replace screws and clamps. Put back the
+console
+bottom plate and its screws.</li>
+  <li>Turn power on and check the voltage between pins 1 and 6: you
+should
+read a value of +5V or more.</li>
+  <li>That's it. How long did it take? Probaly aroud 10 minutes, right?
+  </li>
+</ul>
+<h2><br>
+<br>
+Software</h2>
+<p>The following programs are provided on the accompanying disk:</p>
+<p><b>Joystick driver<br>
+</b><a href="#driver%20XB">Extanded Basic usage<br>
+</a><a href="#driver%20assm">Assembly usage<br>
+</a><b>Automatic sprite linking<br>
+</b><a href="#sprite%20link%20XB">Extended Basic usage<br>
+</a><a href="#sprite%20link%20assem">Assembly usage<br>
+</a><b>Calibration program<br>
+</b><a href="#calibration%20XB">Extended Basic program<br>
+</a><a href="#calibration%20direct%20in%20xb">Direct access from
+Extended Basic<br>
+</a><a href="#calibration%20assem">Direct access from Assembly<br>
+</a><b>TI-Artist drivers<br>
+</b><a href="#Ti-artist%20drivers">TI-Artist version I<br>
+</a><a href="#artist%20plus">TI-Artist Plus!<br>
+</a><a href="#artist%20calibration">Calibration program</a></p>
+<h3><br>
+<a name="driver XB"></a>Joystick driver</h3>
+<p>This is the file called PC-JOY/DRV, a DF80 file that can be used
+both
+with extended basic and with assembly programs. A special loading
+"trick"
+prevents the REFs to cause errors when loaded from extended basic.</p>
+<h4><br>
+Extended Basic interface</h4>
+<p>Load the driver with:<br>
+CALL INIT<br>
+CALL LOAD("DSKx.PC-JOY/DRV")</p>
+<p>You can then call four different subroutines</p>
+<p><br>
+<u>Position mode</u></p>
+<p>This subprogram is intended to map joystick position position to
+screen,
+it thus returns vertical values from 1 to 192 and horizontal values
+from
+1 to 256.</p>
+<p>CALL LINK("JPOS",joynb,vert,horiz,fire)</p>
+<p><i>Joynb </i>is the joystick number 1 or 2. You may use -1/-2 to
+modify
+vert range. Other values issue a 'bad value' error.<br>
+<i>Vert </i>is a number between 1 and 192. Or between 1 and 256 with
+negative
+joystick number.<br>
+<i>Horiz </i>us a number between 1 and 256.<br>
+<i>Fire </i>is an optional parameter, returning fire buttons status.
+This
+is a number between -64 and +64. See JFIRE subprogram for details.</p>
+<p><br>
+<u>Speed mode</u></p>
+<p>This subprogram is intended to translate joystick position into a
+speed,
+a strength, etc. Thus both vertical and horizontal values range from
+-128
+to 127.</p>
+<p>Since it may be difficult to precisely center the joystick (in oder
+to get null speed) a small area, around central position returns 0 even
+if the joystick is not perfectly centered.</p>
+<p>CALL LINK("JSPEED",joynb,vert,horiz,fire)</p>
+<p><i>Joynb </i>is the joystick number 1 or 2. Using negative numbers
+(-1/-2)
+disables the central "stillstand" area: 0 is only returned when
+the joystick is perfectly centered.<br>
+<i>Vert </i>is a number between -128 and 127. The 0 value is returned
+when
+the joystick is close to center, even if it's nox exacltly centered.<br>
+<i>Horiz </i>is a number betweem -128 and 127. Here also a small area
+returns
+0 (unless a negative joystick number was used).<br>
+<i>Fire </i>is an optional parameter, returning fire buttons status.
+This
+is a number between -64 and +64. See JFIRE subprogram for details.</p>
+<p><br>
+<u>Crude values</u></p>
+<p>This subprogram just returns crude timing values. Their range thus
+depends
+on the characteristics of your joystick and interface board. Therefore
+I would not recomend using this routine for anything else than test
+purposes.</p>
+<p>CALL LINK("JTIME",joynb,vert,horiz)</p>
+<p><i>Joynb </i>is the joystick number 1 or 2.<br>
+<i>Vert </i>is the crude timing value for the vertical axis.<br>
+<i>Horiz </i>is the crude timing value for thr horizontal axis.</p>
+<p><br>
+<u>Fire buttons</u></p>
+<p>This subprogram is intended to quickly test fire buttons status on
+both
+joysticks at once (although it could well be used with a single
+joystick).</p>
+<p>CALL LINK("JFIRE",Fire1,Fire2)</p>
+<p>Fire1 is the fire buttons status for joystick 1.<br>
+Fire2 is the status for joystick 2</p>
+<p>The status is coined by adding up the following values:<br>
+1 for button 1<br>
+2 for button 2<br>
+4 for button 3</p>
+<p>Thus, pressing all buttons together retuns 7 (1+2+4), whereas none
+returns
+0.</p>
+<p><br>
+In addition these values can be modified by using some keyboard keys,
+this
+is especially usefull if your joystick has only one button. Provided at
+least one button is pressed the following values are added:<br>
+8 for &lt;fctn&gt; key<br>
+16 for &lt;shift&gt; key<br>
+32 for &lt;ctrl&gt; key</p>
+<p>Thus &lt;shift&gt;button1 is 17, whereas
+&lt;ctrl&gt;&lt;shift&gt;button2
+is 50, etc.</p>
+<p>If the status is identical to what it was the last time you tested
+it
+(with either JFIRE, JPOS or JSPEED) its value is negated. This way your
+program can react only to new events and ignore hold down buttons. This
+is reminiscent of the 'key_status' parameter in CALL KEY.</p>
+<h4><br>
+<a name="driver assm"></a>Assembly language interface</h4>
+<p>Load the file DSKx.PC-JOY/DRV as an ed/assm option 3 file. You can
+then
+REFer to the four subprograms below.</p>
+<p>You may want to overwrite the extended basic interfacing routines to
+save space, this is archieved by beginning the next loaded file with a
+BSS-460 which causes the loader to take a step backwards. Caution: this
+only works if the file is larger than the value in BSS, but small
+enough
+to fit in the same part of the memory expansion.</p>
+<p>The reason why there is only one file for extended basic and
+assembly
+is to have the same calibration values with both languages.</p>
+<p><br>
+<u>Position mode</u></p>
+<p>R0 must contain joystick number 1 or 2. Negate it to modify the
+vertical
+range. Caution: no range checking is performed: illegal values may mess
+up the TI.</p>
+<p>BLWP @AJPOS</p>
+<p>R1 now contains the vertical value from 0 to &gt;BF (or to &gt;FF if
+R0 was negative) <br>
+R2 now contains the horizontal value from 0 to &gt;FF.</p>
+<p><br>
+<u>Speed mode</u></p>
+<p>R0 must contain joystick number 1 or 2. Negate if to ignore central
+quiet area. Caution: no range checking is performed: illegal values may
+mess up the TI.</p>
+<p>BLWP @AJSPED</p>
+<p>R1 now contains the vertical value, from &gt;FF80 to &gt;007F.<br>
+R2 now contains the horizontal value, from &gt;FF80 to &gt;007F.</p>
+<p><br>
+<u>Crude values</u></p>
+<p>R0 must contais joystick number 1 or 2 (negative values are
+equivalent).
+Caution: no range checking is performed: illegal values may mess up the
+TI.</p>
+<p>BLWP @AJTIME</p>
+<p>R1 now contains the vertical timing value.<br>
+R2 now contains the horizontal timing value.</p>
+<p><br>
+<u>Fire buttons</u></p>
+<p>R0 must contain joystick number 1 or 2 (negative values are
+equivalent).
+Caution: no range checking is performed: illegal values may mess up the
+TI.</p>
+<p>BLWP @AJFIRE</p>
+<p>R3 now contains the button status, from 0 (none) to 64. Note that
+negative
+values are never returned, this is only available from extended basic.</p>
+<p><br>
+<u>Extra labels</u></p>
+<p>Some more labels are DEFined for use by the sprite-linking and
+calibration
+routines. You may just ignore them. These are:<br>
+GETJNB (gets and check joystick number)<br>
+JPOINT (points at joystick parameters)<br>
+FLTINT (converts floating point to integer)<br>
+JPARAM (joystick calibration parameters pointer)</p>
+<p>In addition, the extended basic routines are also DEFined, don't
+branch
+to them since they only work when called from extended basic.</p>
+<p>In case you're curious, this is the timing routine used to appraise
+the position of a joystick.</p>
+<table cellspacing="2" cellpadding="2" bgcolor="#e6e6e6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>* Analog joystick timing routine. R0 should contain joystick # (1 or 2)</pre>
+      <pre>AJTIME DATA WREGS,TIME        time joystick<br>*                             -------------<br>TIME   MOV  *13,0             r0: joystick #<br>       BL   @POINTJ           get ptr to the calibrated values (in R10) <br>       SLA  0,8               joystick # in left byte<br>       AI   0,&gt;0500           column 6 or 7 <br>       LDCR 0,3               test joystick: trigger pulse<br>       CLR  1                 reset horiz timer<br>       CLR  2                 reset vert timer<br>       JMP  LP1               to timing routine<br> <br>SK2    INC  1                 vert: not ready<br>       NOP<br>LP1    TB   -14               test horiz<br>       JEQ  SK1<br>       JMP  SK3               }so that timing is always equal<br>       NOP                    }<br> <br>SK3    INC  2                 horiz: not ready<br>       TB   -12               test vert<br>       JNE  SK2<br>       INC  0                 vert: ready<br>       JMP  LP1<br> <br>SK1    INC  0                 horiz: ready<br>       NOP<br>       TB   -12               test vert<br>       JNE  SK2<br> <br>       LDCR 12,3              joystick off<br>       MOV  1,0               vert in r1<br>       ABS  @INVERT(10)       flag: invert up/down?<br>       JEQ  SK8               no<br>       MOV  @VMAX(10),0       yes: maximal value<br>       S    1,0<br>       A    @VMIN(10),0       minimum value<br>SK8    MOV  0,@2(13)          pass to caller's R1<br> <br>       MOV  2,0               horiz in r2<br>       ABS  @INVHOR(10)       flag: invert left/rigth?<br>       JEQ  SK9               no<br>       MOV  @HMAX(10),0       yes: maximum value<br>       S    2,0<br>       A    @HMIN(10),0       miminum value<br>SK9    MOV  0,@4(13)          pass to caller's R2<br>       RTWP<br></pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>N.B. The driver <a href="joy.txt">source file</a> is available on
+this
+site.</p>
+<p>
+</p>
+<hr width="100%">
+<p></p>
+<h3><br>
+<br>
+<a name="sprite link XB"></a>Sprite linking program</h3>
+<p>One of the most frequent applications of a joystick is to direct a
+sprite
+onscreen. This could be archieved by a control loop alternating links
+to
+JPOS (or JSPEED) and CALL SPRITEs. However this is a slow method,
+furthermore
+while updating the sprite position the program can't do anything else.
+The file JOY-SPRITE/O contains routines that automatically link one or
+more sprites to a joystick, in either position or speed mode (but not
+both).
+The link is archieved via the interupt routine (just like sprite
+auto-motion),
+thus once the link is established your program can do almost anything
+else.</p>
+<h4><br>
+Extended basic</h4>
+<p>This program requires the PC-joystick driver to be loaded. An
+internal
+REFerence solving routine has been included to perform linking with the
+driver's routines:</p>
+<p>CALL INIT<br>
+CALL LOAD("DSKx.PC-JOY/DRV")<br>
+CALL LOAD("DSKx.JOY-SPRITE/O")</p>
+<p><br>
+<u>Position mode</u></p>
+<p>This subprogram establishes a link in position mode between a
+jpoystick
+and (upto) 28 sprites.</p>
+<p>CALL LINK("J2SPOS",joynb,spritenb,vertoff,horizoff)</p>
+<p><i>Joynb </i>is joystick number (1 or 2)<br>
+<i>Spritenb </i>is sprite number: 1 to 28 replaces any previous link
+by
+this one -1 to -28 adds this sprite to previously linked ones. 0
+cancels
+any link for both joysticks.<br>
+<i>Vertoff </i>is vertical offset between joystick and sprite
+positions.<br>
+<i>Horizoff </i>is horizontal offset. </p>
+<p>Offsets allow you to link several sprites to the same joystick,
+without
+having them necessarily sumperimposed..</p>
+<p>Exemple:<br>
+CALL SPRITE(#1, etc ,#2, etc) ! Display sprites 1 and 2.<br>
+CALL LINK("J2SPOS",1,1,0,0) ! Links sprite 1 to joystick 1.<br>
+CALL LINK("J2SPOS",1,-2,8,0) ! Adds sprite 2, one char below
+sprite 1.</p>
+<p><br>
+<u>Speed mode</u></p>
+<p>This subprogram establishes a link in speed mode between a joystick
+and (upto) 28 sprites.</p>
+<p>CALL LINK("J2SPED",joynb,spritenb,vfactor,hfactor)</p>
+<p><i>Joynb </i>is joystick number (1 or 2). Negative values (-1,-2)
+allow
+for screen borders trespassing.<br>
+<i>Spritenb </i>is sprite number: 1 to 28 replaces any previous link
+with
+this one. -1 to -28 adds this sprite to previously linked ones. 0
+cancels
+any link for both joysticks.<br>
+<i>Vfactor </i>is speed factor in the vertical direction (1 to 255).<br>
+<i>Hfactor </i>is speed factor in the horizontal direction (1 to 255).</p>
+<p>By playing with the speed factors you can have sprites responding
+differently
+to the same joystick position. A low factor means that a sprite will
+move
+slowly, whereas high factors make it move fast.</p>
+<p>Exemple:<br>
+CALL SPRITE(#1, etc, #2, etc) ! Display sprites 1 and 2<br>
+CALL LINK("J2SPED",1,1,10,10) ! Link sprite 1, slow speed, check
+borders <br>
+CALL LINK("J2SPED",-1,-2,100,100) ! Add sprite 2, fast, crossing
+borders.</p>
+<p><br>
+<u>Application notes</u></p>
+<ul>
+  <li>You can have one joystick in speed mode and one in position mode,
+but
+for a given joystick all sprites must be linked in the same mode (the
+last
+call decides which).<br>
+  </li>
+  <li>Normally sprite position is updated every second interrupt in
+order
+not to slow extended basic execution too much. You can have it updated
+at a different rate: a higher value means that sprites will move less
+often
+and may appear to move "stepwise". A lower value ensures a smooth
+move but may delay extended basic execution. Of course, sprite speed is
+also affected, requiring speed factors adjustments.<br>
+    <br>
+CALL LINK("CYCLES",cyclenb)<br>
+    <br>
+    <i>Cyclenb </i>indicates how often updates must be done: 1 means
+at each
+interrupt, 2 means every second interupt, etc. Note that values above
+50
+are not allowed.</li>
+</ul>
+<h4><br>
+<a name="sprite link assem"></a>Assembly language</h4>
+<p>These routines are meant for use from extended basic, however you
+can
+use the interupte routine from assembly if you feel so. To create links
+use:</p>
+<p>BLWP @AJTOS</p>
+<p>With R0 containing cycles number (1=update at each interupt, 2=at
+every
+2nd...)<br>
+R1 containing a pointer to a sprite list for joystick 1,<br>
+R2 containing a pointer to a sprite list for joystick 2.</p>
+<pre>List format:<br>       DATA flag                 0=posisiton mode, &gt;FFFF= speed mode<br>       BYTE spritenb             Sprite number (1 to 32)<br>       BYTE vertical             Vertical offset or speed factor<br>       BYTE horizontal           Horizontal offset or speed factor<br>       ...                       Repeat these 2 bytes for as many sprites as you like<br>       BYTE 0                    End-of-list mark.</pre>
+<p>You should then allow for interupts in a frequently executed
+location:</p>
+<pre>       LIMI 2<br>       LIMI 0</pre>
+<p>To cancel a list, use 0 as first sprite number. To cancel any link
+just
+do</p>
+<pre>       CLR @&gt;83C4               Clear the interrupt routine hook.</pre>
+<h3><br>
+<br>
+<a name="calibration XB"></a>Calibration program</h3>
+<p>This program you typically use only once: when you finished building
+your interface board, or adapted a new joystick to it. It analyses your
+joystick characteristics and adapts the driver file to them.</p>
+<h4><br>
+Extended Basic</h4>
+<p>The best way to calibrate your brand new joystick is to run the
+extended
+basic program CALIBRATION.</p>
+<p>Note that the first lines of this program contains the filenames and
+locations of the different assembly routines (driver, sprite linking
+and
+calibration). Make sure these are correct, or update them if necessary.</p>
+<p>From main menu select one of the following options:</p>
+<p><u>1. Select joystick</u></p>
+<p>Select joystick number: 1 or 2. Then press enter.</p>
+<p><br>
+<u>2. Crude values</u></p>
+<p>This displays crude joystick timing values. You should make sure
+that
+the range of values is at least 256 in order to allow for any value in
+speed or position mode. Actually it is better if the range is slightly
+greater then 256.</p>
+<p>If this is not the case you can modify your interface board in two
+ways:</p>
+<li>Increase the capacitors C1 (vertical) or C2 (horizontal): this
+changes
+the slope of the response curve.</li>
+<li>Increase the resistors R3 (vertical) or R4 (horizontal): this adds
+an offset to the response curve.</li>
+<p>Practically, increase the resistor if the minimal value is returned
+by joystick positions other than extreme left/up. Otherwise play with
+the
+capacitors.</p>
+<p>Note that resistors add up when placed serially (one after the
+other)
+whereas capacitors add up when placed in parallel.</p>
+<p><br>
+<u>3. Calibration</u></p>
+<p>Follow the indications displayed on screen: place and hold your
+joystick
+in the required position, then press any key.</p>
+<p>Note that you can invert up/down or left/right but you cannot invert
+the horizontal axis with the vertical one.</p>
+<p>When asked to press and hold a fire button, you may decide not to
+obey
+(for instance if you have less than 3 buttons): in this case the button
+is considered as not implemented.</p>
+<p><br>
+<u>4. Test position mode</u></p>
+<p>Move the joystick and check the values (obtained with "JPOS").
+Make sure they are in the indicated range. Repeat calibration if this
+is
+note the case.</p>
+<p>A white square is also displayed to demonstate joystick to sprite
+linking.</p>
+<p>Once you made up your mind, press any key to return to the main menu.</p>
+<p><br>
+<u>5. Test speed mode</u></p>
+<p>Move the joystick and check the values (obtained with "JSPEED").
+Make sure they are in the indicated range. Recalibrate if this is not
+the
+case.</p>
+<p>To demonstrate automatic sprite linking two sprites are displayed: a
+white one that moves very slowly and does not pass screen borders and a
+red one that moves very fast and crosses border.</p>
+<p>You may modify the speed factors for these sprites by editing the
+values
+of FAST and SLOW in the first lines of the program.</p>
+<p>Press any key to return to the main menu.</p>
+<p><br>
+<u>6. Test buttons</u></p>
+<p>Press buttons alone, together or in combination with the keyboard
+keys
+&lt;fctn&gt;, &lt;shift&gt; and &lt;ctrl&gt;. Check that the returned
+values
+match what is expected. Note that a value is negated after a while to
+indicate
+that no change occured.</p>
+<p>Buttons can also be tested with options 4 and 5, but only for the
+currently
+selected joystick, whereas this option allows for testing on both
+sticks.</p>
+<p><br>
+<u>7. Save calibration</u></p>
+<p>Once you're happy with the results, you can save calibration by
+updating
+the driver file. Just enter the filename and press enter.</p>
+<p>The currently used driver is proposed as default, but you may decide
+to keep it intact and to save calibration into another file. In this
+case,
+this file should already contain a copy of the driver, since only the
+first
+records are modified.</p>
+<p><br>
+<u>0. Exit program</u></p>
+<p>You'll be asked for confirmation if option 3 was executed but not
+option
+7.</p>
+<h4><br>
+<a name="calibration direct in xb"></a>Direct access</h4>
+<p>In case you would like to write your own calibration program
+(although
+I don't see why) this is how to access the assembly routine:</p>
+<p>CALL INIT<br>
+CALL LOAD("DSKx.JOY-CAL/O")<br>
+CALL LINK("JCAL",joynb,param)</p>
+<p><i>Joynb </i>is joystick number 1 or 2.<br>
+<i>Param </i>is the number of the parameter to update:</p>
+<ul>
+  <p>0 reset all parameters<br>
+1 fully up<br>
+2 fully down<br>
+3 fully left<br>
+4 fully right, perform range calculations<br>
+5 centered up<br>
+6 centered down<br>
+7 centered left<br>
+8 centered right, perform range calculations<br>
+9 button 1<br>
+10 button 2<br>
+11 button 3</p>
+</ul>
+<p>Note that accesing parameters 4 and 8 perform calculations, thus if
+you call parameters 5 to 7 you must then call param 8. Similarly, if
+you
+change params 1 to 3, you must then call params 4 AND 8.</p>
+<p>CALL LINK("JCAL",-1,R1$,R2$,R3$,R4$)</p>
+<p>This returns calibration and calculation results in the form of four
+DF80 records that should be copied into the driver file, as records 1
+to
+4. Note that record 0 should be left intact.</p>
+<h4><br>
+<a name="calibration assem"></a>Assembly language</h4>
+<p>To perform calibration from an assembly language program, follow the
+same procedure than from Extended basic. Just call:</p>
+<p>BLWP @AJCAL</p>
+<p>with joystick number (1 or 2) in R0<br>
+and parameter number (0 to 11) in R1</p>
+<p>No routine is provided to create DF80 records, this is only
+available
+from Extended Basic.</p>
+<h3><br>
+<a name="Ti-artist drivers"></a>TI-Artist drivers</h3>
+<p>These subroutine files are provided to allow for use of the PC
+joystick
+with TI-Artist version 1 and TI-Artist Plus!</p>
+<h4>TI-Artist version I</h4>
+<p>While in TI-Artist select option C, then number 2 (load external
+DSR)
+and enter DSKx.ART/DRV as a filename. This is a memory image DF80 file
+containing a special driver for PC-joysticks. Unfortunately the
+ridiculously
+small amount of memory reserved for such drivers did not allow me to
+implement
+a sophisticated driver, this is the best I could pack in less than 256
+bytes! (Note there are a few garbage characters at the end of the
+prompt,
+these are calibration data not bugs!).</p>
+<p><b>Fctn-M</b> Toggles between position mode and speed mode. Caution:
+press it briefly!</p>
+<p><b>Fctn ;</b> toggles TI-joystick emulation on/off in speed mode,
+Fctn-;
+. When emulation is on, your PC joystick can be used just as a TI
+joystick
+in slow motion.</p>
+<p><b>Fctn =</b> can be used to exit TI-Artist (unless is was disabled).</p>
+<p><b>Fire button 1</b> emulates the &lt;enter&gt; key. The exception
+is
+in "Drawing" mode: pressing (and holding) button 1 results in
+drawing points, whereas pressing &lt;enter&gt; enters/exits continous
+drawing
+(i.e. toggles pen up/down). N.B. In "Point" mode, button 1 must
+be released before a new point can be drawned, contrarly to what
+happens
+in "drawing" mode.</p>
+<p><b>Fire button 2</b> emulates the spacebar.</p>
+<h4><br>
+<a name="artist plus"></a>TI-Artist Plus!</h4>
+<p>Load the driver DSKx.ART+/DRV while in main menu. From then on:</p>
+<p><b>Fctn-L</b> (Location) selects position mode,</p>
+<p><b>Fctn-M</b> (Motion) selects speed mode.</p>
+<p><b>Fctn-; </b>toggles TI-joystick emulation on/off in speed mode.
+When
+it's on, your PC joystick can be used just as a TI joystick in slow
+motion.</p>
+<p><b>Fire buttons 1</b> emulates &lt;enter&gt; as with TI-Artist
+versions
+I.</p>
+<p><b>Fire button 2</b> emulates the space bar.</p>
+<h4><br>
+<a name="artist calibration"></a>Calibration</h4>
+<p>Due to the small size of these drivers, the usual calibration
+program
+does not apply. Instead you should run the Extended Basic program
+ART/SETUP.</p>
+<p>When started the program fetches current values from the driver
+specified
+in line 110. The driver type (Artist I or Artist Plus!) is determined
+automatically
+and remain fixed until the end of the program.</p>
+<p>From the main menu, you can choose among the following options:</p>
+<p><u>1. Position mode</u></p>
+<p>Here you see the pre-defined values for horizontal and vertical
+timing
+ranges.</p>
+<p>You can modify these values and see what it gives with TI-Artist.
+The
+principle is that, if the cursor doesn't reach the right/bottom border
+of the screen, then you should decrease the corresponding range value.</p>
+<p><br>
+<u>2. Speed mode</u></p>
+<p>Here you see the limits of the central, neutral area in the four
+directions.
+You can modify them, keeping in mind that right must be greater than
+left
+and down greater than up.</p>
+<p><br>
+<u>3. Default mode</u></p>
+<p>This determines which mode is used when loading the driver.</p>
+<p>You can modify this by selecting 1 or 2. Remember that you can
+always
+switch mode during TI-Artist execution, by pressing Fctn-M / Fctn-L.</p>
+<p><br>
+<u>4. Quit key</u></p>
+<p>This determines whether the &lt;quit&gt; key will be active. If
+you're
+afraid to press it by mistake, disable it with 0. If you like the idea
+to quickly quit TI-Artist I, enable it with 1. This option is not
+available
+for TI-Artist Plus!</p>
+<p><br>
+<u>5. Joystick number</u></p>
+<p>This selects the joystick to use with TI-Artist. Enter its number (1
+or 2).</p>
+<p><br>
+<u>6. Save setup</u></p>
+<p>The new values can now be saved into the driver file. Enter the file
+name (the default driver is proposed, but you can enter any filename).
+Entering an empty line returns to main menu, otherwise the driver file
+is updated (or created of necessary).</p>
+<p><br>
+<u>0. Exit program</u></p>
+<p>If the setup was modified and not saved you are asked if you really
+want to exit. Enter "Y" to exit, "N" to return to main
+menu. No confirmation is required if the driver was saved.</p>
+<address><br>
+<br>
+Revision 1. 6/16/99 OK to release<br>
+Revision 2. 5/2/00 Added pictures<br>
+<br>
+</address>
+<center>
+<p><br>
+<a href="titechpages.htm">Back to the TI-99/4A Tech Pages</a></p>
+</center>
+</body>
+</html>

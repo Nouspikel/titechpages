@@ -1,0 +1,868 @@
+<!doctype html public "-//w3c//dtd html 4.0 transitional//en">
+<html>
+<head>
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+   <meta name="GENERATOR" content="Mozilla/4.79 [en] (WinNT; U) [Netscape]">
+   <title>Bug99v2</title>
+</head>
+<body>
+
+<center>
+<h1>
+<a href="http://www.nouspikel.com/ti99/titechpages.htm"><img SRC="logo.jpg" style="border: 0px solid ; height: 33px; width: 95px;" title="" height=33 width=95></a></h1></center>
+Bug99 user manual
+<p>Getting started
+<p>Starting with version 2, Bug99 became modular. That is, there isBug99.exe,
+the main executable, and a bunch of DLLs that serve to implement optional
+functions, e.g. languages, devices or plugins. The idea is that third party
+programmers can bring their contribution to the project by writing a dedicated
+DLL (instructions on how to do this, and "skeletton" programs in C++ are
+available upon request). In addition, Bug99 can launch external applications
+used to build your program in different languages. The distribution zip
+file currently come with Jean-Francois Rossel's assembler and GPL assembler
+package.
+<p>It is advised that you expand the zip file keeping its internal subdirectories:
+languages, devices, plugins and disabled. It's not an abolute requirement,
+as Bug99 also searches for DLLs in its own main directory, but it makes
+things better organised. The following DLLs are packd within the ZIP file
+<p>The following programs should reside in the main bug99 folder:
+<br>Bug99.exe&nbsp;&nbsp;&nbsp; The main application.
+<br>xxxx.dll&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; A third party DLL
+allowing Bug99 to control the parallel port directly, in spite of Windows
+paranoid restrictions restrictions. This DLL should be placed in the same
+directory as Bug99.exe
+<br>MFC40.dll&nbsp;&nbsp; A MS DLL containing the implementation of MFC
+4.0. You may have a different version in your windows/system directory,
+so make sure this one is here, do it is used in priority with Bug99.
+<br>MSVC40.dll&nbsp;&nbsp;&nbsp; A MS DLL containing routines specific
+to Visual C++ 4.0. Here also, you may have a different (and possibly incompatible)
+version, so make sure this one is in the Bug99 directory.
+<p>ConsoleRom.bin&nbsp;&nbsp;&nbsp; A memory-image of the console ROMs.
+<br>ConsoleGroms.bin A memory-image of the 3 console GROMs.
+<br>ConsoleEeprom.bin A memory-image of the console modification I suggest
+on my site, which is backing the console ROMs with EEPROMs, so you can
+write your own version of the OS.
+<br>RS232Rom.bin A memory-image of the RS232 card ROMs.
+<br>GramKarteRom.bin A memory-image of the german Gram Karte.
+<br>IdeRam.bin&nbsp;&nbsp;&nbsp; A memory-image of my IDE card battery-backed
+RAM
+<br>IdeXram.bin&nbsp;&nbsp;&nbsp; A memory-image of the RTC 6517` clock's
+extended memory on the IDE card
+<br>pCodeRom.bin&nbsp;&nbsp;&nbsp; A memory-image of the p-code card ROMs.
+<br>pCodeGrom.bin&nbsp;&nbsp;&nbsp; A memory-image of the p-code card GROMs.
+<br>UsbRom.bin&nbsp;&nbsp;&nbsp; A memory-image of my USB-SM card flash
+EEPROM
+<br>SMcard.bin&nbsp;&nbsp;&nbsp; A memory-image of a SmartCard to be used
+with the USB-SM card.
+<br>HrdDsr.bin&nbsp;&nbsp;&nbsp; A memory-image of the Horizon ramdisk's
+DSRs (residing in battery-backed SRAM)
+<br>HrdDisk.bin&nbsp;&nbsp;&nbsp; A memory-image of the battery-backed
+Ramdisk space in the Horizon ramdisk card.
+<br>Ams.bin&nbsp;&nbsp;&nbsp; A memory-image of the HAMS card's optional
+EEPROMs
+<p>Workspace.wrk&nbsp;&nbsp;&nbsp; The workspace file that contains all
+the configuration options, emulated devices, layout of Bug99 windows, etc.
+Bug99 will create this file if you don't have one, but the one I am providing
+contains a basic setup which I consider useful. Feel free to use it or
+not, as you wish.
+<p>The following DLLs are used to implement devices in the emulator part
+of Bug99. If you want to use a device, place it in the "Devices" subfolder.
+If you are not interrested by a device, park its DLL in the "Disabled"
+directory and Bug99 will ignore it.
+<p>RS232.dll&nbsp;&nbsp;&nbsp; Emulation of the RS232 card
+<br>Mem32k.dll&nbsp;&nbsp;&nbsp; Emulation of TI 32k memory card.
+<br>GramKarte.dll&nbsp;&nbsp;&nbsp; Emulation of the german GramKarte
+<br>SAMS.dll&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Emulation of the
+AMS, SAMS and HAMS memory expansion cards
+<br>IDE.dll&nbsp;&nbsp;&nbsp; Emulation of my IDE card (version 2)
+<br>USB-SM.dll&nbsp;&nbsp;&nbsp; Emulation of my USB-SM card
+<br>Horizon.dll&nbsp;&nbsp;&nbsp; Emulation of Horizon's Ramdisk card
+<br>pCode.dll&nbsp;&nbsp;&nbsp; Emulation of TI's p-code card.
+<p>The following files are used to implement languages and should be placed
+in the "Languages" subfolder. If you don't need a language, park its DLL
+in the "Diabled" subfolder.
+<br>Lang9900.dll&nbsp;&nbsp;&nbsp; A DLL implementing TMS9900 assembly
+functionallity within Bug99
+<br>LangGPL.dll&nbsp;&nbsp;&nbsp; A DLL implementing GPL functionality
+within Bug99.
+<br>As99.exe&nbsp;&nbsp;&nbsp; J-F Rossel's 9900 cross-assembler.
+<br>AsGpl.exe&nbsp;&nbsp;&nbsp; J-F Rossel's GPL cross-assembler.
+<br>Load99.exe&nbsp;&nbsp;&nbsp; J-F Rossel's linker (works with both 9900
+and GPL).
+<p>The following files implement "plugins", i.e. extentions to Bug99 basic
+functions.
+<p>Gpl.dll&nbsp;&nbsp;&nbsp; Implements the GPL window, GPL-related breakpoints
+and traced events.
+<br>Hits.dll&nbsp;&nbsp;&nbsp; Implements the hitmap window and its related
+counters. This is a vey memory-hungry feature, which is why it was placed
+in a DLL,
+<p>Once you have all these files in place, just launch Bug99.exe and the
+program will start.
+<p>You may want to start by configuring the emulated devices by paying
+a visit to the Setup->CRU map and Setup->Devices dialog boxes. This is
+a bit of a chore, but you only need to do it once, as your configuration
+will be saved in the workspace file, Alternatively, if my copy of Workspace.wrk
+is in Bug99 main directory, your system will be configured with my choices
+(which may or may not be appropriate for you, depending on which devices
+you elected to emulate).
+<p>Your next step will genrally be to create a new project, but before
+we go there let me introduce you with the general layout of Bug99 windows,
+<p>General layout
+<p>Bug99 lets you open a large numer of windows of many different types
+and there is a risk that you get lost in all these windows. To help you
+organize your workspace, Bug99 v2 introduces three new features: modes,
+window docking and window stacking. These come on top of the usual Window
+submenu commands: Window-->Cascade, Window-->Tile and Window-->Arrange
+icons.
+<p>Modes
+<p>Bug99 offers six different modes, which can be accessed via the View-->Mode
+menu, or the corresponding buttons on the toolbar. A mode simply remembers
+the set of windows currently opened, as well as the layout of the toolbar.
+When you switch modes, the windows of the current mode become invisible,
+and those of the mode you selected become visible (and the toolbar changes
+layout, if you so decided). The six modes are called Edit, Debug, Optimize,
+Hack, Test and Play but these are just suggestions: in fact, all modes
+are equivalent.
+<p>Window docking
+<p>Any window can be docked to either of the 4 sides of the work area.
+Docked windows stretch or shrink so as to always cover the entire workspace.
+Windows that are not docked "float" on top of the docked ones, unless they
+aare minimized, in wich case they are under the docked windows and thus
+invisible.
+<p>Because docked windows must always touch one side, you can only have
+two rows and two columns (if there were 3, the middle one wouldn't be docked).
+Each row and column can have as many windows as you wish. All windows in
+a row must have the same height: if you resize one the them, the height
+of the entire row is change. If you change the width of a row window, the
+neighbouring window stretches or shrinks to fill any gap. Similarly, all
+windows in a column must have the same width, and resizing one of them
+resizes the entire column.
+<p>There are two basic ways to combine two rows and two columns: rows between
+columns or columns between rows. With the former, one or two column go
+from the top to the bottom of the screen. Zero, one or two rows occupy
+the space left between the column(s). With the later, one or two rows span
+the entire width of the screen, while zero, one or two column occupy the
+space left by the row(s). You decide which layout will be used when you
+dock the first window: if you dock it to the top or bottom border, it selects
+the column-between-rows style. If you dock it to one side, it selects the
+rows-between-columns style.
+<p>To dock a window, bring it close to one of the 4 sides and select Window-->Docked.
+If there are other docked windows, they will shrink so as to accomodate
+the new one, but there are limits to this process: a window cannot shrink
+to a zero size. Thus, the window being docked may need to be shrunk too.
+The window is always docked to the side it is the closest to.Tip: to dock
+a window left of the leftmost window in a row, place is so that it is very
+close to the top (or bottom) of the work area, but trespasses the left
+border by a large amount, so it won't dock to the left. Similarly, to dock
+a window above the first window in a column, bring it a large way off the
+top of the screen and very close to the left (or right) side before triggering
+docking.
+<p>To undock a window, clink into it to activate it, then select Window-->Docked
+again to remove the checkmark. The undocked window keeps its current size
+but becomes floating, and its title bar reappears. The remaining docked
+windows will stretch to fill the gap.
+<p>Window stacking
+<p>You can arrange windows in stack with the Window-->Stack command. All
+windows in a given stack have the same size and position, thus only one
+of them is active at any given time, all the others are invisible. If you
+move or resize it, the position and size of all the windows is the stack
+is changed.
+<p>To stack a window, bring its upper left corner on top of another window
+and select Window-->Stack. The incoming window will become the active one
+in the stack. You can stack a window into an existing stack, in which case
+it will be inserted into the stack just above the currently visible window.
+You can also stack a preformed stack on top of a window, or even into another
+stack. Again, the incoming stack will be inserted on top of the currently
+visible window inside the receiving stack.
+<p>There are two ways to travel between the various windows in a stack.
+The first one is to use the Window-->Show upper and Window-->Show lower
+commands. The other way is to select the window you want from the tab control
+that appears at the top of most stacked windows (the exceptions are text
+windows and screen image, because the tab control would get in the way
+of the display).
+<p>To unstack a window, make it the visible one and select Window-->Unstack.
+It pops out of the stack and moves slightly down and to the right, so as
+to unveil the rest of the stack. You can only unstack windows, one at a
+time, sorry.
+<p>These various features can be combined: any mode can have docked and
+stacked windows. You can dock a stack, or stack a floating window on top
+of a docked one (in which case it becomes docked too). When unstacking
+a docked window, you also automatically undock it.
+<p>Creating new windows
+<p>Most windows, including all those involved in debugging, can be created
+via the File-->New command. It displays the type of window to open: Registers,
+Disassembly, Memory editor, Watch window, Breakpoint manager,Trace viewer,
+TI/99/4A screen, Bus manager, plus any window type defined in a DLL plugin.
+In most cases, one of each is enough, but there are some (e.g.. Watch,
+Memory or Disassembly) for which you may want to open multiple copies,
+pointing at different addresses.
+<p>Another way to open such windows is via the Window menu: its third subsection
+lists the same window types again. The difference is that a new window
+will only be created if no window of this type alredy exists. If one (or
+more) exists, it will become the active window, pop up on top of the others,
+and recieve the input focus (this may be a little less obvious if the window
+in question is docked, as it can remain covered by free floating windows).
+By contrast,&nbsp;&nbsp; File-->New always creates a new window, even if
+other windows of this type already exist.
+<p>Also note that the 4th subsection of the Window menu list all opened
+(and currently visible) windows by name. You can jump into one of them
+by simply selecting it from this menu.
+<p>There are a few windows that open via other mechanisms. A Project window,
+for instance, must be create with Project-->New. Text windows can either
+be created with File-->New text, or via the project window, by right clicking
+on a text file (source, script, list or capture) and selecting "Open file".
+<p>Saving and Opening windows
+<p>The File-->Save and File-->Save as commands let you save a debugger
+window to file. By default, you are saving them in an internal format that
+contains the windows characteristics, but not its contents. For instance,
+when saving a Watch window, you save the list of addresses it points at,
+but the the content of these addresses. The File-->Open command lets you
+reopen these files and create a window with the same characteristics than
+the one you saved.
+<p>Alternatively, you can save any window to a text file, using File-->Save
+as text. Such a text file does contain the contents of the window, but
+it cannot be used to reopen a similar window. However, it can be opened
+as text, examined outside of Bug99 with a text editor and printed.
+<p>The command File-->Open as text allows you to open a previously saved
+text file, but also other types of files, that are normally handled by
+Bug99 in a special viewer. For instance, trace logs normally open in the
+trace viewer when you use File-->Open, but you can open them in the text
+editor by using File-->Open as text. This command also allows you to inspect
+file created by language tools, such as object files for instance.
+<p>Finally, the command File-->Save all text files comes handy when working
+on a program split between multiple files. It allows you to save all your
+changes with one click, rather than having to save each source file individually.
+<p>Adjusting window contents
+<p>Some windows display a list control that may contain a variable number
+of lines. This is the case, typically, for the disassembly window. You
+can change the number of lines displayed in the control with View-->Lines.
+This may be usefull when working with a remote system: since data transfer
+is slow you don't want to display too many lines. By contrast, when working
+with the emulation, you can display a much larger number.
+<p>Window-->Resize allow you to adjust the dimensions of a window to best
+fit its contents. For instance, if you decreased the number of lines, the
+window may be now contain a lot of empty space. Resizing it will decrease
+its height so that it matches the number of lines, and change its width
+to a predefined ideal value.
+<p>The View-->Zoom submenu is dedicated to the TI-99/4A screen image. It
+allows you to shrink or magnify the screen image and will resize the window
+accordingy. View-->Zoom-->Fit window expands or shrinks the screen image
+so that it fits the dimensions of the current window (the window may be
+shrunk in its larger dimension to preserve the aspect ratio).
+<p>Saving and opening the workspace
+<p>In Bug99, the workspace is defined as the type and position of every
+window currently opened in all 6 modes. It also comprises the 6 toolbar
+layout, your options, the list of emulated devices and their settings,
+language settings, most recently used files, etc. This information is saved
+into a file called Workspace.wrk when you leave Bug99 with the File-->Exit
+command and can be automatically reloaded next time you launch Bug99. You
+can control what should be reloaded with Setup-->Options-->Workspace.
+<p>In addition, you can save it at any time with the File-->Save workspace
+command, which lets you choose a different file name, if you so wish. A
+saved workspace can be loaded with the Load-->Workspace command, which
+is a convenient way to quickly put Bug99 in your favorite configuration.
+<p><img SRC="imageGHT.JPG" height=16 width=32>
+<p>Working with projects
+<p>Bug99 includes a project manager, which helps you keeping track of your
+TI-99 programming projects, calls external utilites, serves as a navigation
+tool, etc. As a general rule, you will begin by creating a new project,
+then, as you come back, open a previously started project.
+<p>There are several ways to create a new project, depending on whether
+you already have your source files or not. For simplicity, let's assume
+you are starting from scratch and select Project->New->Simple. You are
+presented with a list of implemented languages (by default 9900 and GPL),
+plus the "Generic" option which creates a project with no language info
+attached. Select the language you'd like to write your program in and Bug99
+will ask you to name a project file (.MAK extension). I strongly recommend
+that you create a dedicated subfolder for each project you start and place
+the .MAK file in it. Bug99 will also use it as default location for all
+the source files you write, the object files and memory-image files created
+by external utilities, etc. This is a neat way of keeping your projects
+distinct from each other (but then again, it's up to you).
+<p>Once you create the .mak file, Bug99 present's you with a new project
+window. Project windows contain 5 tabs:
+<br>- Files. This is where you tell Bug99 about the files that are part
+of your program, an how to handle them. Many Bug99 features rely on this
+info, so make sure you do it right.
+<br>- Labels. This is navigtional tool. Bug99 scans any source file you
+defined in the "Files" tab, extracts label names and displays them in a
+hierarchical manner (you can customize this with Setup->Languages->Structure)
+<br>- Memory. This is where you tell Bug99 about the memory structure your
+program is meant to use, and where your program segments are located (don't
+worry, Bug99 can determine this automatically). This allows source-level
+debugging, i.e. tracking the current execution point in your source files.
+<br>- Info. This is used to enter administrative details about your project.
+Bug99 also uses this tab to display various statistics, which you may find
+useful.
+<br>- Results. Bug99 uses this type to display the results of various operations.
+Typically, building your project and performing an "across-files" text
+search.
+<p>Once you created a new project it is saved on your PC, in the MAK file
+you selected, in a format compatible with MS NMAKE (a project-building
+utility). You can reopen it in a different project by selecting "Project->Open"
+when the focus is NOT on a project window. If you do it when the focus
+IS on a project window, the opened project will be merged with the existing
+one.
+<br>Project->Save as allows you to save a copy of your project in a different
+file.
+<br>Project->Close closes the current project (same as closing the project
+window).
+<br>Project->Save all saves all changes you have made to your project and
+any source files it contains. This is done automatically when you build
+the project.
+<p>Before we talk about building projects, let's see the project tabs in
+more details.
+<p>The files tab
+<p>This tab contains a hierachical representation of the files used by
+your project. Information flows from right to left, with human-readable
+files on the right, and machine-executable files on the left. Each node
+in the tree can be associated with a tool wich produces the file in question
+by using the node's "children", i.e. the files listed on the right of the
+node (these are known as dependancies). For instance, object files are
+created by a assembler, starting from source files.
+<p>To see which tool is used and how it is called, double-click on the
+file's icon. If you're using my Workspace.wrk file, you'll notice that
+the command line for most tools is prefilled. This is because I configured
+the Rossel package to do so (in Setup->Languages->Files). If you install
+another language package, this is something you may want to do too (not
+trivial, but once it's done it will work for all your projects using that
+language). Alternatively, you can untick the "Auto update" box and fill
+in the command line yourself. You can also use this dialog box to assign
+the file name (on your PC), change the file type, its language, etc.
+<p>Now let's see the various types of files that are available.From right
+to leftt, we have the following levels of items:
+<br>- Source files. These are text file into which you wrote you program.
+The associated tool is a text editor. By default it is Bug99's own, but
+you can pick an external one, wich as Notepad or Wordpad if you prefer.
+Note that many languages allow you to include a source file into another
+(TI assembler uses the COPY statement for this purpose). In the file tree,
+this can be represented by having a source file as a child of another source
+file (there is no restrictions on how many levels of nesting can be displayed,
+but this strongly depends on the assembler you are using).
+<br>- Object files. These are code files produced by an assembler from
+your source files. The machine code is not in executable form but interspersed
+with tons of info that allow your program to run in any memor area, and
+lets you link various pieces of program together.
+<br>- Memory-image files. These contain directly executable code, that
+must be loaded at a precise memory location to run properly. Such files
+are generated by a linker, which uses object files or library files as
+an input.There are several memory-image file formats, which mostly differ
+in the way loading information is included: EA5 (Editor/Assembler module
+option 5), GramKracker format, or my new FB6 format (an extension of EA5).
+When you double-click on the file, you also have the option of defining
+in which memory the program will be loaded (CPU, GRAM or VDP). Memory-image
+files can also be linked to each other, so they can be loaded with a single
+operation. Bug99 lets you represent this with the "multiple" memory type.
+<br>- Target. This item serves to tell Bug99 what to do with an executable
+file. It can be loaded into memory (emulated or on the remotely-connected
+TI-99/4A) ready for debugging, or stored onto a TI disk (emulated, remotely-connected
+or both). You do not need to have a target: your tree may begin with the
+memory-image file, which you can always load with File->Load memory. Or
+you could be building an object file or a library for futur use, in which
+case the tree root will be an object or a library file.
+<br>- Library files. Some linkers allow you to pack object files in libraries,
+which the linker uses to resolve pending references. The idea is that,
+if a label is undefined once the linker has used all the object files provided,
+it searches the libreary for a module that would define that label. If
+it finds one, it includes it in the memory-image, all other modules are
+ignored. Different linkers have different ways to deal with librearies,
+so this is really package-dependent (Rossel's linker does not support libraries).
+Libraries are created by package-specific tools known as "librarians",
+which generally take a bunch of object files as input.
+<br>- Scripts. When you find yourself typing long series of command lines
+to a given tool, it is a good idea to include these commands in a text
+file and pass it to the tool. Such text files are known as scripts and
+are supported by some linkers and librarians, more rarely by assemblers.
+<br>- List files. Well-behaved tools should offer the option to dump useful
+info into a text file, which is known as a list file. Such files are not
+really dependancies, since they are produced by the tool, not used by it.
+But since Windows trees must have all their leaves on the same side, I
+had not choice but to put list files (and capture files) together with
+the rest of the input files.
+<br>- Capture files. It may happen that a tool displays info on screen
+but does not offer the option to sent it to a list file (Rossel's linker
+does so). You will see this output in the "Results" tab of your project
+window, but Bug99 also lets you save it into a dedicated text file, for
+you to review later. These files can also be used by Bug99 to determine
+where the linker elected to place your program segments.
+<br>- Sibblings. In rare cases, a linker may produce more than one memory-image
+file. I am not talking here of linked files loaded as a whole, but of "overlay"
+files that may be loaded on demand by your program. This is difficult to
+represent with a tree structure, since Windows only allow one parent per
+node. So I implemented the following trick: if you add a new memory-image
+file on top of an existing one, the new one appears as a sibbling of the
+old one, i.e. on the same level of the tree. In place of children the new
+file has a shortcut wich, when double-click, places the cursor on the initial
+memory-image file and expands its dependancies. This way, you know that
+both memory-image files are derived from the same set of depandancies.
+Yes, I know it's complicated, but most likely you'll never need it.
+<p>To modify the file tree structure, click on a file to select it. Then
+you can either delete this file with Project->Remove file, change its name
+and characteristics with Project->File properties, or add dependencies
+to this file with Project->Add file. Source files and script files are
+supposed to exist, so Bug99 pops a dialog for you to locate them on disk,
+but you are free to enter a non-existing file name in the dialog.
+<p>The Label tab
+<p>This read-only tab is populated by Bug99 from the contents of any source
+files you declared in the "Files" tab. This can be done automatically when
+you save a source file, but you can also trigger it manually with "Project->Scan
+sources" in case you disabled the automatic behaviour (with "Project->Options->Auto-scan
+sources").
+<p>The tree in this tab is meant as a navigational tool and presents all
+your program labels arranged in a structured way. Double-clicking on a
+label will open the corresponding file in the text editor and scroll down
+to the relevant line.
+<p>You are free to define whatever label types you like (in Setup->Languages->Structure),
+but the general tree structure is the following:
+<br>- At the root of the tree is the target you defined in the "Files"
+tree. There can be more than one, if you have more than one target. On
+the next level you can have:
+<br>- Files. These represent the source files in your project.
+<br>- Segments. Sections of your program identified by opcodes like PSEG,
+CSEG, DSEG within the source file. There is a hierachical issue between
+files and segments, as a file can contain several segments, but a segment
+can be spread among several files. So you have the option to display files
+at a higher level that segments, or segments before files, or files only,
+or segment only. Do choose between thse options, right-click in the "Labels"
+tab.
+<br>- Procedures and functions. These are optional, as many assembler don't
+support procedural instructions, such as PROC. If they don't, you can always
+simulate a procedure, based on the label name, or the line immediately
+preceeding it. For instance, in my Workspace.wrk file, I define a procedure
+as a label immediately following a line that begins with *------.
+<br>- Primary labels. These come in two colors: red and blue. You are free
+to use them as you wish.
+<br>- Secondary labels. These come in grey or brown. They are displayed
+as children of the previous primary label (if any). This allows you to
+hide unimportant labels in the tree: right click on a node and select Expand->To
+main labels. Again, you choose what makes a label secondary. In Workspace.wrk,
+I defined as brown labels any name that begins with SKxx or LPxx (where
+xx is a number). I use these to skip over an instruction, or jump back
+to the top of a loop.
+<br>- Independent labels. Green or violet. These are displayed at the same
+level than primary labels, but they do not accept secondary labels as children.
+Worskpace.wrk uses the green label for data statements.
+<br>- Equates. Labels defined with an EQU statements (or the logical equivalent
+in whatever package you are using) are different from all other labels
+in that they are not integrated in a precide position in you program; they
+don't necessarily point to a memory area. Thus, you have the options to
+group them all together in a pseudo-segment called "EQU". Right-click on
+the tree and select Show->EQU separately to toggle this function.
+<p>At any time, you can obtain info on a label by right-clicking on it
+and selecting "Properties". You can jump to the location where this label
+appears in your source files by selecting "Goto label" (or by double-clicking
+on the label).
+<p>The Memory tab
+<p>This tab holds a graphical representation of the memory available in
+your system. It does not need to be all memories of all types, only the
+portion that your program is meant to use. The tree can also be used to
+indicate the position of your program segments in memory, an information
+that Bug99 needs for source level debugging.
+<p>The memory tree is based on a 4-level hierarchical concept. All but
+Blocks are optional.
+<br>- Memory model. In principle, there will be only one, but you may elect
+to build different version of your programs for differently configured
+systems. For instance, one for users that have the 32K expansion card,
+one for the Mini-memory cartridge, and one for the SAMS card. Although
+there can be several concurent models, only one of them can be active at
+any time. Select it by right-clicking on it and picking "Current model"
+from the menu. The active model has a cyan screen icon, inactive models
+have a black screen.
+<br>- Memory device. Such item represent a physical device whtat comprises
+some memory. Typically, a memory expansion card, but not necessarily so:
+you may want to write DSRs for the USM-SM card, for instance. As far as
+this tab is concerned, a memory device is merely a "folder" for a bunch
+of memory bocks.
+<br>- Memory block. This is the only mandatory item: you must have at least
+one block for the memory tree to be usable by Bug99. A block is a range
+of consecutive memory addresses, of the same memory type, which may (or
+may not, for ROMs) be used to load your program into. By double-clicking
+on a block, you can name it, select the device it belongs to and, most
+importantly, define its memory type and range of addresses.
+<br>- Pages. Some memory devices offer paged memory: the same address space
+can be used to display various chunks of memory. Many cartridges use this
+trick to display more than 8K of memory in the >6000-7FFF range. And of
+course, this is how the AMS and its derivative manage to offer you more
+than 64K of memory with a 16-bits adressing space. If you are using a paged
+memory device, you can define a page range for each block. Then, by right
+clicking on the block, you can decide if you wish to display all these
+pages as children of the block, a subrange of these, or only those pages
+that are in use (i.e. that contain segments). By toggling the "Auto" item,
+you ensure that this block's pages will be constantly updated when segments
+are moved.
+<br>- Bases. This is the equivalent of pages for GROM/GRAM: different chunks
+of memory are accessed via different base addresses: >9800, >9804, etc.
+Bug99 treats bases just like pages for the purpose of this tab.
+<p>To populate the memory tree, you could use Project->Add memory and build
+it step by step: adding a model, then a device, then blocks, etc. Or you
+could select Project->Add memory->System to create a memory model containing
+all devices that are currently active (switched on) in the emulator. You
+can then prune the tree by removing unwanted items: either with Project->Remove
+memory, or by right-clicking on an item and selecting "Delete" from the
+menu.
+<br>Another option is to select Project->Add memory->From files, which
+causes Bug99 to parse your files in search of information on the memory
+structure used. Typically, such info will be present in the linker's script
+file or in its list file, but you can configure a language package to detect
+the relevant info from any file you want. This is done in "Setup->Languages->Capture"
+and is a bit tricky, but you only need to to it once for any new language
+package (I've done it for the Rossel package).
+<p>The next step is to tell Bug99 about the location of your program segments.
+In the simplest case, a single PSEG loaded in the high memory expansion,
+this is easy to do: select "Project->Assign segment->Manually" then fill
+in the proper address (generally >A000) in the dialog box. The "Exact"
+box is meant to tell Bug99 that you are sure of what you're doing. By leaving
+it unchecked, you tell Bug99 to look for your segment in a range of addresses
+(BUT THIS FEATURE IS NOT IMPLEMENTED YET).
+<p>Things become more complicated when you have multi-segment programs
+loaded in distinct chunks of memory: the location of any given segment
+likely depends on the previous ones, which can be a real headache to figure
+out. Fortunately, you can again configure the language package so that
+Bug99 can parse your file and extract segment names and locations. Typically,
+this information is provided by the linker in its list file, or possibly
+on screen (i.e. in a capture file, which is what Rossel's linker is doing).
+The details of the parsing can be programmed in "Setup->Languages->Canpture"
+and are saved as part of your workfile.
+<p>Once you created a useful model, you may want to save it into a dedicated
+file, so you can reload it later in a different project. This is achieved
+via the "Save models" and "Load models" commands (plural, because you can
+save/load several models at a time).
+<p>The Info tab
+<p>This tab contains various information and statistics about your project.
+<br>- The project name.
+<br>- Its version number (initialized as 1.0 when you create the project).
+<br>- A free text description.
+<br>- The program author (you)
+<br>- Copyright information.
+<p>Then follow 4 read-only fields that are regularly updated by Bug99:
+<br>- Date the project was created.
+<br>- The last time it was built.
+<br>- The build number.
+<br>- The number of source files.
+<br>- The number of code lines (excluding blank lines and comment lines).
+<br>- The total hands-on time (assuming you are working when the project
+is open. Bug99 does not monitor keyboard activity).
+<p>The Results tab
+<p>This tab is used to display the result of verious operations. Currently:
+<br>- Building a project: with "Project->Build", "Project->Rebuild all",
+or by right clicking on a file in the "Files" tab and selecting "Build
+this" from the menu,
+<br>- Finding a string of text in all your source files: with "Edit->Find
+in files".
+<p>You can double-click in the results list to jump to a given location.
+For instance, if the assembler reports an error, doule-clicking on it will
+open the source file in the Editor and scroll down to the offending line
+(this need to be configured in Setup->Languages->Capture). Similarly, for
+Find in files, clicking on a result will take you to the location it was
+found at.
+<p>Using the program editor
+<p>As previously mentioned, when it comes to writing code, Bug99 has no
+problem with letting you use any text editor of your choosing. However,
+Bug99 has its own built-in editor, which you may want to consider, as it
+was designed with the TI-99/4A in mind. It allows syntax highlighing, as-you-type
+error detections, code optimization for size or timing, etc.
+<p>Opening a source file
+<p>Perhaps the best way to create a new source file is from the Project
+window. In the file tab, right click on a source file icon and select "Open
+file" from the context menu: a blank file will be created and opened in
+a Source window. The same is true for files that already exists, with the
+additional entry way: in the "Labels" tab, double-click on an icon and
+the corresponding source file will appear in a Source window, scrolled
+down so as to show the label you clicked on.
+<p>Depending on how you configure Bug99 (with Setup->Options->View), source
+files may open as independent windows, or as stacked windows. The latter
+is particularly handy when tracking execution while debugging: it avoids
+crowding the screen with dozens of source windows. They are all there,
+but stacked on each other, with the relevant one on top.
+<p>Writing code
+<p>To get aquainted with the Source window, may I suggest that you write
+a minimal program such as:
+<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MOV&nbsp; R0,R0
+<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; B&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+*R11
+<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; END
+<p>As you do so, you will notice two things. First, the text appears in
+various colors. This is due to synntax highlighting, a language-dependent
+feature that was configured when I installed the language package. It's
+completely customizable and, if you don't like my choice of colors, you
+are free to change them: just go to Setup->Languages->Colouring. Bug99
+allows you to define a set of colouring rules, which either use lists of
+words to paint in a given colour, or decide on the text to colour via regular
+expressions (more on this later). You may define as many rules as you want,
+but be aware that colouring is slow in Windows' RichEditControl, so if
+your list of rules gets lenghty it may take a few seconds to colour a large
+file.
+<p>If you don't like syntax colouring, just right click in the Source window
+and untick Language->Colouring from the context menu. Note that colouring
+is language dependent, so "Generic" text files will not be coloured. And
+by the way, right clicking in the window also allows you to change the
+language in use: just select the one you want from the list at the bottom
+of the menu.
+<p>The second thing you may have noticed is that a red exclamation mark
+appeared in the left margin, then disappeared when you finished typing
+the line. This is due to a language-dependent syntax checking feature.
+To test it, change the word MOV to MOW: the red ! is back in the left margin.
+If you right click on that line in the margin, an explanation of the error
+appears at the bottom of the context menu (in this case, ! Unknown opcode/instruction).
+The message, and the red !, disappear when you correct the mistake.
+<p>You can scroll down to the next error, if any, by right clicking in
+the text field (not the margin) and selecting "Goto error". Nothing happens
+if there are no more errors downstream of the line you clicked.
+<p>As an additional error-prevention mechanism, you can right click in
+the text field and select "In range": this will display a list of all labels
+that are in range for a jump instruction starting from the current line.
+A separator indicates the position of the current line. You can then either
+dismiss the context menu, or select a label from the list. The latter will
+insert the label name at the cursor. This feature was meant as a way to
+avoid the "Label out of range" errors, which are probably the most common
+in assembly language. With GPL, this applies to the BR and BS instructions
+and select all labels in the GROM.
+<p>Another way to insert label names in the source code is to use the Edit->New
+label command. This is meant to automatically coin unique names for secondary
+labels, which begins with either SK (for skip) or LP (for loop) and end
+with a decimal number. Bug99 scans the current source file for all such
+labels and selects the first one for which there is no such name defined.
+For instance, if you have already defined SK1, SK2 and SK4, selecting Edit->New
+label->SKxx will create the label name SK3 and insert it at the cursor
+position. It will keep doing so until you insert SK3&nbsp; in the label
+field of your source file (i.e. the leftmost column), at which point it
+will move to the next available name, which is SK5 in our example.
+<p>So if you mean to skip over an instruction, type JMP, then Edit->New
+label name, hit &lt;enter>, type the instruction to be skipped, hit &lt;enter>,
+and do Edit->New label again. The latter inserts the new label in the leftmost
+column, so next time you use Edit->New label it will coin a new name.
+<p>Navigating in the source files
+<p>As mentionned above, you can jump to any label in your source file by
+clicking on its icon in the "Labels" tab of the Project window. But if
+the label name appears elsewhere in the source file, you can also right
+click on it and select "Goto label" from the menu. For instance, if you
+encounter a BL @FOOBAR instruction, this trick will take you to the FOOBAR
+label, even if it is located in a different source file.
+<p>Bug99 memorizes any jump you make just like a web browser. You can navigate
+the list back and forth with the Edit->Browse->Back and Edit->Browse->Forward,
+or you can jump to a previous location by picking it from the liat appearing
+after the separator in Edit->Browse. Note that, as with a web browser,
+if you navigate back and take a new jump, then the "forward" portion of
+the list is discarded as the new jump becomes the most advanced point in
+the list.
+<p>The left margin
+<p>The left margin is used to display a lot of different information, most
+of which is language-dependent. You can select the one you want by right-clicking
+in the margin an pick a choice from the Show submenu.
+<p>- By default, the margin displays line numbers. In case there are other
+files included inside the one you're viewing (COPY instruction), you have
+to option to include the lines of the copied file in the count, or to just
+number lines continuously across the COPY line (the former is used by the
+TI assembler and is a huge pain in the neck, if you ask me). However, if
+you open a nested file, its lines will be numbered starting from one, as
+there is no obvious way to know in which file(s) it is embeded, and where.
+<p>- The margin can display the memory address each line begins at, in
+various formats (including the segment and or the device). If the absolute
+address is not known (e.g. the segement was not assigned to a memory block),
+you can still use this feature, but better select the "Segment:Offset"
+format which makes no assumption on the actual address. If you want, you
+can assign an address to the current segment by right clicking in the text
+field and selecting "Set address" from the menu. This will call the same
+segment assignment dialog box used by the Project window, preset with the
+name of the current segment, i.e. the you in which you right-clicked.
+<p>- The margin can be used to display the size (in bytes) of the machine
+code produced by each line. If the size is zero, the margin stays empty
+for that line. You have the option to display either the size of each line
+or the cumulative size, i.e. the total size from the start of the segment.
+In this case, you can reset the counter by right clicking in the margin
+and selecting "Reset count". This comes handy when optimizing a program
+for size: to calculate the size of a given section of your program, reset
+the counter on the first line of the section that you want to size, and
+read the size in the margin of the last line.
+<p>- You can do the same thing when optimizing for execution time. The
+margin will display the execution time needed for each instruction, either
+in clock ticks or in microseconds. Here also, you can elect to display
+cumulated time and reset the counter at whatever line you want. Be careful
+though and remember that Bug99 cannot know a number of things that are
+only decided at run time. For instance, how many time a loop is executed:
+the cumulated time displayed is for one and only one iteration of the loop
+(to get an actual value, see below). Execution time may also vary depending
+on other circumstances: is a variable in slow (8-bit) or fast (16-bit)
+memory? Is a jump taken or not? Does an ABS change the sign or not? These
+parameters have to be considered by the person who implemented the language
+(i.e. wrote the external DLL). In most cases, the value will display a
+worst-case scenario timing, but you may also be able to alter parameters
+yourself. To do so, right click in the text field (not the margin) and
+select Language->Settings. For instance, TMS9900 lets you decide in which
+memory type are your registers, your code, and your variables (those accessed
+as @label).
+<p>- If you have installed the Hitmap DLL you can know how many times a
+line was executed, and the time it took. To do so, you must first run your
+program in the emulator, with the Trace->Hits option toggled on. Then,
+the left margin can display the number of time each instruction was executed,
+the total time it took (just multiplying the number of hits by the execution
+time) or the cumulated execution time. This is probably the best way to
+spot the critical portions of your code, where it will pay the most to
+optimize for speed.
+<p>The remaining commands available when you right-click in the margin
+allow you to set or clear an execution breakpoint, then to activate or
+inactivate it. Active breakpoints are displayed as a red * in the margin,
+inactive breapoints as a 0. "Jump here" moves the execution point to the
+selected line, which means that this instruction will be executed next
+when debugging. "Run to here" sets a temporary breakpoint on the selected
+line, then runs the program until it hits a breakpoint or you stop execution.
+Normally, this should result in moving the execution point to the selected
+line, unless another breakpoint is hit first, or the program never gets
+to the line you pointed (in this case, check your code).
+<br>&nbsp;
+<p>Building your project
+<p>As mentionned above, the format of the project file is compatible with
+a MAKE utility (more precisely, the syntax is a subset of that of MS NMAKE,
+with all extra project info included in the form of comments). This allows
+you to automatically build the project by either using an external MAKE
+utility, or the one built in Bug99. The idea is that the utility check
+the date stamp on your file to figure out if a file needs to be rebuilt.
+For instance, if you modified a source file, it will be more recent that
+the corresponding object file, and Bug99 will know that the object file
+needs to be reassembled. Doing so will make the object file more recent
+than the memory-image file, which will be relinked accordingly. By contrast,
+any other object file that is more recent than its source file will not
+be rebuilt... unless you demand it.
+<p>Once Bugg99 determines a file needs to be rebuilt, it calls the corresponding
+external utility (assembler, linker or librarian), with the proper arguments
+derived from its list of dependancies.
+<p>To build your project, simply select "Project->Build". The result, which
+should appear on screen were you in DOS mode, will be captured and displayed
+in the "Results" tab of your project window. If an error occured, double-clicking
+on it will generally take you to the offending place (provided this feature
+was configured when installing the language package)..
+<p>You will notice that building your project again won't produce much
+results (apart from loading it into memory) if it worked the first time.
+This is because all files are up to date. If you want to force a general
+rebuit, select "Project->Rebuild all". You may also right click on a file
+in the "Files" tab and select "Build this" from the menu. It will force
+building of that particular file and consequently of all its parents (this
+only works with Bug99, not with an exernal MAKE utility).
+<p>Debugging your project
+<p>Once your project is properly loaded into memory, it is time to debug
+it. You may want to switch display mode and open a new bunch of debugging
+windows: select View->Mode->Debug, which will make all the current windows
+invisible (you can return them with View->Mode->Edit). Now use File->New
+to open the windows you need. I suggest a Register window, a Disassembly
+window as a minimum, with possibly a Watch window or a memory Window. If
+your program displays something on the TI screen, then you should also
+open a "Screen" window.
+<p>One nice thing when debugging is to follow execution in your own source
+file, rather than in a disassembly: it's easier to figure out where you
+are when you seen your variable names and your comments. You can do this
+by toggling on the Project->Track PC option: from now on, each time you
+execute an instruction, Bug99 will attempt to find a file that covers this
+memory area and will display the relevant line inside a Source window.
+<p>At the heart of debugging is the ability to step through your program,
+either one instruction at a time, or continuously until a breakpoint is
+encountered. Bug99 allows different ways to step through a program, all
+available from the Execute menu:
+<br>- Execute->Step executes one instruction at a time. If you find yourself
+using this a lot, it may be a good idea to have a button on the toolbar
+for this command.
+<br>- Execute->Walk continuously executes instuctions at a very slow pace
+(which can be adjusted in Setup->Options->Execute). This allows you to
+follow what's going on, without having to repeatedly hit the "Step" button.
+<br>- Execute->Jog continusouly executes instructions at a relatively high
+speed. It updates the windows you have opened, but not after each instruction,
+as this would slow execution too much. You can select the refresh rate
+in Setup->Options->Execute.
+<br>- Execute->Run executes your program at maximum speed. To achieve such
+speed, Bug99 dispenses with updating the information windows, with the
+notable exeptions of the Screen window and the Bus window. In fact, depending
+on your PC, it may well run faster than an actual TI-99/4A. There is an
+option in Setup->Options->Execute that allows you to slow execution down
+to the actual speed of a TI-99/4A.
+<br>- Execute->Skip allows you to skip over an instructions without executing
+it.
+<p>Continous executions continues until a breakpoint is hit, or you interrupt
+execution by pressing the &lt;Esc> key, or clicking anywhere within the
+Bug99 window. A message box is then displayed with statistics on what has
+just been executed (you can disable this feature in Setup->Options->Execute
+if it bothers you).
+<p>Depending on the language, you may have other execution options, that
+allow to emulate various instuctions: for instance the assembly language
+package allows you to emulate a jump, a RT or a RTWP. You can also use
+Execute->Branch to jump to any address, possibly emulating a branching
+instruction: in assembly, you can simulate a BL or a BLWP for instance.
+You also have the option to emulate an interrupt, or to trigger various
+types of reset (software only, console power-up, PE-box power-up or console+PE-box
+power-up).
+<p>Using breakpoints
+<p>There are many types of breakpoints available, depending on the language
+package. Execution breakpoints can be set directly from the Disassembly
+window or the Source window, but for all the other types you should open
+a Breakpoint manager window (with File->New). This window displays a list
+of all current breakpoints and lets you install new ones.
+<p>If you have many breakpoints, the [Filter] button lets you decide which
+will appear in the list. This doesn't mean that the others are removed
+or inactivated: they are still there, but do not show up on the list.
+<br>The [Act/Inact] button allows you to activate or inactivate breakpoints
+that have been selected in the list.
+<br>Similarly, the [Remove] button permanently deletes all breakpoints
+that are currently highlighted in the list.
+<br>The [Select all] buttons selects all the visible breakpoints.
+<br>The [New] buttons calls a dialog box that lets you install a new breakpoint,
+and select the breakpoint type.
+<p>Aside from the classical execution breakpoint (which fires when the
+program counter reaches a given address), you can set memory access breakpoints
+(that fire when a given address is accessed for a read, a write, or both),
+and even CRU access breakpoints. The assembly and GPL packages also allow
+you to set opcode breakpoints, which fire when a given opcode is encountered.
+<p>Any breakpoint can be conditional, i.e. fire only if a given condition
+is true (e.g. R1 = 6). You can also set counting breakpoints that fire
+when the counter hits zero: by entering negative values you can break after
+a breakpoint was hit for a given number of times. Entiring zero will count
+up, so the breakpoint will never fire but can be used as a counter to know
+how many times a given instruction was hit.
+<p>The Execute->Breakpoints allows you to decide whether Bug99 should obey
+breakpoints at all. Toggling this option off allows you to temporarily
+disable all breakpoints (except the one installed by "Run to here") and
+to re-enable them together at a later time.
+<p>Tracing execution
+<p>Bug99 can trace a wide variety of events and save them to a text file
+which you can then review with a text editor or with the Trace window (available
+under File->New). Be aware that this text file will grow VERY rapidly,
+so be parcimonius when deciding what to trace, and do not activate tracing
+for more than a few seconds. There are actually two text files, one is
+meant to trace regular execution, the other to record changes you made
+to the program (e.g. pathcing memory) while debugging. However, you are
+free to use these files to trace whatever you want.
+<p>The first thing to do is to select which events you would like to trace,
+which you do in Trace->Setup->Execution and Trace->Setupt->Patches. Depending
+on the installed language package, you can choose among many different
+types of event to trace. The [Next] and [Previous] buttons are used in
+case there are too many types of events to display them all in one page
+of the dialog. To enable tracing of an event, just chek the box on the
+left of it. For most events, you can also decide how much information is
+listed into the text file (remember it grows fast, so don't be too greedy).
+<p>Once you've made your choice and dismissed the dialog box, you should
+enable tracing with Trace->Execution and/or Trace->Patches.
+<p>Now is time to run your program, preferably for a short period of time.
+Generally, you will want to debug an error condition, so arrange to strart
+tracing just before you cause the error to occur, then stop execution immediately.
+<p>Finally, examine the results of your tracing. Doing so with the Trace
+window has the advantage to let you filter which of the traced events you
+want to see, and to color-code them. You can then expand a critical section
+of the trace file to view more detailed events (assuming you elected to
+trace them, of course). Finally, you can use the Trace window to roll execution
+back to a given point, so you can start debugging stepwise from there (for
+this to work, you should have traced all writing operations).
+<p>The only problem with the Trace window is that it uses Windows RichEditControl,
+which is extremely slow to react. So displaying a larger trace file may
+take quite a while (even minutes). One way to avoid this is to limit the
+size of the text file when setting up the trace. When doing so, you can
+also decide whether you want tracing to stop when the file is full, or
+whether the file should continuously overwrite itself. The former is useful
+if you know that the bug you are tracking will occur rapidly after you
+start execution. Wherease a circular file is useful when you can stop execution
+immediately after the event you want to examine has ocured.
+<p>If you need to trace something again, do not forget to empty the file
+(with Trace->Empty). Also, close the Trace window, as it will not be updated:
+you must open a new one to view the new contents of the trace file.
+<br>&nbsp;
+<br>&nbsp;
+<br>&nbsp;
+<br>&nbsp;
+</body>
+</html>

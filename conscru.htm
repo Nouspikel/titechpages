@@ -1,0 +1,369 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+  <title></title>
+  <meta name="Author" content="">
+  <meta name="GENERATOR"
+ content="Mozilla/3.04Gold (Win95; U) [Netscape]">
+</head>
+<body>
+<h1 align="center"><a
+ href="http://www.nouspikel.com/ti99/titechpages.htm"><img
+ src="logo.jpg" style="border: 0px solid ; height: 33px; width: 95px;"
+ title="" alt=""></a></h1>
+<h1>Console CRU interface</h1>
+<p>This page explains how to install an extra CRU interface inside the
+console: either up to 64 output bits, or up to 32 output and 32 input
+bits.</p>
+<p>These extra CRU bits can be used to control the following console
+modifications:</p>
+<li>Jeff Brown's interrupt mod</li>
+<li>Console EEPROM (page selection)</li>
+<li>Dual-speed clock</li>
+<li>Multiplexer wait-states control</li>
+<li>GROM on/off switch</li>
+<li>Etc.</li>
+<p><a href="#material">Bill of materials<br>
+</a><a href="#pinciple">Principle<br>
+</a><a href="#doing%20it">Doing it</a></p>
+<h3><br>
+<a name="material"></a>Bill of materials</h3>
+<li>1x 74LS138</li>
+<li>1x to 8x 74LS259</li>
+<li>1x to 4x 74LS251</li>
+<li>Gauge 30 wire</li>
+<li>Wire cutter, soldering iron, solder, insulating tape, forceps,
+screwdriver.</li>
+<h2><br>
+<a name="pinciple"></a>Principle</h2>
+<p>Our CRU interface answers at address &gt;0400, in between the
+addresses
+reserved by the TMS9901 (although it only uses 64 bits, the TMS9901
+reserves
+512 due to incomplete decoding) and the addresses used by peripheral
+cards
+(&gt;1000 and up).</p>
+<p>Address decoding is performed by a 74LS138 decoder. Note that our
+decoding
+also is incomplete and reserves 8 times more bits than it can actually
+use. The decoder can be wired in two ways, depending on whether you
+want
+64 output bits, or 32 input and 32 output bits. For the former, the
+CRUCLK*
+enables the whole chip via its G2B* pin, for the latter CRUCLK* is
+applied
+to one of the decoded inputs.</p>
+<p>Here is the wiring for 64 output bits: each of the decoder's eight
+outputs
+can control a 74LS259, each of which can output eight bits. The OR gate
+combining A3 and A4 already exists in the console: it's part of the
+decoding
+circuit for the TMS9901 and the scratch-pad RAM.</p>
+<table bgcolor="#cdcde6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>                 74LS138                   74LS259             <br>               +--------+                 +--------+         <br>         A11---|S0   Y0*|-----------------|G*      |            <br>         A10---|S1   Y1*|---        A12---|S2    Q0|------Bit0<br>          A9---|S2   Y2*|---        A13---|S1    Q1|------Bit1 <br>               |     Y3*|---        A14---|S0    Q2|------Bit2  <br>A3---,         |        |                 |      Q3|------Bit3<br>A4---=)&gt;-------|G2A* Y4*|---     CRUOUT---|D     Q4|------Bit4<br>     CRUCLK*---|G2B* Y5*|---              |      Q5|------Bit5 <br>          A5---|G1   Y6*|---              |      Q6|------Bit6 <br>               |     Y7*|---    Reset*----|RST*  Q7|------Bit7 <br>               |        |                 +--------+  <br>               +--------+              Upto 8 74LS259<br> </pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>And here is the alternate wiring, in case you prefer an input/output
+solution. As you can see, it only exchanges CRUCLK* and A9. Note that
+it
+is not neccessay for the 74LS251 to read back all the bits issued by
+the
+74LS259: you could use some (or all) bits to sense other hardware
+conditions.
+Your imagination is the limit, here...</p>
+<table bgcolor="#cdcde6">
+  <tbody>
+    <tr>
+      <td>
+      <pre>                 74LS138<br>               +--------+          <br>         A11---|S0   Y0*|---------,  <br>         A10---|S1   Y1*|---      |<br>     CRUCLK*---|S2   Y2*|---      |      Upto four 74LS259<br>               |     Y3*|---      |  <br>A3---,         |        |         |<br>A4---=)&gt;-------|G2A* Y4*|-----------, <br>          A9---|G2B* Y5*|---      | | <br>          A5---|G1   Y6*|---      | |    Upto four 74LS251<br>               |     Y7*|---      | |  <br>               |        |         | |  <br>               +--------+         | |<br> ,--------------------------------' |<br> |              74LS259             |     74LS251<br> |            +--------+            |   +--------+<br> '------------|G*      |            '---|G*      |<br>        A12---|S2    Q0|------Bit0------|A0      |<br>        A13---|S1    Q1|------Bit1------|A1     Y|---CRUIN <br>        A14---|S0    Q2|------Bit2------|A2      |<br>              |      Q3|------Bit3------|A3      |<br>     CRUOUT---|D     Q4|------Bit4------|A4    S2|---A12<br>              |      Q5|------Bit5------|A5    S1|---A13<br>              |      Q6|------Bit6------|A6    S0|---A14<br>    Reset*----|RST*  Q7|------Bit7------|A7      |<br>              +--------+   (optional)   +--------+</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h2><br>
+<a name="doing it"></a>Let's do it</h2>
+<p>The easiest way to install extra chips inside the console is to
+piggy-back
+them on top of existing 16-pin chips, connecting only their power
+supply
+pins (#8 and #16). All input signals are available in the console, most
+of them near the side port, which is thus a good location to implant
+your
+chips. If you're going to use many 74LS259 (or 74LS251) you may want to
+stack two of them on top of a console chip.</p>
+<p>Below is a description of the most basic implementation, with only
+one
+74LS259 that provides 8 output bits. In most cases, this will be more
+than
+enough. (Besides, it's the only one I've tested so far...).</p>
+<h4><br>
+Preparing the chips</h4>
+<p>Lets first prepare the two new chips: a 74LS138 decoder and a
+74LS259
+addressable latch. These are very common TTL chaps that can be obtained
+for less than $1 in any electronics store.</p>
+<p>With forceps or small pliers, delicately grab each pin and bend it
+out
+until it's horizontal. Do not bend pin #8 (bottom left), not #16 (upper
+right): these will be soldered to the corresponding pins on the
+supporting
+chip. On the 74LS259 also leave pin #2 unbent: we're going to
+piggy-back
+it on a chip that happens to have the proper signal on pin #2.</p>
+<p>Using a wire cutter, trim the bent out pins at the point where the
+pin
+becomes narrower (i.e. from <tt>|==--</tt> to <tt>|==</tt> ). This is
+necessary
+because chips are so close to one another in the console that bent out
+pins would touch each other. Here is a <a href="conscru2.jpg">picture</a>
+in which the 74LS138 is ready, whereas the 74LS259 still needs trimming.</p>
+<h4><br>
+Opening the console</h4>
+<p>Refer to my <a href="surgery.htm">console surgery page</a> for
+instructions
+on how to take apart the TI-99/4A console.</p>
+<p>Locate the relevant chips, near the side port. Here is a <a
+ href="conscru1.jpg">picture</a>
+to help you.</p>
+<h4><br>
+Wiring the console</h4>
+<p>Attach wires to the relevant chips; make them a bit longer than
+necessary
+so you have some margin to work with. I'm using gauge 30 (i.e.
+wire-wrap
+type) wire. I strip the end on about 1 cm, to form a tiny hook with it
+and pass it around the pin I want. Then I use forceps to pull it
+further
+out and twist it on itself. A tiny drop of solder is enough to complete
+the joint between wire and pin. </p>
+<p>A faster (but less secure) way is to deposit a drop of solder
+on/alongside
+a pin, then dip the end of the wire in the molten solder and wait for
+it
+to harden and secure the connection. In any case, make really sure that
+the solder will not make contact with neighbouring pins or tracks, nor
+with any (future) piggy-backed chip.</p>
+<p>Refer to the following diagram for necessary connections: the
+numbers
+indicate pin numbers. All chips are in the corner where the side port
+is,
+except for the CruOut signal that can be found on a 74LS32 chip, on the
+other side of the big TMS9900 microprocessor (see <a href="#inverters">diagram</a>
+further down).</p>
+<pre>    __<br> __|  |    ,-- Piggy-back new 74LS04 on this '04 (optional).<br>|     |____<u>V</u>____________________________________________<br>|       74LS04      74LS03         <font
+ color="#ff0000">A3uA4---,<br></font>|       +-,_,-+     +-,_,-+      +---------<font
+ color="#ff0000">'</font>----+ <br>|       |     |     |     |      |         3   ,| <br>|       |     |     |     |      | 74LS32      '| <br>|<font
+ color="#ff0000">Reset*-</font>|3    |     |     |      +--------------+ <br>|       |     |     |     |     +-,_,-+  <br>|       |     |     |     |     |     |<br>|       |     |     |     |<font
+ color="#ff0000">A5---</font>|2    | <br>|       |     |     |     |     |   14|<font
+ color="#ff0000">---A10</font> <br>|       +-----+     +-----+     |     |     <br>|       +-,_,-+     +-,_,-+     |   12|<font
+ color="#ff0000">---A11<br></font>|       |     |     |     |     |     |  <br>\___    |     |     |     |     |   10|<font
+ color="#ff0000">---A12</font> <br> ___|   |     |     |     |     | 367 | <br>|===    |     |     |     |     +-----+  <br>|===    |     |     |     |     +-,_,-+ <br>|===    | 74  |     | 74  |     |     |   <br>|===    | LS  |     | LS  |     |<font
+ color="#0000ff">2=A13</font>| <br>|===    | 138 |     | 138 |&lt;-,  |   14|<font
+ color="#ff0000">---A14<br></font>|===    +-----+     +-----+  |  |     |<br>|===        +-,_,-+          |  |   12|<font
+ color="#ff0000">---A9</font>  <br>|===        |     | Piggy-back  |     |&lt;--- Piggy-back new 74LS259<br>|===        |     | new '138    |     |     on this 74LS367<br>|===        |     | on this     |     |       <br>|===        |     | 74LS138     +-----+         +-,_,-+  <br>|===        |     |             74LS367         |     | Far<br>|===        |   15|<font
+ color="#ff0000">---CruClk*</font>                   |     | away ===&gt;<br>|===        |     |              This chip ----&gt;|     |<br>|===        |     |              is on the      |     |<br>|===        |     |              other side     |     |<br>|===        |     |              of the big     |    9|<font
+ color="#ff0000">---CruOut<br></font>|===        +-----+              TMS9900        |     |<br>|===        74LS244                             +-----+<br>|===                                             74LS32 <br><br></pre>
+<h4>Piggy-backing the chips</h4>
+<p>Install the 74LS138 on top of another 74LS138 in the console (e.g.
+U505).
+Solder pin #8 and #16 to the same pins on the console chip. Make sure
+the
+other pins do not make contact with the underlying chip.</p>
+<p>Install the 74LS259 on top of the second 74LS367 (U503). Solder pin
+#2, #8 and #16 to the underlying chip. If you are installing another
+74LS259
+elsewhere, bend out its pin #2 as the underlying chip won't have A13 on
+that pin.</p>
+<p>Now connect the wires you have previously installed to the cut-out
+pins
+of the piggy-backed chips. Be carefull with solder, that it does not
+flow
+to the underlying chip. Refer to this diagram for connections.</p>
+<pre>    __<br> __|  |<br>|     |__________________________________________<br>|       74LS04            <br>|       +-,_,-+     +-,_,-+      +--------------+ <br>|       |     |     |     |      |             ,|  <br>|       |     |     |     |      |             '|  <br>|       |     |     |     |      +--------------+  <br>|       |     |     |     |     +-,_,-+ <br>|       |     |     |     |     |     | <br>|       |     |     |     | <font
+ color="#0000ff"> </font>   |     |        <br>|       |     |     |     |<font
+ color="#0000ff"> </font>    |     |     <br>|       +-----+     +-----+ <font
+ color="#0000ff"> </font>   |     |     <br>|       +-,_,-+     +-,_,-+ <font
+ color="#0000ff"> </font>   |     |    <br>|       |     |<font
+ color="#ff0000">A11--</font>|1  16<font color="#ff0000">|]</font> <font
+ color="#0000ff"> </font>  |     |     <br>\___    |     |<font
+ color="#ff0000">A10--</font>|2  15|<font color="#ff0000">-,</font>  <font
+ color="#0000ff"> </font>|     |     <br> ___|   |     |<font
+ color="#ff0000">A9---</font>|3  14| <font color="#ff0000">|</font><font
+ color="#0000ff">  </font> |     |     <br>|===    |     |<font
+ color="#ff0000">A3u4-</font>|4  13| <font color="#ff0000">|<u>   </u></font><u>+-----+<font
+ color="#ff0000">         </font></u> <br>|===    |  <font
+ color="#ff0000">CruClk*--</font>|5  12|     +-,_,-+         <font
+ color="#ff0000">|<br></font>|===    |     |<font color="#ff0000">A5---</font>|6  11|<font
+ color="#ff0000">A14--</font>|1  16<font color="#ff0000">|]</font>        <font
+ color="#ff0000">|<br></font>|===    |     |     |7  10|    <font
+ color="#ff0000">[|</font>2  15|<font color="#ff0000">--Reset* |<br></font>|===    |     |    <font
+ color="#ff0000">[|</font><font color="#000000">8</font>   9|<font
+ color="#ff0000">A12--</font>|3  14|<font color="#ff0000">---------'<br></font>|===    +-----+     +-----+  <font
+ color="#0000ff">B0-</font>|4  13|<font color="#ff0000">--CruOut <br></font>|===        +-,_,-+ 74LS138  <font
+ color="#0000ff">B1-</font>|5  12|<font color="#0000ff">--Bit7<br></font>|===        |     | on top   <font
+ color="#0000ff">B2-</font>|6  11|<font color="#0000ff">--Bit6</font>  <br>|===        |     | another  <font
+ color="#0000ff">B3-</font>|7  10|<font color="#0000ff">--Bit5</font>  <br>|===        |     | 74LS138  <font
+ color="#ff0000">  [|</font>8   9|<font color="#0000ff">--Bit4<br></font>|===        |     |             +-----+<br>|===        |     |         74LS259 on top of    <br>|===        |     |            a 74LS367    <br>|===        |     |             <br>|===        |     |   <br>|===        |     |    <font
+ color="#ff0000">[|</font> = solder to underlying chip<br>|===        |     |    <font
+ color="#0000ff">B0-Bit7</font> = CRU bits for you to use<br>|===        +-----+<br>|===        <br>                            <br></pre>
+<p>Here's a <a href="conscru3.jpg">picture</a> of this stage. The blue
+wire is connected to Bit0 for test purposes. The piggy-backed chips
+still
+need to be covered with insulating tape, to make sure they won't
+contact
+the metal shell that's around the motherboard.</p>
+<p>Now all you need to do is to connect the outputs of the 74LS259 to
+the
+devices you want to control. In order, these are pins #4 through #7,
+then
+#9 through #12. </p>
+<h4><br>
+<a name="inverters"></a>Inverting bits</h4>
+<p>Remember that all outputs will be low at power-up time. If you need
+a bit to be high by default, you should connect the corresponding
+output
+to an inverter. There are several free inverters on the 74LS04 that's
+alongside
+the "far away" 74LS32: look for unconnected pins (<tt> #5-|&gt;o-#6,
+#11-|&gt;o-#10, #13-|&gt;o-#12</tt>). Be aware that unused inputs may
+be
+grounded (only pin #13 was in my console). In this case, you should
+either
+cut and bend out the pin, or cut the trace that connects it to the
+ground.</p>
+<pre>                             <font color="#000000">                             </font><font
+ color="#ff0000"> <br></font><font color="#000000">                  +-,_,-+</font>        74LS00       74LS00<font
+ color="#000000">   <br>                  |     |</font>        +-,_,-+      +-,_,-+  <br><font
+ color="#000000">                  |     |</font>        |     |      |     |   <br><font
+ color="#000000">                  |     |</font>        |     |      |     |  <font
+ color="#000000"> <br></font><font color="#ff0000">   </font><font
+ color="#000000">       </font><font color="#ff0000">        </font><font
+ color="#000000">|     |</font>        |     |      |     |  <br><font
+ color="#ff0000">   </font><font color="#000000">             </font><font
+ color="#ff0000">  </font><font color="#000000">|     |</font>        |     |      |     |  <br><font
+ color="#000000">                  |    </font> <font color="#000000">|</font>        |     |      |     |   <br><font
+ color="#000000">                  |     |</font>        |     |      |     |  <br><font
+ color="#000000">                  +-----+</font>        |     |      |     | <br><font
+ color="#000000">                  74LS00 </font>        +-----+      +-----+  <br><font
+ color="#000000">                                 </font>+-,_,-+      +-,_,-+  <br><font
+ color="#000000">                         </font>        |     |      |     | <br><font
+ color="#000000">    </font><font color="#ff00ff">,---CruIn</font><font
+ color="#000000">              </font>      |     |      |   13|<font
+ color="#ff0000">-- In (grounded)<br></font><font color="#000000">    </font><font
+ color="#ff00ff">|</font><font color="#000000">         </font><font
+ color="#0000ff">CruOut---------,</font><font color="#000000">   </font>|     |      |   12|<font
+ color="#ff0000">]-</font> Out<br>    <font color="#ff00ff">|</font> <font
+ color="#000000">          </font>             <font color="#0000ff">|</font>   |     |      |   11|<font
+ color="#ff0000">-- In</font>      <br><font color="#000000">+-'-'- . . . --'-'-'-'-'-+   </font><font
+ color="#0000ff">|</font><font color="#000000">   |     | </font><font
+ color="#ff0000">In --</font>|5  10|<font color="#ff0000">]-</font> Out  <br><font
+ color="#000000">| 3 3          5 4 3 2 1 | </font>  <font
+ color="#0000ff">'--------9</font>| Out<font color="#ff0000">-[</font>|6    |   <br><font
+ color="#000000">| 2 1                    | </font>      |     |      |     |<br><font
+ color="#000000">|                       |  </font>      +-----+      +-----+<br>|     <font
+ color="#000000"> . . .   TMS9900  |  </font>       74LS32       74LS04<br>|            <font
+ color="#000000">            </font>|       +-,_,-+<br>|            <font
+ color="#000000">            </font>|       |     |<br>+-,-,- . . . --,<font
+ color="#000000">-,-,-,-,-</font>+       74LS04   </pre>
+<p><br>
+Alternatively, you can piggy-back an additional inverter of your own on
+top of a 14-pin chip (such as the 74LS04 that's in the corner). Bend
+out
+and trim all its pins, except for #7 and #14 that need to be soldered
+to
+those of the underlying chip. This will give you 6 inverters,
+conveniently
+closed to the newly intalled 74LS259. This is the solution I chose for
+my console. The pinout of a 74LS04 is the following:</p>
+<pre>      +-,_,-+<br>  <font color="#ff0000">In--</font>|,    |]<br> <font
+ color="#ff0000">Out--</font><font color="#000000">|'</font>   ,|<font
+ color="#008080">--In<br></font> <font color="#0000ff"> In--</font>|,   '|<font
+ color="#008080">--Out<br></font> <font color="#0000ff">Out--</font>|'   ,|<font
+ color="#ff8000">--In<br></font> <font color="#ff00ff"> In--</font>|,   '|<font
+ color="#ff8000">--Out<br></font> <font color="#ff00ff">Out--</font>|'   ,|<font
+ color="#800040">--In<br></font>     [|    '|<font color="#800040">--Out<br></font>      +-----+</pre>
+<h4><br>
+Adding more bits</h4>
+<p>If you need more than 8 bits, you can connect additional 74LS259s to
+the remaining outputs of the 74LS138: in order, use pin #15 through pin
+#9, then pin #7. </p>
+<pre>                  74LS138<br>                  +-,_,-+<br>                  |     |<br>                  |   15|---&gt; Bits 0 to 7<br>                  |   14|---&gt; Bits 8 to 15<br>                  |   13|---&gt; Bits 16 to 23<br>                  |   12|---&gt; Bits 24 to 31<br>                  |   11|---&gt; Bits 32 to 39<br>Bits 56 to 63 &lt;---|7  10|---&gt; Bits 40 to 47<br>                  |    9|---&gt; Bits 48 to 55<br>                  +-----+</pre>
+<p>Piggy-back the additional 74LS259 on top of 16-pin chips. If
+necessary,
+stack them two-deep. The wiring of every 74LS259 is identical, except
+from
+pin #14, which should be connected to one of the 8 outputs of the
+74LS138
+shown above. </p>
+<h4><br>
+CRU input bits</h4>
+<p>If you want CRU input, you will need one (or more) 74LS251. Bend out
+and trim all its pins, except for pin #8 and #16. Then install it on
+top
+of a 16-pin chip, and solder pin #8 and #16 to those of the underlying
+chip. Connect the other pins as per the diagram below. This will give
+you
+8 input bits per 74LS251.</p>
+<p>Remember that you will also need to swap A9 and CruClk* when
+piggy-backing
+the 74LS138. This way, its pins #15 through #12 control four 74LS259
+for
+CRU output, and pins #11 through #9 and #7 control four 74LS251 for CRU
+input. </p>
+<pre>               74LS138                      74LS251#1<br>               +-,_,-+                      +-,_,-+<br>          A11--|1    |]               <font
+ color="#0000ff">Bit3--</font>|1    |] <br>          A10--|2  15|---&gt;74LS259#1   <font
+ color="#0000ff">Bit2--</font>|2  15|<font color="#0000ff">--Bit4<br></font>      <font
+ color="#ff0000">CruClk*--</font>|3  14|---&gt;74LS259#2   <font
+ color="#0000ff">Bit1--</font>|3  14|<font color="#0000ff">--Bit5<br></font>        A3uA4--|4  13|---&gt;74LS259#3   <font
+ color="#0000ff">Bit0--</font>|4  13|<font color="#0000ff">--Bit6<br></font>           <font
+ color="#ff0000">A9--</font>|5  12|---&gt;74LS259#4      <font
+ color="#ff00ff">,--</font>|5  12|<font color="#0000ff">--Bit7 <br></font>           A5--|6  11|<font
+ color="#ff0000">----------------, </font> <font color="#ff00ff">| </font> |6  11|<font
+ color="#ff0000">--A14<br></font>  74LS251#4&lt;---|7  10|---&gt;74LS251#2   <font
+ color="#ff0000">'--</font><font color="#ff00ff">|</font><font
+ color="#ff0000">--</font>|7  10|<font color="#ff0000">--A13</font> <br>              [|    9|---&gt;74LS251#3      <font
+ color="#ff00ff">| </font>[|    9|<font color="#ff0000">--A12</font> <br>               +-----+                   <font
+ color="#ff00ff">| </font> +-----+ <br>                                         <font
+ color="#ff00ff">'----------&gt;</font>TMS9900 pin #31<br>                                                     (see CruIn <a
+ href="#inverters">above</a>)</pre>
+<p>N.B. I didn't test this modification...</p>
+<h4><br>
+Closing the console</h4>
+<p>Make sure that none of the piggy-backed chips is making contact with
+the metal shell that comes on top of the motherboard. If necessary,
+insulate
+them with electrical tape.</p>
+<p>Then close the console as instructed in my console surgery page.</p>
+<h4><br>
+Testing</h4>
+<p>You can test any CRU output that you have connected by checking if
+the
+corresponding feature can be turned on/off via the CRU (duh !). </p>
+<p>Alternatively, you could solder a long wire to a free output and
+feed
+it through a venting slot in the console. Connect it to a voltmeter and
+see if the voltage changes when you toggle the corresponding CRU bit.</p>
+<p>The easiest way to toggle CRU bits is to use a debugger, such as
+EasyBug
+(in the Mini-memory cartridge), MG's Explorer, or my Module Explorer
+(downloadable
+<a href="download.htm#modexp">here</a>). Remember that the address will
+be &gt;0400 through &gt;0410 for the first 8 bits, as CRU adresses
+increment
+by two (i.e. only even addresses are used). </p>
+<address><br>
+Preliminary 8/5/02 Not tested, not for release.<br>
+Revision I. 8/13/02 Tested 8-bit output, works fine.<br>
+Revision 2. 11/14/02 Added pictures, and diagrams for more bits, input,
+inverters.</address>
+<address>&nbsp; </address>
+<center>
+<p><a href="titechpages.htm">Back to the TI-99/4A Tech Pages</a></p>
+</center>
+</body>
+</html>

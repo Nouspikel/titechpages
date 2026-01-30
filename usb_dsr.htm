@@ -1,0 +1,3545 @@
+<!doctype html public "-//w3c//dtd html 4.0 transitional//en">
+<html>
+<head>
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+   <meta name="Author" content="ThN">
+   <meta name="GENERATOR" content="Mozilla/4.79 [en] (WinNT; U) [Netscape]">
+</head>
+<body>
+
+<center>
+<h1>
+<a href="http://www.nouspikel.com/ti99/titechpages.htm"><img SRC="logo.jpg" ALT="" style="border: 0px solid ; height: 33px; width: 95px;" title="Back to main index" ></a></h1></center>
+
+<h1>
+Writing DSRs for the USB-SM card</h1>
+One problem when writing DSRs for the USB card is that there are a lot
+of different USB devices, hence many different DSRs, possibly written by
+many different programmers. The end user will want to load the DSRs dealing
+which these devices he owns, in whatever order he fancies. Therefore, a
+big one-for-all DSR program won't do it.
+<p>The solution I retained is to write DSRs in tagged-object format, i.e.
+the DF80 files produced by the TI assembler. A special loader, modeled
+on the one in the E/A cartridge, will be available for the user to load
+the required DF80 file into the DSR memory. Yes it's slower, but so is
+burning EEPROMs, and it's something the user won't do too often anyhow.
+<p>Another problem is that, even though the Flash-Memory is 8 megabytes
+in size (or 4 megs if you were cheap) , it maps at >4000-4FFF, so a page
+is only 4K. If a programmer needs more space, there should be a way to
+split the DSRs into several pages. However, the page numbers won't be available
+at programming time, because they depend on the order in which the user
+will load his DSRs.
+<p>The solution is easy: segment programming. The TI assembler carries
+all the necessary commands to this end, but we never used them because
+the TI loader doesn't handle them. Our special DSR loader does these commands
+and can dispatch segments between pages and link them together.
+<p>The present page explains how to write DSRs so that they can be handled
+by a common USB-DSR loader. It also describes several sets of low-level
+routines used to access the most basic features: Smartmedia, USB controller
+and memory. For specifics on how to program the various chips on the USB-SM
+card, refer to <a href="usb2.htm">this page</a>.
+<p><a href="#writing%20DSRs">Writing DSRs</a>
+<br><a href="#Using%20the%20SRAM">Using the SRAM</a>
+<br><a href="#STDMEM">Standard memory routines</a>
+<br><a href="#ISP1161%20routines">ISP1161 access routines</a>
+<br><a href="#SM%20routines">SmartMedia access routines</a>
+<br>&nbsp;
+<h2>
+<br>
+<a NAME="writing DSRs"></a>Writing DSRs, an overview</h2>
+First, you need the assembler that comes with the Editor/Assembler cartridge,
+or an equivalent program <font color="#000000">that supports segment commands.</font>
+<p><font color="#000000">One usefull thing to do is to include a "COPY
+DSK1.USB/EQU" at the top of your file. This will include a definition file
+in your program, which contains a whole buch of EQUates and DEfines that
+will be usefull later. It will save you the burden of typing these DEFs
+on top of each of your programs.</font>
+<p>To write distinct segments with the TI assembler, all you have to do
+is to enclosed your code in between CSEG and CEND:
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CSEG 'MYSEG '
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; your code&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CEND&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>In the example above, MYSEG is the name of the segment.
+<p>There are a few special cases:
+<ul>
+<li>
+Using DSEG and DEND instead, results in a segment called $DATA. I'm using
+it to access memory in SRAM page 0.</li>
+
+<li>
+Using PSEG and PEND instead returns to the usual code segment, the assembler's
+default. It is not allowed here.</li>
+</ul>
+In addition the following segment names are reserved (more on these later):
+<ul>
+<li>
+ENTRY This segment will be loaded in EEPROM page 0, after some modification.
+It must contain all the entry points to your DSRs, subprograms (CALLs),
+interrupt routine and/or power-up routines.</li>
+
+<li>
+INFO This segment won't be loaded. It is used to provide the end user with
+some info about the DSRs contained in the file. It should appear at the
+top of your file.</li>
+
+<li>
+EXPORT This segment serves to make some of the routines in your DSRs available
+to other DSR files.</li>
+
+<li>
+MYSTUB This (small) segment will be loaded at the beginning of each page.</li>
+
+<li>
+STUB Same as above, except that your code will be added to the default
+stub segment, which contains the page switching routines.</li>
+
+<li>
+A segment with no name will be appended to the code segment that was last
+loaded. This allows to provide files containing pre-assembled routines
+that can be integrated into your own segments.</li>
+
+<li>
+DATAxx Any segment with a name that begins with DATA is assumed to be a
+data segment and will be mapped into the SRAM rather than the EEPROM. The
+SRAM page will be chosen at execution time.</li>
+
+<li>
+SRAMxx Any segment with a name that begins with DATA&nbsp; is assumed to
+be a data segment and will be mapped to a predefined page in the SRAM.
+The page number is chosen by the loader.</li>
+</ul>
+So how do you jump from one segment to another? Well, that's what the stub
+segment is here for: it contains a set of routines that allow you to call
+routines across segments. For instance, to branch-and-link to another segment,
+instead of using <tt>BL @THERE</tt>, you would call:
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @SGBL
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA THERE,PG4SEG&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>Where SGBL is the routine within the stub that switches pages and performs
+a BL to the specified address. PG4SEG is a dummy label which the loader
+will replace with the number of the page where THERE has been loaded.
+<p>To return to the caller, rather than doing a simple RT, the routine
+THERE should call:
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @SGRT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>Similarly, SGBLWP and SGRTWP are used to call and return from routines
+requiring a context switch. Simple enough, no?
+<br>&nbsp;
+<h4>
+What about the SRAM?</h4>
+Since the EEPROM is not re-writable, it can only contain your program (assuming
+it's not self-modifying) and your constants. All variables must be placed
+into the SRAM.
+<p>At power-up time, SRAM page 0 is selected, and every DSR that changes
+this is supposed to switch back to page 0 upon leaving. So you can safely
+place your workspace and data in this page. This is simply done by placing
+all your variabled in the default data segment, i.e. by enclosing them
+between a DSEG and a DEND command. Just remember that the SRAM is not battery-backed,
+so you should not expect your variables to be initialized.
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DSEG&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; no segment name allowed with DSEG&nbsp;
+DATBEG DATA&nbsp; 0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; your variables (not initialized)&nbsp;
+THIS&nbsp;&nbsp; DATA&nbsp; 0,0,0
+TEST&nbsp;&nbsp; TEXT&nbsp; '.........'
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DEND&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>As for your workspace, there are nine hierarchically arranged workspaces
+in page 0, termed L1WS through L9WS, which you are free to use. To do so,
+simply copy the file USB/EQU into your source file, it contains a bunch
+of EQU statments, among which those defining the workspaces.
+<p>If you need more memory, you can call the exported subroutine MALLOC
+to obtain a pointer to a buffer located in another SRAM page. This pointer
+can then be passed to the MCOPY subroutine to copy memory to or from this
+buffer, or even from one buffer to another. Contrarily to SRAM page 0,
+MALLOC-allocated buffers are private to your program and will not be shared
+by other DSRs. So you can use such a buffer to retain data in between calls
+to your DSRs. All you need to save (and retrieve) is a pointer to your
+buffer, which can be done with the TOSLOT and ATSLOT subroutines, respectively.
+<p>Alternatively, you can switch to a different SRAM page, the number of
+which can be determined at loading time, or at run time. Switching is achieved
+with either the RAMPG or the NEWWS subroutine, depending wether your current
+workspace is in the SRAM or not.
+<br>&nbsp;
+<h2>
+<br>
+<a NAME="Your segments"></a>Writing code segments</h2>
+Ok, now that I gave you a general idea of the process, let's see in more
+details how to write your own segments. Let's begin with code segments:
+<p><a href="#Jumping%20pages">Jumping pages</a>
+<br><a href="#Fetching%20data">Fetching inline data</a>
+<br><a href="#Short%20syntax">Shorter syntax</a>
+<br><a href="#Segment%20flags">Segment flags</a>
+<p><a href="#entry%20segment">Entry segment</a>
+<br><a href="#Info%20segment">Info segment</a>
+<br><a href="#Export%20segment">Export segment</a>
+<br><a href="#Stub%20segment">Stub segment</a>
+<br><a href="#No-name segment">No-name segment</a>
+<p><a href="#Segment%20order">Segment order</a>
+<br><a href="#EEPROM%20structure">EEPROM structure</a>
+<h3>
+<br>
+<a NAME="Jumping pages"></a>Jumping pages</h3>
+If your DSRs are smaller than 4K, they can fit within a single page. If
+you need more than one page, you will need a way to call a routine located
+in a different page. This is done by calling the page-switching routines
+SGB, SGBL and SGBLWP. We have discussed SGB above, SGBL and SGBLWP have
+a similar syntax and are used to call procedures with BL and BLWP respectively.
+<p>To call a routine that you would normally enter with BL, do:
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @SGBL
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA THERE
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA PG4SEG&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>The first data word contains the address of the routine you want to
+call .
+<p>The second data word should contain the desired page number. As you
+don't know this at assembly time, it is better to replace it with the pseudo-label
+PG4SEG, which instructs the loader to use the page number for the routine
+that immediately follows.
+<p>SGBL saves the return address in R11, and the current page number in
+R10. You must preserve both registers to properly return to the caller.
+The return is achieved by calling:
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @SGRT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>which performs the equivalent of an RT (i.e. B *R11), after switching
+back to the page specified in R10.
+<br>&nbsp;
+<p>To call a routine that you would normally enter with BLWP, do:
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @SGBLWP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA FOOBAR
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA PG4SEG&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>The first data word should be the address (in the destination page)
+of the BLWP vectors: workspace and start address.
+<p>The second data word should contain the desired page number. As you
+don't know this at assembly time, it is better to replace it with the pseudo-label
+PG4SEG, which instructs the loader to use the page number for the routine
+that immediately follows.
+<p>SGBLWP saves the workspace in R13, the return address in R14, the status
+in R15 and the current page number in R10. To properly return to the caller,
+you must also preserve R10. Then simply call the SGRTWP routine, which
+performs the moral equivalent of a RTWP, after switching to the page found
+in R10:
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @SGRTWP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>The trouble with BL is that you must preserve R11 before you can take
+another BL from within the called procedure. If you find this annoying,
+you're probably not too entranced at the idea of having to preserve yet
+another register, R10. In this case, SGBLX is for you!
+<p>The SGBLX routine works just like SGBL, except that it saves R10 and
+R11 in an internal stack, so you don't have to worry about preserving these
+registers. To return to the caller, just use SGRTX instead of SGRT. In
+fact, unpon entering the target routine, R11 will point at a BLWP @SGRTX
+instruction, so you can return with B *R11 if you want to.
+<p>Please note that the internal stack is circular and 8-level deep. Which
+means that if you nest 9 calls, unlikely as it is, the return parameters
+for the nineth call will ovewrite those of the first call. Also, the stack
+is located in the current SRAM page: if you switch RAM pages you will loose
+all return points.
+<p>Because R11 does not contain the return address, you cannot manipulate
+it to change the return point. If all you need to do is to skip a jump
+upon return, you can use ATR11X as discusse later. Otherwise, you'd need
+to change the return point inside the stack, which is a bit complicated.
+Your best bet is probably to pop the return parameters off the satck, and
+to return directly to the desired address with SGB. This strategy is illustrated
+below:
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; REF&nbsp; STAKPT
+THERE ...
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DEC&nbsp; @STAKPT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; decrement stack pointer&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SZCB @HFFE3,@STAKPT&nbsp;&nbsp; round to lowest multiple of 4, circularize
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @SGB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "return" by branching to the point we want&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA ALTERN,PG4SEG&nbsp;&nbsp;</pre>
+
+<pre>HFFE3 DATA >FFE3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>STAKPT is a number from >0000 to >001C which keeps track of the current
+entry in the stack. When it reaches zero, it rolls over to >001C and conversely.
+Thus the SZCB @HFFE3, which is the same as an ANDI >001C.
+<h3>
+<br>
+<a NAME="Fetching data"></a>Fetching inline data</h3>
+It's common practice to pass parameters to a routine by inserting data
+words after the call:
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BL&nbsp;&nbsp; @THIS
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA >1234,THAT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>The routine THIS can then recover the data with two <tt>MOV *R11+,R0</tt>
+instructions. A routine called with BLWP would do the same with <tt>MOV
+*R14+,R0.</tt> Obviously, this is not going to work with routines located
+in different pages! To solve this problem, you can use the routines ATR11
+and ATR14.
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @ATR11&nbsp;&nbsp;&nbsp; or&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @ATR14
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MOV&nbsp; R0,...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MOV&nbsp; R0,...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>Each routine returns with R0 containing one word of data fetched from
+the page specified in R10, at the address specified in R11 or R14, respectively.
+The relevant register (R11 or R14) is incremented by two, so you can call
+the routine again, if more than one word of data needs to be fetched. Make
+sure you fetch all data words before returning to the caller. If you need
+to retrieve inline parameters in a routine called with SGBLX use ATR11X
+instead of ATR11.
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @SGBLX&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; call procedure THAT, saving R10 and R11&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA THAT,PG4SEG
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; JMP&nbsp; THERE</pre>
+
+<pre>* In another segment:
+THERE ...
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @ATR11X&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; skip the JMP upon return&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @SGRTX&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; or B *R11, if R11 was conserved&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<br>&nbsp;
+<p>A more general routine, is GETDAT (as a matter of fact, ATR11 and ATR14
+are just different entry point into GETDAT). It is probably of little use
+since most of your data will be in SRAM anyhow, but it may be used to fetch
+a constant, for instance an entry from a pointer table.
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R1,MYDATA
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MOV&nbsp; @MYPAGE,R2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @GETDAT
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MOV&nbsp; R0,...&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>GETDAT retrieves data from the EEPROM page specified in R2, at the address
+specified in R1. One word of data is fetched and returned in R0. R1 and
+R2 remain unchanged.
+<p>A convenient way to obtain the page number for R2, is to take it from
+a data structure containing the pseudo-label PG4SEG:
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>MYPAGE DATA MYDATA,PG4SEG&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>The loader will replace PG4SEG with the number of the page where the
+label MYDATA is located. Note that you don't need to use the very same
+label as for the call to GETDAT, as long as it's located in the same segment.
+<h3>
+<br>
+<a NAME="Short syntax"></a>Shortened syntax</h3>
+If you get tired with typing all these calls to SGBLWP, followed with a
+data statement containing the routine name and a PG4SEG label, you can
+use the following trick:
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>* Relay call to export TOSLOT
+TOSLT1 DATA L1WR,TOSLT2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; vectors for BLWP&nbsp;&nbsp;
+
+TOSLT2 BLWP @SGB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; call the routine
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA TOSLOT,PG4SEG</pre>
+
+<pre>* Now, instead of writing...&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @SGBLWP
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA TOSLOT,PG4SEG
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA MYSLOT</pre>
+
+<pre>* ...you can use the shorter form:&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @TOSLT1
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA MYSLOT</pre>
+</td>
+</tr>
+</table>
+
+<p>This saves you 2 memory words per call, with a one-time overhead of
+5 words. So it's worth using if you have more than 2 calls to the same
+procedure. It also makes your program easier to read. Yes, it is a bit
+slower (using two cascading BLWP instead of one), but this is neglectable
+compared with the amount of time it takes for SGBLWP to switch pages, retrieve
+the vectors, and perform the actual branch...
+<br>&nbsp;
+<h3>
+<a NAME="Segment flags"></a>Segment flags</h3>
+You can (but don't have to) set several loading flags for each of your
+segment. To pass the flags to the loader, DEFine a label with the same
+name as the segment. Then EQUate this label to the sum of all flag values
+that you wish to set. If you find the values hard to remember, you may
+want to COPY the file USB/EQU at the top of your file. It contains several
+DEF and EQU needed to communicate with the loader. In particular, each
+segment flag has a name associated with its values:
+<pre>NEWPG&nbsp;&nbsp; EQU >0001
+ENDPG&nbsp;&nbsp; EQU >0002
+FULLPG&nbsp; EQU >0003
+MYPG&nbsp;&nbsp;&nbsp; EQU >0004
+NOSTUB&nbsp; EQU >0008
+MYSTUB&nbsp; EQU >0010
+NOLINK&nbsp; EQU >0080</pre>
+<b>NEWPG </b>This flag causes the segment to be loaded at a fresh ROM page,
+which does not contain any other segment yet. If room is left after the
+segment is loaded, another segment (from you file, or from another DSR)
+may be loaded in the same page later on.
+<p><b>ENDPG </b>This flag reserves the remainder of the page for your segment.
+It ensures nothing will be loaded after it, neither from your file, nor
+from subsequent loading sessions.
+<p><b>FULLPG </b>This flag reserves the full page for your segment. As
+you may have noticed, it's actually a combination of NEWPG and ENDPG: so
+it starts with a fresh page, and no other segment will be loaded in the
+same page.
+<p><b>MYPG </b>This is a somewhat mitigated version of NEWPG: your segment
+will be loaded into a page that is currently empty (from previous loading
+sessions) but into which other segments of yours may have been assigned.
+In other words, your segment won't mingle with segments from another DSR,
+but may cohabitate with some other segment of yours.
+<p><b>NOSTUB </b>This flag relieves the loader from the obligation inserting
+a stub at the beginning of the page your segment is loaded in. Such a segment
+can be loaded in a page containing any stub, or no stub at all (e.g. if
+it's an empty page).
+<p><b>MYSTUB </b>This flag informs the loader that it should use your own
+stub instead of the default one. Your stub must be in a segment called
+MYSTUB. If this segment is not found, the loader will use its default stub,
+or no stub a all if the NOSTUB flag is also set (MYSTUB has priority over
+NOSTUB). Again, only segments with the MYSTUB flag will be loaded together
+in the same page.
+<p><b>NOLINK </b>prevents the loader from incorporating the segments within
+a chained list. Normally, each segment is preceded with one word of data,
+a pointer to the next segment (or free space). To find available space,
+the loader walks this chain starting at >4000. If you don't want such a
+structure to be installed, e.g. because you need to place your own data
+at >4000, or because your segment is exactly 4K, you can set the NOLINK
+flag. Be aware that it will make that page unavailable for loading further
+segments, from other DSR files.
+<br>&nbsp;
+<p>Lets now discuss the various special segments one at a time:
+<br><a href="#entry%20segment">Entry segment</a>
+<br><a href="#Info%20segment">Info segment</a>
+<br><a href="#Export%20segment">Export segment</a>
+<br><a href="#Stub%20segment">Stub segment</a>
+<br>No-name segment
+<h3>
+<br>
+<br>
+<a NAME="entry segment"></a>The entry segment</h3>
+All DSRs for all devices must have their entry points (i.e. their name)
+in page 0. Since space is limited in page 0, the entry point should consist
+in only a branching order to the page where your DSRs are to be found.
+<p>To create an entry segment, just include its code in a segment called
+'ENTRY'. Note that the loader won't necessarily load this segment as such,
+but may perform some code manipulation (e.g. linking to other DSRs, etc).
+<p><u>Important</u>: If the entry segment uses any REF label that is also
+used by other segments, then the entry segment should appear before those
+in your file.
+<p>There are four type of routines that can be found in typical DSR space:
+<ul>
+<li>
+<a href="#Power-ups">Power-up routines</a> are executed when the computer
+is reset.</li>
+
+<li>
+<a href="#ISR">Interrupt service routines</a> (ISR) are executed when an
+interrupt occurs.</li>
+
+<li>
+<a href="#DSRs">Device service routines</a> (DSR) are called by file operations
+(e.g. OPEN, CLOSE, SAVE, DELETE).</li>
+
+<li>
+<a href="#Subprograms">Subprograms</a> can be called from (Extended) Basic
+with CALLs, or from assembly.</li>
+</ul>
+
+<h4>
+<br>
+<a NAME="DSRs"></a>Device Service Routines</h4>
+Strictly speaking, only these routines deserve the name "DSR": they let
+the user interact with a device by the mean of file operations like OPEN,
+SAVE or DELETE. All DSRs are called by name, some names you are probably
+familier with: DSK1, PIO, CS1, etc.
+<p>Parameters are passed via a structure called PAB (peripheral access
+block, see this page for details) located in VDP memory. The first byte
+of the PAB indicates the type of operation desired: open, close, read,
+write, restore, load, save, delete, scratch-record, or file status. According
+to the operation, parameters such as file type, opening mode, or file data
+will be passed to the DSR through the PAB. See <a href="headers.htm">this
+page</a> for more information.
+<p>Another way to pass parameters to a DSR is to include them after the
+DSR name, using a dot as a separator. A well known example is the RS232
+DSR which can be called with something like "RS232.BA=9600.DA=8.CR.LF".
+The DSR name is "RS232", the rest are parameters interpreted by the DSR.
+<p>Be aware that each time a file operation occurs, all DSRs on all cards
+will be scanned until the proper name is found. Thus, try to avoid multiplying
+DSR names, since it may slow the system. Also, remember that there is limited
+space in page 0 that should accomodate all DSR and subprogram names for
+the USB-SM card. It is thus best to have a main DSR and split it by the
+way of parameters. For instance, the USB controller can handle 127 devices,
+so you may want to create 127 DSRs called "USB1" through "USB127". This
+wouldn't be a good idea. It's much better to use something like "USB.1"
+where there is only one DSR (called USB) and the device number is passed
+after the dot.
+<p>You tell the loader that you wish to declare DSRs by defining the label
+MYDSR. Since you can have more than one DSR, you should arrange them as
+a chain and have MYDSR point to the first link in the chain. Each link
+consists in two data words (aligned on word boundaries!): the address of
+the next link, and the address of the entry point. These are followed with
+the DSR name, which should be a string from 1 to 7 characters, with a leading
+size byte. The last DSR in the chain will have >0000 in its link field.
+<p>To save space in page 0, a DSR entry point should consist only of a
+branch order to the page where your DSRs are loaded. You can use the routine
+SGB to this end, but not SGBL nor SGBLWP as these routines are not present
+in page 0.Your target routinewill be entered with whatever workspace the
+calling program is using (>83E0 from Basic and Extended Basic, anything
+from assembly). You can expect R12 to contain the card DSR, and R11 to
+contain the return point. Make sure you preseve R11 when returning from
+your DSR. In addition, R1 should contain the number of times this DSR was
+already found, a feature used by DSRs that can be present on multiple cards.
+You don't have to preserve R1 if your DSR doesn't use this feature.
+<p>Once done, you should increment R11 by two and return by branching to
+PG0RT (this is number zero, not letter o). This routine simply switches
+back to page 0, restores R12, and performs a B *R11. Optionally, you can
+dispense with INCTing R11. In this case, the calling routine will keep
+searching for DSRs with the same name. For this to work properly, you should
+preserve R1 as well as R11.
+<p>Example of DSR entry points:
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DEF&nbsp;&nbsp; MYDSR
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; REF&nbsp;&nbsp; SGB,PG0RT,PG4SEG&nbsp;
+*----------------------------------
+* No-name segment: loaded in page 0
+*----------------------------------
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CSEG
+
+MYDSR&nbsp; DATA&nbsp; LK2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; link to next DSR
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA&nbsp; ENT1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; entry point for this one
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BYTE&nbsp; 4&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; size byte
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TEXT&nbsp; 'DSR1'&nbsp;&nbsp;&nbsp;&nbsp; DSR name
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; EVEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; word-align (important!)
+LK2&nbsp;&nbsp;&nbsp; DATA&nbsp; LK3
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA&nbsp; ENT2
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BYTE&nbsp; 3
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TEXT&nbsp; 'FOO'
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; EVEN
+LK3&nbsp;&nbsp;&nbsp; DATA&nbsp; 0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; no more links
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA&nbsp; ENT3
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BYTE&nbsp; 3
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TEXT&nbsp; 'BAR'
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; EVEN
+*
+ENT1&nbsp;&nbsp; BLWP&nbsp; @SGB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; entry point for 'DSR1'
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA&nbsp; MYDSR1&nbsp;&nbsp;&nbsp;&nbsp; address
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA&nbsp; PG4SEG&nbsp;&nbsp;&nbsp;&nbsp; let loader provide the page #</pre>
+
+<pre>ENT2&nbsp;&nbsp; BLWP&nbsp; @SGB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; entry point for 'FOO'
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA&nbsp; FOODSR,PG4SEG
+
+ENT3&nbsp;&nbsp; BLWP&nbsp; @SGB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; entry point for 'BAR'
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA&nbsp; BARDSR,PG4SEG
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CEND
+*----------------------------------
+* Our first segment: loaded wherever it fits
+*----------------------------------
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CSEG&nbsp; MYSEG1
+
+MYDSR1 ...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; code for 'DSR1'
+SK1&nbsp;&nbsp;&nbsp; INCT R11&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; no more scanning
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @PG0RT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; return to page 0 and do B *R11&nbsp;
+
+FOODSR ...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; code for 'FOO'
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; JMP SK1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; return as above
+
+BARDSR ...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; code for 'BAR'
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; JMP SK1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; return as above
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CEND
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; END</pre>
+</td>
+</tr>
+</table>
+
+<h4>
+<br>
+<a NAME="Subprograms"></a>Subprograms</h4>
+Subprograms resemble DSRs, in that there are called by name. However, they
+are not called by file operations, but with a dedicated instruction, CALL
+in Basic. They can also be called from assembly with DSRLNK, the same routine
+that calls DSRs.
+<p>A big difference with DSRs is in the way parameters are passed, as there
+is no PAB. For subprograms called from Basic, you must parse the Basic
+statement to find parameters in the parenthesis following CALL. This is
+quite tricky to do, as numeric parameters can be passed via complicated
+math expressions, and string parameters can include things like SEG$ and
+CHR$. The situation is much simpler in assembly, where parameters are generally
+passed in CPU memory, at address >834A and above.
+<p>It is possible to append parameters to the subprogram name (e.g. CALL
+MYSUB.A=1.NOLOAD) but be aware that these long names may not be properly
+saved within a Basic program, so it's only usefull for subprograms called
+interactively, from the keyboard.
+<p>Your subprogram will be entered with the caller's workspace, and you
+can expect R12 to contain the card's CRU. Do not loose R11, since it contains
+the return point. Just like with DSRs, R1 can optionally contain the number
+of times this particular subprogram name was found.
+<p>Once your subprogram is done, it should increment R11 by two and return
+with B @PG0RT, which returns to page 0 and performs a B *R11. Optionally,
+you can dispense with incrementing R11, which will cause the scanning routine
+to keep searching cards for subprogram with that name. In this case, make
+sure you also preserve R1.
+<p>Since you might want to define more than one subprogram, you should
+always arrange them in a chain (even if there is only one). Then define
+the label MYCALL, and have it point to the first link in the chain. The
+structure of the chain is the same as for DSRs.
+<p>Here is an example:
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DEF&nbsp;&nbsp; MYCALL
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; REF&nbsp;&nbsp; SGB,PG0RT,PG4SEG
+*----------------------------------
+* No-name segment: loaded in page 0
+*----------------------------------
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CSEG
+
+MYCALL DATA&nbsp; LK2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; link to next subprogram
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA&nbsp; ENT1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; entry point for this one
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BYTE&nbsp; 4&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; size byte
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TEXT&nbsp; 'THIS'&nbsp;&nbsp;&nbsp;&nbsp; subprogram name
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; EVEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; word-align (important!)
+LK2&nbsp;&nbsp;&nbsp; DATA&nbsp; 0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; no more links
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA&nbsp; ENT2
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BYTE&nbsp; 4
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TEXT&nbsp; 'THAT'
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; EVEN
+*
+ENT1&nbsp;&nbsp; BLWP&nbsp; @SGB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; entry point for 'THIS'
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA&nbsp; THIS1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; address
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA&nbsp; PG4SEG&nbsp;&nbsp;&nbsp;&nbsp; let loader provide the page #
+
+ENT2&nbsp;&nbsp; BLWP&nbsp; @SGB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; entry point for 'THAT'
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA&nbsp; THAT1,PG4SEG
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CEND
+*----------------------------------
+* Our first segment: loaded wherever it fits
+*----------------------------------
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CSEG&nbsp; MYSEG1
+
+THIS1&nbsp; ...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; code for 'THIS'
+SK1&nbsp;&nbsp;&nbsp; INCT R11&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; no more scanning
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @PG0RT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; return to page 0 and do B *R11&nbsp;&nbsp;
+
+THAT1&nbsp; ...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; code for 'FOO'
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; JMP SK1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; return as above
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CEND
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; END&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<h4>
+<br>
+<a NAME="Power-ups"></a>Power-up routines</h4>
+One can distinguish three types of power-up situations:
+<ul>
+<li>
+Software reset: the computer reboots itself. E.g. the &lt;quit> key was
+pressed, or BLWP @>0000 was executed.</li>
+
+<li>
+Console power-up: the console power was turned off and back on. This sends
+a signal on the Reset* line, which causes a harware reset for any chip
+hooked to it. For instance, all CRU bits will be reset to 0, and the microprocessor
+automatically executes a software reset. However, the RAM in the PE-box
+should remain unchanged, baring any unexpected glitch.</li>
+
+<li>
+PE-box power-up: the power was turned off and back on for the PE-box. This
+will wipe off the contents of the SRAM and scramble all CRU bits. A PE-box
+reset in itself will not call the power-up routine. However, since the
+PE-box is generally turned on just before the console, one can reasonnably
+expect that a console power-up (and thereby a software reset) will follow.</li>
+</ul>
+The master power-up routine in the TI-99/4A console does not distinguish
+the three types of power-up. However, the power-up routine in the USB-SM
+card DSRs does, and it's the one that will call your own routine. This
+will let you write different initialisation routines according to the type
+of power-up that occured.
+<p>Be carefull that, no matter what type of reset occured, only one type
+of power-up routine will be called. Generally, you should write your power-up
+routine in a cascading fashion, with three entry points:
+<pre>PEBOX&nbsp; ...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Entry point for PE-Box power-up
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Code unique to PE-box reset
+CONS&nbsp;&nbsp; ...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Entry point for console power-up
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Code unique to console reset
+SOFT&nbsp;&nbsp; ...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Entry point for software reset
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Code unique to software reset
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; RT</pre>
+To inform the loader that you intend to load a power-up routine, you should
+define the label MYPWUP in your program, and have it point at the first
+link of your power-up routine (even though there is no need for more than
+one routine, you could have several, therefore a chain structure is used,
+similar to the one we saw for DSRs, but without names). From there, you
+can either branch directly to the page in which your DSRs are loaded, or
+perform a quick test to determine which type of reset occurred. Before
+it calls your routine, the card's power-up routine will set a flag in R0
+with the following values:
+<p>R0 = >FFFF for PE-box reset (test with JLT)
+<br>R0 = >0000 for console reset (test with JEQ)
+<br>R0 = >0001 for software reset (test with JGT)
+<p>N.B. The flag in placed in R0 just before entering your routine, so
+you don't need to add a MOV R0,R0 to test it.
+<p>Example of power-up entry point:
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DEF&nbsp;&nbsp; MYPWUP
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; REF&nbsp;&nbsp; SGB,USBRT,PG4SEG
+*----------------------------------
+* No-name segment: loaded in page 0
+*----------------------------------
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CSEG
+
+MYPWUP DATA&nbsp; 0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; no more links
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA&nbsp; MYP1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; entry point</pre>
+
+<pre>MYP1&nbsp;&nbsp; JEQ&nbsp;&nbsp; SK1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; trap software reset (example)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP&nbsp; @SGB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; call our routine for others power-up types&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA&nbsp; MYPW1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; address of our routine
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA&nbsp; PG4SEG&nbsp;&nbsp;&nbsp;&nbsp; let loader fill in page #
+
+SK1&nbsp;&nbsp;&nbsp; B&nbsp;&nbsp;&nbsp;&nbsp; *R11&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; return doing nothing
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CEND
+*----------------------------------
+* Our first segment: loaded wherever it fits
+*----------------------------------
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CSEG&nbsp; MYSEG1
+
+MYPW1&nbsp; JLT&nbsp;&nbsp; SK2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; trap console reset
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; code for PE-box reset
+SK2&nbsp;&nbsp;&nbsp; ...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; code for console reset
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP&nbsp; @PG0RT&nbsp;&nbsp;&nbsp;&nbsp; return to page 0
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CEND
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; END</pre>
+</td>
+</tr>
+</table>
+
+<p>In this example, a software reset necessitates no special action, so
+that kind of power-up is trapped immediately. The other two types of reset
+require special handling, so we are branching to our routine in another
+segment. Note the branching is performed by calling the routine SGB with
+two data words: the address and the page number. Since we don't know what
+the page number will be, we used the pseudo-label PG4SEG wich instructs
+the loader to provide the page number for the address found in the previous
+word (here MYPW1).
+<p>The routine is entered with the GPL workspace: >83E0. You can expect
+to find your card CRU in R12. The entry routine has saved R12 through R15
+and will restore them once our routine returns.
+<p>Once done, your routine must call PG0RT, which switches back to page
+0, and performs a RT. This returns to the USB entry routine, which will
+call power-up routines for others DSRs, if any.
+<h4>
+<br>
+<a NAME="ISR"></a>Interrupt service routine</h4>
+These routines are called every time an interrupt occurs. An entry routine
+will make sure that the interrupt indeed comes from the USB-SM card, then
+call the ISR for every DSR loaded.
+<p>To provide an ISR, you should define the label MYISR and have it point
+to the first link in your ISR chain. Again, even though there is generally
+only one ISR, a chain structure is provided in case you wanted to use more
+than one routine. Normally, the entry point will immediately branch to
+your ISR routine in another segment. However, you may want to first test
+CRU input bits 0 and 1, to determine whether the interrupt came from the
+USB host controller or from the USB device controller.
+<p>It is your responsability to determine whether the interrupt was generated
+by your device or by another one. If it's not your device, your routine
+should branch immediately to PG0RT, which will return to page 0 and call
+the ISRs for other DSRs. If the interrupt did come from your device, you
+must clear the interrupt condition and increment R11 by two before branching
+to PG0RT. This will prevent the stubs from calling further ISRs.
+<p>Again, the ISR is entered with workspace >83E0, and R12 should contain
+the card's CRU. The card's ISR routine has saved R12 through R15 and will
+restore them upon return from your ISR.
+<p>Example of ISR entry point:
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DEF&nbsp;&nbsp; MYISR
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; REF&nbsp;&nbsp; SGB,USBRT,PG4SEG
+*----------------------------------
+* No-name segment: loaded in page 0
+*----------------------------------
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CSEG
+
+MYISR&nbsp; DATA&nbsp; 0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; next link: no more
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA MYISR1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; entry point
+
+MYISR1 TB&nbsp;&nbsp;&nbsp; 0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; host controller interrupt?
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; JNE&nbsp;&nbsp; SK1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; no: don't do anything
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP&nbsp; @SGB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; call our routine for host controller ints&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA&nbsp; MYISR2&nbsp;&nbsp;&nbsp;&nbsp; address of our routine
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA&nbsp; PG4SEG&nbsp;&nbsp;&nbsp;&nbsp; let loader fill in page #
+
+SK1&nbsp;&nbsp;&nbsp; B&nbsp;&nbsp;&nbsp;&nbsp; *R11&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; return doing nothing
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CEND
+*----------------------------------
+* Our first segment: loaded wherever it fits
+*----------------------------------
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CSEG&nbsp; MYSEG1
+
+MYISR2 ...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; check if interrupt came from our device&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; JNE&nbsp; NOTUS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; nope
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; yes: handle it, clear interrupt
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; INCT R11&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; no more ISR scanning
+NOTUS&nbsp; BLWP @PG0RT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; return to page 0
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CEND
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; END&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<h3>
+<br>
+<a NAME="Info segment"></a>The information segment</h3>
+As mentionned above, the segment named 'INFO' will not be loaded. It is
+meant for directory listing programs, so the user can have an idea of what
+the DSR is used for. For faster listing, it is better if the information
+segment appears at the top of your file. The INFO segment can contain upto
+4 information fields, separated by >00 bytes.
+<ol>
+<li>
+The first field should consists in a maximum of 16 characters. It describes
+the device this DSR is meant for. Currently, the device name should be
+'USB-SM 1.5'.</li>
+
+<li>
+The second field is meant for directory listing with one line per file:
+it should contain a 28-char description of the DSRs.</li>
+
+<li>
+The third field should consist in a maximum of 24 lines of 32 characters.
+You can use byte >0D to move to the next line, or just pad each line with
+spaces. This field is meant to provide one full screen of information about
+your DSR.</li>
+
+<li>
+The last field is optional. It is free for you to use and has no required
+format.</li>
+</ol>
+Example of information segment:
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CSEG 'INFO&nbsp; '
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TEXT 'USB-SM 1.5'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; device name
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BYTE >00&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; field separator
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TEXT 'Sample DSR. No real use.'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; one-line description
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BYTE >00&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TEXT '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Sample DSR'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; full-screen description&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BYTE >0D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; next line
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TEXT '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ----------'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; underlining the title
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BYTE >0D,>0D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; skip 2 lines
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TEXT 'This is not really a DSR. It`s&nbsp; '
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TEXT 'here to demonstrate the use of&nbsp; '
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TEXT 'the INFO segment.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; '
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BYTE 0
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CEND&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; no third field, here&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<h3>
+<br>
+<a NAME="Export segment"></a>The export segment</h3>
+This segment is here so that you can declare some of your routines for
+use by other DSRs (i.e. files loaded at a different time). The loader will
+enter these into a symbol table in the EEPROM. Once this is done, any DSR
+can refer to your routines by means of a REF statement. When the loader
+encounters a REF, it first checks if the label is one of the predefined
+symbols (e.g. PG4SEG). If not, it searches the export table, in the DSR
+EEPROM.
+<p>Each entry in the export segment has the following format:
+<ul>
+<li>
+A six-characters label name, padded with spaces if necessary.</li>
+
+<li>
+The address of the routine.</li>
+
+<li>
+The page number where the routine is to be found (use PG4SEG to let the
+loader fill this in)</li>
+</ul>
+<u>Important</u>: You must stick to this format very strictly and not add
+anything else to the export segment, otherwise you may confuse the loader
+and totally disable the REF resolution mechanism!
+<p>Here is an example of such a segment:
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CSEG 'EXPORT'
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TEXT 'VSBW&nbsp; '
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA VSBW1
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA PG4SEG
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TEXT 'DUMBOS'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA DUMBOS
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA PG4SEG
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CEND</pre>
+</td>
+</tr>
+</table>
+
+<p>Note that the DSR file exporting the routines must be loaded before
+the one referencing to them. So there is no way you can have two DSR files
+cross-referencing each other: you would get a 'label not found' error when
+loading the first one.
+<br>&nbsp;
+<h3>
+<a NAME="Stub segment"></a>The stub segment(s)</h3>
+A stub is a short segment that is loaded at the beginning of every EEPROM
+page. By default, the loader will install a minimal stub containing the
+page switching routines. If you so wish, you can append your own code to
+the existing stub, replace it with a stub or yours, or not use any stub
+at all.
+<p>To append code to the existing stub, just include it within a segment
+called STUB. The loader will add your code at the end of the default stub.
+To create your own stub, make up a segment called MYSTUB. You can have
+both a STUB and a MYSTUB segment in your program.
+<p>So that the loader knows which stub is to be used (if any) with each
+segment, you should set the proper segment flags (see <a href="#Segment%20flags">below</a>):
+<ul>
+<li>
+MYSTUB causes the segment to be loaded into a page beginning with the MYSTUB
+segment.</li>
+
+<li>
+NOSTUB frees the segment from stub requirements: it can be loaded in a
+page containing any stub, or none at all.</li>
+
+<li>
+If neither flag is set, the segment will be loaded into a page containing
+the STUB segment.</li>
+</ul>
+If you are not using the default STUB segment, you can still branch to
+your segments from another page, by using the page switching routines described
+<a href="#Jumping%20pages">below</a>.
+However, to return to the caller, or to call other segments, you will need
+to implement your own page switching routines.
+<p><u>Important note</u>: If your stub segment(s) contain any REF label
+shared by another segment, the stub segment should appear last in your
+file. If you're using both MYTSUB and STUB, then STUB should appear last.
+<br>&nbsp;
+<h3>
+<a NAME="No-name segment"></a>The no-name segment</h3>
+Imagine you wish to release a set of subroutines that may be useful to
+other DSR programmers. You have several solution, depending on whether
+you wish to release the source, and how fast you want the calls to be:
+<ul>
+<li>
+You can release the source, so other programmers can include it in their
+segments. This provides maximum flexibility (e.g. gives them a chance to
+peruse and modify your code). It will require re-assembling your routines
+every time, but since they will be part of the user's segment, they can
+be called directly with BL or BLWP, which will be fast.</li>
+
+<li>
+You can realease a pre-assembled set of routines in a DF80 object file
+with DEF statements for all your routines (and possibly an EXPORT segment).
+Other programmers can then REF your routines and call them with BLWP @SGBLWP
+or BLWP @SGBL. The disadvantage is that this type of call is much slower
+than a direct BL or BLWP call.</li>
+
+<li>
+To solve this problem, you could mention in your docs the name of the segment
+you put your routines into. Then other programmers just need to have a
+segment with the same name and your routines will be automatically appended
+to it. Unfortunately, this will not work if they want to include them in
+the STUB or MYSTUB segment, since the segment name was chosen by you.</li>
+
+<li>
+Another way of doing the same thing is to assemble your routine in a segment
+without a name. The loader will merge this segment with the last segment
+that was encountered, whatever its name. This way, other programmers can
+include your routines in any one of their segments.</li>
+</ul>
+To create a no-name segment, just use a CSEG directive with no segment
+name (nor quote marks). Do not forget to DEFine your routines.
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DEF&nbsp;&nbsp; FOO,BAR
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CSEG&nbsp;
+FOO&nbsp;&nbsp;&nbsp; ...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; your routines&nbsp;
+BAR&nbsp;&nbsp;&nbsp; ...&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CEND&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>For this to work, the no-name segment should be the first (possibly
+the only) segment in the file. Other programmers will load the file after
+one of theirs, and your segment will be appended to the end of the last
+segment in the previous file. By last segment, I mean the last that was
+started, not necessarily the last to finish (if you split your segments,
+which I do not recommend).
+<p>So what happens if the no-name segment is the first to be loaded? Nothing
+exciting: it is just considered as a stand-alone segment, with the name
+$BLANK.
+<br>&nbsp;
+<h4>
+Should I include an EXPORT segment?</h4>
+If your file does not include an EXPORT segment, other programmers will
+need to load it with every one of their DSRs, in the same loading session.
+This means that there may well be multiple copies of your routines in the
+EEPROM, but it will allow multiple DSRs to call them direcly without using
+page-jumping routines.
+<p>If your file does include an EXPORT segment, only one copy of your routines
+will be present in the EEPROM. All DSRs loaded after yours can call your
+routines, but they must use page-jumping routines (e.g. SGBLWP), and this
+is quite slow. Only one DSR can use direct calls, the one that loaded your
+file initially.
+<p>In the end, it's up to you. If you expect other programmers to merge
+your routine with one of their segments, you should probably not export
+them, since it may cause name conflicts when different DSRs include your
+routines. Other programmers can always make up an EXPORT segment if they
+feel they need one. Alternatively, you could provide the EXPORT segment
+on a separate file.
+<br>&nbsp;
+<h3>
+<br>
+<a NAME="Segment order"></a>Segment order in the file</h3>
+I recommend that your segments appear in the following order, within your
+DF80 file:
+<ul>
+<li>
+INFO</li>
+
+<li>
+ENTRY</li>
+
+<li>
+All other segments (including EXPORT)</li>
+
+<li>
+MYSTUB</li>
+
+<li>
+STUB</li>
+
+<li>
+Data segments are not loaded, so they can be anywhere, even chopped into
+pieces throughout the source file(s).</li>
+</ul>
+This is needed for proper resolution of the REF chains. If your segment
+does not share any REF with another segment, then you can load it anywhere.
+<p>For the same reason, it's better if each segment is kept as a single
+block. You could chop them into pieces and interlace them, but that may
+prevent the loader from resolving all REF labels. The key here is that,
+if two segments uses the same REF label, then all occurences of this label
+should appear in the same order as the segment declarations.
+<h4>
+Technical explanation</h4>
+This is due to the way the assembler organises the REFed labels: as a chain
+starting at the end of the file (even though the REF statement itself may
+appear at the beginning of the source file). Each occurence of a REFed
+label points to the previous one, and the chain ends with a null link at
+the first occurence. Segment structure is ignored for that purpose. Here
+are three examples:
+<pre>&nbsp;&nbsp; CSEG 'SEG1'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CSEG 'SEGA'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CSEG 'MYSEG1'
+&nbsp;&nbsp; DATA ANYREF&lt;-,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA ANYREF&lt;-,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CEND
+,->DATA ANYREF--'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CEND&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CSEG 'MYSEG2'
+|&nbsp; CEND&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CSEG 'SEGB'&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA&nbsp; ANYREF&lt;-,
+|&nbsp; CSEG 'SEG2'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ,->DATA ANYREF--'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ,->DATA&nbsp; ANYREF--'
+'--DATA ANYREF&lt;-,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp; CEND&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp; CEND&nbsp;
+&nbsp;&nbsp; CEND&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp; CSEG 'SEGA'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp; CSEG 'MYSEG1'
+&nbsp;&nbsp; CSEG 'SEG1'&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; '--DATA ANYREF&lt;-,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; '--DATA ANYREF&lt;-,
+&nbsp;&nbsp; CEND&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CEND&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CEND&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |
+&nbsp;&nbsp; REF&nbsp; ANYREF--'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; REF&nbsp; ANYREF--'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; REF&nbsp; ANYREF--'
+*&nbsp; This is ok&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; * This won't work&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; * Neither will this</pre>
+Because data within an EEPROM cannot be modified, the loader must build
+segments one at a time in the memory expansion, starting with the last
+one. More precisely: first STUB, then MYSTUB, then any other segments in
+reverse order of apparition, then the no-name entry segment (INFO and the
+data segments are never loaded).
+<p>It ensues that the loader cannot walk a REF chain if it goes through
+a segment that hasn't been loaded yet. In the second example above, the
+loader processes SEGB first, so it cannot walk the ANYREF chain through
+SEGA. And when SEGA is built, the loader cannot walk "through" SEGB to
+follow the links. A similar, less obvious, situation occurs in the rightmost
+example, where MYSEG2 is process first (because its CSEG appears after
+MYSEG1's), at a time when the REF chain hasn't yet been walked through
+MYSEG1.
+<p>In conclusion, to avoid that kind of problem, don't split your segments
+and arrange them as described above.
+<h3>
+<br>
+<a NAME="EEPROM structure"></a>Internal EEPROM structure</h3>
+You don't need to read this chapter, unless you are curious to know how
+the loader organizes segments within the EEPROM.
+<p>Each segment is preceeded with a pointer, i.e. a data word containing
+the next free address after the segment. This address may in turn contain
+a pointer to the next one, etc.
+<pre>A4000&nbsp; DATA PT1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Address >4000
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ....&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; First segment (generally STUB)
+PT1&nbsp;&nbsp;&nbsp; DATA PT2
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Second segment
+PT2&nbsp;&nbsp;&nbsp; DATA >FFFF&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; End-of-chain mark
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Third segment
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA >FFFF, FFFF,...&nbsp;&nbsp;&nbsp;&nbsp; Free space</pre>
+The exception to this rule is page 0, in which address >4000 is needed
+for the standard ROM header. Thus, the first link in page 0 is located
+at >400E instead.
+<p>Other important locations in page 0 are:
+<ul>
+<li>
+>4014 Address of the internal list of power-up routines, to be called by
+the card's master power-up routine.</li>
+
+<li>
+>4016 Address of the internal list of ISRs, to be called by the card's
+master ISR.</li>
+
+<li>
+>4018 Number of the first EXPORT page.</li>
+
+<li>
+>401A Number of the first removal information page.</li>
+</ul>
+The exports page begins with a pointer reserving the whole page (i.e. pointing
+at >4FFE) and the page number. Starting at >4004, exports are loaded exactly
+as defined in your EXPORT segment, with no separation between subsequent
+loading sessions. The first >FFFF word marks the end of the list. If the
+page gets full, the list will end with a >0000 word, followed with the
+number of the next exports page.
+<p>Removal information is saved in the same manner. It begins with four
+data words: a pointer to the next chunk of removal info, the numbers of
+the last export before yours, and the number of your last export (if these
+numbers are identical, you defined no exports), and finally a pointer to
+a list exports REFed by your program.
+<p>Then it lists the page number, address, and size for each segment in
+your program. The list always begins with the data segment and the no-name
+entry segment, even if they were not used in your program.
+<p>Finally, the loader lists the ordinal number of each export used by
+a REF in your file. The list ends with a >8000 endmark. It has a maximum
+size of 256 entries, if your program REFed more exports than this, the
+endmark will contain the number of unlisted REFs, in the form >8xxx.
+<p>This information can be used by a DSR management program to safely remove
+a DSR file from memory. By comparing your export numbers with the REF lists
+of other DSRs, it can determine whether removing your DSR would compromise
+others. The segment table lets us determine which memory page can be reclaimed,
+and possibly erased, by removing your DSR.
+<p>Example of removal information:
+<pre>A4000 DATA >5000&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Reserve full page
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA >0002&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Page number
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA PT1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Info for next DSR loaded
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA >0012&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Number of the last export before ours
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA >0014&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Number of our last export (i.e. we had two)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA XP1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Pointer to list of REFed exports
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA >0000&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SRAM page for DSEG segment
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA >5100&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Address of DSEG segment
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA >0124&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Size of DSEG&nbsp;
+&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA >0000&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ROM page for entry segment (always 0)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA >4530&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Address of entry segment
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA >0064&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Size of entry segment
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA >0042&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Page where one of our segments is
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA >4106&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Address of this segment
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA >0AFE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Its size
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA >0025&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Page number for another segment
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA >4804&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Its address
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA >0106&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Its size
+
+XP1&nbsp;&nbsp; DATA >0003,>0017,>0025&nbsp; List of exports REFed by our DSR
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA >8000&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Endmark
+
+PT1&nbsp;&nbsp; DATA >FFFF,>FFFF...&nbsp;&nbsp;&nbsp;&nbsp; Free space (or >0000,next_page)</pre>
+
+<h2>
+
+<hr WIDTH="100%"><br>
+<a NAME="Using the SRAM"></a>Using the SRAM</h2>
+As the EEPROM cannot easily be written to, it can hold code and data constants,
+but it is not appropriate to hold your variables. These must be stored
+into RAM. Fortunately, there is 1 megabyte of SRAM onboard the USB-SM card,
+arranged as 256 pages of 4 KB, at addresses >5000-5FFF (although the last
+32 bytes,&nbsp; >5FE0-5FFF, may be used to access the USB chip). The SRAM
+must be shared by all DSRs installed in the EEPROM, which rises several
+issues: which DSRs can use which page, how to retain data in between two
+calls of your DSR, etc.
+<p>One thing I must mention right away is that the SRAM is not battery
+backed. This means that it will contain random data upon power-up. Thus,
+you cannot initialize your data the way you would in a regular assembly
+program (e.g. with DATA >1234 or TEXT 'TEST'). If you need to initialize
+variables, you must do it programmatically, for instance by having the
+initial values in the EEPROM and copying them into the SRAM when needed.
+Here is an example:
+<br>&nbsp;
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;*----------------------------------
+* Code segment: in EEPROM
+*----------------------------------
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CSEG 'FOOBAR'
+
+INIVAR LI&nbsp;&nbsp; R0,ROMVAR&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; optional: init variables
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R1,HITS
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R2,VAREND-ROMVAR
+LP1&nbsp;&nbsp;&nbsp; MOVB *R0+,*R1+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; copy ROM to RAM
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DEC&nbsp; R2
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; JNE&nbsp; LP1
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ...
+DUMMY&nbsp; MOVB @HERE,@THERE&nbsp;&nbsp;&nbsp;&nbsp; use variables (dummy example)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DEC&nbsp; @HITS
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R1,TITLE
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MOV&nbsp; @SIZE,R2
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @VMBW
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ...
+
+ROMVAR DATA 5&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; initial values to be copied in RAM
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BYTE >AA
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BYTE >55
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA 14
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TEXT 'This is a test'
+VAREND&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CDEND
+*
+*----------------------------------
+* Data segment (assigned to SRAM)
+*----------------------------------
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DSEG
+
+HITS&nbsp;&nbsp; DATA 0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; our variables
+HERE&nbsp;&nbsp; BYTE 0
+THERE&nbsp; BYTE 0
+SIZE&nbsp;&nbsp; DATA 0
+TITLE&nbsp; BSS&nbsp; 14
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DEND
+&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>There are several ways to use the SRAM, so as to avoid conflicts with
+other DSRs:
+<ul>
+<li>
+Use only the caller's workspace.</li>
+
+<li>
+Use the predefined workspaces in SRAM page 0.</li>
+
+<li>
+If you need more space, use the default data segment in page 0.</li>
+
+<li>
+For even more space, use the MALLOC routine to obtain buffers in other
+SRAM pages, use MCOPY to access them.</li>
+
+<li>
+To remember data in between DSR calls, use the private slot mechanism.</li>
+
+<li>
+Or, for maximum flexibility (but minimum compatibility), have private data
+segment(s) in SRAM pages others than page 0.</li>
+</ul>
+Lets see these possibilities one at a time.
+<p><a href="#WS issues">Workspace issues</a>
+<br><a href="#DSEG%20in%20SRAM">Data segment DSEG</a>
+<br><a href="#malloc&free">MALLOC and MCOPY</a>
+<br><a href="#private%20RAM%20slot">Private memory slot</a>
+<br><a href="#Private data">Private data segments</a>
+<br><a href="#Switch%20SRAM%20page">Switching pages</a>
+<p><a href="#Data segment flags">Data segment flags</a>
+<br><a href="#SRAM%20stubs">SRAM internal structure</a>
+<br>&nbsp;
+<h3>
+<a NAME="WS issues"></a>Workspace issues</h3>
+Since all DSRs are called with BL, you could use the caller's workspace.
+It is the simplest solution, but it is rarely applicable. For one thing,
+16 registers aren't much. Especially since the caller may expect you to
+leave some of them undisturbed (for instance, if your DSR is called with
+workspace >83E0 you cannot use R13 trough R15, since these will contain
+system variables). At the very least, you are supposed to preserve R11
+(to return to the caller), R12 (the card's CRU), and possibly R1 too (the
+number of time a DSR name was found).
+<p>As a result, you're probably better off switching to a dedicated workspace,
+located inside the SRAM. This is best done with a BLWP, so you can return
+to the original workspace with a simple RTWP when done. A slightly more
+sophisticated way is to use the following trick:
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @MYWS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Trick to change workspace and continue below&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Your DSR code
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BL&nbsp;&nbsp; @OLDWS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Trick to retrieve old workspace
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; INCT R11&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Return with no error (example)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; B&nbsp;&nbsp;&nbsp; *R11&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Exit DSR&nbsp;&nbsp;&nbsp;
+*
+MYWS&nbsp;&nbsp; DATA WREGS,HERE&nbsp;&nbsp; Vectors
+HERE&nbsp;&nbsp; B&nbsp;&nbsp;&nbsp; *R14&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Return with new workspace
+*
+OLDWS MOV&nbsp;&nbsp; R11,R14&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Copy return point
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; RTWP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Return with old workspace&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>The only question is, where to place your new workspace?
+<p>SRAM page 0, which should be on by default when your DSR is entered,
+has space for 9 workspaces, arranged in a hierarchical fashion. If you
+COPY the file USB/EQU into your own, you will be able to call them by name,
+from L1WS (>5FD0) to L9WS (>5ED0).
+<p>The simple rule to follow is that a subroutine that doesn't BLWP to
+another routine should use the level 1 workspace, L1WS. A routine that
+calls one or more level 1 routines should use the level 2 workspace L2WS.
+As so on, upto level 9.
+<p>If you export one of your routines for use by other DSRs, make sure
+to document which level workspace it uses. Here also, the key is that any
+routine that wants to call that one should do it from a workspace at least
+one level above.
+<br>&nbsp;
+<h3>
+<a NAME="DSEG in SRAM"></a>Using the default data segment</h3>
+When your DSRs are entered, you can expect SRAM page 0 to be on. All data
+in the default data segment will map to this page. The botom of SRAM page
+0 is reserved for use by the page-switching routines: they have their workspace
+at >5004 (level 0 workspace), followed with a stack for return addresses,
+and some reserved variables. Thus, available space begins at >5040. The
+end of SRAM page 0, from >5ED0&nbsp; is used by the nine hierarchical workspaces.
+And of course the USB controller maps at >5FE0-5FFF if CRU bit 1 is set.
+Thus, the maximum size of the default data segment is >0E90, or 3728 bytes.
+<p>To use the default data segment, just enclose your variables between
+a DSEG and a DEND statements, similar to what you have been doing for code
+segments with CSEG and CEND. No segment name is needed, nor accepted, since
+the assembler supports only one data segment.
+<p>Remember that the default data segment (as well as the rest of SRAM
+page 0), is shared by all DSRs. So you should not expect any data to remain
+untouched in between two calls to your DSR. Also, if your DSR calls an
+exported routine, check the docs to see if this routine uses any data space
+in page 0 (and please make sure you include this info for any routine that
+you export).
+<h3>
+<br>
+<a NAME="malloc&free"></a>Using MALLOC-allocated buffers</h3>
+If you need more data space, you can use the dedicated procedure MALLOC
+to reserve it. You can then access this space with the MCOPY routine. Once
+done, you should return the space to the common pool with the procedure
+FREE. This method is especially convenient to reserve large chunks of memory
+to serve as data buffers. MALLOC, MCOPY and FREE are routines exported
+by a one-segment DSR called STDMEM/O, which must be loaded before your
+program if you mean to use its exported routines. USBSTD/O does not contain
+any DSR, its sole purpose is to provide several memory access routines,
+to be called with SGBLWP. These are described in detail <a href="#STDMEM">later</a>,
+but here is the gist of it:
+<p><b>MALLOC </b>takes one argument in R0: the number of bytes you need.
+It returns with a page number in R0&nbsp; and with an SRAM address in R1.
+The Eq bit will be set upon return if the memory could be allocated. If
+the Eq is not set (test it with JEQ or JNE) something went wrong. Very
+likely, you're running out of RAM pages, or you asked for too big a chunk
+(max size is a bit under 4 kbytes).
+<p><b>FREE </b>takes two argument: the page number in R0 and in R1 the
+address of the first byte to free, both as received from MALLOC. It will
+free the number of bytes that were allocated when MALLOC was called.
+<p>Here's an example:
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CSEG 'TEST&nbsp; '
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R0,1024&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; reserve 1024 bytes&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @SGBLWP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; call routine in another segment&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA MALLOC,PG4SEG
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; JNE&nbsp; ERROR&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; trap errors
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; use memory
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @SGBLWP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (assuming R0 and R1 unchanged)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA FREE,PG4SEG&nbsp;&nbsp;&nbsp; free the memory&nbsp;
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CEND</pre>
+</td>
+</tr>
+</table>
+
+<p><b>MCOPY </b>is a procedure that you can used once you obtained buffer
+space with MALLOC, to copy data to and from it. Its parameters are the
+following:
+<p>R0: source page
+<br>R1: source address
+<br>R2: number of bytes to copy
+<br>R3: destination page
+<br>R4: destination address
+<p>Obviously, R0 and R3 are only relevant if the corresponding address
+is in the SRAM space, i.e. >5000-5FFF. Optionally, you can use >FFFF as
+a page number to specify the current SRAM page. MCOPY also works to/from
+VPD memory and GROM/GRAM, but more on this later.
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MOV&nbsp; @MYPAGE,R0&nbsp;&nbsp;&nbsp;&nbsp; from this page
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R1,MYDATA&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; at this address
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R2,512&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 512 bytes
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SETO R3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; into current page&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R4,MYBUF&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; at this address
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @SGBLWP
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA RAMCPY,PG4SEG&nbsp; copy&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<h3>
+<br>
+<a NAME="private RAM slot"></a>Data retention via private slots</h3>
+Sometimes, it is necessary to keep information in memory between two calls
+of a DSR: for instance, you could store the current sector being accessed
+by an open file. However, because SRAM page 0 is shared by all DSRs, you
+cannot expect its contents to remain intect between two calls of your DSR:
+another DSR may be called in the meantime, and could overwrite your data.
+<p>If you need a permanent memory area, you can obtain one with MALLOC:
+the allocated memory won't be touched unless you free it, or the computer
+is rebooted. However, you still have a problem: how do you remember the
+location of that memory area? This is where your private memory slot comes
+in.
+<p>By REFerencing the label MYSLOT, you will cause the loader to assign
+you a unique slot of 4 bytes in RAM page 1. The address of which will be
+provided in MYSLOT. Four bytes is not much, but it's enough to save the
+pointer returned by MALLOC. For this you can use the dedicated routines
+TOSLOT and ATSLOT.
+<p><b>TOSLOT </b>saves R0 and R1 into your private slot. It must be followed
+with a data word containing a reference to MYSLOT.
+<p><b>ATSLOT </b>retrieves the contents of your private slot into R0 and
+R1. The call must also be followed with MYSLOT. Upon power-up, you can
+expect your slot to contain >0000, >0000.
+<p>Here's an exemple of how to use this feature.
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; REF MYSLOT
+
+* This is performed upon power-up, or the first
+* time your DSR is entered: it reserves some memory for later&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; 0,>0678&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; number of bytes required
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @SGBLWP
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA MALLOC,PG4SEG&nbsp; get private memory area
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; JNE&nbsp; ERROR
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @SGBLWP
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA TOSLOT,PG4SEG&nbsp; save its location
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA MYSLOT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; data for TOSLOT&nbsp;&nbsp;</pre>
+
+<pre>* Any time your DSR is entered, it can find out
+* where the reserved memory is located&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @SGBLWP
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA ATSLOT,PG4SEG&nbsp; retrieve R0 and R1
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA MYSLOT
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; use them, for instance with MCOPY</pre>
+
+<pre>* This may be done once you don't need the memory any more
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @SGBLWP
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA ATSLOT,PG4SEG&nbsp; retrieve R0 and R1
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA MYSLOT
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @SGBLWP
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA FREE,PG4SEG&nbsp;&nbsp;&nbsp; free our memory area
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CLR&nbsp; R0
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CLR&nbsp; R1
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @SGBLWP
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA TOSLOT,PG4SEG&nbsp; empty our slot
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA MYSLOT</pre>
+</td>
+</tr>
+</table>
+
+<p>TOSLOT and ATSLOT are part of the same segment than MALLOC, in the file
+STDMEM/O. See <a href="#STDMEM">below</a> for a complete description.
+<br>&nbsp;
+<h3>
+<a NAME="Private data"></a>Using private data segments</h3>
+For some reason, the TI assembler only allows one data segment, with no
+name. This is the one we discussed above, which is always placed in SRAM
+page 0. But you may want to have another, or several other data segments,
+to be placed in different SRAM pages. To do so, just create segments with
+CSEG and set the DSEG flag to indicate they are data segment (reminder:
+this is done by DEFining a label with the same name as the segment). Alternatively,
+if your segment name begins with 'DATA', the loader will assume it's a
+data segment and set the DSEG flag automatically.
+<p>The remaining question is where to place private data segment(s). To
+prevent unused DSRs from hogging the SRAM, I decided that private data
+segment will not be given a preserved memory area. Instead, you'll need
+to reserve one the first time your DSR is called. There are three ways
+to do this, starting with the most convenient, but also the most likely
+to fail the SRAM gets full...
+<ol>
+<li>
+Use LOCKDS to install your data segment at a page and address chosen by
+the loader.</li>
+
+<li>
+Force LOCKDS to install your data segment at a loader-determine address,
+but letting MALLOC chose the page number.</li>
+
+<li>
+Use MALLOC to obtain both the page number and the address. This solution
+is the most likely to succeed, but it implies writing your code in a special
+manner.</li>
+</ol>
+
+<h4>
+1. Fixed page, fixed address</h4>
+To obtain a dedicated page number and address from the loader, just set
+the FIXPG flag in your data segment flags. The loader will scan removal
+information to determine where previously loaded segment placed their private
+data segments (if any), and make sure that yours gets placed at a location
+where it will not interfere with any other DSR. When your DSR is called,
+you will need to call LOCKDS to reserve that space, and prevent MALLOC
+to hand it over to other DSRs. LOCKDS is a special entry point into MALLOC
+that takes three parameters, all passed as inline data: the SRAM page number
+(which you can obtain with a REF to MYDSEG), the start address of your
+data segment, and the end address of your data segment (which you can obtain
+by placing a label after the last data word). The syntax is:
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; REF&nbsp; LOCKDS,MYDSEG</pre>
+
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CSEG 'TEST'
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ...
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @SGBLWP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; reserve our private area&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA LOCKDS,PG4SEG&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA MYDSEG,DATBEG,DATEND&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; JNE&nbsp; ERROR&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; make sure it did work
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; JOC&nbsp; MAYBE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; already reserved (by us?)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ok, we can switch to our page now&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CEND</pre>
+
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CSEG 'DATA01'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; private data segment
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DEF&nbsp; DATA01
+DATA01 EQU&nbsp; DSEG+FIXPG&nbsp;&nbsp;&nbsp; setting segment flags
+
+DATBEG DATA 0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; your first data word
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; more data
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA 0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; your last data word
+DATEND
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CEND</pre>
+</td>
+</tr>
+</table>
+
+<p>You must check the Eq bit to find out whether LOCKDS failed. This may
+happen if the space you requested has already been allocated to another
+DSR by&nbsp; MALLOC. To make it as unlikely as possible, the loader allocates
+private segments from page 254 down, whereas MALLOC allocates buffers from
+page 2 on. But if the SRAM gets heavily used, it may happen. In this case,
+your DSR should return with a "memory full" error.
+<p>You may also want to test the carry bit; LOCKDS will set it if the area
+you requested is already occupied by a buffer of the exact same size as
+your data segment. Since it is very unlikely that MALLOC would have attributed
+a buffer to another DSR with the exact page number, address, and size as
+your data segment, it probably means that your DSR has already called LOCKDS.
+But to make really sure, you may want to include a flag to this effect
+inside your data segment, and test is with MCOPY...
+<br>&nbsp;
+<h4>
+2. Fixed address, variable page</h4>
+To decrease the chances that LOCKDS will fail, you can let the loader chose
+the address of your data segments, but only decide on the page number at
+run time. To do this, simply do not set the FIXPG flag in your data segment,&nbsp;
+and call LOCKDS without any page number.
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; REF&nbsp; LOCKDS
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @SGBLWP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; reserve our private area&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA LOCKDS,PG4SEG&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA DATBEG,DATEND no page number here&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; JNE&nbsp; ERROR&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; make sure it did work
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ok, we can switch to our page now
+&nbsp;
+* Free it when done
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MOV @>5002,R0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; retrieve page number (assuming standard page)&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp; R1,DATBEG&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; get address
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @SGBLWP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; free private area
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA FREE,PG4SEG&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>Since SRAM page numbers are in the range 0-255, but SRAM addresses are
+>5000 or bigger, LOCKDS can easily detect that you did not provide a page
+number. It will then obtain one from MALLOC, sepcifying a fixed address
+(DATBEG in the example) and a size calculated by substracting DATBEG from
+DATEND. (As a matter of fact, LOCKDS is nothing more than a specialized
+entry point into MALLOC).
+<p>Again, you must make sure it did work, which is more likely to happen
+since MALLOC now has the choice between 253 pages instead of just one.
+<p>Note that you must have a way to make sure that your DSR has not been
+entered before and already reserved a page, otherwise LOCKDS called in
+this way will simply issue another page at each call. You may do this by
+using the MYSLOT mechanism. Alternatively, you may free the allocated page
+once your DSR is about to exit, as in the example above.
+<br>&nbsp;
+<h4>
+3. Variable page, variable address</h4>
+The last and most cumbersome possibility is to let MALLOC decide on both
+the page number and the address of your data segment. This is simply done
+by calling MALLOC with the size of your data segment in R0.
+<br>&nbsp;
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; REF&nbsp; LOCKDS
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R0,DATEND-DATBEG&nbsp; size of our data segment
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @SGBLWP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; reserve our private area&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA MALLOC,PG4SEG&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; JNE&nbsp; ERROR&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; make sure it did work
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ok, switch to page in R0</pre>
+
+<pre>* Fixing variable addresses:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R2,DATBEG
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; S&nbsp;&nbsp;&nbsp; R2,R1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; calculate offset
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CLR&nbsp; @DATBEG(R1)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; index every data access
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R9,DATBEG&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; immediate arguments cannot be indexed&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; A&nbsp;&nbsp;&nbsp; R1,R9&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; so we need this to correct the address&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CLR&nbsp; *R9</pre>
+</td>
+</tr>
+</table>
+
+<p>However, we now have a huge problem to face: since the address of your
+data segment is not known at loading time, any code burnt into the EEPROM
+will reference variables at likely invalid addresses. For instance, assuming
+the loader placed your data segment at >5800, the statement <tt>CLR @DATBEG</tt>
+will be burnt as <tt>>04E0 >5800</tt>. But if MALLOC places your data segment
+anywhere else than >5800, the CLR statment will still clear address >5800
+and likely wreck havoc with another DSR, or another part of your data.
+You need a way to correct the addresses of your variables, but since the
+EEPROM cannot easily be written to, you cannot patch your code. The solution
+is to modify your code by indexing every variable address. That is, write
+<tt>CLR @DATBEG(R1)</tt> instead, and make sure that R1 contains the offset
+between the actual and the intended address. See the example above (in
+real life, you may want to use a register other than R1 as an index, since
+R1 is often heavily used).
+<h4>
+<br>
+<a NAME="Switch SRAM page"></a>Switching SRAM pages</h4>
+Having obtained a page number and an address for your data segment, you
+could use them to access your variables with MCOPY. This is probably not
+what you had in mind however. The advantage of having a private memory
+space is that you can access data directly, e.g. with MOV @THIS,@THAT,
+instead of setting up and calling MCOPY, which is *much* slower anyway.
+But to do this, you must first switch SRAM pages to make yours appear at
+>5000-5FFF. This is easily done if you are still using the caller's workspace,
+all you need is the page number in R0:
+<br>&nbsp;
+<table WIDTH="38%" BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; assuming R0 just filled in by MALLOC or LOCKDS&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @RAMPG&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>But things are trickier if you have already switched to a workspace
+located in the SRAM (this may happen if you have more than one data segment).
+By switching SRAM pages, you will loose your current workspace! One way
+around this is to used NEWWS to switch pages and select a new workspace.
+NEWWS is called with a pointer to the desired workspace in R0+R1, and the
+number of bytes to copy as an inline data (32 to copy the entire workspace).
+It will switch pages (to the page number in R0), copy your old workspace
+onto the new one, and return control to you with the new workspace active.
+<br>&nbsp;
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; assuming R0 just filled in by MALLOC or LOCKDS&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R1,WREGS2&nbsp; address of our workspace in private data segment&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @SGBLWP
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA NEWWS,PG4SEG
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA 32&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; number of bytes to copy from old workspace to new one&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<h3>
+<a NAME="Data segment flags"></a>Setting data segment flags</h3>
+Flags for data segments are set in the same way as for code segments, by
+defining a label with the same name as the segment and setting its value
+with an EQUate statement. Just be aware that some bits might have different
+meanings than with code segments. Again, if you find the values hard to
+remember, you may want to COPY the file USB/EQU at the top of your file.
+It contains the following flags, relevant to data segments::
+<pre>DSEG&nbsp;&nbsp;&nbsp; EQU >8000
+FIXPG&nbsp;&nbsp; EQU >0002
+NOREG&nbsp;&nbsp; EQU >0004
+NOSTUB&nbsp; EQU >0008
+MYSTUB&nbsp; EQU >0010
+NOLINK&nbsp; EQU >0080</pre>
+<b>DSEG</b> Indicates a data segment. This flag is set be default if the
+segment names begins with 'DATA' or with 'SRAM', as well as for the ndefault
+data segment produced by the DSEG directive.
+<p><b>FIXPG</b> Instructs the loader to assign an SRAM page number for
+this segment. If the flag is not set, an invalid page number will be used,
+and the final page number must be obtained from MALLOC or LOCKDS at run
+time. This flag is set by default for segment with a name beginning in
+'SRAM'.
+<p><b>NOSTUB </b>The loader normally reserves the beginning of each SRAM
+page (upto >5040) for use by the page-switching routines found in the EEPROM
+code stubs. If you are not using these, you can start reclaim these extra
+bytes by setting the NOSTUB flag. This flag tells the loader that it is
+not necessary to reserve the first 64 bytes, but it does not actively prevent
+it. In other words, your segment will be assigned to a convenient page,
+no matter where the page starts at.
+<p><b>NOREGS</b> The end of SRAM page zero is reserved for use by the nine
+hierarchically-arranged workspace (>5ED0-5FDF) and by the USB chip registers
+(>5FE0-5FFF, when CRU bit 1 is set). If your routine use one of these workspaces
+(or call routines that do), then it is wiser not to place anything else
+in that space. Thus, the loader considers that every SRAM page ends at
+>5xxx by default. You can revert this by setting the NOREGS flags, which
+allows to loader to map your data segment upto the very end of the SRAM
+page (>5FFF), if need to be.
+<p><b>MYSTUB </b>This flag instructs the loader to use the two variables
+SRAMLO and SRAMHI at lower and higher address for a page where to place
+your data segment. If you set this flag, you must DEF these two labels
+and set their values with EQU statements.
+<p><b>NOLINK </b>As outlined below, each SRAM page begins with a link word,
+installed at power-up time, that allows MALLOC to determine how much free
+or allocated space is on that page. This implies that data can only be
+mapped starting at >5002. If you insist on including word >5000, you can
+set the NOLINK flag. Be aware that you will need to set the >5000 to a
+value that cannot be mistaken for a link word, i.e. not in the range >5000-5FFF,
+nor >D000-DFFF.
+<h3>
+<br>
+<a NAME="SRAM stubs"></a>Internal SRAM structure</h3>
+Like EEPROM pages, all SRAM pages are structured in a linked-blocks chain.
+The first word in the block points at the start of the next block, etc.
+If a block is free, the pointer has its >8000 bit set. Additionally, the
+first block in each page contains a common stub installed by the default
+power-up routine: it holds the workspace for page-switching routines, as
+well as some necessary data.
+<p>For instance, every SRAM page should begin with the following stub:
+<pre>>5000&nbsp; DATA ENDSTU&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Point to next block
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA >0001&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Page number
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA 0,1,2,3,4,5,6,7,8,9,10,11&nbsp;&nbsp;&nbsp; Workspace for page switching routines (R0-R11)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA >1D0A&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Address of CRU bit 5 (also R12)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA 13,14,15&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; End of workspace (R13-R15)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BSS&nbsp; 26&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Reserved, 13 words&nbsp;
+ENDSTU DATA >5FFF+>8000&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Free upto end of page (>5040-5FFF)</pre>
+N.B. In all pages, the area >5FF0-5FFF is only accessible when CRU bit
+1 is '0', when this bit is '1' the USB controller maps there. In page 0,
+the area >5ED0-5FEF is used for the 9 default workspaces. If you intend
+to call these with another SRAM page on, you should make sure this area
+is available.
+<p>If you were to reserve 512 bytes with MALLOC, the pointer at ENDSTU
+would change as follows:
+<pre>ENDSTU DATA NEWEND&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Point to next block
+FORYOU BSS&nbsp; 512&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Space reserved for you
+NEWEND DATA >5FFF+>8000&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Free to end of page</pre>
+
+<p><br>In this example, the address labelled FORYOU would be returned by
+MALLOC in the R1 register.
+<p>Calling FREE will result in merging the NEWEND and ENDSTU pointers,
+reverting to the first example above.
+<p>
+<hr width="100%">
+<h2>
+<a NAME="STDMEM"></a>Standard memory routines</h2>
+These routines are to be found in a file named USBSTD/O, which is to be
+loaded with the DSR loader. The file defines a number of exports that you
+can subsequently REFerenced within your program, and call with BLWP @SGBLWP.
+<p>Technical note: most of these routines are all "level 1" routines (i.e.
+do not call other exports), and use L1WS as their workspace. The exceptions
+being NEWWS and BURNW which use L2WS as their workspace. However, many
+of them use another worskspace in the scratch-pad, at >8300, so they can
+switch pages. The content of the scratch-pad is saved, and will be restored
+upon return. This means that you should not use MCOPY with an address in
+the range >8300-831E, nor in the range >5FD4-5FE2.
+<pre><a href="#VSBR">VSBR</a>&nbsp;&nbsp; VDP Single Byte Read
+<a href="#VMBR">VMBR</a>&nbsp;&nbsp; VDP Multiple Bytes Read
+<a href="#VSBW">VSBW</a>&nbsp;&nbsp; VDP Single Byte Write
+<a href="#VMBW">VMBW</a>&nbsp;&nbsp; VDP Multiple Bytes Write
+<a href="#VIBW">VIMW</a>&nbsp;&nbsp; VDP Identical Bytes Write
+<a href="#VWTR">VWTR</a>&nbsp;&nbsp; VDP Write To Register</pre>
+
+<pre><a href="#burnw">BURNW</a>&nbsp; Burn Word into Flash-EEPROM</pre>
+
+<pre><a href="#malloc">MALLOC</a> Memory Allocation in SRAM
+<a href="#free">FREE</a>&nbsp;&nbsp; Free previously allocated memory
+<a href="#ramcpy">RAMCPY</a> Copy to/from SRAM
+<a href="#newws">NEWWS</a>&nbsp; Switch to a new workspace in SRAM, optionally copy from old one
+<a href="#toslot">TOSLOT</a> Save R0 and R1 into our private slot
+<a href="#atslot">ATSLOT</a> Retrieve R0 and R1 from our private slot
+<a href="#LOCKDS">LOCKDS</a> Reserve SRAM space for a private data segment</pre>
+
+<h4>
+<br>
+<a NAME="VSBR"></a>VDP Single Byte Read VSBR</h4>
+<b>R0</b>: Address in VDP memory, range >0000-3FFF.
+<br><b>R1</b>: Most significant byte will contain the byte read from the
+specified VDP location.
+<p>Exemple:
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; REF&nbsp; VSBW</pre>
+
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R0,>0020&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R1,'A '
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @SGBLWP
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA VSBW,PG4SEG&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>Note: Because these subroutines are located in a different segment,
+calling them takes MUCH more time than having your own VSBW inside of your
+segment. Thus, I'd recommend that you only call these subroutines if you
+really need to, i.e. if they make use of SRAM buffers.
+<h4>
+<br>
+<a NAME="VMBR"></a>VDP Multiple Byte Read VMBR</h4>
+<b>R0</b>: Address in VDP memory.
+<br><b>R1</b>: Pointer to a buffer in CPU memory, large enough to accomodate
+all the data.
+<br><b>R2</b>: Number of bytes to read (>0001-7FFF only, invalid values
+abort).
+<br><b>R3</b>: SRAM page # (only relevant if R1 points to the SRAM).
+<h4>
+<br>
+<a NAME="VSBW"></a>VDP single Byte Write VSBW</h4>
+<b>R0</b>: Address in VDP memory, range >0000-3FFF.
+<br><b>R1</b>: Most significant byte contains the byte to be written at
+the specified VDP location.
+<h4>
+<br>
+<a NAME="VMBW"></a>VDP Multiple Byte Write VMBW</h4>
+<b>R0</b>: Address in VDP memory.
+<br><b>R1</b>: Pointer to a buffer in CPU memory, containing the data.
+<br><b>R2</b>: Number of bytes to write (>0001-7FFF only, invalid values
+abort).
+<br><b>R3</b>: SRAM page # (only relevant if R1 points to the SRAM).
+<h4>
+<br>
+<a NAME="VIBW"></a>VDP Identical Bytes Write VIBW</h4>
+<b>R0</b>: Address in VDP memory.
+<br><b>R1</b>: Most significant byte contains the byte to be written at
+all the specified VDP location.
+<br><b>R2</b>: Number of repeats.
+<p>Exemple:
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; REF&nbsp; VIBW</pre>
+
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CLR&nbsp; R0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; start from >0000
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R1,'&nbsp; '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; fill with spaces
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R2,>0300&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 24 lines of 32 bytes&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @SGBLWP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; clear screen
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA VIBW,PG4SEG</pre>
+
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<h4>
+<br>
+<a NAME="VWTR"></a>VDP Write To Register VWTR</h4>
+<b>R0</b>: MSB contains register number (>00-07), LSB contains register
+value.
+<p>Exemple:
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; REF&nbsp; VWTR</pre>
+
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R0,>01F0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; target: VDP register 1&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @SGBLWP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; set text mode
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA VWTR,PG4SEG&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<h4>
+<br>
+<a NAME="burnw"></a>BURNW</h4>
+This routine can be used to write a word to the Flash-EEPROM containing
+the DSRs. Remember that the user can open a DIP-switch that will prevent
+writing to occur, so make sure you prompt him/her for closing that switch.
+<p><b>R0</b>: EEPROM page number (0-7FF).
+<br><b>R1</b>: Address in EEPROM memory (>4000-4FFF)
+<br><b>R2</b>: Data word to write.
+<p>The routine returns its results in the status register. You can trap
+it with the following instructions:
+<pre>&nbsp;JEQ&nbsp;&nbsp;&nbsp; All went well
+&nbsp;JNE&nbsp;&nbsp;&nbsp; Something went wrong
+&nbsp;JGT&nbsp;&nbsp;&nbsp; EEPROM complained of an error (e.g. write-protected)
+&nbsp;JLT&nbsp;&nbsp;&nbsp; Result doesn't match expected value (e.g. '0' bits can't become '1')</pre>
+Exemple:
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; REF&nbsp; BURNW</pre>
+
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R0,>0005&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; page 5
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R1,>4822&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; target address
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R2,>1234&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; value to write
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @SGBLWP
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA BURNW,PG4SEG
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; JNE&nbsp; ERROR&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; trap errors&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<h4>
+<br>
+<a NAME="malloc"></a>MALLOC</h4>
+This routine allocates memory space within a SRAM page.
+<p><b>R0</b>: Number of bytes needed (max >2000). Upon return: SRAM page
+number.
+<br><b>R1</b>: Upon return: Address of the required memory.
+<p>Upon return, the Eq bit will be set if all went well. You can thus trap
+the result with the following instructions:
+<pre>&nbsp;JEQ&nbsp;&nbsp; All went well
+&nbsp;JNE&nbsp;&nbsp; Error (e.g. memory full)</pre>
+See <a href="#malloc&free">above</a> for examples.
+<p>There are special ways of calling MALLOC, to force the choice of a given
+page, given address, or both. This is indicated by setting flags in R0:
+<p>Add >8000 to R0 to force MALLOC to return a buffer starting at a given
+address. This address must be in R1 upon calling MALLOC
+<br>Add >4000 to R0 to force a given page. The page number must be in R2
+upon calling MALLOC. It will be in R0 upon return, as usual.
+<br>Add >C000 to R0 to force a given address (in R1) and a given page (in
+R2).
+<p>Be aware that the chances for MALLOC failing to allocate the buffer
+increase as you impose more stringent restrictions...
+<br>&nbsp;
+<h4>
+<a NAME="free"></a>FREE</h4>
+This routine is used to free previously allocated memory.
+<p><b>R0</b>: SRAM page number.
+<br><b>R1</b>: Address in SRAM
+<p>Upon return, the Eq bit will be set if all went well.
+<pre>&nbsp;JEQ&nbsp;&nbsp; All went well
+&nbsp;JNE&nbsp;&nbsp; Error (e.g. wrong page number or address)</pre>
+
+<h4>
+<br>
+<a NAME="ramcpy"></a>MCOPY</h4>
+This routine is used to copy memory from a variety of sources to a variety
+of destinations.
+<p><b>R0 + R1</b>: Source.
+<br><b>R2</b>: Number of bytes to copy. If zero, nothing happens.
+<br><b>R3 + R4</b>: Destination.
+<p>The source can be:
+<ul>
+<li>
+SRAM, in which case R0 contains the SRAM page number (>00-FF) and R1 an
+address in the range >5000-5FFF. If R0 is >FFFF, the current SRAM page
+is used. This can be, but doesn't have to be, a pointer returned by MALLOC.</li>
+
+<li>
+EEPROM. R0 contains the EEPROM page number (>000-FFF) and R1 an address
+in the range >4000-4FFF.</li>
+
+<li>
+VDP memory. R0 contains the address (>0000-3FFF), R1 contains >8800 (VDP
+read data port).</li>
+
+<li>
+GROM/GRAM. R0 contains the address, R1 the GROM read data port (>9800-9BFC,
+by increments of 4).</li>
+
+<li>
+Regular memory. R0 is ignored, the address is in R1.</li>
+
+<li>
+A 16-bit register. R0 contains >FFFE, the register address is in R1. This
+can be used to access the USB chip.</li>
+
+<li>
+An 8-bit register. R0 contains >FFFD, the register address is in R1. This
+can be used to access VDP and GROM without setting the address (e.g. to
+keep reading from a previously set address),</li>
+</ul>
+The destination can be
+<ul>
+<li>
+SRAM, in which case R3 and R4 must contain a valid pointer returned by
+MALLOC.</li>
+
+<li>
+VDP memory. R3 contains the address (>0000-3FFF), R4 contains >8C00 (VDP
+write data port).</li>
+
+<li>
+GROM/GRAM. R3 contains the address, R4 the GROM read data port (>9C00-9FFC,
+by increments of 4).</li>
+
+<li>
+Regular memory. R3 is ignored, the address is in R4.</li>
+
+<li>
+A 16-bit register. R3 contains >FFFE, the register address is in R4.</li>
+
+<li>
+An 8-bit register. R3 contains >FFFD, the register address is in R4.</li>
+</ul>
+Notes:
+<br>The routine makes uses a workspace located at >8300. The contents of
+these addresses are saved and restored once the routine is done. This implies
+that you cannot use MCOPY to access the >8300-831F area.
+<br>If the destination is an SRAM buffer, its size is checked against R2.
+If it is too small to accomodate all data, R2 will be decreased to the
+maximum allowable value, so as to prevent buffer overflow. This does not
+generate an error.
+<br>You cannot copy from VDP memory to VDP memory, nor from GROM/GRAM to
+GRAM. This is because it would involve setting the address before reading
+each byte and again before writing it. To do this, just read data to CPU
+memory, then write it back. Much more efficient.
+<br>On the other hand, it is OK to copy from an 8-bit register to a 16-bit
+register and conversely. MCOPY does the necessary conversions between 2
+bytes and 1 word.
+<p>Upon return, the Eq bit will be set if all went well and reset if there
+was an error.
+<pre>&nbsp;JEQ&nbsp;&nbsp; All went well
+&nbsp;JNE&nbsp;&nbsp; Error</pre>
+You will get an error if:
+<ul>
+<li>
+The destination is EEPROM.</li>
+
+<li>
+The destination is SRAM, but not a valid MALOC-returned pointer.</li>
+
+<li>
+Both source and destination are VDP memory.</li>
+
+<li>
+Both source and destination are GROM.</li>
+</ul>
+
+<h4>
+<a NAME="newws"></a>NEWWS</h4>
+This routine lets you change workspace, and optionally copy the old one,
+to a new workspace located in another SRAM page.
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @SGBLWP
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA NEWWS,PG4SEG
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA <i>size</i></pre>
+<b>R0 lsb</b>: Page for new workspace (most significant byte ignored).
+<br><b>R1</b>: New workspace address. R0 and R1 are best obtained by a
+call to MALLOC.
+<br><b><i>size</i></b>: Number of bytes to copy from old workspace to new
+one (if any), 32 copies the whole workspace, higher values let you copy
+extra data words following your workspace.
+<p>When this routine is called, the current SRAM page is placed into the
+most significant byte of R0 and the current worspace address is substracted
+from R1 (i.e. R1 now contains the differential offset between the two workspace).
+If you copy at least 4 bytes into the new workspace, you will be able to
+use R0 and R1 to return to the old workspace, using an alternative syntax:
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @SGBLWP
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA NEWWS,PG4SEG
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA <i>size </i>+ >8000</pre>
+<b>R0 msb</b>: Page for new workspace (least significant byte ignored).
+<br><b>R1</b>: Offset to substract from current workspace pointer to get
+new workspace address.
+<br><b><i>size</i></b>: Number of bytes to copy (if any), plus a >8000
+flag bit to indicate alternative syntax. In this case, R0 and R1 are left
+unchanged by the call.
+<p>Exemple:
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; REF&nbsp; MALLOC,NEWWS,PG4SEG</pre>
+
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LWPI WREGS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; current workspace
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R0,36&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; obtain address for new workspace + 2 words&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @SGBLWP
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA MALLOC,PG4SEG
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; JNE&nbsp; ERROR
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @SGBLWP
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA NEWWS,PG4SEG&nbsp;&nbsp; switch to new workspace
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA 36&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; copying workspace + 2 data words&nbsp;
+&nbsp;
+*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CLR&nbsp; @THIS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; this won't work !!!
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CLR&nbsp; @THIS(R1)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; access the copies
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SETO @THAT(R1)</pre>
+
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @SGBLWP
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA NEWWS,PG4SEG&nbsp;&nbsp; switch back to old workspace
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA >8000&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; don't copy anything back (although we could)&nbsp;
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CEND
+
+* Data segment
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DSEG
+WREGS&nbsp; BSS&nbsp; 32&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; initial workspace
+THIS&nbsp;&nbsp; DATA 0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; variables
+THAT&nbsp;&nbsp; DATA 0
+OTHER&nbsp; DATA 0
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DEND&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>If you elect to copy extra data words after your workspace, be aware
+that their address may vary according to what MALLOC returned. In the exemple
+above, let's say your initial workspace was at >5040 in page 0; this means
+that THIS was at >5060, and THAT at >5062. Now let's say that MALLOC found
+free space at >5068 in page 3; this means that THIS will be copied at >5088
+and THAT at >508A.
+<p>Because the address of the copies is different from that of the original,
+you cannot just write <tt>CLR @THIS</tt> or <tt>SETO @THAT</tt>: such instructions
+would be hard-coded as <tt>CLR @>5062</tt> and <tt>SETO @>5064</tt>, which
+are the correct addresses in SRAM page 0, but who knows what's to be found
+there in page 3! By using R1 as an index, you can correct the addresses
+and make sure the copies of THIS and THAT are properly accessed. Of course,
+you may copy this index to another register, less frequently used than
+R1.
+<p>Note that if you change workspace twice in a row, you will need to add
+up the offsets returned into R1 by each call to NEWWS, so that the addresses
+remains correct. For instance, save R1 into R7 after the first call, and
+add R1 to R7 for each successive call. To return to the original workspace,
+you will also need to save R0 msb after the first call.
+<h4>
+<br>
+<a NAME="toslot"></a>TOSLOT</h4>
+This routine stores R0 and R1 into your private memory slot. The address
+of the slot in RAM page 1 should follow the call. This address is obtained
+through the REFed label MYSLOT.
+<p><b>R0</b>: data to be saved
+<br><b>R1</b>: data to be saved
+<h4>
+<br>
+<a NAME="atslot"></a>ATSLOT</h4>
+This routine retrieves the contents of your private slot into R0 and R1.
+It must be followed with a reference to the MYSLOT label.
+<p><b>R0</b>: data retrieved
+<br><b>R1</b>: data retrieved
+<p>NB This routine and the previous one actually call RAMCPY with preset
+parameters.Their main usage is to save the location of a private memory
+area, obtained with MALLOC. You can then retrieve this location the next
+time your DSR is called.
+<p>Example:
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; REF&nbsp; MYSLOT
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @SGBLWP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; call routine in another page
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA ATSLOT,PG4SEG&nbsp;&nbsp; retrieve contents of our slot
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA MYSLOT&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MOV&nbsp; R0,R0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; check if empty (RAM page is never 0)&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; JNE&nbsp; SK1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; we already set our private memory&nbsp;
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R0,>0100&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; size of the private area we need
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @SGBLWP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA MALLOC,PG4SEG&nbsp;&nbsp; obtain it: R0 = page, R1 = address
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; JNE&nbsp; ERROR
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @TOSLOT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; save R0 and R1 into our slot
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA MYSLOT
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; B&nbsp;&nbsp;&nbsp; *11
+
+SK1&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R2,>0100&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; copy private area (256 bytes)&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SETO R3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; into current SRAM page
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R4,HERE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; at this location
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @SGBLWP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA RAMPCY,PG4SEG
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; B&nbsp;&nbsp;&nbsp; *11&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<h4>
+<a NAME="LOCKDS"></a>LOCKDS</h4>
+This routine is a special entry point to MALLOC that lets you reserve space
+for a data segment other than the default DSEG segment. The routine takes
+two or three parameters, passed as inline data.
+<br>&nbsp;
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @SGBLWP
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA LOCKDS,PG4SEG
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA <i>page</i>,<i>datbeg</i>,<i>datend
+</i>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; JOC&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Already called?
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; JNE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Something went wrong</pre>
+<b><i>page:</i></b> is the page number assigned to your private data segment.
+This parameter may be omited, in which case LOCKDS will find an appropriate
+page. If you are using a page number, your segment should have the FIXPG
+flag set. The loader will save the page, address and size of your segment
+within the removal information, and make sure no other such segments conflict
+with yours. You can obtain the page number with PG4SEG.
+<br><b><i>datbeg:</i></b> a label at the very beginning of your data segment,
+e.g. your first variable.
+<br><b><i>datend:</i></b> a label at the end of your data segment, after
+your last variable.
+<p>LOCKDS returns with a page number in R0 (<i>page</i>, if it was provided)
+and an address (<i>datbeg</i>) in R1.
+<p>You must check the Eq bit to know whether the appropriate space could
+be allocated. This is not a given, since another DSR may have called MALLOC
+before yours, and be granted (part of) the space you wanted. This is, of
+course, more likely to happen if you specify a fixed page number than if
+you let LOCKDS decide on it. If you are using a page number, you may also
+want to check the carry bit after calling LOCKDS. It will be set if a buffer
+with the exact same size was reserved at the same address in the same page.
+Most likely, this means your DSR already called LOCKDS, but you may want
+to implement a flag to make sure of this.
+<p>See <a href="#Private data">above</a> for examples of how to use LOCKDS.
+<h2>
+
+<hr width="100%"><a NAME="ISP1161 routines"></a>ISP1161 access routines</h2>
+If you feel like using them, I have a set of low-level routines to communicate
+with the USB chip, the ISP1161. The routines are part of a 'no-name' code
+segment, which means that they will be appended to the last segment in
+the previously loaded file. This allows you to incorporate these routine
+within one of your segment, so you can call them directly with a BLWP,
+instead of using an inter-segment call such as BLWP @SGBLWP. Simply make
+sure the segment you wish to include them in is the last in your file,
+then load ISP1161/O just after it. Note that it can be the STUB segment,
+which will make the routines available to all your segments.
+<p>I am also providing an export segment in a separate file ISPEXP/O, so
+you can make these routines available for inter-segment calls if you so
+wish.
+<p>Alternatively, you may want to copy the source into one of your segment.
+It will need assembling, but this gives you the chance to check how things
+are done. To this end simply include the file ISP1161/S inside your program
+with a "copy" statement: <tt>COPY "DSK1.ISP1161/S"</tt>.&nbsp; A PC text
+version of this file is available here: <a href="isp1161.txt">ISP1161.TXT</a>.
+<p>In addition, here is a small demo program <a href="usbtest.txt">USBTEST.TXT</a>,
+which makes use of the above routine to test the USB ports: just connect
+the upstream port to downstream port #1 (the bottom one) and you'll be
+able to verify that the host controller and the device controller can talk
+to each other through a USB cable. Alternatively, here is a <a href="usbdsr1.zip">zip
+file</a> containing both the text versions and DF80 files to be transfered
+to your TI-99/4A.
+<p>Host Controller routines:
+<pre><a href="#HCR">HCR</a>&nbsp;&nbsp;&nbsp; Host Controller Read&nbsp;&nbsp; (a.k.a. HCR2)
+<a href="#HCW">HCW</a>&nbsp;&nbsp;&nbsp; Host Controller Write&nbsp;&nbsp; (a.k.a. HCW2)
+<a href="#HCWI">HCWI</a>&nbsp;&nbsp; Host Controller Write Immediate&nbsp; (a.k.a. HCWI2)
+<a href="#HCWIM">HCWIM</a>&nbsp; Host Controller Write Immediate Multiple</pre>
+
+<pre><a href="#ITLR">ATRL</a>&nbsp;&nbsp; ATL Read
+<a href="#ATLW">ATLW</a>&nbsp;&nbsp; ATL write
+<a href="#ITLR">ITLR</a>&nbsp;&nbsp; ITL Read
+<a href="#ATLW">ITLW</a>&nbsp;&nbsp; ITL Write</pre>
+Device controller routines:
+<pre><a href="#DCCMD">DCA</a>&nbsp;&nbsp;&nbsp; Device Controller Action
+<a href="#DCR">DCR</a>&nbsp;&nbsp;&nbsp; Device Controller Read
+<a href="#DCW">DCW</a>&nbsp;&nbsp;&nbsp; Device Controller Write
+<a href="#DCWI">DCWI</a>&nbsp;&nbsp; Device Controller Write Immediate
+<a href="#DCWIM">DCWIM</a>&nbsp; Device Controller Write Immediate Multiple
+<a href="#DCEPCF">DCWEPCF</a>&nbsp; Device Controller Write EndPoint Configuration
+
+<a href="#EPST">EPST</a>&nbsp;&nbsp; EndPoint Status
+<a href="#EPCHK">EPCHK</a>&nbsp; EndPoint Check status image
+<a href="#EPERR">EPERR</a>&nbsp; EndPoint Error
+<a href="#EPCFR">EPCFR</a>&nbsp; EndPoint Configuration Read
+<a href="#EPSTAL">EPSTAL</a> EndPoint Stall
+<a href="#EPUNST">EPUNST</a> EndPoint Unstall
+<a href="#EPCLR">EPCLR</a>&nbsp; EndPoint Clear
+<a href="#EPVAL">EPVAL</a>&nbsp; EndPoint Validate
+<a href="#EPR">EPR</a>&nbsp;&nbsp;&nbsp; EndPoint Read
+<a href="#EPW">EPW</a>&nbsp;&nbsp;&nbsp; EndPoint Write</pre>
+
+<h4>
+<br>
+<a NAME="HCR"></a>Host controller read</h4>
+
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @HCR&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; or&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @HCR2
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA <i>register&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</i> DATA <i>register</i>&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>This routine is used to read from a host controller register. The data
+read will be placed into R1 (or in R1 and R2, for 32-bit registers) after
+due byte swapping, so that the MSB is in R1's MSB.
+<p>HCR2 is an alias for the same routine. It can be used as a reminder,
+when addressing 32-bits registers. However, the number of bytes transfered
+is detemined by the register number, not by the name of the routine: registers
+under >0020 are 32-bit.
+<p>The data word <i>register </i>should contain a number from >0000 through
+>003F, indicating the register number. If the >0080 flag is present, it
+will be removed.
+<p>Alternatively, <i>register </i>can be a number from >0100 through >010F.
+In which case, it indicates a workspace register (from 0 through 15) into
+which the number of the host controller register is to be found.
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R3,>0027&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; register number
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @HCR&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; read host controller register into R1&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA >0203<i>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </i>register number is in R3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>In case you want the results to go somewhere else than into R1, you
+may use the following syntax:
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @HCR&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA <i>address</i>,<i>register&nbsp;</i>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>Here, <i>address </i>is a pointer to a cpu location, in the range >0200-FFEF,
+into which the contents of the host controller register will be read. Alternatively,
+if <i>address </i>is in the range >FFF0-FFFF, the data will be placed into
+worspace register R0 through R15.
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @HCR&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA >AC02,>0027&nbsp;&nbsp;&nbsp; Place contents of register >27 into >AC02<i>&nbsp;</i></pre>
+
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @HCR&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA >FFF5,>0027&nbsp;&nbsp;&nbsp; Ditto, but place them into R5<i>&nbsp;</i></pre>
+</td>
+</tr>
+</table>
+
+<h4>
+<br>
+<a NAME="HCW"></a>Host Controller Write</h4>
+
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @HCW&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; or&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @HCW2
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA <i>register&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</i> DATA <i>register&nbsp;&nbsp;&nbsp;&nbsp;</i></pre>
+</td>
+</tr>
+</table>
+
+<p>This routine writes data from R1 into the host controller's register
+specified in the data word. See above for details on <i>register</i>. In
+case the register is 32-bit, R1 will supply the most significant word and
+R2 the least significant word. The alias HCW2 can be used as a mnemonic
+for 32-bit operations, but actually it's the register number that determines
+the number of words.
+<p>Just like HCR, there is an alternative syntax for HCW that lets you
+specify an address (or a workspace register) for the source, other than
+R1 and R2:
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @HCW&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; or&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @HCW2
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA <i>address</i>,<i>register&nbsp;</i>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA <i>address</i>,<i>register&nbsp;</i>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<h4>
+<br>
+<a NAME="HCWI"></a>Host Controller Write Immediate</h4>
+
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @HCWI&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; or&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @HCWI2
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA <i>register,data(,data)&nbsp;</i>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA <i>register,data,data&nbsp;</i>&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>This routines takes the value to write into the host controller from
+the data word following the register number. For 32-bit registers, two
+data words are required. You can use the alias HCWI2 to remind yourself
+of this fact.
+<p>Exemple:
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @HCWI&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; store >1234 into scratch register&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA >0028,>1234&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<h4>
+<br>
+<a NAME="HCWIM"></a>Host Controller Write Immediate Multiple</h4>
+
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @HCWIM
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA <i>register</i>,<i>data</i>(,<i>data</i>)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (DATA <i>register</i>,<i>data,(data)</i>)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA >0000&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>This routine is usefull when you need to set a whole bunch of registers
+at a time, for instance during initialization. It is followed with a list
+of register numbers together with the data to be placed into this register.
+The list is terminated with a >0000 word (register 0 is read-only). Remember
+that 32-bit registers require two words of data!
+<h4>
+<br>
+<a NAME="ATLW"></a>Transfer List Write</h4>
+
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @ATLW&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; or&nbsp;&nbsp;&nbsp;&nbsp; BLWP @ITLW&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>These routines are used to write data to the ATL (acknowledged transfer
+list) stack, or to the ITL (isochronous transfer list) stack currently
+in used.
+<p><b>R1</b> should contain a pointer to the data to be written.
+<br><b>R2</b> should contain the number of bytes to write, rounded up to
+the next even number.
+<p>Either routine copies R2 into the TransferCounter register, then passes
+the relevant number of words to the required stack.
+<h4>
+<br>
+<a NAME="ITLR"></a>Tansfer List Read</h4>
+
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @ATLR&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; or&nbsp;&nbsp;&nbsp;&nbsp; BLWP @ITLR&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>These are the mirror routines from the above ones: they read back data
+from the ATL or ITL stack, respectively. The number of bytes to read is
+passed to the host controller via the TransferCounter register.
+<p><b>R1</b> should point to a buffer large enough to accomodate the data.
+<br><b>R2</b> should contain the number of bytes to read, rounded up to
+the next even number.
+<br>&nbsp;
+<p>Ok, now for the device controller...
+<h4>
+<br>
+<a NAME="DCCMD"></a>Device Controller Action</h4>
+
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @DCA
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA <i>register&nbsp;</i>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>This routine is used to send a command to the device controller, by
+passing a register number without actually passing any data to/from it.
+As no data is passed, R1 is not affected, and there is no alternative syntax
+using an address.
+<p><i>Register </i>is a the number of a device controller register, from
+>00 to >FF. Just like with host controller routines, values in the range
+>0100-010F indicates that the register number is to be found in the rightmost
+byte of the corresponding workspace register: >0100 is R0, >0101 is R1,
+etc.
+<h4>
+<br>
+<a NAME="DCR"></a>Device Controller Read</h4>
+
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @DCR&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; or&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @DCR
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA <i>register</i>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA <i>address,register</i>&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>This routine is similar to the HCR routine described above, except that
+it addresses the device controller instead. With the first syntax, the
+contents of the specified register will be placed into R1. With the second,
+they will be placed at the specified address.
+<p>Here also, if <i>register </i>is in the range >0100-010F, it means that
+the register number is to be taken from workspace register R0 through R15,
+respectively.
+<p>Similarly, an <i>address </i>in the range >FFF0 through >FFFF indicates
+that the target is workspace register R0 through R15.
+<h4>
+<br>
+<a NAME="DCW"></a>Device Controller Write</h4>
+
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @DCW&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; or&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @DCW
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA <i>register</i>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA <i>address,register</i>&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>This routine sets a register in the device controller, taking its value
+from R1 or from the specified address, respectively.
+<h4>
+<br>
+<a NAME="DCWI"></a>Device Controller Write Immediate</h4>
+
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @HCWI&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; or&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @HCWI2
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA <i>register,data(,data)&nbsp;</i>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA <i>register,data(,data)</i>&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>This routines takes the value to write into the host controller from
+the data word following the register number. For the 32-bit InterruptEnable
+register, two data words are required.
+<h4>
+<br>
+<a NAME="DCWIM"></a>Device Controller Write Immediate Multiple</h4>
+
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @HCWIM
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA <i>register</i>,<i>data</i>(,<i>data</i>)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (DATA <i>register</i>,<i>data,(data)</i>)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA >0000&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>This routine is usefull when you need to set a several registers at
+a time. It is followed with a list of register numbers together with the
+data to be placed into this register. The list is terminated with a >0000
+word (register 0 is stack access). Remember that the InterruptEnable register
+requires two words of data!
+<h4>
+<br>
+<a NAME="DCEPCF"></a>Device Controller EndPoint Configure</h4>
+
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @DCEPCF&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; or&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @DCEPCF
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BYTE <i>cfg,...,cfg&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</i> DATA <i>address</i>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>This routine is used to set the configuration of the endpoints. As per
+the device controller design, you must always set all 16 endpoints together,
+in numerical order, hence there must be exactly 16 bytes of data. The first
+two endpoints have preset values: the first two bytes must be >C3 and >83.
+<p>The alternative syntax provides an address (which must not be >C383)
+at which the 16 bytes of data are to be found.
+<br>&nbsp;
+<br>&nbsp;
+<p>Since most device controller operations address endpoints, I have also
+provided a set of endpoint-oriented routines:
+<h4>
+<br>
+<a NAME="EPST"></a>EndPoint Status</h4>
+
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @EPST&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA <i>endpoint</i>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>This routine reads the status of the specified enpoint into R1.
+<p>The data word endpoint should be a number between 0 and 14. However,
+since there are two enpoints 0 (one for input, one for output), there is
+an ambiguity here. Therefore, the following convention is to be used:
+<ul>
+<li>
+To specify endpoint 0 input, which receives OUT and SETUP packets from
+the host, use >0020. Mnemonic: the host writes "to" the endpoint.</li>
+
+<li>
+To specify endpoint 0 output, from where data is read by the host with
+IN packets, use >00C0. Mnemonic: the host "sees" the data inside the endpoint.</li>
+</ul>
+Optionally, the same conventions can be applied to the other endpoints.
+Use >002x for endpoint you programmed as inputs, and >00Cx for those you
+programmed as outputs. The routines that are direction-sensitive (i.e.
+write, read, clear and validate) will ignore operations going in the wrong
+direction. This is important as such an error could lock-up the device
+controller.
+<p>Alternatively, <i>endpoint </i>can be a number from >0100 to >010F,
+which specifies the workspace register (R0 through R15) into which the
+endpoint number is to be found.
+<br>&nbsp;
+<p>In case you don't want the data to go into R1, an alternative syntax
+is provided:
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @EPST
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA <i>address</i>,<i>endpoint</i>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>Where <i>address </i>is a pointer to a cpu memory location, in the range
+>0200-FFEF, where the data will to placed. In case address is in the range
+>FFF0-FFFF, the data will be placed in workspace register R0 through R15.
+<p>Exemples:
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @EPST&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Place status of endpoint #0-input into R1
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA >0020&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @EPST&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Place status of endpoint #0-output into >C840
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA >C840,>00C0</pre>
+
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R3,>0005&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Specify endpoint number
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @EPST&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Place satus of endpoint #5 into R1
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA >0103&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Get endpoint number from R3&nbsp;</pre>
+
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R10,>C840&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Specify target
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @EPST&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Place status of endpoint #6 into >C840
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA >FFFA,>0006&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Get destination from R10</pre>
+
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R3,>0005&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Specify endpoint number
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp; R8,>C840&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Specify target
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @EPST&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Place status of endpoint #6 into >C840
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA >FFF8,>0103&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Get destination from R8, endpoint from R3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<h4>
+<br>
+<a NAME="EPCHK"></a>EndPoint Check</h4>
+
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @EPCHK&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; or&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @EPCHK
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA <i>endpoint</i>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA<i> address,endpoint</i>&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>This routine is equivalent to EPST, except that it accessed the StatusImage
+register for the given endpoint. This lets you read the status without
+resetting the corresponding bit in the Interrupt register.
+<p>The first version reads the status into R1, the second into the specified
+address.
+<h4>
+<br>
+<a NAME="EPERR"></a>EndPoint Error</h4>
+
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @EPERR&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; or&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @EPERR
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA <i>endpoint</i>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA<i> address,endpoint&nbsp;&nbsp;</i>&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>This routine read the error register for the specified endpoint. The
+first version places it into R1, the second into the specified address.
+<h4>
+<br>
+<a NAME="EPCFR"></a>EndPoint Configuration Read</h4>
+
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @EPCFR&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; or&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @EPCFR
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA <i>endpoint</i>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA<i> address,endpoint</i>&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>This routine is used to read back the configuration of an endpoint.
+The first version reads it into R1, the second into the specified address.
+<h4>
+<br>
+<a NAME="EPSTAL"></a>EndPoint Stall</h4>
+
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @EPSTAL
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA <i>endpoint&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</i>&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>This routine stalls the specified endpoint. This is a command, so no
+data is transfered. Thus R1 is not affected and there is no alternative
+syntax using an address.
+<h4>
+<br>
+<a NAME="EPUNST"></a>EndPoint Unstall</h4>
+
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @EPUNST
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA <i>endpoint</i>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>This routine unstalls the specified endpoint. No data is transfered,
+so R1 is not affected and there is no alternative syntax using an address.
+<h4>
+<br>
+<a NAME="EPCLR"></a>EndPoint Clear</h4>
+
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @EPCLR
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA <i>endpoint</i>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>This routine empties the stack for the corresponding endpoint. This
+is a direction-specific routine: only input endpoints should be cleared.
+If the output flag >00Cx is specified, the routine will do nothing (actually,
+only the >004x bit is checked, the >0080 bit is ignored).
+<p>No data is passed with this routine, so R1 is not affected and there
+is no alternative syntax using an address.
+<h4>
+<br>
+<a NAME="EPVAL"></a>EndPoint Validate</h4>
+
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @EPVAL
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA <i>endpoint</i>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>This routine is used to tell the device controller that the data placed
+into an output endpoint may be sent to the host upon reception of the next
+IN packet. This is a direction-specific routine: you should never validate
+an endpoint programmed as input. If the input flag >002x is specified in
+the endpoint number, the routine will return immediately, doing nothing.
+<p>No data is passed with this routine, so R1 is not affected and there
+is no alternative syntax using an address.
+<h4>
+<br>
+<a NAME="EPW"></a>EndPoint Write</h4>
+
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @EPW
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA <i>endpoint</i>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>This routine places data into an endpoint programmed for output (i.e.
+to answer IN packets from the host).
+<p><b>R1</b> should contain a pointer to the data.
+<br><b>R2</b> should contrain the number of data bytes to be written.
+<p>The routine places R2 on the endpoint's stack, followed with the data
+bytes read from R1. It does not verify that R2 is in the legal range for
+this endpoint.
+<h4>
+<br>
+<a NAME="EPR"></a>EndPoint Read</h4>
+
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP @EPR
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA <i>endpoint</i>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>This routine reads data from an input endpoint's stack into a cpu buffer.
+<p><b>R1</b> should contain a pointer a buffer large enough to accomodate
+the data
+<br><b>R2</b> should contain the maximum number of bytes that can be transfered.
+Upon return, R2 will contain the number of bytes in the endpoint.
+<p>The routine first reads the number of bytes waiting inside the endpoint's
+stack. If this number is smaller than R2, all the bytes are transfered
+to the buffer specified by R1 and R2 is updated to reflect the number of
+bytes actually transfered.
+<p>It the number of bytes on the stack is greater than R2, only the number
+specified in R2 will be transfered. R2 will then be updated to reflect
+the total number of bytes in the endpoint's stack (not counting the two
+size bytes).
+<h2>
+
+<hr width="100%"><a NAME="SM routines"></a>SmartMedia access routines</h2>
+These routines will let you perform basic read/write/erase functions with
+SmartMedia cards. If you feel like using them, include the file SM/S within
+one of your segments with a <tt>COPY "DSKn.SM/S"</tt>. You can then call
+them with a simple BLWP instruction. Tip: if you want these routines to
+be accessible from any of your segments, make the file part of the STUB
+segment. Here is the file, in PC text format:
+<a href="sm.txt">SM.TXT</a>
+alternatively, here is a <a href="usbdsr1.zip">zip file</a> containing
+both the text version and a DF80 file to be transfered to your TI-99/4A.
+<p>Alternatively, you could just load the pre-assembled file SM/O after
+one of your own. The SmartMedia routines are part of a no-name segment
+in this file, which means they will be appended to the last segment to
+begin in your file. This way you can call these routines with BLWP from
+that segment, and with BLWP @SGBLWP from all other segments. If the last
+segment in your file is STUB (or MYSTUB), you can use direct BLWP calls
+from any segment using the same stub.
+<p>Finally, I am including an export segment for these routines, in the
+file SMEXP/O. Load this file just after SM/O and it will make the routines
+available to every DSR in the card. They'll have to be called with BLWP
+@SGBLWP though, which is slower than a direct call via BLWP.
+<pre><a href="#SMR">SMR</a>&nbsp;&nbsp;&nbsp; SmartMedia Read
+<a href="#SMV">SMV</a>&nbsp;&nbsp;&nbsp; SmartMedia Verify
+<a href="#SMVB">SMVB</a>&nbsp;&nbsp; SmartMedia Verify Byte
+<a href="#SMW">SMW</a>&nbsp;&nbsp;&nbsp; SmartMedia Write
+<a href="#SME">SME</a>&nbsp;&nbsp;&nbsp; SmartMedia Erase
+<a href="#SMRX">SMRX</a>&nbsp;&nbsp; SmartMedia Read eXtra bytes
+<a href="#SMWX">SMWX</a>&nbsp;&nbsp; SmartMedia Write eXtra bytes
+<a href="#SMID">SMID</a>&nbsp;&nbsp; SmartMedia Read card ID</pre>
+Usefull tips:
+<ul>
+<li>
+Before you begin, check wether a SmartMedia card is inserted with TB 6.</li>
+
+<li>
+Before writing or erasing, check wither the card is write-protected with
+TB 7. Remember that the write-protection may or may not be enforced by
+the hardware, depending on whether the user closed the relevant DIP-switch.</li>
+
+<li>
+By default, these routines use a workspace located in the SRAM space, at
+>5FD0, but you can change this.</li>
+
+<li>
+All routines expect the USB-SM board's CRU in R12. They enable port mapping
+with SBO 1 and enable the SmartMedia card with SBO 3. None of them performs
+a SBZ 1 nor SBZ 3 when done.</li>
+</ul>
+
+<h4>
+<a NAME="SMR"></a>SmartMedia Read SMR</h4>
+This routine lets you read a number of bytes from the SmartMedia card.
+<p><b>R0</b>: Pointer to SmartMedia address.
+<br><b>R1</b>: Pointer to a buffer in CPU memory.
+<br><b>R2</b>: Number of bytes to read. This may be more than one sector:
+reading will continue with the extra information bytes for the current
+sector, then with the next sector, its info bytes, etc.
+<p>A SmartMedia address should consist in three words: two for the sector
+number, and one for the byte offset where to start reading within the sector.
+Normally, this will be zero, but you can elect the start reading anywhere
+within a sector.
+<pre>SMADR&nbsp; DATA >0000,>0000&nbsp;&nbsp;&nbsp;&nbsp; Sector number
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA >0000&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Byte offset</pre>
+The trouble with SmartMedia cards is that some use 2 bytes for the sector
+number, others use 3, or even 4. This is a problem, because older cards
+are thrown off by extra address bytes. Therefore, you should first check
+the card ID (and extended ID) to determine its addressing scheme. Another
+way is trial and error: passing the wrong number of address bytes generally
+results in reading only >00 bytes.
+<p>Once you know how many bytes to use, follow these rules:
+<ul>
+<li>
+If the first byte of the sector number is >FF, it will not be passed to
+the SmartMedia card (i.e. 3-byte cards).</li>
+
+<li>
+If the first word of the sector number is >FFFF, it will not be passed
+to the card (i.e. 2-byte cards).</li>
+</ul>
+Another discrepancy between cards is that some have 256-byte sectors (plus
+8 extra bytes), whereas others have 512-byte sectors (plus 16 extra bytes).
+And how is that for standardization? Thus, the byte offset can be a number
+between 0 and 255, or between 0 and 511, depending on the card.
+<p>For your convenience, provision was made for the routine to treat 512
+bytes/sector cards as if they had 256 bytes/sector. This is based on the
+fact that most cards let you write a sector in at least two chunks. To
+trigger this feature, make the first byte of the offset >FF. This will
+cause the sector number to the divided by two before it's passed to the
+card. The remainder of the division is used to decide wether to access
+the first half, or the second half of the 512-byte sector.
+<p>Example:
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp;&nbsp; R0,SMADR
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp;&nbsp; R1,BUFFER
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp;&nbsp; R2,256
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP&nbsp; @SMR</pre>
+
+<pre>SMADR&nbsp; DATA&nbsp; >FF00,>1234&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 3-byte sector number
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA&nbsp; >0000&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; start at beginning of sector&nbsp;
+BUFFER BSS&nbsp;&nbsp; 256&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; buffer space&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<h4>
+<br>
+<a NAME="SMV"></a>SmartMedia Verify SMV</h4>
+<b>R0</b>: Pointer to SmartMedia address.
+<br><b>R1</b>: Pointer to a buffer in CPU memory.
+<br><b>R2</b>: Number of bytes to check.
+<p>This routine works just like SMR, except that it does not place the
+bytes it reads into the buffer. Rather, it compares them with the contents
+of the buffer. If all match, the routine returns with the Eq bit set, a
+condition which can be trapped with JEQ.
+<p>If a mismatch is detected, the routine returns with the Eq bit reset
+(use JNE to trap it), and R1 pointing at the first offending byte in the
+buffer.
+<p>Example:
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp;&nbsp; R0,SMADR
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp;&nbsp; R1,BUFFER
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp;&nbsp; R2,>0006
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP&nbsp; @SMV
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; JEQ&nbsp;&nbsp; OK
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; JNE&nbsp;&nbsp; UHOH</pre>
+
+<pre>SMADR&nbsp; DATA&nbsp; >FFFF,>1234&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 2-byte sector number
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA&nbsp; >0000&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; start at beginning of sector&nbsp;
+BUFFER DATA&nbsp; >0102,>0204,>0506&nbsp;&nbsp; data to verify</pre>
+</td>
+</tr>
+</table>
+
+<h4>
+<br>
+<a NAME="SMVB"></a>SmartMedia Verify SMVB</h4>
+<b>R0</b>: Pointer to SmartMedia address.
+<br><b>R1</b>: Value to verify (in left byte)
+<br><b>R2</b>: Number of bytes to check.
+<p>This routine works just like SMV, but it expects all bytes to match
+a given value. It comes handy to check whether a sector is blank, i.e.
+contains only >FF bytes.
+<p>If all bytes match, the routine returns with the Eq bit set, a condition
+which can be trapped with JEQ. If a mismatch is detected, the routine returns
+with the Eq bit reset (use JNE to trap it), and R2 will contain the number
+of the first offending byte (counting from zero on).
+<p>Example:
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp;&nbsp; R0,SMADR
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp;&nbsp; R1,>FFFF
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp;&nbsp; R2,>0100
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP&nbsp; @SMVB
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; JEQ&nbsp;&nbsp; OK
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; JNE&nbsp;&nbsp; UHOH</pre>
+
+<pre>SMADR&nbsp; DATA&nbsp; >FFFF,>1234&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 2-byte sector number
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA&nbsp; >0000&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; start at beginning of sector&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<h4>
+<br>
+<a NAME="SMW"></a>SmartMedia Write SMW</h4>
+<b>R0</b>: Pointer to SmartMedia address.
+<br><b>R1</b>: Pointer to a buffer in CPU memory.
+<br><b>R2</b>: Number of bytes to check. Maximum: 256+8 bytes or 512+16
+bytes, depending on the card.
+<p>This routine is used to write to the SmartMedia card. Generally, it
+is best to write one sector at a time. It is impossible to write more than
+one sector, because the card won't accept more bytes than fit in a sector
+plus its extra information bytes. It is possible to write less than a sector,
+but be aware that it's not reliable to write more than twice to the same
+sector. So if you don't cover the whole sector with two write operations,
+the remaining bytes should remain untouched.
+<p>Once it is done writing, the routine performs a status check. If everything
+went well, it returns with the Eq bit set. If the error flag was raised
+in the status byte, the routine returns with the Eq bit reset. This may
+happened if the card is write protected, for instance. The routine will
+not return until the card signals that it is ready to continue.
+<p>Example:
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp;&nbsp; R0,SMADR
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp;&nbsp; R1,BUFFER
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp;&nbsp; R2,256
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP&nbsp; @SMW
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; JNE&nbsp;&nbsp; ERROR</pre>
+
+<pre>SMADR&nbsp; DATA&nbsp; >0012,>3456&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4-byte sector number
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA&nbsp; >FF00&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; treat card as a 256 bytes/sector card&nbsp;
+BUFFER DATA&nbsp; >0102,>0204,etc&nbsp;&nbsp;&nbsp;&nbsp; data to write&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<h4>
+<br>
+<a NAME="SMRX"></a>SmartMedia Read eXtra bytes SMRX</h4>
+<b>R0</b>: Pointer to SmartMedia address.
+<br><b>R1</b>: Pointer to a buffer in CPU memory.
+<br><b>R2</b>: Number of bytes to read.
+<p>This routine works just like SMR, except that it reads only the extra
+info bytes associated with the requested sector. Cards with 256-byte sectors
+will have 8 extra bytes per sector, whereas 512 bytes/sector cards have
+16 extra bytes. You can read more that this number, however, since reading
+will continue with the extra bytes of the next sector(s).
+<p>Note that this routine will never read data from the sector itself.
+It is thus usefull to determine the sector size: read 520 bytes with SMR,
+then 8 with SMRX and check wether these 8 bytes match bytes 256 through
+261, or to bytes 512 through 519.
+<p>Example:
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp;&nbsp; R0,SMADR
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp;&nbsp; R1,BUFFER
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp;&nbsp; R2,15
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP&nbsp; @SMRX</pre>
+
+<pre>SMADR&nbsp; DATA&nbsp; >FF00,>1234&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 3-byte sector number
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA&nbsp; >0001&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; start at second extra byte (dummy example)
+BUFFER BSS&nbsp;&nbsp; 16&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; buffer space&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<h4>
+<br>
+<a NAME="SMWX"></a>SmartMedia Write eXtra bytes SMWX</h4>
+<b>R0</b>: Pointer to SmartMedia address.
+<br><b>R1</b>: Pointer to a buffer in CPU memory.
+<br><b>R2</b>: Number of bytes to write (8 or 16, depending on the card).
+<p>This routine is used to write the extra information bytes associated
+with the specified sector. It is generally best to write all of them at
+a time, and not to exceed the maximum (although some card may accept more,
+I'm not sure if they get written properly). Another solution is to write
+the extra bytes together with the sector data, using SMW instead of SMWX.
+<p>Just like SMW, this routine performs a status check when done and returns
+with the Eq bit set if everything went well, and with the Eq bit reset
+if the status reported an error.
+<p>Example:
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp;&nbsp; R0,SMADR
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp;&nbsp; R1,BUFFER
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp;&nbsp; R2,8
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP&nbsp; @SMWX
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; JNE&nbsp;&nbsp; ERROR</pre>
+
+<pre>SMADR&nbsp; DATA&nbsp; >FF00,>0002&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 3-byte sector number
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA&nbsp; >0000&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; start from byte 0
+BUFFER DATA&nbsp; >FFFF,>00FF,>FF01,>0203&nbsp;&nbsp;&nbsp;&nbsp; data to write&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<h4>
+<br>
+<a NAME="SME"></a>SmartMedia Erase SME</h4>
+<b>R0</b>: Pointer to SmartMedia address.
+<p>This routine is used to erase a block of sectors. Depending on the card
+(again!), there may be 16 or 32 sectors per block. The SmartMedia address
+should consist in two words containing the number a a sector within the
+block to erase. No need for a byte offset in this case.
+<p>Once done, the routine performs a status check and returns with the
+Eq bit set if everything went well. If an error occured (most likely, the
+card being protected), it returns with the Eq bit reset.
+<p>Example:
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp;&nbsp; R0,SMADR&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Address pointer
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP&nbsp; @SME
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; JNE&nbsp;&nbsp; ERROR</pre>
+
+<pre>SMADR&nbsp; DATA&nbsp; >FFFF,>1234&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 2-byte sector number&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<h4>
+<br>
+<a NAME="SMID"></a>SmartMedia Identification SMID</h4>
+<b>R0</b>: Pointer to SmartMedia address, which should be zero.
+<br><b>R1</b>: Will contain manufacturer &amp; product ID
+<br><b>R2</b>: Will contain extended ID, if available.
+<p>This routine queries the card for its ID and places it into R1. The
+manufacturer ID will be in the most significant byte, the product ID in
+the least significant byte. In addition, it also checks the extended ID
+code and places it into the most significant byte of R2. If the card does
+not support the extended ID function, R2 is most likely to contain a >00
+byte, although this is not guaranteed.
+<p>ID data is usefull to identify the SmartMedia card currently inserted
+and decide of its characteristics:
+<ul>
+<li>
+How many bytes in a sector address?</li>
+
+<li>
+How many bytes per sector?</li>
+
+<li>
+How many sectors per block?</li>
+
+<li>
+Does it support multiple write/erase?</li>
+
+<li>
+What's the size of the card?</li>
+</ul>
+You will need to answer at least the first 3 questions to properly access
+the card.
+<p>Example:
+<br>&nbsp;
+<table BGCOLOR="#DADADA" >
+<caption><tbody>
+<br></tbody></caption>
+
+<tr>
+<td>
+<pre>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LI&nbsp;&nbsp;&nbsp; R0,SMADR&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Address pointer
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BLWP&nbsp; @SMID
+
+SMADR&nbsp; DATA&nbsp; >FF00,>0000&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 3-byte sector number: sector 0
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DATA&nbsp; >0000&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; byte offset should be zero too&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</pre>
+</td>
+</tr>
+</table>
+
+<p>If the card returns an ID that you don't know, you'll have to answer
+the above questions by trial and error. This is easier to do if the card
+is blank, as there is no concern about loosing data in the process...
+<p>Number of address bytes: Try five, then four, then three with a SMVB
+operation on sector 0. If it reads as all >00, then you probably don't
+have the right number of address bytes (unless of course the card is not
+blank, and sector zero was filled with >00s).
+<p>Bytes per sector: Read and save 16 info bytes for sector 0 with SMRX.
+Write an 8-byte test string to sector 0 info area with SMWX. Read 520 bytes
+from sector 0 with SMR. Check if your test string appears at bytes 256-263,
+or at bytes 512-530. Restore 8 or 16 info bytes (depending on the sector
+size) with SMWX.
+<p>Sectors per block: Save the first 32 sectors with SMR (optional). Write
+a test string to sector 17 with SMW. Erase sector 0 with SME. Check if
+sector 17 became all >FF with SMVB, if not there are 16 sectors per block.
+Restore 16 or 32 sectors with multiple calls to SMW (optional).
+<br>&nbsp;
+<address>
+Revision 1. 6/24/03 Preliminary</address>
+
+<address>
+Revision 2. 9/17/03 Added quote marks with CSEG</address>
+
+<address>
+Revision 3. 11/12/03 Added ISP1161 routines and standard memory routines.</address>
+
+<address>
+Revision 4. 12/16/03 Added MYSTUB segment and SmartMedia routines.</address>
+
+<address>
+Revision 5. 1/19/04 Added EEPROM stucture and segment order. Plus cosmetic
+changes.</address>
+
+<address>
+Revision 6. 1/26/04 Added SGBLX, etc. Changed RAMPG call to BLWP.</address>
+
+<address>
+Revision 7. 2/9/04 Added slot concept, device name in info, changed removal
+info.</address>
+
+<address>
+Revision 8. 3/1/04 Added notes on workspaces. Fixed calls to memory subroutines.</address>
+
+<address>
+Revision 9. 5/5/04 Added SMVB and note on determinige SM card characteristics.</address>
+
+<address>
+Revision 10. 5/13/04 Added source files for SM and ISP1161 routines.</address>
+
+<address>
+Revision 11. 1/2/05 Added R3 for VMBR and VMBW.</address>
+
+<address>
+Revision 12. 2/6/05 Added NEWWS routine.</address>
+
+<address>
+Revision 13. 6/1/09 Added LOCKDS, rewritting SRAM part, reorganized chapters.</address>
+
+<br>&nbsp;
+<p>&nbsp;
+<p><a href="usb_load.htm">Next page</a> (DSR loader and manager)
+<br><a href="usb2.htm">Previous page</a> (Programming the USB-SM card)
+<center>
+<p><a href="titechpages.htm">Back to the TI-99/4A Tech Pages</a></center>
+
+</body>
+</html>
