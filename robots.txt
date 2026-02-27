@@ -1,5 +1,9 @@
 # robots.txt file for http://www.nouspikel.com
 
-#No robots allowed on this site!
+# Exclude zipped files
 User-agent: *
-Disallow: /
+Disallow: /*.zip
+
+# Exclude PDF files
+User-agent: *
+Disallow: /*.pdf
